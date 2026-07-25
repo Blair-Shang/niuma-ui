@@ -1,0 +1,12 @@
+node_modules
+dist
+coverage
+.DS_Store
+*.local
+.vscode/*
+!.vscode/extensions.json
+.env
+.env.*.local
+pnpm-debug.log*
+.vite
+*.tsbuildinfo
