@@ -75,4 +75,44 @@ describe('RsContextMenu', () => {
     expect(document.body.textContent).toContain('分享')
     wrapper.unmount()
   })
+
+  it('renders deep nested submenu triggers', async () => {
+    const wrapper = mount(RsContextMenu, {
+      props: {
+        items: [
+          {
+            key: 'move',
+            label: '移动到',
+            children: [
+              {
+                key: 'workspace',
+                label: '工作区',
+                children: [
+                  {
+                    key: 'archive',
+                    label: '归档',
+                    children: [{ key: 'y2026', label: '2026' }],
+                  },
+                ],
+              },
+            ],
+          },
+          ...Array.from({ length: 20 }, (_, i) => ({
+            key: `item-${i}`,
+            label: `项 ${i}`,
+          })),
+        ],
+      },
+      slots: { default: '<div class="trigger">Right click</div>' },
+      attachTo: document.body,
+    })
+    await wrapper.find('.trigger').trigger('contextmenu')
+    await flushPromises()
+    const content = document.body.querySelector('.rs-context-menu__content')
+    expect(content).not.toBeNull()
+    expect(content?.classList.contains('rs-native-scrollbar')).toBe(true)
+    expect(document.body.textContent).toContain('移动到')
+    expect(document.body.textContent).toContain('项 19')
+    wrapper.unmount()
+  })
 })

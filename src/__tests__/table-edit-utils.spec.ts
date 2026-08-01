@@ -38,6 +38,28 @@ describe('table-edit-utils editors', () => {
     ).toBe('2024-01-15')
   })
 
+  it('stringifies object cell values for edit draft', () => {
+    const binary = { $binary: '566h55CG5ZGYMDAx' }
+    expect(
+      resolveCellEditText(
+        { userName: binary },
+        { key: 'userName', title: 'userName' },
+        0,
+      ),
+    ).toBe(JSON.stringify(binary))
+    expect(
+      resolveCellEditText(
+        { userName: binary },
+        {
+          key: 'userName',
+          title: 'userName',
+          formatter: (v) => (typeof v === 'object' ? JSON.stringify(v) : String(v)),
+        },
+        0,
+      ),
+    ).toBe(JSON.stringify(binary))
+  })
+
   it('detects boolean toggle columns', () => {
     expect(isBooleanToggleColumn({ key: 'a', title: 'A', valueType: 'boolean' })).toBe(true)
     expect(isBooleanToggleColumn({ key: 'a', title: 'A', valueType: 'text' })).toBe(false)

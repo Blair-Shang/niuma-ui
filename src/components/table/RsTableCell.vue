@@ -35,6 +35,7 @@ const props = withDefaults(
     editing?: boolean
     dirty?: boolean
     focused?: boolean
+    /** 编辑草稿（string）；number 列也在此以文本承载，commit 时再 parse */
     draft?: string
     hasCustomSlot?: boolean
     hasEditSlot?: boolean

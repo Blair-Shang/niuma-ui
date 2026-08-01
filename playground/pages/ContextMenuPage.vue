@@ -44,6 +44,130 @@ const submenuItems = [
   { key: 'delete', label: '删除', icon: 'trash-2', danger: true },
 ]
 
+/** 多项 + 多级嵌套压测：验证滚动、子菜单切换与贴边定位流畅度 */
+const deepStressItems = [
+  { key: 'open', label: '打开', icon: 'folder-open', shortcut: '⌘O' },
+  { key: 'open-with', label: '打开方式', icon: 'app-window', children: [
+    { key: 'open-default', label: '默认应用' },
+    { key: 'open-editor', label: '代码编辑器' },
+    { key: 'open-browser', label: '浏览器' },
+    {
+      key: 'open-other',
+      label: '其他应用',
+      children: [
+        { key: 'open-preview', label: '预览' },
+        { key: 'open-hex', label: '十六进制查看器' },
+        { key: 'open-diff', label: '对比工具' },
+      ],
+    },
+  ] },
+  { key: 'sep-a', label: '', separator: true },
+  {
+    key: 'new',
+    label: '新建',
+    icon: 'plus',
+    children: [
+      { key: 'new-file', label: '文件', icon: 'file' },
+      { key: 'new-folder', label: '文件夹', icon: 'folder' },
+      {
+        key: 'new-from-template',
+        label: '从模板',
+        icon: 'layout-template',
+        children: [
+          { key: 'tpl-blank', label: '空白文档' },
+          { key: 'tpl-readme', label: 'README' },
+          {
+            key: 'tpl-team',
+            label: '团队模板',
+            children: [
+              { key: 'tpl-alpha', label: 'Alpha 规范' },
+              { key: 'tpl-beta', label: 'Beta 清单' },
+              { key: 'tpl-gamma', label: 'Gamma 报告', disabled: true },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    key: 'move',
+    label: '移动到',
+    icon: 'folder-input',
+    children: [
+      { key: 'move-root', label: '根目录' },
+      {
+        key: 'move-workspace',
+        label: '工作区',
+        children: [
+          { key: 'move-ws-design', label: '设计' },
+          { key: 'move-ws-docs', label: '文档' },
+          {
+            key: 'move-ws-archive',
+            label: '归档分区',
+            children: [
+              { key: 'move-arc-2024', label: '2024' },
+              { key: 'move-arc-2025', label: '2025' },
+              { key: 'move-arc-2026', label: '2026' },
+            ],
+          },
+        ],
+      },
+      { key: 'move-trash', label: '回收站', danger: true },
+    ],
+  },
+  {
+    key: 'share',
+    label: '分享',
+    icon: 'share-2',
+    children: [
+      { key: 'share-link', label: '复制链接', icon: 'link' },
+      { key: 'share-email', label: '邮件', icon: 'mail' },
+      {
+        key: 'share-team',
+        label: '团队空间',
+        children: Array.from({ length: 12 }, (_, i) => ({
+          key: `share-ch-${i + 1}`,
+          label: `频道 ${String(i + 1).padStart(2, '0')}`,
+        })),
+      },
+    ],
+  },
+  { key: 'sep-b', label: '', separator: true },
+  ...Array.from({ length: 18 }, (_, i) => ({
+    key: `action-${i + 1}`,
+    label: `批量操作项 ${String(i + 1).padStart(2, '0')}`,
+    icon: i % 3 === 0 ? 'zap' : i % 3 === 1 ? 'tag' : 'star',
+  })),
+  { key: 'sep-c', label: '', separator: true },
+  {
+    key: 'advanced',
+    label: '高级',
+    icon: 'settings',
+    children: [
+      { key: 'adv-props', label: '属性' },
+      { key: 'adv-perm', label: '权限' },
+      {
+        key: 'adv-export',
+        label: '导出为',
+        children: [
+          { key: 'exp-json', label: 'JSON' },
+          { key: 'exp-csv', label: 'CSV' },
+          {
+            key: 'exp-archive',
+            label: '压缩包',
+            children: [
+              { key: 'exp-zip', label: 'ZIP' },
+              { key: 'exp-tar', label: 'TAR.GZ' },
+              { key: 'exp-7z', label: '7Z', disabled: true },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  { key: 'delete', label: '删除', icon: 'trash-2', danger: true, shortcut: '⌫' },
+]
+
 const files = [
   { id: '1', name: '设计稿 v3.fig', type: '设计', updated: '今天 14:20' },
   { id: '2', name: 'API 规范.md', type: '文档', updated: '昨天 09:15' },
@@ -125,6 +249,28 @@ function onFileAction(key: string, fileName: string) {
           <span class="trigger-panel__hint">含「分享到」子菜单</span>
         </button>
       </RsContextMenu>
+    </DemoBlock>
+
+    <DemoBlock title="压测：多项 + 多级嵌套">
+      <p class="hint">
+        主菜单约 30 项（需滚动）；含并行子菜单与最多 4 级嵌套。可快速在「新建 / 移动到 / 分享 /
+        高级」间切换，并在视口边缘右键验证贴边翻转与滚动流畅度。
+      </p>
+      <div class="stress-grid">
+        <RsContextMenu :items="deepStressItems" @select="onSelect">
+          <button type="button" class="trigger-panel">
+            <span class="trigger-panel__title">中心区域</span>
+            <span class="trigger-panel__hint">右键：长列表 + 多级子菜单</span>
+          </button>
+        </RsContextMenu>
+        <RsContextMenu :items="deepStressItems" @select="onSelect">
+          <button type="button" class="trigger-panel trigger-panel--edge">
+            <span class="trigger-panel__title">靠右下角</span>
+            <span class="trigger-panel__hint">验证 collision 翻转</span>
+          </button>
+        </RsContextMenu>
+      </div>
+      <p class="value">最近操作：<code>{{ lastSelect }}</code></p>
     </DemoBlock>
 
     <DemoBlock title="场景：文件列表">
@@ -242,5 +388,20 @@ function onFileAction(key: string, fileName: string) {
 .file-row__meta {
   font-size: var(--rs-font-size-xs);
   color: var(--rs-muted);
+}
+.stress-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+@media (max-width: 640px) {
+  .stress-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.trigger-panel--edge {
+  min-height: 7rem;
+  justify-content: flex-end;
 }
 </style>

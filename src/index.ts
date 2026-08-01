@@ -8,6 +8,20 @@ export { default as RsCheckbox } from './components/RsCheckbox.vue'
 export { default as RsDropdown } from './components/RsDropdown.vue'
 export { default as RsIcon } from './components/RsIcon.vue'
 export { default as RsInput } from './components/RsInput.vue'
+export { default as RsInputNumber } from './components/RsInputNumber.vue'
+export type { RsInputNumberValue } from './components/input-number-utils'
+export {
+  clampNumber,
+  formatNumberValue,
+  fromModelValue,
+  isNumberInputInterim,
+  normalizeCommittedNumber,
+  parseNumberInput,
+  resolveNumberPrecision,
+  roundToPrecision,
+  stepNumberValue,
+  toModelValue,
+} from './components/input-number-utils'
 export { default as RsLabel } from './components/RsLabel.vue'
 export { default as RsLink } from './components/RsLink.vue'
 export { default as RsMenu } from './components/RsMenu.vue'
@@ -64,10 +78,13 @@ export {
   applyMonacoDebugDecorations,
   buildMonacoDebugDecorations,
   ensureMongodbShellLanguage,
+  MONACO_GENERIC_SQL_LANGUAGE,
   MONACO_MONGODB_SHELL_LANGUAGE,
   MONACO_PGSQL_LANGUAGE,
   MONACO_MYSQL_LANGUAGE,
-  patchMonacoCreateWebWorkerCompat,
+  MONACO_DAMENG_LANGUAGE,
+  MONACO_KINGBASE_LANGUAGE,
+  MONACO_SQLITE_LANGUAGE,
   RS_MONACO_DEBUG,
   setupMonacoWorkers,
 } from './monaco'

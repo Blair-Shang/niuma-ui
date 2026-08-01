@@ -60,6 +60,7 @@ describe('date-picker-utils (dayjs)', () => {
       second: 0,
     })
     expect(formatDateTimeValue('2025-06-16T14:30:00')).toBe('2025-06-16 14:30:00')
+    expect(formatDateTimeValue('2026-07-01T14:49:43Z')).toBe('2026-07-01 14:49:43')
   })
 
   it('rejects unrecognizable datetime strings', () => {

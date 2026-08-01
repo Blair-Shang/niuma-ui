@@ -70,13 +70,14 @@ async function ensureHoverPatch(): Promise<void> {
 /**
  * 配置 Monaco Editor Web Worker 环境（仅注册工厂，不预创建线程、不预拉 Worker 脚本）。
  *
+ * SQL 方言不再使用 monaco-sql-languages Worker：
+ * MySQL → Bridge LSP；其余方言静默内置 `sql`（仅 editor.worker）。
+ *
  * 必须在任何 Monaco Editor 实例创建前调用一次（通常在应用入口 main.ts 顶部）。
- * getWorker 按 label 动态 import对应 ?worker，并返回 Promise&lt;Worker&gt;（Monaco 支持）。
  */
 export function setupMonacoWorkers(): void {
   if (typeof window === 'undefined') return
 
-  // Hover patch 延后加载 monaco 内部模块，避免入口同步吞下大量 editor 代码
   void ensureHoverPatch()
 
   window.MonacoEnvironment = {
@@ -91,17 +92,7 @@ export function setupMonacoWorkers(): void {
           import('monaco-editor/esm/vs/language/typescript/ts.worker?worker'),
         ).then((Ctor) => new Ctor())
       }
-      // monaco-sql-languages：createWebWorker 的 label = languageId；仅打开对应方言编辑器时加载
-      if (label === 'pgsql') {
-        return loadWorkerCtor('pgsql', () =>
-          import('monaco-sql-languages/esm/languages/pgsql/pgsql.worker?worker'),
-        ).then((Ctor) => new Ctor())
-      }
-      if (label === 'mysql') {
-        return loadWorkerCtor('mysql', () =>
-          import('monaco-sql-languages/esm/languages/mysql/mysql.worker?worker'),
-        ).then((Ctor) => new Ctor())
-      }
+      // 任意遗留 pgsql/mysql/genericsql label 也回落到 editor.worker（静默）
       return loadWorkerCtor('editor', () =>
         import('monaco-editor/esm/vs/editor/editor.worker?worker'),
       ).then((Ctor) => new Ctor())

@@ -4,7 +4,12 @@ import { FtpIcon } from './custom/ftp'
 import { MongodbIcon } from './custom/mongodb'
 import { MysqlIcon } from './custom/mysql'
 import { RedisIcon } from './custom/redis'
+import { SqliteIcon } from './custom/sqlite'
 import { VastbaseIcon } from './custom/vastbase'
+import { DamengIcon } from './custom/dameng'
+import { OracleIcon } from './custom/oracle'
+import { ClickhouseIcon } from './custom/clickhouse'
+import { KingbaseIcon } from './custom/kingbase'
 
 export const LUCIDE_LICENSE = 'ISC'
 export const LUCIDE_ATTRIBUTION =
@@ -17,7 +22,12 @@ const customIconMap = new Map<string, Component>([
   ['mongodb', MongodbIcon],
   ['mysql', MysqlIcon],
   ['redis', RedisIcon],
+  ['sqlite', SqliteIcon],
   ['vastbase', VastbaseIcon],
+  ['dameng', DamengIcon],
+  ['oracle', OracleIcon],
+  ['clickhouse', ClickhouseIcon],
+  ['kingbase', KingbaseIcon],
 ])
 
 /** Vite 构建时收集全部 Lucide 图标，运行时按名称 O(1) 查找 */

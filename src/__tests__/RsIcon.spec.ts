@@ -63,6 +63,43 @@ describe('RsIcon', () => {
     expect(isRsIconName('mysql')).toBe(true)
   })
 
+  it('loads custom dameng icon', () => {
+    const icon = resolveLucideIcon('dameng')
+    expect(icon).toBeTruthy()
+    const wrapper = mount(RsIcon, { props: { name: 'dameng' } })
+    expect(wrapper.find('svg.rs-icon').exists()).toBe(true)
+    expect(wrapper.find('.dameng-icon__oval').exists()).toBe(true)
+    expect(wrapper.findAll('.dameng-icon__wave')).toHaveLength(3)
+    expect(isRsIconName('dameng')).toBe(true)
+  })
+
+  it('loads custom oracle icon', () => {
+    const icon = resolveLucideIcon('oracle')
+    expect(icon).toBeTruthy()
+    const wrapper = mount(RsIcon, { props: { name: 'oracle' } })
+    expect(wrapper.find('svg.rs-icon').exists()).toBe(true)
+    expect(wrapper.find('.oracle-icon__mark').exists()).toBe(true)
+    expect(isRsIconName('oracle')).toBe(true)
+  })
+
+  it('loads custom clickhouse icon', () => {
+    const icon = resolveLucideIcon('clickhouse')
+    expect(icon).toBeTruthy()
+    const wrapper = mount(RsIcon, { props: { name: 'clickhouse' } })
+    expect(wrapper.find('svg.rs-icon').exists()).toBe(true)
+    expect(wrapper.find('.clickhouse-icon__mark').exists()).toBe(true)
+    expect(isRsIconName('clickhouse')).toBe(true)
+  })
+
+  it('loads custom kingbase icon', () => {
+    const icon = resolveLucideIcon('kingbase')
+    expect(icon).toBeTruthy()
+    const wrapper = mount(RsIcon, { props: { name: 'kingbase' } })
+    expect(wrapper.find('svg.rs-icon').exists()).toBe(true)
+    expect(wrapper.find('.kingbase-icon__mark').exists()).toBe(true)
+    expect(isRsIconName('kingbase')).toBe(true)
+  })
+
   it('loads arbitrary lucide icon by name', () => {
     const icon = resolveLucideIcon('trash-2')
     expect(icon).toBeTruthy()
@@ -147,6 +184,11 @@ describe('RsIcon', () => {
   it('applies accent color to custom mysql icon', () => {
     const wrapper = mount(RsIcon, { props: { name: 'mysql', color: '#34C759' } })
     expect(wrapper.find('svg').attributes('style')).toContain('--rs-icon-mysql-accent: #34C759')
+  })
+
+  it('applies accent color to custom oracle icon', () => {
+    const wrapper = mount(RsIcon, { props: { name: 'oracle', color: '#34C759' } })
+    expect(wrapper.find('svg').attributes('style')).toContain('--rs-icon-oracle-accent: #34C759')
   })
 
   it('applies rotate transform', () => {

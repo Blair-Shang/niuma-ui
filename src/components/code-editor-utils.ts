@@ -5,6 +5,7 @@ export type RsCodeEditorLanguage =
   | 'javascript'
   | 'css'
   | 'html'
+  | 'xml'
   | 'sql'
   | 'go'
   | 'python'
@@ -52,7 +53,7 @@ export interface RsCodeEditorSqlConfig {
 }
 
 const SUPPORTED_LANGUAGES: RsCodeEditorLanguage[] = [
-  'plaintext', 'json', 'typescript', 'javascript', 'css', 'html', 'sql',
+  'plaintext', 'json', 'typescript', 'javascript', 'css', 'html', 'xml', 'sql',
   'go', 'python', 'rust', 'java', 'cpp', 'c', 'shell', 'yaml', 'toml', 'markdown', 'vue',
 ]
 
@@ -64,6 +65,7 @@ const LANGUAGE_DISPLAY_NAME: Record<RsCodeEditorLanguage, string> = {
   javascript: 'JavaScript',
   css: 'CSS',
   html: 'HTML',
+  xml: 'XML',
   sql: 'SQL',
   go: 'Go',
   python: 'Python',

@@ -208,8 +208,33 @@ export function formatCellDisplayValue<T extends RsTableRowData>(
     return options?.nullLabel ?? '(NULL)'
   }
   if (isNullDraft(String(value))) return options?.nullLabel ?? '(NULL)'
-  if (resolveColumnValueType(column) === 'boolean') {
+  const valueType = resolveColumnValueType(column)
+  if (valueType === 'boolean') {
     return coerceBoolean(value) ? '✓' : ''
+  }
+  // 与编辑态一致：date / datetime 规范为可读格式（兼容 ISO `T` / 末尾 Z）
+  if (valueType === 'date') {
+    return formatDateValue(String(value)) || String(value)
+  }
+  if (valueType === 'datetime') {
+    return formatDateTimeValue(String(value)) || String(value)
+  }
+  return cellValueToText(value)
+}
+
+/** 单元格值 → 纯文本（对象用 JSON，避免 `[object Object]`）。 */
+export function cellValueToText(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return String(value)
+  }
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value)
+    } catch {
+      return Object.prototype.toString.call(value)
+    }
   }
   return String(value)
 }
@@ -233,9 +258,10 @@ export function resolveCellEditText<T extends RsTableRowData>(
     return formatDateTimeValue(String(raw)) || String(raw)
   }
   if (column.formatter) {
-    return String(raw)
+    return cellValueToText(raw)
   }
-  return String(raw)
+  // 行数据 → 编辑草稿：number 列等在此转为文本（草稿协议为 string）
+  return cellValueToText(raw)
 }
 
 export function parseCellEditInput<T extends RsTableRowData>(
@@ -322,7 +348,7 @@ export function isCellValueChanged(previous: unknown, next: unknown): boolean {
   if (typeof previous === 'boolean' || typeof next === 'boolean') {
     return coerceBoolean(previous) !== coerceBoolean(next)
   }
-  return String(previous ?? '') !== String(next ?? '')
+  return cellValueToText(previous) !== cellValueToText(next)
 }
 
 export function isRowEditPending<T extends RsTableRowData>(

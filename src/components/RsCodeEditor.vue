@@ -2,7 +2,7 @@
 import { ref, shallowRef, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import { basicSetup } from 'codemirror'
 import { EditorState, Compartment } from '@codemirror/state'
-import { EditorView, placeholder as cmPlaceholder } from '@codemirror/view'
+import { EditorView, placeholder as cmPlaceholder, tooltips } from '@codemirror/view'
 import { oneDark } from '@codemirror/theme-one-dark'
 import type {
   RsCodeEditorDiagnostic,
@@ -47,6 +47,20 @@ const props = withDefaults(
     disabled?: boolean
     /** 是否显示内置语言标签栏（文件工作台使用外部 FileEditorToolbar 时应关闭） */
     showToolbar?: boolean
+    /**
+     * 嵌入父容器：去边框，直角，铺满父级高度。
+     * 嵌套在已有描边/分割条的面板（如过滤条）时使用，避免业务侧 :deep 改样式。
+     */
+    embedded?: boolean
+    /** 外框圆角；embedded 时强制直角 */
+    rounded?: boolean
+    /**
+     * 行号 gutter 最小宽度（px）。
+     * 用于与表格 editGutterWidth / indexWidth 对齐。
+     */
+    gutterWidth?: number
+    /** 是否显示代码折叠 gutter；过滤片段等场景可关以便与表格行号宽对齐 */
+    foldGutter?: boolean
     diagnostics?: RsCodeEditorDiagnostic[]
     placeholder?: string
     /** SQL 表/字段补全（language=sql 时生效） */
@@ -73,9 +87,22 @@ const props = withDefaults(
     readonly: false,
     disabled: false,
     showToolbar: true,
+    embedded: false,
+    rounded: true,
+    foldGutter: true,
     diagnostics: () => [],
   },
 )
+
+const rootStyle = computed(() => {
+  const style: Record<string, string> = {
+    height: resolveCodeEditorSize(props.height),
+  }
+  if (props.gutterWidth != null && props.gutterWidth > 0) {
+    style['--rs-code-editor-gutter-width'] = `${props.gutterWidth}px`
+  }
+  return style
+})
 
 const resolvedLanguage = computed(() => resolveCodeEditorLanguage(props.language))
 const resolvedLanguageLabel = computed(() => codeEditorLanguageLabel(props.language))
@@ -174,6 +201,8 @@ async function initEditor() {
     doc: model.value,
     extensions: [
       basicSetup,
+      // 嵌入 overflow:hidden 容器（如浏览过滤条）时，补全浮层挂到 body，避免被裁切后回车无法接受选项
+      ...(props.embedded ? [tooltips({ parent: document.body })] : []),
       EditorView.lineWrapping,
       editableCompartment.of(EditorView.editable.of(editable)),
       ...(props.placeholder ? [cmPlaceholder(props.placeholder)] : []),
@@ -285,8 +314,16 @@ defineExpose({
 <template>
   <div
     class="rs-code-editor"
-    :class="`rs-code-editor--${resolvedTheme}`"
-    :style="{ height: resolveCodeEditorSize(height) }"
+    :class="[
+      `rs-code-editor--${resolvedTheme}`,
+      {
+        'rs-code-editor--embedded': embedded,
+        'rs-code-editor--square': !rounded || embedded,
+        'rs-code-editor--no-fold': !foldGutter,
+        'rs-code-editor--gutter-fixed': gutterWidth != null && gutterWidth > 0,
+      },
+    ]"
+    :style="rootStyle"
   >
     <div v-if="showToolbar" class="rs-code-editor__toolbar">
       <span>{{ resolvedLanguageLabel }}</span>
@@ -353,6 +390,17 @@ defineExpose({
   background: var(--rs-input-bg);
   color: var(--rs-text);
 }
+.rs-code-editor--square {
+  border-radius: 0;
+}
+.rs-code-editor--embedded {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}
 .rs-code-editor__toolbar {
   display: flex;
   align-items: center;
@@ -373,6 +421,10 @@ defineExpose({
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+.rs-code-editor--embedded .rs-code-editor__body,
+.rs-code-editor--embedded .rs-code-editor__surface {
+  height: 100%;
 }
 .rs-code-editor__inline-edit {
   position: absolute;
@@ -476,6 +528,24 @@ defineExpose({
   background: color-mix(in srgb, var(--rs-surface-elevated) 85%, var(--rs-border) 15%) !important;
   border-right-color: var(--rs-border-subtle) !important;
   color: var(--rs-muted);
+}
+.rs-code-editor--embedded .rs-code-editor__surface :deep(.cm-editor) {
+  height: 100%;
+  background: transparent !important;
+}
+.rs-code-editor--no-fold .rs-code-editor__surface :deep(.cm-foldGutter) {
+  display: none !important;
+  width: 0 !important;
+  min-width: 0 !important;
+}
+.rs-code-editor--gutter-fixed .rs-code-editor__surface :deep(.cm-gutters) {
+  min-width: var(--rs-code-editor-gutter-width);
+}
+.rs-code-editor--gutter-fixed.rs-code-editor--no-fold .rs-code-editor__surface :deep(.cm-lineNumbers) {
+  min-width: var(--rs-code-editor-gutter-width);
+}
+.rs-code-editor--gutter-fixed.rs-code-editor--no-fold .rs-code-editor__surface :deep(.cm-lineNumbers .cm-gutterElement) {
+  min-width: calc(var(--rs-code-editor-gutter-width) - 8px);
 }
 .rs-code-editor__surface :deep(.cm-content) {
   color: var(--rs-foreground);

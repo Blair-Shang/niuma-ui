@@ -190,6 +190,27 @@ describe('RsTable', () => {
     expect(wrapper.find('.rs-table').classes()).toContain('rs-table--rounded')
   })
 
+  it('applies configurable index column width', () => {
+    const wrapper = mount(RsTable, {
+      props: { columns, data, showIndex: true, indexWidth: 40 },
+    })
+    expect(wrapper.find('.rs-table').attributes('style')).toContain('--rs-table-index-width: 40px')
+  })
+
+  it('applies configurable edit gutter width', () => {
+    const wrapper = mount(RsTable, {
+      props: {
+        columns,
+        data,
+        editable: true,
+        editGutter: true,
+        editGutterWidth: 40,
+        rowKey: 'id',
+      },
+    })
+    expect(wrapper.find('.rs-table').attributes('style')).toContain('--rs-table-gutter-width: 40px')
+  })
+
   it('uses column render function', () => {
     const wrapper = mount(RsTable, {
       props: {

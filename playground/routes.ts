@@ -12,6 +12,7 @@ export const playgroundRoutes: PlaygroundRoute[] = [
   { path: '/label', name: 'label', title: 'RsLabel', testFile: 'RsLabel.spec.ts' },
   { path: '/link', name: 'link', title: 'RsLink', testFile: 'RsLink.spec.ts' },
   { path: '/input', name: 'input', title: 'RsInput', testFile: 'RsInput.spec.ts' },
+  { path: '/input-number', name: 'input-number', title: 'RsInputNumber', testFile: 'RsInputNumber.spec.ts' },
   { path: '/icon', name: 'icon', title: 'RsIcon', testFile: 'RsIcon.spec.ts' },
   { path: '/avatar', name: 'avatar', title: 'RsAvatar', testFile: 'RsAvatar.spec.ts' },
   { path: '/card', name: 'card', title: 'RsCard', testFile: 'RsCard.spec.ts' },

@@ -48,7 +48,12 @@ function onSelect(item: RsContextMenuItem) {
         <RsIcon name="chevron-right" :size="RS_CONTEXT_MENU_ARROW_SIZE" class="rs-context-menu__arrow" />
       </ContextMenuSubTrigger>
       <ContextMenuPortal>
-        <ContextMenuSubContent class="rs-context-menu__sub-content rs-motion-reduce" :side-offset="1" :align-offset="-6">
+        <ContextMenuSubContent
+          class="rs-context-menu__sub-content rs-native-scrollbar rs-motion-reduce"
+          :side-offset="2"
+          :align-offset="-6"
+          :collision-padding="8"
+        >
           <RsContextMenuItems :items="item.children" @select="emit('select', $event)" />
         </ContextMenuSubContent>
       </ContextMenuPortal>

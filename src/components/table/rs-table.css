@@ -306,9 +306,10 @@
   table-layout: auto;
   width: 100%;
 }
-/* resizable + fixed：colgroup 精确锁定每列宽度 */
+/* resizable + fixed：colgroup 精确锁定每列宽度；width:100% 让列少时拉满容器 */
 .rs-table--resizable.rs-table--col-fixed .rs-table__table {
   table-layout: fixed;
+  width: 100%;
 }
 /* 勿把 resizable 表头改成 position:relative：会覆盖 .rs-table__th 的 sticky，
    导致纵向滚动时表头跟正文一起滚走。sticky 本身已建立绝对定位包含块，拖拽把手可用。 */
@@ -462,7 +463,10 @@
 }
 .rs-table__th--index,
 .rs-table__td--index {
-  width: 56px;
+  width: var(--rs-table-index-width, 56px);
+  min-width: var(--rs-table-index-width, 56px);
+  max-width: var(--rs-table-index-width, 56px);
+  box-sizing: border-box;
   color: var(--rs-table-muted-fg);
 }
 .rs-table--edit-gutter .rs-table__th--gutter,
@@ -877,6 +881,74 @@
 .rs-table--lg .rs-table-cell-editor--inline .rs-input-group__control {
   padding: var(--rs-space-md) var(--rs-space-lg);
 }
+/*
+ * number：RsInputNumber 使用独立 DOM（.rs-input-number），需与 RsInput 同样压平，
+ * 否则会保留圆角/边框/焦点环，与 td--editing 轮廓叠成「框套框」。
+ */
+.rs-table-cell-editor--inline .rs-input-number-field {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+.rs-table-cell-editor--inline .rs-input-number,
+.rs-table-cell-editor--inline .rs-input-number.rs-input-number--ssm,
+.rs-table-cell-editor--inline .rs-input-number.rs-input-number--sm,
+.rs-table-cell-editor--inline .rs-input-number.rs-input-number--md,
+.rs-table-cell-editor--inline .rs-input-number.rs-input-number--lg,
+.rs-table-cell-editor--inline .rs-input-number:hover,
+.rs-table-cell-editor--inline .rs-input-number:focus-within,
+.rs-table-cell-editor--inline .rs-input-number.rs-input-number--invalid,
+.rs-table-cell-editor--inline .rs-input-number.rs-input-number--invalid:focus-within {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0 !important;
+  margin: 0;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: hidden;
+  transition: none !important;
+}
+.rs-table-cell-editor--inline .rs-input-number__control,
+.rs-table-cell-editor--inline .rs-input-number__control.rs-input-number__control--ssm,
+.rs-table-cell-editor--inline .rs-input-number__control.rs-input-number__control--sm,
+.rs-table-cell-editor--inline .rs-input-number__control.rs-input-number__control--lg {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: var(--rs-space-sm) var(--rs-space-md);
+  border: 0;
+  outline: none;
+  border-radius: 0;
+  background: transparent !important;
+  color: inherit;
+  font: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  box-shadow: none !important;
+}
+.rs-table-cell-editor--inline .rs-input-number__control:focus {
+  outline: none;
+  box-shadow: none !important;
+}
+.rs-table--compact .rs-table-cell-editor--inline .rs-input-number__control,
+.rs-table--sm .rs-table-cell-editor--inline .rs-input-number__control {
+  padding: var(--rs-space-xs) var(--rs-space-sm);
+}
+.rs-table--lg .rs-table-cell-editor--inline .rs-input-number__control {
+  padding: var(--rs-space-md) var(--rs-space-lg);
+}
+.rs-table-cell-editor--inline .rs-input-number__handlers {
+  border-left-color: transparent;
+}
+.rs-table-cell-editor--inline .rs-input-number__handler--up {
+  border-bottom-color: transparent;
+}
 /* select / date：同样压平触发器，由 td--editing 轮廓承担编辑反馈 */
 .rs-table-cell-editor--inline .rs-select,
 .rs-table-cell-editor--inline .rs-select--block {
@@ -942,9 +1014,11 @@
   background: transparent !important;
   box-shadow: none !important;
 }
-/* Popover/表单场景：保留 RsInput 默认外观 */
+/* Popover/表单场景：保留 RsInput / RsInputNumber 默认外观 */
 .rs-table-cell-editor--field .rs-input-field,
-.rs-table-cell-editor--field .rs-input-group {
+.rs-table-cell-editor--field .rs-input-group,
+.rs-table-cell-editor--field .rs-input-number-field,
+.rs-table-cell-editor--field .rs-input-number {
   width: 100%;
 }
 

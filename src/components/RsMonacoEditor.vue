@@ -7,7 +7,8 @@ import {
   ensureMongodbShellLanguage,
   MONACO_MONGODB_SHELL_LANGUAGE,
   MONACO_MYSQL_LANGUAGE,
-  MONACO_PGSQL_LANGUAGE,
+  MONACO_DAMENG_LANGUAGE,
+  MONACO_KINGBASE_LANGUAGE,
 } from '../monaco/languages'
 /** VS Code 式调试装饰样式（断点 / 当前行）；业务组件勿再自定义 glyph CSS */
 import '../monaco/debug-decorations.css'
@@ -82,6 +83,11 @@ const props = withDefaults(
      * 默认按标识符字符切词；Mongo Shell / SQL 等方言由业务 composable 注入，勿写进本组件。
      */
     completionPrefixResolver?: MonacoCompletionPrefixResolver
+    /**
+     * 覆盖/合并 Monaco Editor 构造选项（如 automaticLayout、suggest）。
+     * 浅合并顶层；`suggest` 会与默认 suggest 再浅合并一层。
+     */
+    options?: Record<string, unknown>
   }>(),
   {
     language: 'json',
@@ -212,13 +218,38 @@ function completionPrefix(line: string): string {
   return line.slice(start)
 }
 
-function isSqlLanguagesDialect(language: string | undefined): boolean {
-  return language === MONACO_PGSQL_LANGUAGE || language === MONACO_MYSQL_LANGUAGE
+function isManagedSqlDialect(language: string | undefined): boolean {
+  // mysql / dameng / kingbase：Bridge LSP 接管补全；勿再注册实例级 Provider
+  return (
+    language === MONACO_MYSQL_LANGUAGE ||
+    language === MONACO_DAMENG_LANGUAGE ||
+    language === MONACO_KINGBASE_LANGUAGE
+  )
+}
+
+/** 合并业务侧 options；suggest 做一层浅合并，避免整对象覆盖默认。 */
+function mergeEditorOptions(
+  overrides: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  if (!overrides) return {}
+  const out: Record<string, unknown> = { ...overrides }
+  if (
+    overrides.suggest &&
+    typeof overrides.suggest === 'object' &&
+    !Array.isArray(overrides.suggest)
+  ) {
+    out.suggest = {
+      snippetsPreventQuickSuggestions: false,
+      filterGraceful: !isManagedSqlDialect(props.language),
+      matchOnWordStartOnly: isManagedSqlDialect(props.language),
+      ...(overrides.suggest as Record<string, unknown>),
+    }
+  }
+  return out
 }
 
 function completionLanguages(): string[] {
-  // pgsql / mysql 由 monaco-sql-languages 自己的 completionService 接管，勿再注册实例级 Provider
-  if (isSqlLanguagesDialect(props.language)) {
+  if (isManagedSqlDialect(props.language)) {
     return []
   }
   if (
@@ -351,21 +382,21 @@ function initEditor(): void {
     lineDecorationsWidth: props.glyphMargin ? 16 : 4,
     overviewRulerLanes: 0,
     hideCursorInOverviewRuler: true,
-    // Shell：业务 completionRequest；pgsql/mysql：monaco-sql-languages Worker；避免 wordBased 抢补全
+    // Shell：业务 completionRequest；mysql/dameng/kingbase：Bridge LSP；避免 wordBased 抢补全
     quickSuggestions: props.language === MONACO_MONGODB_SHELL_LANGUAGE
       ? { other: true, comments: false, strings: true }
       : true,
     suggestOnTriggerCharacters: true,
     wordBasedSuggestions:
       props.language === MONACO_MONGODB_SHELL_LANGUAGE ||
-      isSqlLanguagesDialect(props.language)
+      isManagedSqlDialect(props.language)
         ? 'off'
         : 'currentDocument',
     suggest: {
       snippetsPreventQuickSuggestions: false,
       // catalog 已按前缀检索；关闭宽松模糊，避免短前缀下列表「看起来像乱匹配」
-      filterGraceful: !isSqlLanguagesDialect(props.language),
-      matchOnWordStartOnly: isSqlLanguagesDialect(props.language),
+      filterGraceful: !isManagedSqlDialect(props.language),
+      matchOnWordStartOnly: isManagedSqlDialect(props.language),
     },
     scrollbar: {
       verticalScrollbarSize: 8,
@@ -373,6 +404,7 @@ function initEditor(): void {
     },
     // Find Widget 等溢出控件使用 fixed 定位，避免被 overflow:hidden 裁剪
     fixedOverflowWidgets: true,
+    ...mergeEditorOptions(props.options),
   })
 
   editorModel.onDidChangeContent(() => {

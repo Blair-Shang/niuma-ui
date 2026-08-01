@@ -76,6 +76,16 @@ export interface RsTableColumnEditorOptions {
   multiple?: boolean
   /** select / date：可清空；表格单元格 select 默认 false（仅选择，无清除 X） */
   clearable?: boolean
+  /** number：最小值（对齐 InputNumber min） */
+  min?: number
+  /** number：最大值 */
+  max?: number
+  /** number：步进 */
+  step?: number | string
+  /** number：小数位 */
+  precision?: number
+  /** number：是否显示步进按钮；inline 单元格默认 false */
+  controls?: boolean
   /** datetime：是否含秒 */
   withSeconds?: boolean
   /** datetime：时区策略（utc 提交时补 Z） */
@@ -230,6 +240,13 @@ export function resolveCellTooltipText<T extends RsTableRowData>(
     return column.formatter(value, row, index)
   }
   if (value == null) return ''
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value)
+    } catch {
+      return Object.prototype.toString.call(value)
+    }
+  }
   return String(value)
 }
 
@@ -552,6 +569,7 @@ export function resolveLeadingColumnWidth(options: {
   showIndex?: boolean
   showEditGutter?: boolean
   gutterWidth?: number
+  indexWidth?: number
   expandable?: boolean
   rowDraggable?: boolean
 }): number {
@@ -560,7 +578,7 @@ export function resolveLeadingColumnWidth(options: {
   if (options.expandable) width += 40
   if (options.selectable) width += 40
   if (options.showEditGutter) width += options.gutterWidth ?? 32
-  else if (options.showIndex) width += 56
+  else if (options.showIndex) width += options.indexWidth ?? 56
   return width
 }
 
@@ -572,6 +590,7 @@ export function resolveFixedColumnStyles<T extends RsTableRowData>(
     showIndex?: boolean
     showEditGutter?: boolean
     gutterWidth?: number
+    indexWidth?: number
     expandable?: boolean
     rowDraggable?: boolean
   } = {},

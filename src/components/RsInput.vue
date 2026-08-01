@@ -40,7 +40,19 @@ defineOptions({ inheritAttrs: false })
 
 
 
-const model = defineModel<string>({ default: '' })
+/**
+ * modelValue 契约恒为 string（对齐 Ant Input / 原生 input.value）。
+ * get/set 变换兜住外部误传 number；原生控件用 :value + el.value，避免 type=number 的类型漂移。
+ */
+const model = defineModel<string>({
+  default: '',
+  get(value) {
+    return value == null ? '' : String(value)
+  },
+  set(value) {
+    return value == null ? '' : String(value)
+  },
+})
 
 
 
@@ -368,6 +380,13 @@ function onInput() {
 
 }
 
+/** 受控写入：始终取 DOM string value，不依赖 v-model 对 type=number 的隐式行为。 */
+function onNativeInput(event: Event) {
+  const el = event.target as HTMLInputElement | null
+  model.value = el?.value ?? ''
+  onInput()
+}
+
 
 
 function onBlur(event: FocusEvent) {
@@ -546,9 +565,11 @@ defineExpose({
 
         <input
 
+          v-bind="attrs"
+
           :id="resolvedId"
 
-          v-model="model"
+          :value="model"
 
           class="rs-input-group__control"
 
@@ -568,9 +589,7 @@ defineExpose({
 
           :aria-describedby="displayMessage ? errorId : undefined"
 
-          v-bind="attrs"
-
-          @input="onInput"
+          @input="onNativeInput"
 
           @blur="onBlur"
 

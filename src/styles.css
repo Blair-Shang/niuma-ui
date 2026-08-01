@@ -60,6 +60,22 @@
   /* MySQL 品牌图标默认强调色（MySQL 官方蓝） */
   --rs-icon-mysql-accent: #4479a1;
 
+  /* Dameng 品牌图标默认色（官网 logo 取样：蓝 / 红） */
+  --rs-icon-dameng-accent: #0000d2;
+  --rs-icon-dameng-wave: #ec1b34;
+
+  /* SQLite 品牌图标默认强调色（SQLite 官方蓝） */
+  --rs-icon-sqlite-accent: #003b57;
+
+  /* Oracle 品牌图标默认强调色（Oracle 官方红） */
+  --rs-icon-oracle-accent: #f80000;
+
+  /* ClickHouse 品牌图标默认强调色（ClickHouse 官方黄） */
+  --rs-icon-clickhouse-accent: #ffcc01;
+
+  /* 人大金仓品牌图标默认强调色（官网政务红） */
+  --rs-icon-kingbase-accent: #c9151e;
+
   /* macOS 风格原生滚动条（与 RsScrollbar 视觉一致） */
   --rs-scrollbar-size: 13px;
   --rs-scrollbar-padding: 2px;
@@ -150,6 +166,12 @@
   --rs-icon-mongodb-accent: #5cb85c;
   --rs-icon-vastbase-accent: #ff8a3d;
   --rs-icon-mysql-accent: #5a9fd4;
+  --rs-icon-sqlite-accent: #5aafd4;
+  --rs-icon-dameng-accent: #4d4dff;
+  --rs-icon-dameng-wave: #ff4d63;
+  --rs-icon-oracle-accent: #ff4d4d;
+  --rs-icon-clickhouse-accent: #ffe066;
+  --rs-icon-kingbase-accent: #ff4d57;
   --rs-focus-border: var(--rs-primary);
   --rs-focus-ring: color-mix(in srgb, var(--rs-primary) 28%, transparent);
   --rs-focus-ring-width: 2px;
@@ -377,6 +399,12 @@
   --rs-icon-mongodb-accent: #47a248;
   --rs-icon-vastbase-accent: #ff6f1a;
   --rs-icon-mysql-accent: #4479a1;
+  --rs-icon-sqlite-accent: #003b57;
+  --rs-icon-dameng-accent: #0000d2;
+  --rs-icon-dameng-wave: #ec1b34;
+  --rs-icon-oracle-accent: #f80000;
+  --rs-icon-clickhouse-accent: #ffcc01;
+  --rs-icon-kingbase-accent: #c9151e;
 }
 
 /**
@@ -937,5 +965,61 @@ code {
 
 .rs-context-menu__item[data-highlighted] .lucide-mysql-icon .mysql-icon__mark,
 .rs-context-menu__item[data-state='open'] .lucide-mysql-icon .mysql-icon__mark {
+  fill: rgb(255 255 255 / 0.95);
+}
+
+/* Dameng 自定义图标：官方品牌 mark（蓝椭圆 + 红波浪） */
+.lucide-dameng-icon .dameng-icon__oval {
+  fill: var(--rs-icon-dameng-accent);
+}
+
+.lucide-dameng-icon .dameng-icon__wave {
+  fill: var(--rs-icon-dameng-wave);
+}
+
+.rs-context-menu__item[data-highlighted] .lucide-dameng-icon .dameng-icon__oval,
+.rs-context-menu__item[data-state='open'] .lucide-dameng-icon .dameng-icon__oval,
+.rs-context-menu__item[data-highlighted] .lucide-dameng-icon .dameng-icon__wave,
+.rs-context-menu__item[data-state='open'] .lucide-dameng-icon .dameng-icon__wave {
+  fill: rgb(255 255 255 / 0.95);
+}
+
+/* SQLite 自定义图标：官方品牌 mark，单色填充随主题调整明暗对比度 */
+.lucide-sqlite-icon .sqlite-icon__mark {
+  fill: var(--rs-icon-sqlite-accent);
+}
+
+.rs-context-menu__item[data-highlighted] .lucide-sqlite-icon .sqlite-icon__mark,
+.rs-context-menu__item[data-state='open'] .lucide-sqlite-icon .sqlite-icon__mark {
+  fill: rgb(255 255 255 / 0.95);
+}
+
+/* Oracle 自定义图标：官方品牌 oval mark，单色填充随主题调整明暗对比度 */
+.lucide-oracle-icon .oracle-icon__mark {
+  fill: var(--rs-icon-oracle-accent);
+}
+
+.rs-context-menu__item[data-highlighted] .lucide-oracle-icon .oracle-icon__mark,
+.rs-context-menu__item[data-state='open'] .lucide-oracle-icon .oracle-icon__mark {
+  fill: rgb(255 255 255 / 0.95);
+}
+
+/* ClickHouse 自定义图标：官方品牌 barcode mark，单色填充随主题调整明暗对比度 */
+.lucide-clickhouse-icon .clickhouse-icon__mark {
+  fill: var(--rs-icon-clickhouse-accent);
+}
+
+.rs-context-menu__item[data-highlighted] .lucide-clickhouse-icon .clickhouse-icon__mark,
+.rs-context-menu__item[data-state='open'] .lucide-clickhouse-icon .clickhouse-icon__mark {
+  fill: rgb(255 255 255 / 0.95);
+}
+
+/* 人大金仓自定义图标：官方品牌 K lettermark，单色填充随主题调整明暗对比度 */
+.lucide-kingbase-icon .kingbase-icon__mark {
+  fill: var(--rs-icon-kingbase-accent);
+}
+
+.rs-context-menu__item[data-highlighted] .lucide-kingbase-icon .kingbase-icon__mark,
+.rs-context-menu__item[data-state='open'] .lucide-kingbase-icon .kingbase-icon__mark {
   fill: rgb(255 255 255 / 0.95);
 }

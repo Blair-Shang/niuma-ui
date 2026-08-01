@@ -10,6 +10,7 @@ const router = createRouter({
     { path: '/label', component: () => import('./pages/LabelPage.vue') },
     { path: '/link', component: () => import('./pages/LinkPage.vue') },
     { path: '/input', component: () => import('./pages/InputPage.vue') },
+    { path: '/input-number', component: () => import('./pages/InputNumberPage.vue') },
     { path: '/icon', component: () => import('./pages/IconPage.vue') },
     { path: '/avatar', component: () => import('./pages/AvatarPage.vue') },
     { path: '/card', component: () => import('./pages/CardPage.vue') },

@@ -39,6 +39,31 @@ describe('RsCodeEditor', () => {
     expect(wrapper.attributes('style')).toContain('height: 200px')
   })
 
+  it('supports embedded square chrome without consumer deep styles', () => {
+    const wrapper = mount(RsCodeEditor, {
+      props: {
+        embedded: true,
+        rounded: false,
+        foldGutter: false,
+        gutterWidth: 40,
+        showToolbar: false,
+      },
+    })
+    expect(wrapper.classes()).toContain('rs-code-editor--embedded')
+    expect(wrapper.classes()).toContain('rs-code-editor--square')
+    expect(wrapper.classes()).toContain('rs-code-editor--no-fold')
+    expect(wrapper.classes()).toContain('rs-code-editor--gutter-fixed')
+    expect(wrapper.attributes('style')).toContain('--rs-code-editor-gutter-width: 40px')
+  })
+
+  it('keeps rounded corners by default', () => {
+    const wrapper = mount(RsCodeEditor, {
+      props: { modelValue: 'select 1' },
+    })
+    expect(wrapper.classes()).not.toContain('rs-code-editor--square')
+    expect(wrapper.classes()).not.toContain('rs-code-editor--embedded')
+  })
+
   it('renders diagnostics with severity classes', () => {
     const wrapper = mount(RsCodeEditor, {
       props: {
@@ -68,6 +93,7 @@ describe('code-editor-utils', () => {
   it('resolves supported languages', () => {
     expect(resolveCodeEditorLanguage('json')).toBe('json')
     expect(resolveCodeEditorLanguage('go')).toBe('go')
+    expect(resolveCodeEditorLanguage('xml')).toBe('xml')
     expect(resolveCodeEditorLanguage('unknown')).toBe('plaintext')
   })
 

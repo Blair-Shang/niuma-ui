@@ -29,7 +29,11 @@ function onSelect(item: RsContextMenuItem) {
       <slot />
     </ContextMenuTrigger>
     <ContextMenuPortal>
-      <ContextMenuContent class="rs-context-menu__content rs-motion-reduce" :side-offset="4">
+      <ContextMenuContent
+        class="rs-context-menu__content rs-native-scrollbar rs-motion-reduce"
+        :side-offset="4"
+        :collision-padding="8"
+      >
         <RsContextMenuItems :items="items" @select="onSelect" />
       </ContextMenuContent>
     </ContextMenuPortal>
@@ -48,7 +52,11 @@ function onSelect(item: RsContextMenuItem) {
 .rs-context-menu__content,
 .rs-context-menu__sub-content {
   z-index: var(--rs-z-dropdown);
+  box-sizing: border-box;
   min-width: 11rem;
+  max-width: min(22rem, calc(100vw - 1rem));
+  /* 多项 / 多级时贴边：用 popper 可用高度限制，避免溢出视口无法点选 */
+  max-height: var(--reka-context-menu-content-available-height, calc(100vh - 1rem));
   padding: 5px;
   border-radius: 10px;
   border: 0.5px solid var(--rs-ctx-border);
@@ -57,7 +65,9 @@ function onSelect(item: RsContextMenuItem) {
   -webkit-backdrop-filter: blur(40px) saturate(180%);
   box-shadow: var(--rs-ctx-shadow);
   outline: none;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* 主菜单入场动画（从鼠标位置展开） */
@@ -66,10 +76,10 @@ function onSelect(item: RsContextMenuItem) {
   animation: rs-ctx-in 0.13s cubic-bezier(0.36, 0.07, 0.19, 0.97);
 }
 
-/* 子菜单入场动画（从父项边缘展开，方向由 popper 决定） */
+/* 子菜单：仅淡入，避免多层快速切换时 scale 造成抖动感 */
 .rs-context-menu__sub-content {
   transform-origin: var(--reka-popper-transform-origin, left center);
-  animation: rs-ctx-in 0.12s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+  animation: rs-ctx-sub-in 0.1s ease-out;
 }
 
 @keyframes rs-ctx-in {
@@ -80,6 +90,15 @@ function onSelect(item: RsContextMenuItem) {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes rs-ctx-sub-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 

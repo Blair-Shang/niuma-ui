@@ -1,5 +1,15 @@
 <script setup lang="ts" generic="T extends import('./table-utils').RsTableRowData">
-import { computed, nextTick, onActivated, onMounted, onUnmounted, ref, useSlots, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onActivated,
+  onDeactivated,
+  onMounted,
+  onUnmounted,
+  ref,
+  useSlots,
+  watch,
+} from 'vue'
 import { useRsI18n } from '../composables/useRsI18n'
 import RsIcon from './RsIcon.vue'
 import RsContextMenu from './RsContextMenu.vue'
@@ -121,6 +131,8 @@ const props = withDefaults(
     expandRowHeight?: number
     striped?: boolean
     showIndex?: boolean
+    /** 行号列宽度（px，showIndex 且未显示 edit gutter 时生效） */
+    indexWidth?: number
     showHeader?: boolean
     remoteSort?: boolean
     filterText?: string
@@ -196,7 +208,10 @@ const props = withDefaults(
     editTrigger?: 'click' | 'dblclick'
     /** 行内编辑时显示 Monaco 式 gutter（行号 / 待提交图标） */
     editGutter?: boolean
-    /** 行号列初始宽度（px） */
+    /**
+     * 编辑 gutter（行号 / 提交）列宽度（px）。
+     * 可与 RsCodeEditor 的 gutterWidth 对齐。
+     */
     editGutterWidth?: number
     /** 启用当前行高亮（与 checkbox 选区独立） */
     highlightRow?: boolean
@@ -238,8 +253,9 @@ const props = withDefaults(
      */
     viewKey?: string | number
     /**
-     * 外层 keep-alive 可见性；变为 true 时重同步虚拟滚动视口与 scroll 位置。
-     * 嵌套在 keep-alive 内的 RsTable 不会收到 onActivated，需由父级传入。
+     * 外层 keep-alive 可见性；变为 true 时重测视口并把已保存的 scroll 写回 DOM。
+     * 脱离文档后浏览器常把 scrollTop 清零，故须用内部状态恢复，而非从 DOM 回读。
+     * 父级 Session 经 onActivated/onDeactivated 传入（比单靠本组件 onActivated 更稳）。
      */
     layoutActive?: boolean
   }>(),
@@ -257,6 +273,7 @@ const props = withDefaults(
     defaultExpandedRowKeys: () => [],
     striped: false,
     showIndex: false,
+    indexWidth: 56,
     showHeader: true,
     remoteSort: false,
     defaultSelectedRowKeys: () => [],
@@ -367,7 +384,8 @@ const showEditGutterColumn = computed(() => props.editable && props.editGutter)
 const showIndexColumn = computed(() => props.showIndex && !showEditGutterColumn.value)
 const showRowStatusColumn = computed(() => props.rowCommit && props.showRowStatus && !showEditGutterColumn.value)
 
-const resolvedGutterWidth = computed(() => props.editGutterWidth)
+const resolvedGutterWidth = computed(() => Math.max(24, props.editGutterWidth || 32))
+const resolvedIndexWidth = computed(() => Math.max(24, props.indexWidth || 56))
 
 const tableEdit = useTableEdit({
   enabled: () => props.editable,
@@ -550,6 +568,13 @@ watch(
 
 let viewportResizeObserver: ResizeObserver | null = null
 
+/** keep-alive 恢复用：不受 DOM 清零 / 恢复期伪 scroll 事件干扰 */
+let preservedScrollTop = 0
+let preservedScrollLeft = 0
+/** 正在把保存的滚动写回 DOM；期间忽略 scroll 事件，避免被清零覆盖 */
+let restoringScroll = false
+let restoreGeneration = 0
+
 function syncMeasuredViewportSize(): void {
   const el = scrollContainerRef.value
   if (!el) return
@@ -563,30 +588,61 @@ function syncMeasuredViewportSize(): void {
   }
 }
 
-/** 布局稳定后再测一次，避免 fill / keep-alive 激活首帧 clientHeight 为 0 */
-function syncVirtualLayoutFromDom(): void {
+/**
+ * 失活前快照滚动。
+ * DOM 脱离文档后 scrollTop 常为 0——切勿用 0 覆盖 onScroll 已写入的位置。
+ */
+function captureScrollFromDom(): void {
+  const el = scrollContainerRef.value
+  if (el) {
+    if (el.scrollTop > 0) scrollTop.value = el.scrollTop
+    if (el.scrollLeft > 0) scrollLeft.value = el.scrollLeft
+  }
+  if (scrollTop.value > 0) preservedScrollTop = scrollTop.value
+  if (scrollLeft.value > 0) preservedScrollLeft = scrollLeft.value
+}
+
+/** 将内部保存的滚动写回 DOM，并同步 reactive（驱动虚拟切片）。 */
+function restoreScrollToDom(): void {
   const el = scrollContainerRef.value
   if (!el) return
   syncMeasuredViewportSize()
-  if (virtualScrollEnabled.value) {
-    scrollTop.value = el.scrollTop
-  }
-  if (virtualColumnsEnabled.value) {
-    scrollLeft.value = el.scrollLeft
-  }
+  const top = preservedScrollTop
+  const left = preservedScrollLeft
+  if (scrollTop.value !== top) scrollTop.value = top
+  if (scrollLeft.value !== left) scrollLeft.value = left
+  if (el.scrollTop !== top) el.scrollTop = top
+  if (el.scrollLeft !== left) el.scrollLeft = left
 }
 
+/**
+ * 布局稳定后多次写回滚动：keep-alive 切回首帧 clientHeight 常为 0，
+ * 需等 nextTick / rAF / 视口测稳后再设 scrollTop，否则会被浏览器钳成 0。
+ */
 function scheduleVirtualLayoutSync(): void {
-  syncVirtualLayoutFromDom()
+  restoreGeneration += 1
+  const gen = restoreGeneration
+  restoringScroll = true
+  const apply = (): void => {
+    if (gen !== restoreGeneration) return
+    restoreScrollToDom()
+  }
+  apply()
   void nextTick(() => {
-    syncVirtualLayoutFromDom()
+    apply()
     requestAnimationFrame(() => {
-      syncVirtualLayoutFromDom()
+      apply()
+      requestAnimationFrame(() => {
+        apply()
+        if (gen === restoreGeneration) restoringScroll = false
+      })
     })
   })
 }
 
 function resetScrollPosition(): void {
+  preservedScrollTop = 0
+  preservedScrollLeft = 0
   scrollTop.value = 0
   scrollLeft.value = 0
   const el = scrollContainerRef.value
@@ -631,7 +687,22 @@ onMounted(() => {
   scheduleVirtualLayoutSync()
   const el = scrollContainerRef.value
   if (!el || typeof ResizeObserver === 'undefined') return
-  viewportResizeObserver = new ResizeObserver(() => syncMeasuredViewportSize())
+  viewportResizeObserver = new ResizeObserver(() => {
+    const prevH = measuredViewportHeight.value
+    syncMeasuredViewportSize()
+    // keep-alive 切回：视口从 0→实高时再写一次，否则虚拟切片按错误高度算完后滚动会被钳掉
+    if (
+      prevH === 0 &&
+      measuredViewportHeight.value > 0 &&
+      (preservedScrollTop > 0 || preservedScrollLeft > 0)
+    ) {
+      restoringScroll = true
+      restoreScrollToDom()
+      requestAnimationFrame(() => {
+        restoringScroll = false
+      })
+    }
+  })
   viewportResizeObserver.observe(el)
 })
 
@@ -639,6 +710,22 @@ onActivated(() => {
   scheduleVirtualLayoutSync()
 })
 
+onDeactivated(() => {
+  captureScrollFromDom()
+})
+
+/** 失活同步快照：须在 DOM scrollTop 被清零前（或依赖 onScroll 已写入的值）。 */
+watch(
+  () => props.layoutActive,
+  (active, prev) => {
+    if (active === false && prev !== false) {
+      captureScrollFromDom()
+    }
+  },
+  { flush: 'sync' },
+)
+
+/** 激活后再测视口并写回滚动（需等布局稳定）。 */
 watch(
   () => props.layoutActive,
   (active) => {
@@ -660,8 +747,6 @@ const PREFIX_COL_WIDTH = {
   drag: 40,
   expand: 40,
   select: 40,
-  index: 56,
-  gutter: 32,
   status: 52,
 } as const
 
@@ -700,7 +785,7 @@ const fluidLeadingOffset = computed(() => {
   if (props.expandable) sum += PREFIX_COL_WIDTH.expand
   if (showSelectColumn.value) sum += PREFIX_COL_WIDTH.select
   if (showEditGutterColumn.value) sum += resolvedGutterWidth.value
-  else if (showIndexColumn.value) sum += PREFIX_COL_WIDTH.index
+  else if (showIndexColumn.value) sum += resolvedIndexWidth.value
   if (showRowStatusColumn.value) sum += PREFIX_COL_WIDTH.status
   for (const col of leftFixedDataColumns.value) sum += dataColumnWidth(col)
   return sum
@@ -761,45 +846,13 @@ const scrollContainerStyle = computed(() => {
   if (showEditGutterColumn.value) {
     style['--rs-table-gutter-width'] = `${resolvedGutterWidth.value}px`
   }
+  if (showIndexColumn.value) {
+    style['--rs-table-index-width'] = `${resolvedIndexWidth.value}px`
+  }
   return Object.keys(style).length ? style : undefined
 })
 
-/** DEV：列虚拟是否生效 + 可视切片，便于对照 heap 里 `<td>` 数量 */
-if (import.meta.env.DEV) {
-  watch(
-    () => {
-      const slice = columnVirtualSlice.value
-      const enabled = virtualColumnsEnabled.value
-      return {
-        enabled,
-        prop: props.virtualColumns,
-        threshold: props.virtualColumnsAutoThreshold,
-        fluidCols: slice.fluidCount,
-        renderedCols: slice.columns.length,
-        fluidSlice: enabled ? `${slice.startIndex}..${slice.endIndex}` : 'all',
-        padLeft: Math.round(slice.paddingLeft),
-        padRight: Math.round(slice.paddingRight),
-        resizing: isColumnResizing.value,
-      }
-    },
-    (state, prev) => {
-      if (
-        prev &&
-        state.enabled === prev.enabled &&
-        state.fluidCols === prev.fluidCols &&
-        state.fluidSlice === prev.fluidSlice &&
-        state.renderedCols === prev.renderedCols &&
-        state.resizing === prev.resizing
-      ) {
-        return
-      }
-      console.info('[RsTable:virtual-cols]', state)
-    },
-    { immediate: true },
-  )
-}
-
-/** resizable 且列宽稳定时，或拖拽会话中：表格宽度 = 各列宽度之和 */
+/** resizable 且列宽稳定时，或拖拽会话中：表格内容最小宽度 = 各列宽度之和（不含拉满补宽） */
 const resizableTableWidth = computed(() => {
   if (!props.resizable) return undefined
   if (!resizePaintWidths.value && props.columnLayout === 'auto' && !useStableColumnWidths.value) {
@@ -810,12 +863,64 @@ const resizableTableWidth = computed(() => {
   if (props.expandable) sum += PREFIX_COL_WIDTH.expand
   if (showSelectColumn.value) sum += PREFIX_COL_WIDTH.select
   if (showEditGutterColumn.value) sum += resolvedGutterWidth.value
-  else if (showIndexColumn.value) sum += PREFIX_COL_WIDTH.index
+  else if (showIndexColumn.value) sum += resolvedIndexWidth.value
   const widths = effectiveColumnWidths.value
   for (const col of displayColumns.value) {
     sum += widths[col.key] ?? parseColumnWidth(col.width ?? col.minWidth)
   }
   return `${sum}px`
+})
+
+/**
+ * 列总宽不足视口时，把剩余像素均分到数据列（前缀列不动）。
+ * 避免 fixed + resizable 把 table 锁成「列宽之和」，右侧露出表头灰底。
+ */
+const emptyFillExtras: Record<string, number> = Object.freeze({})
+const useFixedColumnLayout = computed(
+  () => useStableColumnWidths.value || isColumnResizing.value,
+)
+const columnFillExtras = computed((): Record<string, number> => {
+  if (isColumnResizing.value) return emptyFillExtras
+  if (!useFixedColumnLayout.value) return emptyFillExtras
+  if (virtualColumnsEnabled.value) return emptyFillExtras
+  const viewportW = measuredViewportWidth.value
+  if (viewportW <= 0) return emptyFillExtras
+  const cols = displayColumns.value
+  if (cols.length === 0) return emptyFillExtras
+
+  let sum = measurePrefixColumnWidth()
+  if (showRowStatusColumn.value) sum += PREFIX_COL_WIDTH.status
+  const widths = effectiveColumnWidths.value
+  for (const col of cols) {
+    sum += widths[col.key] ?? parseColumnWidth(col.width ?? col.minWidth)
+  }
+  // 预留 1px，避免边框/亚像素导致偶发横向条
+  const excess = Math.floor(viewportW - sum) - 1
+  if (excess <= 0) return emptyFillExtras
+
+  const extras: Record<string, number> = {}
+  const base = Math.floor(excess / cols.length)
+  let rem = excess - base * cols.length
+  for (const col of cols) {
+    extras[col.key] = base + (rem > 0 ? 1 : 0)
+    if (rem > 0) rem -= 1
+  }
+  return extras
+})
+
+/** 渲染用列宽 = 持久化/拖拽列宽 + 拉满补宽 */
+const renderColumnWidths = computed(() => {
+  const extras = columnFillExtras.value
+  const base = effectiveColumnWidths.value
+  if (extras === emptyFillExtras) return base
+  const next: Record<string, number> = { ...base }
+  for (const col of displayColumns.value) {
+    const extra = extras[col.key]
+    if (!extra) continue
+    const cur = next[col.key] ?? parseColumnWidth(col.width ?? col.minWidth)
+    next[col.key] = cur + extra
+  }
+  return next
 })
 
 const tableInlineStyle = computed(() => {
@@ -829,15 +934,12 @@ const tableInlineStyle = computed(() => {
         : { width: '100%' }
     }
     const width = resizableTableWidth.value
-    const minWidth = tableMinWidth.value ?? width
-    return width ? { width, minWidth } : undefined
+    if (!width) return undefined
+    // 列少时 width:100% 拉满容器；列多时靠 minWidth 撑开并横向滚动
+    return { width: '100%', minWidth: tableMinWidth.value ?? width }
   }
   return tableMinWidth.value ? { minWidth: tableMinWidth.value } : undefined
 })
-
-const useFixedColumnLayout = computed(
-  () => useStableColumnWidths.value || isColumnResizing.value,
-)
 
 /** 列最小/显式宽度之和（不含可任意压缩的流体列）。用于判断是否需要横向滚动。 */
 function estimateRequiredTableWidth(): number {
@@ -881,7 +983,7 @@ function measurePrefixColumnWidth(): number {
   if (props.expandable) sum += PREFIX_COL_WIDTH.expand
   if (showSelectColumn.value) sum += PREFIX_COL_WIDTH.select
   if (showEditGutterColumn.value) sum += resolvedGutterWidth.value
-  else if (showIndexColumn.value) sum += PREFIX_COL_WIDTH.index
+  else if (showIndexColumn.value) sum += resolvedIndexWidth.value
   return sum
 }
 
@@ -901,16 +1003,17 @@ function applyTableColumnWidths(table: HTMLTableElement, widths: Record<string, 
 }
 
 function resolvedDataColumnWidth(key: string, fallback?: number | string): number {
-  const stored = effectiveColumnWidths.value[key]
+  const stored = renderColumnWidths.value[key]
   if (typeof stored === 'number') return stored
   return parseColumnWidth(fallback)
 }
 const fixedColumnStyles = computed(() =>
-  resolveFixedColumnStyles(displayColumns.value, effectiveColumnWidths.value, {
+  resolveFixedColumnStyles(displayColumns.value, renderColumnWidths.value, {
     selectable: showSelectColumn.value,
     showIndex: showIndexColumn.value,
     showEditGutter: showEditGutterColumn.value,
     gutterWidth: resolvedGutterWidth.value,
+    indexWidth: resolvedIndexWidth.value,
     expandable: props.expandable,
     rowDraggable: showRowDragHandle.value,
   }),
@@ -956,6 +1059,75 @@ const virtualSlice = computed(() => {
     props.overscan,
   )
 })
+
+/** DEV：行/列虚拟是否生效 + 可视切片，便于对照 heap 里 `<tr>` / `<td>` 数量 */
+if (import.meta.env.DEV) {
+  watch(
+    () => {
+      const enabled = virtualScrollEnabled.value
+      const slice = virtualSlice.value
+      const total = tableEntries.value.length
+      const rendered = enabled ? slice.entries.length : total
+      return {
+        enabled,
+        prop: props.virtual,
+        threshold: props.virtualAutoThreshold,
+        fill: props.fill,
+        infinite: props.infinite,
+        rows: props.data.length,
+        entries: total,
+        rendered,
+        rowSlice: enabled
+          ? `pad ${Math.round(slice.paddingTop)}px + ${rendered} + pad ${Math.round(slice.paddingBottom)}px`
+          : 'all',
+      }
+    },
+    (state, prev) => {
+      if (
+        prev &&
+        state.enabled === prev.enabled &&
+        state.rows === prev.rows &&
+        state.rendered === prev.rendered &&
+        state.rowSlice === prev.rowSlice
+      ) {
+        return
+      }
+      console.info('[RsTable:virtual-rows]', state)
+    },
+    { immediate: true },
+  )
+  watch(
+    () => {
+      const slice = columnVirtualSlice.value
+      const enabled = virtualColumnsEnabled.value
+      return {
+        enabled,
+        prop: props.virtualColumns,
+        threshold: props.virtualColumnsAutoThreshold,
+        fluidCols: slice.fluidCount,
+        renderedCols: slice.columns.length,
+        fluidSlice: enabled ? `${slice.startIndex}..${slice.endIndex}` : 'all',
+        padLeft: Math.round(slice.paddingLeft),
+        padRight: Math.round(slice.paddingRight),
+        resizing: isColumnResizing.value,
+      }
+    },
+    (state, prev) => {
+      if (
+        prev &&
+        state.enabled === prev.enabled &&
+        state.fluidCols === prev.fluidCols &&
+        state.fluidSlice === prev.fluidSlice &&
+        state.renderedCols === prev.renderedCols &&
+        state.resizing === prev.resizing
+      ) {
+        return
+      }
+      console.info('[RsTable:virtual-cols]', state)
+    },
+    { immediate: true },
+  )
+}
 
 const visibleEntries = computed(() => virtualSlice.value.entries)
 const hasData = computed(() => dataRows.value.length > 0)
@@ -1036,7 +1208,7 @@ let resizeMoved = false
 const columnStyleMap = computed<Map<string, Record<string, string> | undefined>>(() => {
   const map = new Map<string, Record<string, string> | undefined>()
   for (const col of displayColumns.value) {
-    const base = resolveColumnStyle(col, effectiveColumnWidths.value) ?? {}
+    const base = resolveColumnStyle(col, renderColumnWidths.value) ?? {}
     const fixed = fixedCellStyle(fixedColumnStyles.value.get(col.key))
     let merged: Record<string, string> | undefined
     if (fixed) merged = { ...base, ...fixed }
@@ -1050,7 +1222,7 @@ const columnStyleMap = computed<Map<string, Record<string, string> | undefined>>
 const columnHeaderStyleMap = computed<Map<string, Record<string, string> | undefined>>(() => {
   const map = new Map<string, Record<string, string> | undefined>()
   for (const col of displayColumns.value) {
-    const base = resolveColumnStyle(col, effectiveColumnWidths.value) ?? {}
+    const base = resolveColumnStyle(col, renderColumnWidths.value) ?? {}
     const fixed = fixedCellStyle(fixedColumnStyles.value.get(col.key), { header: true })
     let merged: Record<string, string> | undefined
     if (fixed) merged = { ...base, ...fixed }
@@ -1920,15 +2092,20 @@ function onScroll(event: Event): void {
       emit('loadMore')
     }
   }
-  // 行/列虚拟滚动位置：RAF 节流，每帧最多写一次
-  if (virtualScrollEnabled.value || virtualColumnsEnabled.value) {
-    if (scrollRafId) return
-    scrollRafId = requestAnimationFrame(() => {
-      if (virtualScrollEnabled.value) scrollTop.value = element.scrollTop
-      if (virtualColumnsEnabled.value) scrollLeft.value = element.scrollLeft
+  // 始终记录滚动（含非虚拟），供 keep-alive / layoutActive 切回后恢复
+  if (scrollRafId) return
+  scrollRafId = requestAnimationFrame(() => {
+    // 恢复窗口内浏览器常先抛出 scrollTop=0 的伪事件，忽略以免冲掉已保存位置
+    if (restoringScroll) {
       scrollRafId = 0
-    })
-  }
+      return
+    }
+    scrollTop.value = element.scrollTop
+    scrollLeft.value = element.scrollLeft
+    preservedScrollTop = element.scrollTop
+    preservedScrollLeft = element.scrollLeft
+    scrollRafId = 0
+  })
 }
 
 watch(
@@ -2100,7 +2277,7 @@ onUnmounted(() => {
         <col v-if="expandable" :style="{ width: `${PREFIX_COL_WIDTH.expand}px` }">
         <col v-if="showSelectColumn" :style="{ width: `${PREFIX_COL_WIDTH.select}px` }">
         <col v-if="showEditGutterColumn" data-col-key="gutter" :style="{ width: `${resolvedGutterWidth}px` }">
-        <col v-else-if="showIndexColumn" :style="{ width: `${PREFIX_COL_WIDTH.index}px` }">
+        <col v-else-if="showIndexColumn" :style="{ width: `${resolvedIndexWidth}px` }">
         <col v-if="showRowStatusColumn" :style="{ width: `${PREFIX_COL_WIDTH.status}px` }">
         <col
           v-if="columnPadLeft > 0"

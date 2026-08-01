@@ -246,4 +246,24 @@ describe('RsInput', () => {
     await wrapper.find('input').trigger('keydown', { key: 'Enter' })
     expect(wrapper.emitted('pressEnter')).toHaveLength(1)
   })
+
+  it('keeps modelValue as string for type=number', async () => {
+    const wrapper = mount(RsInput, {
+      props: { modelValue: '10', type: 'number' },
+    })
+    const input = wrapper.find('input')
+    expect(input.attributes('type')).toBe('number')
+    await input.setValue('256')
+    const emitted = wrapper.emitted('update:modelValue')
+    expect(emitted?.at(-1)).toEqual(['256'])
+    expect(typeof emitted?.at(-1)?.[0]).toBe('string')
+  })
+
+  it('normalizes numeric modelValue prop to string display', () => {
+    const wrapper = mount(RsInput, {
+      // 模拟错误调用方传入 number；契约仍按 string 渲染
+      props: { modelValue: 256 as unknown as string, type: 'number' },
+    })
+    expect((wrapper.find('input').element as HTMLInputElement).value).toBe('256')
+  })
 })

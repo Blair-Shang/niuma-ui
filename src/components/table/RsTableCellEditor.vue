@@ -4,6 +4,7 @@ import type { RsComponentSize } from '../../theme/types'
 import { useRsI18n } from '../../composables/useRsI18n'
 import RsDatePicker from '../RsDatePicker.vue'
 import RsInput from '../RsInput.vue'
+import RsInputNumber from '../RsInputNumber.vue'
 import RsSelect from '../RsSelect.vue'
 import type { RsSelectOptions } from '../select-utils'
 import type { RsTableColumnEditorOptionsResolved, RsTableCellValueType } from '../table-utils'
@@ -73,7 +74,10 @@ const isMultipleSelect = computed(
 )
 const isDate = computed(() => props.valueType === 'date' || props.valueType === 'datetime')
 const isTextarea = computed(() => props.valueType === 'textarea')
-const isTextLike = computed(() => !isSelect.value && !isDate.value && !isTextarea.value)
+const isNumber = computed(() => props.valueType === 'number')
+const isTextLike = computed(
+  () => !isSelect.value && !isDate.value && !isTextarea.value && !isNumber.value,
+)
 const isNullValue = computed(() => isNullDraft(model.value))
 const resolvedFocusMode = computed(
   (): RsTableCellEditFocusMode => props.editorOptions?.focusMode ?? props.focusMode,
@@ -114,6 +118,18 @@ const displayModel = computed({
   },
 })
 
+/** number 列：表格草稿为 string，InputNumber stringMode 用 string | null */
+const numberDraft = computed({
+  get: (): string | null => {
+    if (isNullDraft(model.value)) return null
+    return model.value === '' ? null : model.value
+  },
+  set: (value: string | null) => {
+    if (isNullDraft(model.value) && (value == null || value === '')) return
+    model.value = value == null ? '' : String(value)
+  },
+})
+
 async function focusEditor(): Promise<void> {
   await nextTick()
   if (isSelect.value || isDate.value) return
@@ -124,6 +140,10 @@ async function focusEditor(): Promise<void> {
     | undefined
   if (!el) return
   el.focus()
+  if (isNumber.value) {
+    applyFocusMode(el, resolvedFocusMode.value)
+    return
+  }
   if (el instanceof HTMLInputElement && (el.type === 'number' || el.type === 'date' || el.type === 'datetime-local')) {
     return
   }
@@ -278,6 +298,23 @@ function onDateUpdate(value: string): void {
       :with-seconds="editorOptions?.withSeconds ?? valueType === 'datetime'"
       :placeholder="placeholder"
       @update:model-value="(v) => onDateUpdate(typeof v === 'string' ? v : '')"
+    />
+    <RsInputNumber
+      v-else-if="isNumber"
+      v-model="numberDraft"
+      string-mode
+      :size="size"
+      :placeholder="placeholder"
+      :disabled="validating"
+      :min="editorOptions?.min"
+      :max="editorOptions?.max"
+      :step="editorOptions?.step ?? 1"
+      :precision="editorOptions?.precision"
+      :controls="editorOptions?.controls ?? variant === 'field'"
+      :keyboard="true"
+      @press-enter="onPressEnter"
+      @blur="onBlur"
+      @keydown="onKeydown"
     />
     <template v-else-if="isTextarea">
       <label class="rs-table-cell-editor__sr-label" :for="textareaId">
