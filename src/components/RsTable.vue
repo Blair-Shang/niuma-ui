@@ -43,6 +43,7 @@ import {
   parseClipboardGrid,
   resolveCellEditText,
   resolveColumnEditTrigger,
+  resolveColumnEditorOptions,
   resolveColumnRawValue,
   validateCellValueAsync,
   type RsTableCellEditFocusMode,
@@ -322,6 +323,11 @@ const props = withDefaults(
 const emit = defineEmits<{
   rowClick: [row: T, index: number]
   rowDblclick: [row: T, index: number]
+  /**
+   * 单元格双击且未进入编辑时发出（只读查看大字段等）。
+   * 与 rowDblclick 同时发出，便于结果网格打开查看弹窗而不影响行级双击。
+   */
+  cellView: [row: T, column: RsTableColumn<T>, index: number]
   rowContextmenu: [row: T, index: number, event: MouseEvent]
   contextMenuSelect: [key: string, row: T | null, selectedRows: T[]]
   'update:sort': [value: RsTableSortState | null]
@@ -342,6 +348,8 @@ const emit = defineEmits<{
   'update:highlightedRowKey': [key: string | undefined]
   highlightChange: [key: string | undefined]
   cellEditStart: [row: T, column: RsTableColumn<T>, index: number]
+  /** 大字段等：请求外层弹窗编辑（不进入行内编辑态） */
+  cellEditDialog: [row: T, column: RsTableColumn<T>, index: number, draft: string]
   cellEditCommit: [row: T, column: RsTableColumn<T>, index: number, value: unknown, previous: unknown]
   cellEditCancel: [row: T, column: RsTableColumn<T>, index: number]
   cellEditInvalid: [row: T, column: RsTableColumn<T>, index: number, message: string, value: unknown]
@@ -430,6 +438,7 @@ const loadMoreLocked = ref(false)
 const internalSelectedRowKeys = ref<string[]>([...props.defaultSelectedRowKeys])
 const internalExpandedRowKeys = ref<string[]>([...props.defaultExpandedRowKeys])
 const dragColumnKey = ref<string | null>(null)
+const dropColumnKey = ref<string | null>(null)
 const rowDragState = createTableRowDragState()
 const { dragRowKeys, dropRowTargetKey, dropRowPosition } = rowDragState
 const showRowDragHandle = computed(
@@ -1285,14 +1294,20 @@ function onHeaderClick(column: RsTableColumn<T>): void {
 function onColumnDragStart(key: string, event: DragEvent): void {
   if (!props.columnDraggable) return
   dragColumnKey.value = key
+  dropColumnKey.value = null
   if (!event.dataTransfer) return
   event.dataTransfer.setData('text/plain', key)
   event.dataTransfer.effectAllowed = 'move'
 }
 
 function onColumnDragOver(key: string, event: DragEvent): void {
-  if (!props.columnDraggable || !dragColumnKey.value || dragColumnKey.value === key) return
+  if (!props.columnDraggable || !dragColumnKey.value) return
+  if (dragColumnKey.value === key) {
+    if (dropColumnKey.value !== null) dropColumnKey.value = null
+    return
+  }
   event.preventDefault()
+  if (dropColumnKey.value !== key) dropColumnKey.value = key
 }
 
 function onColumnDrop(key: string, event: DragEvent): void {
@@ -1301,10 +1316,12 @@ function onColumnDrop(key: string, event: DragEvent): void {
   if (dragColumnKey.value === key) return
   columnOrderState.value = reorderColumnKeys(columnOrderState.value, dragColumnKey.value, key)
   dragColumnKey.value = null
+  dropColumnKey.value = null
 }
 
 function onColumnDragEnd(): void {
   dragColumnKey.value = null
+  dropColumnKey.value = null
 }
 
 function onRowClick(entry: RsTableRowEntry<T>, event?: MouseEvent): void {
@@ -1598,6 +1615,11 @@ function onCellStartEdit(entry: Extract<RsTableRowEntry<T>, { type: 'row' }>, co
   if (!isColumnEditable(column, entry.row, entry.rowIndex, props.editable)) return
   const key = rowKeyFor(entry)
   const initialText = resolveCellEditText(entry.row, column, entry.rowIndex, tableEdit.getDraft(key, colKey))
+  const editorOpts = resolveColumnEditorOptions(column, entry.row, entry.rowIndex)
+  if (editorOpts.presentation === 'dialog') {
+    emit('cellEditDialog', entry.row, column, entry.rowIndex, initialText)
+    return
+  }
   tableEdit.startEdit({ rowKey: key, colKey, rowIndex: entry.rowIndex }, initialText)
   emit('cellEditStart', entry.row, column, entry.rowIndex)
 }
@@ -1777,7 +1799,7 @@ function onCellClick(entry: RsTableRowEntry<T>, colKey: string, event?: MouseEve
 
 /**
  * 单元格双击：可编辑且触发方式为 dblclick 时进入编辑；
- * 否则转发为 rowDblclick（FTP 进目录、监控打开详情等）。
+ * 否则发出 cellView（供只读大字段查看），并转发 rowDblclick（FTP 进目录等）。
  * 数据单元格上 click/dblclick 使用 .stop，必须在此桥接，否则行级事件收不到。
  */
 function onCellDblclick(entry: RsTableRowEntry<T>, colKey: string, event?: MouseEvent): void {
@@ -1792,6 +1814,9 @@ function onCellDblclick(entry: RsTableRowEntry<T>, colKey: string, event?: Mouse
   ) {
     onCellStartEdit(entry, colKey)
     return
+  }
+  if (column) {
+    emit('cellView', entry.row, column, entry.rowIndex)
   }
   onRowDblclick(entry, event)
 }
@@ -1972,8 +1997,14 @@ function rejectRowEdit(rowKey: string, reason?: string): void {
   if (entry) emit('cellEditReject', entry.row, entry.rowIndex, reason)
 }
 
-function onRowCommitEdit(entry: Extract<RsTableRowEntry<T>, { type: 'row' }>): void {
+async function onRowCommitEdit(entry: Extract<RsTableRowEntry<T>, { type: 'row' }>): Promise<void> {
   const rowKey = rowKeyFor(entry)
+  // date/datetime 等：面板确认只改 editingDraft，不会自动 stage；✓ 前先刷入 staged
+  const editing = tableEdit.editingCell.value
+  if (editing?.rowKey === rowKey) {
+    const ok = await onCellCommitEdit(entry, editing.colKey, tableEdit.editingDraft.value)
+    if (!ok) return
+  }
   const staged = tableEdit.commitRow(rowKey)
   if (!staged.length) return
   const changes = staged.map((item) => {
@@ -2017,7 +2048,7 @@ function rowEditPending(entry: Extract<RsTableRowEntry<T>, { type: 'row' }>): bo
 
 function onGutterCommit(entry: Extract<RsTableRowEntry<T>, { type: 'row' }>): void {
   if (props.rowCommit) {
-    onRowCommitEdit(entry)
+    void onRowCommitEdit(entry)
     return
   }
   if (isExternalRowPending(entry)) {
@@ -2026,7 +2057,7 @@ function onGutterCommit(entry: Extract<RsTableRowEntry<T>, { type: 'row' }>): vo
   }
   const editing = tableEdit.editingCell.value
   if (editing?.rowKey !== rowKeyFor(entry)) return
-  onCellCommitEdit(entry, editing.colKey, tableEdit.editingDraft.value)
+  void onCellCommitEdit(entry, editing.colKey, tableEdit.editingDraft.value)
 }
 
 function getRowByKey(rowKey: string): T | undefined {
@@ -2065,12 +2096,14 @@ defineExpose({
   getDirtyCellKeys: () => [...tableEdit.stagedMap.value.keys()],
   getCellError: tableEdit.getCellError,
   setCellError: tableEdit.setCellError,
+  /** 弹窗等外部编辑器写回草稿（需配合 row-commit，由用户手动点行提交） */
+  stageCell: tableEdit.stageCell,
   rejectRowEdit,
   undoEdit: onEditUndo,
   redoEdit: onEditRedo,
   commitRowEdits: (rowKey: string) => {
     const entry = dataRows.value.find((item) => rowKeyByIndex.value.get(item.rowIndex) === rowKey)
-    if (entry) onRowCommitEdit(entry)
+    if (entry) void onRowCommitEdit(entry)
   },
   rollbackRowEdits: (rowKey: string) => {
     const entry = dataRows.value.find((item) => rowKeyByIndex.value.get(item.rowIndex) === rowKey)
@@ -2370,6 +2403,7 @@ onUnmounted(() => {
               { 'rs-table__th--filterable': column.filterable },
               { 'rs-table__cell--fixed': column.fixed },
               { 'rs-table__th--dragging': dragColumnKey === column.key },
+              { 'rs-table__th--drop-target': dropColumnKey === column.key },
             ]"
             :style="columnHeaderStyleMap.get(column.key)"
             @dragover="onColumnDragOver(column.key, $event)"
@@ -2383,7 +2417,7 @@ onUnmounted(() => {
               @click.stop
               @dragstart.stop="onColumnDragStart(column.key, $event)"
               @dragend.stop="onColumnDragEnd"
-            >⋮⋮</span>
+            />
             <slot :name="`header-${column.key}`" :column="column">
               <span
                 v-if="column.headerTip"

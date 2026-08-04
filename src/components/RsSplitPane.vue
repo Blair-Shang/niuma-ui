@@ -96,14 +96,28 @@ function commit(next: number[]): void {
   emit('resize', next.slice())
 }
 
+/** pane key → 折叠前尺寸；expand 未显式传 toSize 时还原 */
+const sizeBeforeCollapse = new Map<string, number>()
+
 function emitBoundaryTransitions(before: number[], after: number[]): void {
   props.panes.forEach((pane, index) => {
     const constraint = constraints.value[index]
     const wasCollapsed = isSplitPaneCollapsed(before[index] ?? 0, constraint)
     const nowCollapsed = isSplitPaneCollapsed(after[index] ?? 0, constraint)
-    if (!wasCollapsed && nowCollapsed) emit('collapse', pane.key)
-    else if (wasCollapsed && !nowCollapsed) emit('expand', pane.key)
+    if (!wasCollapsed && nowCollapsed) {
+      const prev = before[index]
+      if (prev !== undefined) sizeBeforeCollapse.set(pane.key, prev)
+      emit('collapse', pane.key)
+    } else if (wasCollapsed && !nowCollapsed) {
+      emit('expand', pane.key)
+    }
   })
+}
+
+/** 展开目标：显式 toSize > 折叠前记忆 > 初始 size */
+function resolveExpandSize(key: string, index: number, toSize?: number): number | undefined {
+  if (toSize !== undefined) return toSize
+  return sizeBeforeCollapse.get(key) ?? initialSizes[index]
 }
 
 // —— 指针拖拽 ——
@@ -296,8 +310,14 @@ function toggleCollapseAt(index: number): void {
   if (candidate < 0) return
   const before = sizes.value.slice()
   const collapsed = isSplitPaneCollapsed(sizes.value[candidate] ?? 0, constraints.value[candidate])
+  const key = props.panes[candidate]?.key
   const next = collapsed
-    ? expandSplitPane(sizes.value, constraints.value, candidate)
+    ? expandSplitPane(
+        sizes.value,
+        constraints.value,
+        candidate,
+        key ? resolveExpandSize(key, candidate) : undefined,
+      )
     : collapseSplitPane(sizes.value, constraints.value, candidate)
   commit(next)
   emitBoundaryTransitions(before, sizes.value)
@@ -340,7 +360,9 @@ function expand(key: string, toSize?: number): void {
   const index = indexOfKey(key)
   if (index < 0) return
   const before = sizes.value.slice()
-  commit(expandSplitPane(sizes.value, constraints.value, index, toSize))
+  commit(
+    expandSplitPane(sizes.value, constraints.value, index, resolveExpandSize(key, index, toSize)),
+  )
   emitBoundaryTransitions(before, sizes.value)
   emit('resize-end', sizes.value.slice())
 }

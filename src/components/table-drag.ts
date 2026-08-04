@@ -4,6 +4,8 @@ import type { RsTableRowDropPosition } from './table-utils'
 export type RsTableRowDragTrigger = 'handle' | 'row'
 export type RsTableRowDropMode = 'reorder' | 'into'
 
+let rowDragPreviewEl: HTMLDivElement | null = null
+
 export interface TableRowDragState {
   dragRowKeys: Ref<string[]>
   dropRowTargetKey: Ref<string | null>
@@ -40,6 +42,34 @@ export function resolveDragRowKeys(
   return [dragKey]
 }
 
+/** 用轻量数字徽标替代浏览器默认单元格拖影 */
+export function applyTableRowDragImage(event: DragEvent, count: number): void {
+  if (!event.dataTransfer || typeof document === 'undefined') return
+
+  let el = rowDragPreviewEl
+  if (!el) {
+    el = document.createElement('div')
+    el.className = 'rs-table__drag-preview'
+    el.setAttribute('aria-hidden', 'true')
+    rowDragPreviewEl = el
+  }
+
+  el.textContent = String(Math.max(1, count))
+  el.hidden = false
+  el.style.cssText =
+    'position:fixed;top:0;left:0;transform:translate(-100vw,-100vh);pointer-events:none;z-index:99999'
+  if (!el.isConnected) document.body.appendChild(el)
+
+  event.dataTransfer.setDragImage(el, 12, 10)
+}
+
+export function clearTableRowDragImage(): void {
+  const el = rowDragPreviewEl
+  if (!el) return
+  el.hidden = true
+  if (el.isConnected) el.remove()
+}
+
 export interface CreateTableRowDragHandlersOptions<T> {
   state: TableRowDragState
   getRowDraggable: () => boolean
@@ -59,6 +89,12 @@ export function createTableRowDragHandlers<T>(
   options: CreateTableRowDragHandlersOptions<T>,
 ) {
   const { state } = options
+
+  function endRowDragSession(): void {
+    state.dragRowKeys.value = []
+    state.dropRowTargetKey.value = null
+    clearTableRowDragImage()
+  }
 
   function canDragRow(row: T, index: number): boolean {
     if (!options.getRowDraggable() || options.isRowDisabled(row)) {
@@ -87,17 +123,20 @@ export function createTableRowDragHandlers<T>(
 
   function onRowDragStart(row: T, index: number, event: DragEvent): void {
     if (!options.getRowDraggable() || options.isRowDisabled(row)) {
+      event.preventDefault()
       return
     }
     const dragKey = options.rowKeyFor(row, index)
     if (!canDragRow(row, index)) {
+      event.preventDefault()
       return
     }
     const dragKeys = resolveDragRowKeys(dragKey, options.getSelectedKeys())
     state.dragRowKeys.value = dragKeys
     if (event.dataTransfer) {
-      event.dataTransfer.effectAllowed = 'copyMove'
+      event.dataTransfer.effectAllowed = 'move'
       event.dataTransfer.setData('text/plain', dragKeys.join(','))
+      applyTableRowDragImage(event, dragKeys.length)
     }
     options.onDragStart(dragKeys, event)
   }
@@ -108,6 +147,7 @@ export function createTableRowDragHandlers<T>(
     }
     const dropKey = options.rowKeyFor(row, index)
     if (!canDropOnRow(row, index, dropKey)) {
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'none'
       return
     }
     event.preventDefault()
@@ -118,8 +158,7 @@ export function createTableRowDragHandlers<T>(
       options.getRowDropMode(),
     )
     if (event.dataTransfer) {
-      event.dataTransfer.dropEffect =
-        options.getRowDropMode() === 'into' ? 'move' : 'move'
+      event.dataTransfer.dropEffect = 'move'
     }
   }
 
@@ -147,14 +186,12 @@ export function createTableRowDragHandlers<T>(
       options.getRowDropMode(),
     )
     const dragKeys = [...state.dragRowKeys.value]
-    state.dragRowKeys.value = []
-    state.dropRowTargetKey.value = null
+    endRowDragSession()
     options.onDrop(dragKeys, dropKey, position)
   }
 
   function onRowDragEnd(): void {
-    state.dragRowKeys.value = []
-    state.dropRowTargetKey.value = null
+    endRowDragSession()
   }
 
   function isRowDragging(dropKey: string): boolean {

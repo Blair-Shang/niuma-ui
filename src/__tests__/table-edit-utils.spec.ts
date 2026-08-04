@@ -38,6 +38,21 @@ describe('table-edit-utils editors', () => {
     ).toBe('2024-01-15')
   })
 
+  it('edits UTC ISO as local and writes back without losing ms when unchanged', () => {
+    const raw = '2026-06-25T08:06:36.2263624Z'
+    const col = { key: 'addTime', title: 'addTime', valueType: 'datetime' as const }
+    const draft = resolveCellEditText({ addTime: raw }, col, 0)
+    const d = new Date('2026-06-25T08:06:36.226Z')
+    const pad = (n: number, w = 2) => String(n).padStart(w, '0')
+    expect(draft).toBe(
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+        `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`,
+    )
+    // 选择器通常去掉毫秒：秒级未变应还原原始串
+    const withoutMs = draft.replace(/\.\d+$/, '')
+    expect(parseCellEditInput(withoutMs, { addTime: raw }, col, 0)).toBe(raw)
+  })
+
   it('stringifies object cell values for edit draft', () => {
     const binary = { $binary: '566h55CG5ZGYMDAx' }
     expect(

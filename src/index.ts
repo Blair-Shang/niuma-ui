@@ -331,6 +331,11 @@ export {
   RS_TIME_MINUTE_FORMAT,
   RS_TIME_SECONDS_FORMAT,
 } from './lib/rs-dayjs'
+export {
+  formatIsoUtcToLocal,
+  looksLikeIsoDateTimeWithTz,
+  parseLocalDateTimeToUtcIso,
+} from './lib/iso-local-datetime'
 export type { RsParsedTime, RsTimeRangeValue } from './components/time-picker-utils'
 export {
   EMPTY_TIME_RANGE,

@@ -246,7 +246,8 @@ function onSelectUpdate(value: string | string[]): void {
 
 function onDateUpdate(value: string): void {
   model.value = value || (props.allowNull ? nullToEditText() : '')
-  // change 模式下等 dateOverlayOpen 关闭再 commit，见上方 watch
+  // rowCommit(manual)：确认/清空时写入 staged（点外侧关闭不改值，不会进这里）
+  if (props.commitOn === 'manual') emit('commit')
 }
 </script>
 

@@ -4,7 +4,7 @@ import { readDocumentTheme } from './code-editor-utils'
 export type RsTerminalThemeMode = 'auto' | 'light' | 'dark'
 export type RsResolvedTerminalTheme = 'light' | 'dark'
 
-export type RsTerminalAction = 'copy' | 'paste' | 'selectAll' | 'clear'
+export type RsTerminalAction = 'copy' | 'paste' | 'selectAll' | 'clear' | 'askAi'
 
 const TERMINAL_CSS_KEYS: Array<[keyof ITheme, string]> = [
   ['background', '--rs-terminal-bg'],

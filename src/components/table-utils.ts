@@ -92,6 +92,11 @@ export interface RsTableColumnEditorOptions {
   timezone?: 'local' | 'utc'
   /** textarea：可见行数 */
   rows?: number
+  /**
+   * 编辑呈现：inline 为单元格内编辑；dialog 由外层弹窗承接（大字段）。
+   * 为 dialog 时表格不进入行内编辑态，改为发出 cellEditDialog。
+   */
+  presentation?: 'inline' | 'dialog'
   /** 进入编辑时光标策略覆盖 */
   focusMode?: 'end' | 'select' | 'start'
 }

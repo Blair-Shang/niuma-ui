@@ -110,6 +110,13 @@ describe('RsSplitPane', () => {
     expect(vm.getSizes()).toEqual([30, 70])
     expect(wrapper.emitted('expand')?.pop()).toEqual(['a'])
 
+    vm.collapse('a')
+    await wrapper.vm.$nextTick()
+    vm.expand('a')
+    await wrapper.vm.$nextTick()
+    // 未传 toSize 时应还原折叠前宽度，而不是落到 min
+    expect(vm.getSizes()).toEqual([30, 70])
+
     vm.reset()
     await wrapper.vm.$nextTick()
     expect(vm.getSizes()).toEqual([40, 60])

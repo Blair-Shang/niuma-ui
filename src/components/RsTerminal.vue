@@ -45,6 +45,13 @@ const props = withDefaults(
     /** 覆盖内置调色板中的部分 token */
     theme?: Partial<ITheme>
     contextMenu?: boolean
+    /** 右键菜单是否展示「询问 AI」（仅 emit，业务侧自行处理） */
+    showAskAi?: boolean
+    /**
+     * 右键是否自动选中光标下单词。
+     * SSH/vim/less 等 TUI 场景建议 false，避免冲掉用户已拖选的大段文本。
+     */
+    rightClickSelectsWord?: boolean
     shortcuts?: boolean
     scrollback?: number
     /** 将裸 \\n 当作换行；PTY/SSH 建议 false，避免破坏 ncurses(top/vim) */
@@ -70,6 +77,8 @@ const props = withDefaults(
     themeMode: 'auto',
     theme: () => ({}),
     contextMenu: true,
+    showAskAi: false,
+    rightClickSelectsWord: true,
     shortcuts: true,
     scrollback: 5000,
     convertEol: false,
@@ -84,12 +93,16 @@ const emit = defineEmits<{
   data: [data: string]
   resize: [payload: { cols: number; rows: number }]
   action: [action: RsTerminalAction]
+  /** 询问 AI：携带右键菜单打开时快照的选区（避免菜单点击后选区被清空） */
+  askAi: [text: string]
 }>()
 
 const { t } = useRsI18n()
 const hostEl = ref<HTMLElement | null>(null)
 const terminalReady = ref(false)
 const hasSelection = ref(false)
+/** 右键菜单打开瞬间的选区快照（capture 阶段，早于 xterm word-select） */
+const menuSelectionSnapshot = ref('')
 const resolvedThemeMode = ref(resolveTerminalTheme(props.themeMode))
 /** fit 后量一次真实行高，避免亚像素漂移；非每帧更新 */
 const zebraRowStepPx = ref<number | null>(null)
@@ -108,35 +121,51 @@ const zebraStyle = computed((): Record<string, string> | undefined => {
   }
 })
 
-const contextMenuItems = computed<RsContextMenuItem[]>(() => [
-  {
-    key: 'copy',
-    label: t('terminal.copy', 'Copy'),
-    icon: 'copy',
-    shortcut: terminalShortcutLabel('C'),
-    disabled: false,
-  },
-  {
-    key: 'paste',
-    label: t('terminal.paste', 'Paste'),
-    icon: 'clipboard-paste',
-    shortcut: terminalShortcutLabel('V'),
-  },
-  {
-    key: 'selectAll',
-    label: t('terminal.selectAll', 'Select All'),
-    icon: 'square-mouse-pointer',
-    shortcut: terminalShortcutLabel('A'),
-  },
-  { key: 'sep-1', label: '', separator: true },
-  {
-    key: 'clear',
-    label: t('terminal.clear', 'Clear Terminal'),
-    icon: 'eraser',
-    shortcut: terminalShortcutLabel('K'),
-    danger: true,
-  },
-])
+const contextMenuItems = computed<RsContextMenuItem[]>(() => {
+  const items: RsContextMenuItem[] = [
+    {
+      key: 'copy',
+      label: t('terminal.copy', 'Copy'),
+      icon: 'copy',
+      shortcut: terminalShortcutLabel('C'),
+      disabled: false,
+    },
+    {
+      key: 'paste',
+      label: t('terminal.paste', 'Paste'),
+      icon: 'clipboard-paste',
+      shortcut: terminalShortcutLabel('V'),
+    },
+    {
+      key: 'selectAll',
+      label: t('terminal.selectAll', 'Select All'),
+      icon: 'square-mouse-pointer',
+      shortcut: terminalShortcutLabel('A'),
+    },
+  ]
+  if (props.showAskAi) {
+    items.push(
+      { key: 'sep-ai', label: '', separator: true },
+      {
+        key: 'askAi',
+        label: t('terminal.askAi', 'Ask AI'),
+        icon: 'bot',
+        disabled: !hasSelection.value && !menuSelectionSnapshot.value,
+      },
+    )
+  }
+  items.push(
+    { key: 'sep-1', label: '', separator: true },
+    {
+      key: 'clear',
+      label: t('terminal.clear', 'Clear Terminal'),
+      icon: 'eraser',
+      shortcut: terminalShortcutLabel('K'),
+      danger: true,
+    },
+  )
+  return items
+})
 
 let terminal: Terminal | null = null
 let fitAddon: FitAddon | null = null
@@ -290,11 +319,18 @@ function syncSelectionState(): void {
   hasSelection.value = Boolean(terminal?.hasSelection())
 }
 
-async function copySelection(): Promise<void> {
-  if (!terminal?.hasSelection()) {
-    return
+/** 优先活选区；若被右键 word-select / 失焦冲掉，则回退菜单快照。 */
+function resolveMenuSelectionText(): string {
+  const live = String(terminal?.getSelection?.() ?? '').trim()
+  const snap = menuSelectionSnapshot.value.trim()
+  if (live && (!snap || live.length >= snap.length)) {
+    return live
   }
-  const text = terminal.getSelection()
+  return snap
+}
+
+async function copySelection(): Promise<void> {
+  const text = resolveMenuSelectionText()
   if (!text) {
     return
   }
@@ -322,9 +358,25 @@ async function pasteFromClipboard(): Promise<void> {
 
 function onTerminalContextMenu(): void {
   void beginClipboardPrefetch()
-  // xterm 在 target 阶段才 rightClickSelect，须延后同步选中态
+  // capture 早于 xterm 的 rightClickSelectsWord，先保住用户拖选（vim/less 大段文本）
+  const existing = String(terminal?.getSelection?.() ?? '').trim()
+  if (existing) {
+    menuSelectionSnapshot.value = existing
+    hasSelection.value = true
+  } else {
+    menuSelectionSnapshot.value = ''
+  }
+  // xterm 在 target 阶段才 rightClickSelect，延后同步；无先验选区时采用 word-select 结果
   void nextTick(() => {
     syncSelectionState()
+    const after = String(terminal?.getSelection?.() ?? '').trim()
+    // 仅在无快照，或 word-select 反而选出更长文本时更新；避免冲掉用户拖选
+    if (after && (!menuSelectionSnapshot.value || after.length > menuSelectionSnapshot.value.length)) {
+      menuSelectionSnapshot.value = after
+    }
+    if (menuSelectionSnapshot.value) {
+      hasSelection.value = true
+    }
   })
 }
 
@@ -354,6 +406,12 @@ async function runTerminalAction(action: RsTerminalAction): Promise<void> {
   }
   if (action === 'clear') {
     clearTerminal()
+    return
+  }
+  if (action === 'askAi') {
+    const text = resolveMenuSelectionText()
+    emit('askAi', text)
+    emit('action', 'askAi')
   }
 }
 
@@ -438,7 +496,7 @@ onMounted(async () => {
     drawBoldTextInBrightColors: true,
     scrollback: props.scrollback,
     convertEol: props.convertEol,
-    rightClickSelectsWord: true,
+    rightClickSelectsWord: props.rightClickSelectsWord,
     theme: buildXtermTheme(),
   })
   fitAddon = new FitAddon()

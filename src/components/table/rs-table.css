@@ -211,8 +211,9 @@
 .rs-table__th--drag,
 .rs-table__td--drag {
   width: 40px;
-  padding-inline: var(--rs-space-xs);
+  padding-inline: 0;
   text-align: center;
+  vertical-align: middle;
 }
 .rs-table__column-drag-handle,
 .rs-table__row-drag-handle {
@@ -220,21 +221,30 @@
   align-items: center;
   justify-content: center;
   width: 1.25rem;
+  height: 1.25rem;
   color: var(--rs-table-muted-fg);
-  cursor: grab;
+  cursor: default;
   user-select: none;
-  letter-spacing: -0.15em;
-  font-size: 0.75rem;
+  opacity: 0.5;
 }
-.rs-table__column-drag-handle:active,
-.rs-table__row-drag-handle:active {
-  cursor: grabbing;
+/* 六点 grip（Ant Holder / Notion 同款），纯 CSS，无图标组件 */
+.rs-table__column-drag-handle::before,
+.rs-table__row-drag-handle::before {
+  content: '';
+  width: 6px;
+  height: 10px;
+  background-image: radial-gradient(circle, currentColor 1px, transparent 1.15px);
+  background-size: 3px 3.333px;
+  background-repeat: repeat;
 }
 .rs-table__th--dragging {
   opacity: 0.55;
 }
-.rs-table__row--dragging {
-  opacity: 0.55;
+.rs-table__th--drop-target {
+  box-shadow: inset 2px 0 0 var(--rs-table-drop-indicator);
+}
+.rs-table__row--dragging > .rs-table__td {
+  opacity: 0.42;
 }
 .rs-table__row--drop-before {
   box-shadow: inset 0 2px 0 var(--rs-table-drop-indicator);
@@ -246,19 +256,23 @@
   --rs-table-row-bg: color-mix(in srgb, var(--rs-primary) 14%, var(--rs-table-row-bg, transparent));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rs-primary) 45%, transparent);
 }
-.rs-table__row--draggable {
-  cursor: grab;
-  user-select: none;
-}
-.rs-table__row--draggable:active {
-  cursor: grabbing;
-}
+.rs-table__row--draggable,
 .rs-table__td--row-draggable {
-  cursor: grab;
+  cursor: default;
   user-select: none;
 }
-.rs-table__td--row-draggable:active {
-  cursor: grabbing;
+.rs-table__drag-preview {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--rs-border);
+  border-radius: var(--rs-radius-xs);
+  background: var(--rs-surface-elevated, var(--rs-surface));
+  color: var(--rs-text);
+  box-shadow: var(--rs-shadow-sm);
+  font-size: var(--rs-font-size-xs);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  pointer-events: none;
+  white-space: nowrap;
 }
 .rs-table__sort-priority {
   margin-left: 0.125rem;

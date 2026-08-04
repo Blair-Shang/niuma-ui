@@ -8,6 +8,11 @@ import type {
 } from '../table-utils'
 import { getCellValue } from '../table-utils'
 import { formatDateTimeValue, formatDateValue } from '../date-picker-utils'
+import {
+  formatIsoUtcToLocal,
+  looksLikeIsoDateTimeWithTz,
+  parseLocalDateTimeToUtcIso,
+} from '../../lib/iso-local-datetime'
 
 export type RsTableCellCommitTrigger = 'blur' | 'enter' | 'change' | 'manual'
 export type RsTableCellEditTrigger = 'click' | 'dblclick'
@@ -104,7 +109,8 @@ export function resolveColumnCommitOn<T extends RsTableRowData>(
   if (column.commitOn) return column.commitOn
   const valueType = resolveColumnValueType(column)
   if (valueType === 'boolean' || valueType === 'select') return 'change'
-  // 日期/时间：面板确认只写入草稿，Enter / Tab 再提交，避免一点确认就写库
+  // 日期/时间：非 rowCommit 时面板确认只写草稿，Enter/Tab 再提交（避免一点确认就写库）
+  // rowCommit 走上方 manual：面板关闭即 stage，行首 ✓ 才写库
   if (valueType === 'date' || valueType === 'datetime') return 'enter'
   return 'blur'
 }
@@ -212,12 +218,22 @@ export function formatCellDisplayValue<T extends RsTableRowData>(
   if (valueType === 'boolean') {
     return coerceBoolean(value) ? '✓' : ''
   }
-  // 与编辑态一致：date / datetime 规范为可读格式（兼容 ISO `T` / 末尾 Z）
+  // 与编辑态一致：带时区 ISO → 本地；其余 date/datetime 规范格式
   if (valueType === 'date') {
-    return formatDateValue(String(value)) || String(value)
+    const raw = String(value)
+    const local = formatIsoUtcToLocal(raw)
+    if (local) return local.slice(0, 10)
+    return formatDateValue(raw) || raw
   }
   if (valueType === 'datetime') {
-    return formatDateTimeValue(String(value)) || String(value)
+    const raw = String(value)
+    const local = formatIsoUtcToLocal(raw)
+    if (local) return local
+    return formatDateTimeValue(raw) || raw
+  }
+  if (typeof value === 'string') {
+    const local = formatIsoUtcToLocal(value)
+    if (local) return local
   }
   return cellValueToText(value)
 }
@@ -250,6 +266,14 @@ export function resolveCellEditText<T extends RsTableRowData>(
   if (raw === null || raw === undefined) return RS_TABLE_NULL_DRAFT
   const valueType = resolveColumnValueType(column)
   if (valueType === 'boolean') return booleanToEditText(raw)
+  // 带时区 ISO → 本地墙钟（含毫秒），与展示一致，便于写回还原
+  if (typeof raw === 'string') {
+    const local = formatIsoUtcToLocal(raw)
+    if (local) {
+      if (valueType === 'date') return local.slice(0, 10)
+      return local
+    }
+  }
   // 日期/日期时间：规范为选择器可解析格式，保证弹层选中态与双向绑定一致
   if (valueType === 'date') {
     return formatDateValue(String(raw)) || String(raw)
@@ -283,11 +307,22 @@ export function parseCellEditInput<T extends RsTableRowData>(
     const parsed = Number(cleaned)
     return Number.isNaN(parsed) ? input : parsed
   }
-  if (valueType === 'datetime' && column.editorOptions?.timezone === 'utc') {
-    const trimmed = input.trim()
+
+  const trimmed = input.trim()
+  const previous = resolveColumnRawValue(row, column, index)
+  // 原值是带时区 ISO：本地草稿写回 UTC，未改秒则保留原始毫秒/更长小数
+  if (typeof previous === 'string' && looksLikeIsoDateTimeWithTz(previous.trim())) {
     if (!trimmed) return allowNull ? null : ''
-    if (/Z$/i.test(trimmed) || /[+-]\d{2}:\d{2}$/.test(trimmed)) return trimmed
-    return `${trimmed}Z`
+    const utc = parseLocalDateTimeToUtcIso(trimmed, previous)
+    if (utc) return utc
+  }
+
+  if (valueType === 'datetime' && column.editorOptions?.timezone === 'utc') {
+    if (!trimmed) return allowNull ? null : ''
+    const utc = parseLocalDateTimeToUtcIso(trimmed)
+    if (utc) return utc
+    if (/Z$/i.test(trimmed) || /[+-]\d{2}:?\d{2}$/.test(trimmed)) return trimmed
+    return `${trimmed.replace(' ', 'T')}Z`
   }
   return input
 }

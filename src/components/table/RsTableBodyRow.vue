@@ -132,7 +132,7 @@ const emit = defineEmits<{
         :aria-label="dragRowLabel"
         @dragstart="emit('rowDragStart', $event)"
         @dragend="emit('rowDragEnd')"
-      >⋮⋮</span>
+      />
     </td>
     <td
       v-if="expandable"
