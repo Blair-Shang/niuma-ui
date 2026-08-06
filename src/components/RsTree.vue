@@ -15,7 +15,6 @@ import type {
 } from './tree-utils'
 import {
   buildTreeNodeIndex,
-  collectDescendantKeys,
   collectExpandableKeys,
   collectHalfCheckedKeys,
   filterTreeNodes,
@@ -24,6 +23,7 @@ import {
   getTreeKey,
   getTreeLabel,
   hasTreeChildren,
+  isTreeAncestorKey,
   isTreeCheckboxDisabled,
   isTreeNodeDisabled,
   isTreeNodeLoading,
@@ -152,6 +152,7 @@ const expandedKeysInternal = ref<string[]>(
 const expandedKeysBeforeFilter = ref<string[] | null>(null)
 const checkedKeysInternal = ref<string[]>([...props.defaultCheckedKeys])
 const scrollTop = ref(0)
+const viewportRef = ref<HTMLElement | null>(null)
 const focusedKey = ref<string | null>(null)
 const loadingKeys = ref<Set<string>>(new Set())
 const dragKey = ref<string | null>(null)
@@ -192,9 +193,15 @@ const flatNodes = computed(() =>
   flattenVisibleTreeNodes(displayNodes.value, expandedSet.value, fields.value, props.lazy),
 )
 
-const halfCheckedKeys = computed(() =>
-  collectHalfCheckedKeys(nodeIndex.value, checkedSet.value, props.checkStrictly, props.onlyCheckLeaf),
-)
+/**
+ * 无勾选项时不存在半选态，直接短路。
+ * 关键在于「不读取 nodeIndex」——否则这个 immediate watch 会把全树索引拽成 eager，
+ * 使不带 checkbox 的树也在每次数据变更时重建 O(N) 索引并做一次全量勾选态遍历。
+ */
+const halfCheckedKeys = computed(() => {
+  if (checkedSet.value.size === 0) return []
+  return collectHalfCheckedKeys(nodeIndex.value, checkedSet.value, props.checkStrictly, props.onlyCheckLeaf)
+})
 
 function checkboxOptions() {
   return { onlyCheckLeaf: props.onlyCheckLeaf, lazy: props.lazy }
@@ -242,9 +249,26 @@ const viewportHeightPx = computed(() => {
   return _measuredHeight.value > 0 ? _measuredHeight.value : 320
 })
 
+/** 过滤后滚回顶部；内容缩短时钳位，避免内部 scrollTop 与 DOM 脱节导致虚拟列表空白 */
+function resetViewportScroll(): void {
+  scrollTop.value = 0
+  const el = viewportRef.value
+  if (el && el.scrollTop !== 0) el.scrollTop = 0
+}
+
+function clampViewportScroll(): void {
+  if (!useVirtualScroll.value) return
+  const totalHeight = flatNodes.value.length * rowHeight.value
+  const maxScroll = Math.max(0, totalHeight - viewportHeightPx.value)
+  if (scrollTop.value <= maxScroll) return
+  scrollTop.value = maxScroll
+  const el = viewportRef.value
+  if (el && el.scrollTop !== maxScroll) el.scrollTop = maxScroll
+}
+
 const virtualSlice = computed(() => {
   if (!useVirtualScroll.value) {
-    return { nodes: flatNodes.value, paddingTop: 0, paddingBottom: 0 }
+    return { nodes: flatNodes.value, startIndex: 0, paddingTop: 0, paddingBottom: 0 }
   }
   return sliceVirtualTreeNodes(
     flatNodes.value,
@@ -278,26 +302,32 @@ const selectedSet = computed(() => {
 
 watch(
   () => props.filter,
-  (keyword) => {
-    if (!props.autoExpandParent) return
-    const query = keyword.trim()
-    if (!query) {
-      if (expandedKeysBeforeFilter.value !== null) {
-        expandedKeys.value = expandedKeysBeforeFilter.value
-        expandedKeysBeforeFilter.value = null
+  (keyword, previousKeyword) => {
+    if (props.autoExpandParent) {
+      const query = keyword.trim()
+      if (!query) {
+        if (expandedKeysBeforeFilter.value !== null) {
+          expandedKeys.value = expandedKeysBeforeFilter.value
+          expandedKeysBeforeFilter.value = null
+        }
+      } else {
+        if (expandedKeysBeforeFilter.value === null) {
+          expandedKeysBeforeFilter.value = [...expandedKeys.value]
+        }
+        // 复用 displayNodes 的过滤结果，避免每次输入对整棵树重复跑一遍 filterTreeNodes
+        const filtered = displayNodes.value
+        // 无匹配时不覆盖展开键，否则清空搜索后原展开状态会丢失
+        if (filtered.length > 0) {
+          expandedKeys.value = collectExpandableKeys(filtered, fields.value, props.lazy)
+        }
       }
-      return
     }
-    if (expandedKeysBeforeFilter.value === null) {
-      expandedKeysBeforeFilter.value = [...expandedKeys.value]
-    }
-    const filtered = filterTreeNodes(props.nodes, keyword, {
-      fieldNames: fields.value,
-      filterNode: props.filterNode,
+    // 挂载时的首次运行（oldValue 为 undefined）只处理展开键，不该动滚动位置
+    if (previousKeyword === undefined) return
+    // 列表高度骤变时浏览器不一定派发 scroll，主动归零避免虚拟切片空白
+    void nextTick(() => {
+      resetViewportScroll()
     })
-    // 无匹配时不覆盖展开键，否则清空搜索后原展开状态会丢失
-    if (filtered.length === 0) return
-    expandedKeys.value = collectExpandableKeys(filtered, fields.value, props.lazy)
   },
   { immediate: true },
 )
@@ -307,11 +337,17 @@ watch(
   (nodes) => {
     if (nodes.length === 0) {
       focusedKey.value = null
+      void nextTick(() => {
+        clampViewportScroll()
+      })
       return
     }
     if (!focusedKey.value || !nodes.some((item) => item.key === focusedKey.value)) {
       focusedKey.value = nodes[0]?.key ?? null
     }
+    void nextTick(() => {
+      clampViewportScroll()
+    })
   },
   { immediate: true },
 )
@@ -436,7 +472,9 @@ function handleLabelClick(node: RsTreeNode, key: string, event: MouseEvent): voi
   handleNodeAction(node, key)
 }
 
+/** 逐行渲染都会调用（含 title 插槽的 check-state）；无勾选项时全部为 unchecked，不必建索引 */
 function checkStateFor(key: string): RsTreeCheckState {
+  if (checkedSet.value.size === 0) return 'unchecked'
   return resolveTreeCheckState(
     key,
     checkedSet.value,
@@ -552,7 +590,9 @@ function handleKeydown(event: KeyboardEvent): void {
 
 function canDrop(drag: string, drop: string, position: RsTreeDropPosition): boolean {
   if (drag === drop) return false
-  if (collectDescendantKeys(drop, nodeIndex.value).includes(drag)) return false
+  // 只禁止拖进自己的子孙（会成环）。放到自己的祖先上是合法操作——例如把节点拖出所在文件夹，
+  // 落在该文件夹的前/后；是否真的允许交由 allowDrop 决定，组件内不越权否决。
+  if (isTreeAncestorKey(drag, drop, nodeIndex.value)) return false
   if (props.allowDrop) return props.allowDrop(drag, drop, position)
   return true
 }
@@ -646,6 +686,7 @@ defineExpose({
 
     <div
       v-else
+      ref="viewportRef"
       class="rs-tree__viewport"
       :class="{ 'rs-tree__viewport--scroll': useVirtualScroll || height !== undefined }"
       :style="viewportStyle"
@@ -660,7 +701,7 @@ defineExpose({
 
       <ul class="rs-tree__list">
         <li
-          v-for="entry in visibleFlatNodes"
+          v-for="(entry, entryIndex) in visibleFlatNodes"
           :key="`${entry.parentKey ?? 'root'}:${entry.key}`"
           class="rs-tree__item"
         >
@@ -673,7 +714,7 @@ defineExpose({
             :aria-selected="selectable ? isSelected(entry.key) : undefined"
             :aria-level="entry.depth + 1"
             :aria-setsize="flatNodes.length"
-            :aria-posinset="flatNodes.findIndex((item) => item.key === entry.key) + 1"
+            :aria-posinset="virtualSlice.startIndex + entryIndex + 1"
             :draggable="draggable && !isTreeNodeDisabled(entry.node, fields)"
             :class="{
               'rs-tree__row--selected': selectable && isSelected(entry.key),
@@ -1159,6 +1200,21 @@ defineExpose({
 .rs-tree__pad {
   flex: 0 0 auto;
   pointer-events: none;
+}
+
+.rs-tree--ssm .rs-tree__label,
+.rs-tree--ssm .rs-tree__toggle {
+  font-size: var(--rs-font-size-xs);
+}
+
+.rs-tree--ssm .rs-tree__toggle,
+.rs-tree--ssm .rs-tree__spacer {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.rs-tree--ssm .rs-tree__toggle-caret {
+  font-size: 0.875rem;
 }
 
 .rs-tree--sm .rs-tree__label,

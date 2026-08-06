@@ -1,4 +1,5 @@
 import { mount, flushPromises } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import RsTree from '../components/RsTree.vue'
 import {
@@ -16,6 +17,16 @@ const nodes = [
   { key: 'root', label: '根节点', children: [{ key: 'child', label: '子节点' }] },
   { id: 'alt', title: '备用字段' },
 ]
+
+/**
+ * jsdom 不做布局，直接给 scrollTop 赋值会被钳成 0，无法模拟滚动。
+ * 覆盖成可写的自有属性后再派发 scroll，组件才能读到真实偏移。
+ */
+async function scrollViewportTo(element: Element, top: number): Promise<void> {
+  Object.defineProperty(element, 'scrollTop', { configurable: true, writable: true, value: top })
+  element.dispatchEvent(new Event('scroll'))
+  await nextTick()
+}
 
 const checkNodes = [
   {
@@ -298,6 +309,43 @@ describe('RsTree', () => {
     wrapper.unmount()
   })
 
+  it('blocks dropping a node into its own descendant but allows dropping onto an ancestor', async () => {
+    const onDrop = vi.fn()
+    const allowDrop = vi.fn(() => true)
+    const treeNodes = [
+      {
+        key: 'parent',
+        label: '父',
+        children: [{ key: 'child', label: '子' }],
+      },
+    ]
+    const wrapper = mount(RsTree, {
+      props: {
+        nodes: treeNodes,
+        draggable: true,
+        defaultExpandAll: true,
+        allowDrop,
+        onNodeDrop: onDrop,
+      },
+      attachTo: document.body,
+    })
+    const dataTransfer = { setData: vi.fn(), effectAllowed: '' }
+    const rows = wrapper.findAll('.rs-tree__row')
+
+    // 父 → 子：会成环，组件内直接否决，allowDrop 都不该被问到
+    await rows[0].trigger('dragstart', { dataTransfer })
+    await rows[1].trigger('drop', { dataTransfer, clientY: 20 })
+    expect(onDrop).not.toHaveBeenCalled()
+    expect(allowDrop).not.toHaveBeenCalled()
+
+    // 子 → 父：合法（如拖出所在文件夹），交由 allowDrop 裁决
+    await rows[1].trigger('dragstart', { dataTransfer })
+    await rows[0].trigger('drop', { dataTransfer, clientY: 20 })
+    expect(allowDrop).toHaveBeenCalled()
+    expect(onDrop).toHaveBeenCalledWith('child', 'parent', expect.any(String))
+    wrapper.unmount()
+  })
+
   it('hides drag handle when dragTrigger is row', () => {
     const wrapper = mount(RsTree, {
       props: {
@@ -320,6 +368,44 @@ describe('RsTree', () => {
     })
     expect(wrapper.classes()).toContain('rs-tree--virtual')
     expect(wrapper.findAll('.rs-tree__item').length).toBeLessThan(largeNodes.length)
+  })
+
+  it('reports aria-posinset from the slice offset while scrolled', async () => {
+    const largeNodes = Array.from({ length: 600 }, (_, index) => ({
+      key: `n-${index}`,
+      label: `Node ${index}`,
+    }))
+    const wrapper = mount(RsTree, {
+      props: { nodes: largeNodes, virtual: true, height: 320, itemHeight: 32, overscan: 2 },
+    })
+    const viewport = wrapper.find('.rs-tree__viewport')
+    await scrollViewportTo(viewport.element, 3200)
+    const firstRow = wrapper.find('.rs-tree__row')
+    // scrollTop 3200 / 32 = 第 100 行，减 overscan 2 → 首个渲染行是第 99 项（posinset 从 1 起算）
+    expect(firstRow.attributes('aria-posinset')).toBe('99')
+    expect(firstRow.attributes('aria-setsize')).toBe('600')
+    expect(firstRow.text()).toContain('Node 98')
+  })
+
+  it('keeps virtual rows visible after filtering a scrolled large tree', async () => {
+    const largeNodes = Array.from({ length: 1200 }, (_, index) => ({
+      key: `t-${index}`,
+      label: index === 50 ? 'bas_sku_match' : `TABLE_${index}`,
+    }))
+    const wrapper = mount(RsTree, {
+      props: { nodes: largeNodes, virtual: true, height: 240, itemHeight: 28 },
+    })
+    const viewport = wrapper.find('.rs-tree__viewport')
+    expect(viewport.exists()).toBe(true)
+    // 已滚到列表中部：过滤后内容骤短，若不归零/钳位，切片 start 会越界并渲染出空白
+    await scrollViewportTo(viewport.element, 8000)
+    expect(wrapper.findAll('.rs-tree__item').length).toBeGreaterThan(0)
+    await wrapper.setProps({ filter: 'bas_sku' })
+    await nextTick()
+    await nextTick()
+    expect(wrapper.findAll('.rs-tree__item').length).toBeGreaterThan(0)
+    expect(wrapper.text()).toContain('bas_sku_match')
+    expect(viewport.element.scrollTop).toBe(0)
   })
 
   it('expands node on label click when expandOnClickNode is true', async () => {

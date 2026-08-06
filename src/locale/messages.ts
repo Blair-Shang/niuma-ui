@@ -144,6 +144,12 @@ export const zhCN: RsLocaleMessages = {
   'codeBlock.copy': '复制',
   'codeBlock.copied': '已复制',
   'codeBlock.download': '下载',
+  'markdown.edit': '编辑',
+  'markdown.preview': '预览',
+  'markdown.split': '分栏',
+  'markdown.modes': 'Markdown 视图',
+  'markdown.placeholder': '支持 Markdown（标题、列表、链接、代码块…）',
+  'markdown.empty': '暂无内容',
 }
 
 export const enUS: RsLocaleMessages = {
@@ -290,6 +296,12 @@ export const enUS: RsLocaleMessages = {
   'codeBlock.copy': 'Copy',
   'codeBlock.copied': 'Copied!',
   'codeBlock.download': 'Download',
+  'markdown.edit': 'Edit',
+  'markdown.preview': 'Preview',
+  'markdown.split': 'Split',
+  'markdown.modes': 'Markdown view',
+  'markdown.placeholder': 'Markdown supported (headings, lists, links, code…)',
+  'markdown.empty': 'Nothing to preview',
 }
 
 export const localeMap = {

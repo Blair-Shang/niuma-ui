@@ -14,6 +14,12 @@ defineProps<{
   disabled?: boolean
 }>()
 
+/**
+ * 展开状态。不绑定时组件自行维护（与原行为一致）；
+ * 绑定后可由外部主动关闭——例如菜单所依赖的数据已失效时。
+ */
+const open = defineModel<boolean>('open', { default: false })
+
 const emit = defineEmits<{
   select: [key: string]
 }>()
@@ -24,7 +30,7 @@ function onSelect(item: RsContextMenuItem) {
 </script>
 
 <template>
-  <ContextMenuRoot v-if="!disabled">
+  <ContextMenuRoot v-if="!disabled" v-model:open="open">
     <ContextMenuTrigger class="rs-ctx-trigger" @contextmenu.stop>
       <slot />
     </ContextMenuTrigger>

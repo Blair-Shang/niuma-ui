@@ -1,6 +1,8 @@
 ﻿<script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import {
+  formatDateParts,
+  parseDateValue,
   RsButton,
   RsCalendarGrid,
   RsCodeEditor,
@@ -31,6 +33,8 @@ const date = ref('')
 const time = ref('09:30')
 const dateTime = ref('')
 const calendar = ref('')
+const calendarView = ref({ year: 2025, month: 6 })
+const calendarDate = computed(() => parseDateValue(calendar.value))
 const step = ref('design')
 const page = ref(1)
 const pageSize = ref(10)
@@ -92,7 +96,12 @@ const virtualItems = Array.from({ length: 100 }, (_, index) => `Item ${index + 1
         <RsTimePicker v-model="time" label="时间" />
         <RsDateTimePicker v-model="dateTime" label="日期时间" />
         <RsTimePickerColumns v-model="time" />
-        <RsCalendarGrid v-model="calendar" />
+        <RsCalendarGrid
+          v-model:view-year="calendarView.year"
+          v-model:view-month="calendarView.month"
+          :selected="calendarDate"
+          @select="(date) => (calendar = formatDateParts(date))"
+        />
       </RsForm>
     </DemoBlock>
 

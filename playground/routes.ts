@@ -54,6 +54,7 @@ export const playgroundRoutes: PlaygroundRoute[] = [
   { path: '/code-editor', name: 'code-editor', title: 'RsCodeEditor', testFile: 'RsCodeEditor.spec.ts' },
   { path: '/monaco-editor', name: 'monaco-editor', title: 'RsMonacoEditor', testFile: '—' },
   { path: '/code-block', name: 'code-block', title: 'RsCodeBlock', testFile: 'RsCodeBlock.spec.ts' },
+  { path: '/markdown', name: 'markdown', title: 'RsMarkdown', testFile: 'RsMarkdown.spec.ts' },
   { path: '/studio-components', name: 'studio-components', title: '全量 Studio 组件', testFile: 'RsStudioComponents' },
   { path: '/theme', name: 'theme', title: '主题 / 多语言', testFile: 'RsConfigProvider' },
 ]

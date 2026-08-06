@@ -178,6 +178,7 @@ const {
               v-if="fullscreenable && isWindowLayout"
               variant="ghost"
               size="sm"
+              icon-only
               :icon="isFullscreen ? 'minimize-2' : 'maximize-2'"
               :tooltip="isFullscreen ? t('dialog.restore') : t('dialog.fullscreen')"
               @click="toggleFullscreen"
@@ -186,6 +187,7 @@ const {
               v-if="showClose"
               variant="ghost"
               size="sm"
+              icon-only
               icon="x"
               :tooltip="t('dialog.close')"
               @click="open = false"

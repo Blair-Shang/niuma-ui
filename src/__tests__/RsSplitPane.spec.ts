@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { h } from 'vue'
 import { mount } from '@vue/test-utils'
 import RsSplitPane from '../components/RsSplitPane.vue'
 import type { RsSplitPaneItem } from '../components/split-pane-utils'
@@ -147,19 +148,19 @@ describe('RsSplitPane', () => {
         keyboardStep: 10,
       },
       slots: {
-        top: {
-          template: `
-            <RsSplitPane
-              :panes="[{ key: 'left' }, { key: 'right' }]"
-              :sizes="[40, 60]"
-            >
-              <template #left><div class="inner-left">L</div></template>
-              <template #right><div class="inner-right">R</div></template>
-            </RsSplitPane>
-          `,
-          components: { RsSplitPane },
-        },
-        bottom: '<div class="bottom-pane">B</div>',
+        top: () =>
+          h(
+            RsSplitPane,
+            {
+              panes: [{ key: 'left' }, { key: 'right' }],
+              sizes: [40, 60],
+            },
+            {
+              left: () => h('div', { class: 'inner-left' }, 'L'),
+              right: () => h('div', { class: 'inner-right' }, 'R'),
+            },
+          ),
+        bottom: () => h('div', { class: 'bottom-pane' }, 'B'),
       },
     })
 

@@ -52,6 +52,7 @@ const router = createRouter({
     { path: '/code-editor', component: () => import('./pages/CodeEditorPage.vue') },
     { path: '/monaco-editor', component: () => import('./pages/MonacoEditorPage.vue') },
     { path: '/code-block', component: () => import('./pages/CodeBlockPage.vue') },
+    { path: '/markdown', component: () => import('./pages/MarkdownPage.vue') },
     { path: '/studio-components', component: () => import('./pages/StudioComponentsPage.vue') },
     { path: '/theme', component: () => import('./pages/ThemePage.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/' },

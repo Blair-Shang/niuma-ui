@@ -4,7 +4,10 @@ import {
   collectHalfCheckedKeys,
   filterTreeNodes,
   flattenVisibleTreeNodes,
+  isTreeAncestorKey,
   resolveAccordionExpandedKeys,
+  resolveTreeIndent,
+  resolveTreeRowHeight,
   resolveTreeCheckState,
   resolveTreeFieldNames,
   resolveTreeFocusKey,
@@ -15,6 +18,7 @@ import {
   toggleTreeCheck,
   type RsTreeNode,
 } from '../components/tree-utils'
+import { RS_COMPONENT_SIZES } from '../theme/types'
 
 const nodes = [
   {
@@ -125,9 +129,81 @@ describe('tree-utils', () => {
     expect(slice.paddingTop).toBeGreaterThan(0)
   })
 
+  it('clamps virtual slice when scrollTop exceeds filtered content', () => {
+    const flat = Array.from({ length: 5 }, (_, index) => ({
+      key: String(index),
+      node: { key: String(index), label: `N${index}` },
+      depth: 0,
+      hasChildren: false,
+      isLast: index === 4,
+      parentKey: null,
+      levelLines: [] as boolean[],
+    }))
+    const slice = sliceVirtualTreeNodes(flat, 50_000, 200, 32, 2)
+    expect(slice.nodes.length).toBeGreaterThan(0)
+    expect(slice.nodes.length).toBeLessThanOrEqual(flat.length)
+    expect(slice.paddingTop).toBeLessThan(flat.length * 32)
+  })
+
+  it('reports the slice start index so rows can be positioned in O(1)', () => {
+    const flat = Array.from({ length: 500 }, (_, index) => ({
+      key: String(index),
+      node: { key: String(index), label: `N${index}` },
+      depth: 0,
+      hasChildren: false,
+      isLast: index === 499,
+      parentKey: null,
+      levelLines: [] as boolean[],
+    }))
+    const slice = sliceVirtualTreeNodes(flat, 3200, 200, 32, 2)
+    expect(slice.startIndex).toBe(98)
+    expect(slice.nodes[0]?.key).toBe(String(slice.startIndex))
+    expect(slice.paddingTop).toBe(slice.startIndex * 32)
+  })
+
+  it('flattens a huge sibling group without blowing the call stack', () => {
+    // 旧实现用 push(...子结果)，单层可见节点过多时实参超限会抛 RangeError
+    const wide: RsTreeNode = {
+      key: 'wide',
+      label: '宽节点',
+      children: Array.from({ length: 200_000 }, (_, index) => ({
+        key: `w-${index}`,
+        label: `W${index}`,
+      })),
+    }
+    const flat = flattenVisibleTreeNodes([wide], new Set(['wide']))
+    expect(flat).toHaveLength(200_001)
+    expect(flat[200_000]?.key).toBe('w-199999')
+  })
+
+  it('detects ancestry by walking up parents', () => {
+    const index = buildTreeNodeIndex(nodes)
+    expect(isTreeAncestorKey('root', 'child-a', index)).toBe(true)
+    expect(isTreeAncestorKey('child-a', 'root', index)).toBe(false)
+    expect(isTreeAncestorKey('child-a', 'child-b', index)).toBe(false)
+    expect(isTreeAncestorKey('root', 'root', index)).toBe(false)
+  })
+
+  it('short-circuits check state when nothing is checked', () => {
+    const index = buildTreeNodeIndex(nodes)
+    expect(resolveTreeCheckState('root', new Set(), index, false)).toBe('unchecked')
+    expect(collectHalfCheckedKeys(index, new Set(), false)).toEqual([])
+  })
+
   it('highlights label segments', () => {
     const parts = splitTreeLabelHighlight('RsTree 组件', 'tree')
     expect(parts.find((part) => part.highlight)?.text).toBe('Tree')
+  })
+
+  it('resolves a finite row height and indent for every size', () => {
+    // 漏掉任一档会返回 undefined，进而让虚拟滚动的 padding 变成 NaN
+    for (const size of RS_COMPONENT_SIZES) {
+      expect(Number.isFinite(resolveTreeRowHeight(size))).toBe(true)
+      expect(Number.isFinite(resolveTreeIndent(size))).toBe(true)
+    }
+    expect(resolveTreeRowHeight('ssm')).toBeLessThan(resolveTreeRowHeight('sm'))
+    expect(resolveTreeIndent('ssm')).toBeLessThan(resolveTreeIndent('sm'))
+    expect(resolveTreeRowHeight('md', 21)).toBe(21)
   })
 
   it('maps field names', () => {

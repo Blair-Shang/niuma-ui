@@ -63,8 +63,13 @@ export const DEFAULT_TREE_FIELD_NAMES: Required<RsTreeFieldNames> = {
   loading: 'loading',
 }
 
-export const TREE_ROW_HEIGHT = { sm: 28, md: 32, lg: 40 } as const
-export const TREE_INDENT_BY_SIZE = { sm: 16, md: 20, lg: 24 } as const
+/**
+ * 各尺寸档行高 / 缩进。
+ * 显式标注 Record<RsTreeSize, number>：尺寸类型再加档位时这里会直接编译报错，
+ * 而不是在运行时取到 undefined —— 行高 undefined 会让虚拟滚动的 padding 全变 NaN。
+ */
+export const TREE_ROW_HEIGHT: Record<RsTreeSize, number> = { ssm: 24, sm: 28, md: 32, lg: 40 }
+export const TREE_INDENT_BY_SIZE: Record<RsTreeSize, number> = { ssm: 12, sm: 16, md: 20, lg: 24 }
 
 export function resolveTreeFieldNames(fieldNames?: RsTreeFieldNames): Required<RsTreeFieldNames> {
   return { ...DEFAULT_TREE_FIELD_NAMES, ...fieldNames }
@@ -214,6 +219,23 @@ export function collectDescendantKeys(
   return result
 }
 
+/**
+ * `ancestorKey` 是否为 `descendantKey` 的祖先。
+ * 沿 parentKey 上溯 O(depth)，比收集整棵子树再 includes 便宜得多（拖拽 dragover 每帧都要判一次）。
+ */
+export function isTreeAncestorKey(
+  ancestorKey: string,
+  descendantKey: string,
+  index: ReadonlyMap<string, RsTreeNodeIndex>,
+): boolean {
+  let parentKey = index.get(descendantKey)?.parentKey ?? null
+  while (parentKey !== null) {
+    if (parentKey === ancestorKey) return true
+    parentKey = index.get(parentKey)?.parentKey ?? null
+  }
+  return false
+}
+
 export function collectHalfCheckedKeys(
   index: ReadonlyMap<string, RsTreeNodeIndex>,
   checkedKeys: ReadonlySet<string>,
@@ -221,6 +243,8 @@ export function collectHalfCheckedKeys(
   onlyCheckLeaf = false,
 ): string[] {
   if (checkStrictly && !onlyCheckLeaf) return []
+  // 无勾选项 → 不可能有半选，省去整棵树的状态遍历
+  if (checkedKeys.size === 0) return []
   const half: string[] = []
   for (const key of index.keys()) {
     if (resolveTreeCheckState(key, checkedKeys, index, checkStrictly, onlyCheckLeaf) === 'indeterminate') {
@@ -229,6 +253,9 @@ export function collectHalfCheckedKeys(
   }
   return half
 }
+
+/** 根层节点无祖先竖线；共享同一个空数组，省去每个节点一次数组分配 */
+const NO_LEVEL_LINES: readonly boolean[] = Object.freeze([])
 
 export function flattenVisibleTreeNodes(
   nodes: readonly RsTreeNode[],
@@ -241,27 +268,38 @@ export function flattenVisibleTreeNodes(
   ancestorIsLast: readonly boolean[] = [],
 ): RsTreeFlatNode[] {
   const result: RsTreeFlatNode[] = []
-  nodes.forEach((node, index) => {
-    const key = getTreeKey(node, fields)
-    const hasChildren = hasTreeChildren(node, fields, lazy)
-    const isLast = index === nodes.length - 1
-    // 祖先非末项 → 画贯穿竖线；末项 → 该列断开，避免「幽灵」延伸
-    const levelLines = ancestorIsLast.map((last) => !last)
-    result.push({ key, node, depth, hasChildren, isLast, parentKey, levelLines })
-    if (hasChildren && expandedKeys.has(key)) {
-      result.push(
-        ...flattenVisibleTreeNodes(
-          getTreeChildren(node, fields),
-          expandedKeys,
-          fields,
-          lazy,
-          depth + 1,
-          key,
-          [...ancestorIsLast, isLast],
-        ),
-      )
+
+  // 递归写入同一个 result，而非 push(...子结果)：后者在单层可见节点达数万时会因实参过多抛 RangeError
+  function walk(
+    items: readonly RsTreeNode[],
+    currentDepth: number,
+    currentParentKey: string | null,
+    ancestors: readonly boolean[],
+  ): void {
+    const lastIndex = items.length - 1
+    // 祖先非末项 → 画贯穿竖线；末项 → 该列断开，避免「幽灵」延伸。同级共用一份，行内只读
+    const levelLines = ancestors.length === 0 ? NO_LEVEL_LINES : ancestors.map((last) => !last)
+    for (let index = 0; index <= lastIndex; index += 1) {
+      const node = items[index] as RsTreeNode
+      const key = getTreeKey(node, fields)
+      const hasChildren = hasTreeChildren(node, fields, lazy)
+      const isLast = index === lastIndex
+      result.push({
+        key,
+        node,
+        depth: currentDepth,
+        hasChildren,
+        isLast,
+        parentKey: currentParentKey,
+        levelLines: levelLines as boolean[],
+      })
+      if (hasChildren && expandedKeys.has(key)) {
+        walk(getTreeChildren(node, fields), currentDepth + 1, key, [...ancestors, isLast])
+      }
     }
-  })
+  }
+
+  walk(nodes, depth, parentKey, ancestorIsLast)
   return result
 }
 
@@ -332,6 +370,8 @@ export function resolveTreeCheckState(
   onlyCheckLeaf = false,
 ): RsTreeCheckState {
   if (checkStrictly && !onlyCheckLeaf) return checkedKeys.has(key) ? 'checked' : 'unchecked'
+  // 无勾选项时任何子树都是 unchecked，提前返回避免递归整棵子树
+  if (checkedKeys.size === 0) return 'unchecked'
 
   const entry = index.get(key)
   if (!entry || entry.childrenKeys.length === 0) {
@@ -454,18 +494,24 @@ export function sliceVirtualTreeNodes(
   overscan = 4,
 ): {
   nodes: RsTreeFlatNode[]
+  /** 切片首项在完整扁平列表中的下标，供 aria-posinset 等按 O(1) 定位 */
+  startIndex: number
   paddingTop: number
   paddingBottom: number
 } {
-  if (nodes.length === 0) return { nodes: [], paddingTop: 0, paddingBottom: 0 }
+  if (nodes.length === 0) return { nodes: [], startIndex: 0, paddingTop: 0, paddingBottom: 0 }
 
   const totalHeight = nodes.length * itemHeight
-  const start = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan)
-  const visibleCount = Math.ceil(viewportHeight / itemHeight) + overscan * 2
+  // 过滤/折叠后内容变短时，浏览器不一定派发 scroll；钳位避免 start 越界导致空白切片
+  const maxScrollTop = Math.max(0, totalHeight - Math.max(0, viewportHeight))
+  const clampedScrollTop = Math.min(Math.max(0, scrollTop), maxScrollTop)
+  const start = Math.max(0, Math.floor(clampedScrollTop / itemHeight) - overscan)
+  const visibleCount = Math.ceil(Math.max(0, viewportHeight) / itemHeight) + overscan * 2
   const end = Math.min(nodes.length, start + visibleCount)
 
   return {
     nodes: nodes.slice(start, end),
+    startIndex: start,
     paddingTop: start * itemHeight,
     paddingBottom: Math.max(0, totalHeight - end * itemHeight),
   }

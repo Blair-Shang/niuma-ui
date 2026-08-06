@@ -767,6 +767,10 @@ defineExpose({
 
   box-shadow: var(--rs-input-shadow, none);
 
+  /* 裁切 autofill 矩形 inset，避免盖住圆角边框 */
+
+  overflow: hidden;
+
   transition:
 
     border-color var(--rs-transition-fast),

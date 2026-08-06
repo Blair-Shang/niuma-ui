@@ -90,6 +90,16 @@ export {
 } from './monaco'
 export type { MonacoDebugDecorationState } from './monaco'
 export { default as RsCodeBlock } from './components/RsCodeBlock.vue'
+export { default as RsMarkdown } from './components/RsMarkdown.vue'
+export type { RsMarkdownMode, RsMarkdownRenderOptions } from './components/markdown-utils'
+export {
+  escapeHtml,
+  isSafeHref,
+  isSafeImageSrc,
+  renderMarkdown,
+  resolveMarkdownHeight,
+  resolveMarkdownMode,
+} from './components/markdown-utils'
 export { default as RsProseEditor } from './components/RsProseEditor.vue'
 export { default as RsTerminal } from './components/RsTerminal.vue'
 export {
@@ -271,6 +281,7 @@ export {
   getTreeKey,
   getTreeLabel,
   hasTreeChildren,
+  isTreeAncestorKey,
   resolveAccordionExpandedKeys,
   resolveTreeCheckState,
   resolveTreeFieldNames,

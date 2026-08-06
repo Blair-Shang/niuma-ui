@@ -42,6 +42,9 @@ const iconPathPattern = /[/\\]icons[/\\]([^/\\]+)\.js$/
 /** Lucide 更名兼容：旧 kebab 名 → 新图标文件名 */
 const iconAliases = new Map<string, string>([
   ['code-2', 'code-xml'],
+  // Lucide v0.5xx：circle-help / help-circle → circle-question-mark
+  ['circle-help', 'circle-question-mark'],
+  ['help-circle', 'circle-question-mark'],
 ])
 
 for (const [path, mod] of Object.entries(iconModules)) {

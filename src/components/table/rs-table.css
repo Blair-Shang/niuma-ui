@@ -1056,16 +1056,16 @@
   width: 100%;
   min-width: 0;
 }
-.rs-table-cell-editor--overlay :deep(.rs-select),
-.rs-table-cell-editor--select :deep(.rs-select) {
+.rs-table-cell-editor--overlay .rs-select,
+.rs-table-cell-editor--select .rs-select {
   width: 100%;
 }
 /* 表格内多选：标签单行平铺，溢出裁剪（不出现滚动条） */
-.rs-table-cell-editor--select :deep(.rs-select__value--multiple) {
+.rs-table-cell-editor--select .rs-select__value--multiple {
   flex-wrap: nowrap;
   overflow: hidden;
 }
-.rs-table-cell-editor--select :deep(.rs-select--multiple .rs-select__trigger) {
+.rs-table-cell-editor--select .rs-select--multiple .rs-select__trigger {
   height: var(--rs-control-height-sm);
   min-height: var(--rs-control-height-sm);
   padding-top: 0;

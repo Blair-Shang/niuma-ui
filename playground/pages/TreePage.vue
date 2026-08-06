@@ -6,9 +6,11 @@ import {
   RsContextMenu,
   RsInput,
   RsTree,
+  resolveTreeRowHeight,
   type RsContextMenuItem,
   type RsTreeDropPosition,
   type RsTreeNode,
+  type RsTreeSize,
 } from '@ruoshui/ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
@@ -22,6 +24,13 @@ const navigatorValue = ref('design-ui')
 const emptyFilter = ref('找不到的内容')
 const customFilterText = ref('api')
 const lastEvent = ref('（未触发）')
+
+const sizeDemos: Array<{ size: RsTreeSize; note: string; rowHeight: number }> = [
+  { size: 'ssm', note: '超紧凑', rowHeight: resolveTreeRowHeight('ssm') },
+  { size: 'sm', note: '紧凑侧边栏', rowHeight: resolveTreeRowHeight('sm') },
+  { size: 'md', note: '默认', rowHeight: resolveTreeRowHeight('md') },
+  { size: 'lg', note: '触控 / 宽松', rowHeight: resolveTreeRowHeight('lg') },
+]
 
 const basicNodes: RsTreeNode[] = [
   {
@@ -264,6 +273,57 @@ const flatLargeNodes = computed(() =>
 
 const lastCheck = ref('')
 
+/* ── 万级节点 + 过滤：验证滚到中部后过滤不出现空白 ── */
+const hugeFilter = ref('')
+const hugeNodes: RsTreeNode[] = Array.from({ length: 5000 }, (_, index) => ({
+  key: `tbl-${index}`,
+  label: `BAS_TABLE_${String(index + 1).padStart(4, '0')}`,
+  icon: 'table',
+}))
+
+/* ── 拖放规则：只禁止拖进自己的子孙 ── */
+const nestedDragNodes: RsTreeNode[] = [
+  {
+    key: 'folder-a',
+    label: '文件夹 A',
+    icon: 'folder',
+    children: [
+      { key: 'conn-a1', label: 'A 内的连接 1', icon: 'database' },
+      { key: 'conn-a2', label: 'A 内的连接 2', icon: 'database' },
+    ],
+  },
+  { key: 'conn-root', label: '根层连接', icon: 'database' },
+]
+const lastNestedDrop = ref('')
+const rejectedDrop = ref('')
+
+function onNestedDrop(dragKey: string, dropKey: string, position: RsTreeDropPosition): void {
+  lastNestedDrop.value = `${dragKey} → ${dropKey} (${position})`
+}
+
+/** allowDrop 只在组件内的成环校验通过后才被调用，可用来观察哪些组合被放行 */
+function allowNestedDrop(dragKey: string, dropKey: string): boolean {
+  rejectedDrop.value = `allowDrop 被问到：${dragKey} → ${dropKey}`
+  return true
+}
+
+/* ── 面板级委托右键菜单（大数据量下的推荐写法）── */
+const delegatedTarget = ref<RsTreeNode | null>(null)
+const delegatedOpen = ref(false)
+const delegatedLog = ref<string[]>([])
+
+const delegatedItems = computed<RsContextMenuItem[]>(() => {
+  const target = delegatedTarget.value
+  if (!target) return rootCtxItems
+  return isFolderNode(target) ? folderCtxItems : connCtxItems
+})
+
+function onDelegatedSelect(key: string): void {
+  const target = delegatedTarget.value
+  const source = target ? `节点「${String(target.label)}」` : '空白区域'
+  delegatedLog.value = [`${source} → ${key}`, ...delegatedLog.value].slice(0, 6)
+}
+
 async function loadLazyChildren(_node: RsTreeNode, key: string): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 600))
   if (key !== 'async-root') return
@@ -351,22 +411,13 @@ function statusVariant(status: unknown): 'success' | 'default' {
 
     <DemoBlock title="尺寸 size">
       <p class="hint">
-        <code>sm</code> 行高 28px · 适合紧凑侧边栏；
-        <code>md</code>（默认）行高 34px · 通用场景；
-        <code>lg</code> 行高 40px · 适合触控或宽松布局。
+        四档尺寸决定行高与缩进，行高同时是虚拟滚动的计算基准（见
+        <code>TREE_ROW_HEIGHT</code> / <code>TREE_INDENT_BY_SIZE</code>）。
       </p>
       <div class="size-grid">
-        <div class="size-col">
-          <p class="size-label">sm · 紧凑 · 行高 28px</p>
-          <RsTree :nodes="fileNodes" size="sm" default-expand-all show-line />
-        </div>
-        <div class="size-col">
-          <p class="size-label">md · 默认 · 行高 34px</p>
-          <RsTree :nodes="fileNodes" size="md" default-expand-all show-line />
-        </div>
-        <div class="size-col">
-          <p class="size-label">lg · 宽松 · 行高 40px</p>
-          <RsTree :nodes="fileNodes" size="lg" default-expand-all show-line />
+        <div v-for="item in sizeDemos" :key="item.size" class="size-col">
+          <p class="size-label">{{ item.size }} · {{ item.note }} · 行高 {{ item.rowHeight }}px</p>
+          <RsTree :nodes="fileNodes" :size="item.size" default-expand-all show-line />
         </div>
       </div>
     </DemoBlock>
@@ -593,6 +644,80 @@ function statusVariant(status: unknown): 'success' | 'default' {
       </div>
     </DemoBlock>
 
+    <DemoBlock title="🔬 5000 节点：滚到中部再过滤">
+      <p class="hint">
+        回归用例：先把列表滚到中部，再在输入框里键入关键字。列表必须<strong>立即</strong>显示匹配项，
+        不能出现「先空白、滚一下才正常」——那是内部 <code>scrollTop</code> 与 DOM 脱节、
+        虚拟切片 <code>start</code> 越界导致的。试试输入 <code>0500</code>。
+      </p>
+      <RsInput v-model="hugeFilter" placeholder="按表名过滤，如 0500…" />
+      <RsTree
+        :nodes="hugeNodes"
+        :filter="hugeFilter"
+        virtual
+        :height="260"
+        size="sm"
+        block-node
+        :selectable="false"
+      />
+      <p class="meta">共 {{ hugeNodes.length }} 个节点</p>
+    </DemoBlock>
+
+    <DemoBlock title="🔬 拖放规则：不能拖进自己的子孙">
+      <p class="hint">
+        组件内只兜住一条硬约束——<strong>不能把节点拖进自己的子孙</strong>（会成环），此时
+        <code>allow-drop</code> 根本不会被调用。反过来把子节点拖到<strong>自己的父级</strong>上是合法的
+        （例如把连接拖出所在文件夹），交由 <code>allow-drop</code> 裁决。
+      </p>
+      <RsTree
+        :nodes="nestedDragNodes"
+        draggable
+        drag-trigger="row"
+        default-expand-all
+        show-line
+        :allow-drop="allowNestedDrop"
+        @node-drop="onNestedDrop"
+      />
+      <p class="meta">试试：把「文件夹 A」拖到「A 内的连接 1」上 → 应被拒绝，下面两行都不更新。</p>
+      <p v-if="rejectedDrop" class="meta">{{ rejectedDrop }}</p>
+      <p v-if="lastNestedDrop" class="meta">最近拖放：<code>{{ lastNestedDrop }}</code></p>
+    </DemoBlock>
+
+    <DemoBlock title="🔬 面板级委托右键菜单（大数据量推荐）">
+      <p class="hint">
+        逐行套 <code>RsContextMenu</code> 会在虚拟滚动每帧销毁重建成套菜单组件实例，节点多时开销显著。
+        推荐改为整棵树共用一个菜单：行内只用 <code>@contextmenu</code> 记录目标节点，
+        菜单项按类型计算；容器在<strong>捕获阶段</strong>先清空目标，空白区右键便自然回落到根菜单。
+        菜单依赖的数据失效时，用 <code>v-model:open</code> 主动关闭，避免基于过期节点执行动作。
+      </p>
+      <RsContextMenu
+        v-model:open="delegatedOpen"
+        :items="delegatedItems"
+        @select="onDelegatedSelect"
+      >
+        <div class="ctx-tree-host" @contextmenu.capture="delegatedTarget = null">
+          <RsTree
+            :nodes="ctxConnNodes"
+            :height="220"
+            virtual
+            block-node
+            show-line
+            default-expand-all
+            :selectable="false"
+            size="sm"
+          >
+            <template #title="{ node, label }">
+              <span class="ctx-tree-node" @contextmenu="delegatedTarget = node">{{ label }}</span>
+            </template>
+          </RsTree>
+        </div>
+      </RsContextMenu>
+      <div class="ctx-test-log">
+        <div v-if="!delegatedLog.length" class="ctx-test-log__empty">在节点上、以及列表下方空白处右键试试</div>
+        <div v-for="(line, i) in delegatedLog" :key="i">{{ line }}</div>
+      </div>
+    </DemoBlock>
+
     <DemoBlock title="暴露方法 expandAll / collapseAll">
       <div class="row">
         <RsButton size="sm" variant="default" @click="treeRef?.expandAll()">全部展开</RsButton>
@@ -674,6 +799,8 @@ function statusVariant(status: unknown): 'success' | 'default' {
         <code>#title</code> 插槽内嵌套各自菜单。树置于固定高度容器（<code>virtual</code> +
         <code>height</code>），在节点列表<strong>下方空白处</strong>右键应弹出根菜单（新建连接 / 文件夹）；
         在节点上右键弹出对应菜单。节点菜单已 <code>@contextmenu.stop</code>，不会冒泡到根菜单。
+        <br>
+        注意：这是嵌套写法的行为基准，节点多时请改用上面的<strong>面板级委托</strong>方案。
       </p>
       <RsContextMenu :items="rootCtxItems" @select="onRootCtx">
         <div class="ctx-tree-host">
