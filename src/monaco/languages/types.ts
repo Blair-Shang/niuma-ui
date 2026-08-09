@@ -19,6 +19,7 @@ export type MonacoSqlLanguageId =
   | 'clickhouse'
   | 'sqlite'
   | 'sqlserver'
+  | 'oracle'
 
 /** 编辑器 language prop 可传入的全部语言 ID。 */
 export type MonacoLanguage = MonacoBuiltinLanguage | 'mongodb-shell' | MonacoSqlLanguageId
@@ -43,6 +44,9 @@ export const MONACO_SQLITE_LSP_LANGUAGE = 'sqlite' as const
 
 /** SQL Server 在 Monaco 中的 languageId（Bridge LSP）。 */
 export const MONACO_SQLSERVER_LANGUAGE = 'sqlserver' as const
+
+/** Oracle 在 Monaco 中的 languageId（Bridge LSP）。 */
+export const MONACO_ORACLE_LANGUAGE = 'oracle' as const
 
 /** Generic SQL / 旧 Worker 在 Monaco 中的 languageId（与 LanguageIdEnum.GENERIC 一致）。 */
 export const MONACO_GENERIC_SQL_LANGUAGE = 'genericsql' as const
