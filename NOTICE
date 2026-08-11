@@ -1,0 +1,25 @@
+NiuMa UI
+Copyright 2026 Blair-Shang and NiuMa UI contributors
+
+This product includes software developed at NiuMa UI
+(https://github.com/Blair-Shang/niuma-ui).
+
+Licensed under the Apache License, Version 2.0.
+See the LICENSE file for the full license text.
+
+----
+
+第三方依赖按其各自许可证分发，常见依赖如下（请以 lockfile 中的实际版本为准）：
+
+| 项目 | 常见许可证 | 用途 |
+|------|------------|------|
+| Vue | MIT | peer 框架 |
+| Reka UI | MIT | 无障碍交互原语 |
+| Lucide (lucide-vue-next) | ISC | 默认图标 |
+| Monaco Editor | MIT | RsMonacoEditor |
+| CodeMirror | MIT | RsCodeEditor |
+| xterm.js | MIT | RsTerminal |
+| marked | MIT | Markdown 解析 |
+| DOMPurify | Apache-2.0 / MPL-2.0 | HTML 消毒 |
+| dayjs | MIT | 日期辅助 |
+| vue-sonner | MIT | Toast 原语 |

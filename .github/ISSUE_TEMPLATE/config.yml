@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 消费方接入说明
+    url: https://github.com/Blair-Shang/niuma-ui/blob/main/docs/consumers.md
+    about: 安装、Vite、link 等问题请先阅读消费方指南。
+  - name: 组件清单
+    url: https://github.com/Blair-Shang/niuma-ui/blob/main/docs/components.md
+    about: 查看哪些 Rs* 组件属于公开 API。
+  - name: English README
+    url: https://github.com/Blair-Shang/niuma-ui/blob/main/README.en.md
+    about: English overview of the library.

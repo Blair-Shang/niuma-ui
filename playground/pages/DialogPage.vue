@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { RsButton, RsDialog, type RsFeedbackTone } from '@ruoshui/ui'
+import { RsButton, RsDialog, type RsFeedbackTone } from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 

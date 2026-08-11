@@ -1,0 +1,52 @@
+name: 缺陷报告
+description: 报告 niuma-ui 中的缺陷
+title: "[bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。请先搜索是否已有相同 Issue。
+        安全漏洞请按 SECURITY.md 私下报告，不要用本表单。
+  - type: textarea
+    id: describe
+    attributes:
+      label: 问题描述
+      description: 清晰说明出了什么问题。
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      description: 最小复现步骤，或仓库 / Playground 片段。
+      placeholder: |
+        1. …
+        2. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: "niuma-ui 版本 / tag"
+      placeholder: "v1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: 环境
+      placeholder: "Vue 3.5.x、Vite 8.x、Chrome / Electron …"
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: 补充信息
+      description: 截图、控制台日志、相关组件（RsTable、RsDialog 等）。

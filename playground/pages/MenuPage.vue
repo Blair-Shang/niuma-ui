@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { RsMenu, type RsMenuItem, type RsMenuItemGroup } from '@ruoshui/ui'
+import { RsMenu, type RsMenuItem, type RsMenuItemGroup } from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 

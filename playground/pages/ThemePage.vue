@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { RsBadge, RsButton, useRsConfig } from '@ruoshui/ui'
+import { RsBadge, RsButton, useRsConfig } from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 
@@ -12,24 +12,27 @@ const brandLabel = computed(() =>
   brandActive.value ? '品牌紫（CSS 覆盖）' : '公共 preset（国际 SaaS）',
 )
 
-const integrationExample = `// main.ts — 顺序：先公共，后业务
-import '@ruoshui/ui/styles.css'
-import './theme/brand.css'
-
-// theme/brand.css
-[data-rs-theme='light'] {
-  --rs-primary: #6366f1;
-  --rs-primary-hover: #4f46e5;
-}
-[data-rs-theme='dark'] {
-  --rs-primary: #818cf8;
-  --rs-primary-hover: #a5b4fc;
-}
-
-// App.vue — JS 只负责切换明暗
-<RsConfigProvider theme="dark">
-  <App />
-</RsConfigProvider>`
+// 相对路径拆开拼接，避免依赖扫描把示例 import 当真实模块
+const integrationExample = [
+  '// main.ts — 顺序：先公共，后业务',
+  "import 'niuma-ui/styles.css'",
+  'import ' + "'./" + "theme/brand.css'",
+  '',
+  '// theme/brand.css',
+  "[data-rs-theme='light'] {",
+  '  --rs-primary: #6366f1;',
+  '  --rs-primary-hover: #4f46e5;',
+  '}',
+  "[data-rs-theme='dark'] {",
+  '  --rs-primary: #818cf8;',
+  '  --rs-primary-hover: #a5b4fc;',
+  '}',
+  '',
+  '// App.vue — JS 只负责切换明暗',
+  '<RsConfigProvider theme="dark">',
+  '  <App />',
+  '</RsConfigProvider>',
+].join('\n')
 
 function toggleBrand() {
   brandActive.value = !brandActive.value

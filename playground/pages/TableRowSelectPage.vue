@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { RsButton, RsTable, type RsTableColumn } from '@ruoshui/ui'
+import { RsButton, RsTable, type RsTableColumn } from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 

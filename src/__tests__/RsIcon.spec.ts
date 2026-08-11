@@ -100,6 +100,15 @@ describe('RsIcon', () => {
     expect(isRsIconName('kingbase')).toBe(true)
   })
 
+  it('loads custom sqlserver icon', () => {
+    const icon = resolveLucideIcon('sqlserver')
+    expect(icon).toBeTruthy()
+    const wrapper = mount(RsIcon, { props: { name: 'sqlserver' } })
+    expect(wrapper.find('svg.rs-icon').exists()).toBe(true)
+    expect(wrapper.find('.sqlserver-icon__mark').exists()).toBe(true)
+    expect(isRsIconName('sqlserver')).toBe(true)
+  })
+
   it('loads arbitrary lucide icon by name', () => {
     const icon = resolveLucideIcon('trash-2')
     expect(icon).toBeTruthy()
@@ -189,6 +198,11 @@ describe('RsIcon', () => {
   it('applies accent color to custom oracle icon', () => {
     const wrapper = mount(RsIcon, { props: { name: 'oracle', color: '#34C759' } })
     expect(wrapper.find('svg').attributes('style')).toContain('--rs-icon-oracle-accent: #34C759')
+  })
+
+  it('applies accent color to custom sqlserver icon', () => {
+    const wrapper = mount(RsIcon, { props: { name: 'sqlserver', color: '#34C759' } })
+    expect(wrapper.find('svg').attributes('style')).toContain('--rs-icon-sqlserver-accent: #34C759')
   })
 
   it('applies rotate transform', () => {

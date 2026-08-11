@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import {
   RsButton,
@@ -7,7 +7,7 @@ import {
   RsSelect,
   type RsSelectOption,
   type RsSelectOptionGroup,
-} from '@ruoshui/ui'
+} from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 

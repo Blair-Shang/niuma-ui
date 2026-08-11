@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { RsConfigProvider, RsToaster } from '@ruoshui/ui'
+import { RsConfigProvider, RsToaster } from 'niuma-ui'
 import PlaygroundLayout from './layouts/PlaygroundLayout.vue'
 import {
   playgroundToasterCloseButton,

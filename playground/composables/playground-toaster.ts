@@ -1,6 +1,6 @@
 import { ref } from 'vue'
-import type { RsToastPosition } from '@ruoshui/ui'
-import { RS_TOAST_DEFAULT_POSITION } from '@ruoshui/ui'
+import type { RsToastPosition } from 'niuma-ui'
+import { RS_TOAST_DEFAULT_POSITION } from 'niuma-ui'
 
 /** Playground 全局 RsToaster 配置，供 App.vue 与 ToasterPage 共享 */
 export const playgroundToasterPosition = ref<RsToastPosition>(RS_TOAST_DEFAULT_POSITION)

@@ -76,6 +76,9 @@
   /* 人大金仓品牌图标默认强调色（官网政务红） */
   --rs-icon-kingbase-accent: #c9151e;
 
+  /* SQL Server 品牌图标默认强调色（Simple Icons / 产品红） */
+  --rs-icon-sqlserver-accent: #cc2927;
+
   /* macOS 风格原生滚动条（与 RsScrollbar 视觉一致） */
   --rs-scrollbar-size: 13px;
   --rs-scrollbar-padding: 2px;
@@ -172,6 +175,7 @@
   --rs-icon-oracle-accent: #ff4d4d;
   --rs-icon-clickhouse-accent: #ffe066;
   --rs-icon-kingbase-accent: #ff4d57;
+  --rs-icon-sqlserver-accent: #ff5a57;
   --rs-focus-border: var(--rs-primary);
   --rs-focus-ring: color-mix(in srgb, var(--rs-primary) 28%, transparent);
   --rs-focus-ring-width: 2px;
@@ -405,6 +409,7 @@
   --rs-icon-oracle-accent: #f80000;
   --rs-icon-clickhouse-accent: #ffcc01;
   --rs-icon-kingbase-accent: #c9151e;
+  --rs-icon-sqlserver-accent: #cc2927;
 }
 
 /**
@@ -1021,5 +1026,15 @@ code {
 
 .rs-context-menu__item[data-highlighted] .lucide-kingbase-icon .kingbase-icon__mark,
 .rs-context-menu__item[data-state='open'] .lucide-kingbase-icon .kingbase-icon__mark {
+  fill: rgb(255 255 255 / 0.95);
+}
+
+/* SQL Server 自定义图标：官方品牌火焰/翼形 mark，单色填充随主题调整明暗对比度 */
+.lucide-sqlserver-icon .sqlserver-icon__mark {
+  fill: var(--rs-icon-sqlserver-accent);
+}
+
+.rs-context-menu__item[data-highlighted] .lucide-sqlserver-icon .sqlserver-icon__mark,
+.rs-context-menu__item[data-state='open'] .lucide-sqlserver-icon .sqlserver-icon__mark {
   fill: rgb(255 255 255 / 0.95);
 }

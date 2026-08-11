@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { RsTimePicker, type RsTimeRangeValue } from '@ruoshui/ui'
+import { RsTimePicker, type RsTimeRangeValue } from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 

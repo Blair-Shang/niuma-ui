@@ -1,8 +1,34 @@
 <script setup lang="ts">
 import { ref, type Ref } from 'vue'
-import { RsButton } from '@ruoshui/ui'
+import { RsButton } from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
-import DemoPage from '../components/DemoPage.vue'
+import DemoPage, { type DemoApiRow } from '../components/DemoPage.vue'
+
+const buttonApi: DemoApiRow[] = [
+  { name: 'variant', type: "'primary' | 'default' | 'ghost' | 'danger' | 'link'", default: "'primary'", description: '视觉变体' },
+  { name: 'size', type: "'sm' | 'md' | 'lg'", default: "'md'", description: '控件尺寸' },
+  { name: 'loading', type: 'boolean', default: 'false', description: '加载中，展示旋转指示并禁用点击' },
+  { name: 'disabled', type: 'boolean', default: 'false', description: '禁用' },
+  { name: 'icon', type: 'string', description: '前缀图标（Lucide kebab-case）' },
+  { name: 'iconOnly', type: 'boolean', default: 'false', description: '仅图标模式' },
+  { name: 'tooltip', type: 'string', description: '悬浮提示文案' },
+  { name: 'revealLabel', type: 'boolean', default: 'false', description: '默认收起文字，悬停展开' },
+]
+
+const variantsCode = `<script setup lang="ts">
+import { RsButton } from 'niuma-ui'
+<\/script>
+
+<template>
+  <RsButton>主要按钮</RsButton>
+  <RsButton variant="default">默认按钮</RsButton>
+  <RsButton variant="ghost">文字按钮</RsButton>
+  <RsButton disabled>禁用</RsButton>
+</template>`
+
+const iconCode = `<RsButton icon="plus">新建对话</RsButton>
+<RsButton icon="search" icon-only tooltip="搜索" />
+<RsButton icon="folder" reveal-label>打开项目</RsButton>`
 
 const loadingShort = ref(false)
 const loadingLong = ref(false)
@@ -49,7 +75,7 @@ function runLongLoad() {
 </script>
 
 <template>
-  <DemoPage title="RsButton" test-file="RsButton.spec.ts">
+  <DemoPage title="RsButton" :api="buttonApi">
     <DemoBlock title="Loading 转圈（连接对话框同款）">
       <p class="hint">
         模拟 FTP「测试连接」：loading 期间转圈应持续旋转直至结束（Windows 关闭「动画效果」时亦如此）。
@@ -97,7 +123,7 @@ function runLongLoad() {
       </div>
     </DemoBlock>
 
-    <DemoBlock title="变体">
+    <DemoBlock title="变体" :code="variantsCode">
       <div class="row">
         <RsButton>主要按钮</RsButton>
         <RsButton variant="default">默认按钮</RsButton>
@@ -119,7 +145,7 @@ function runLongLoad() {
       </div>
     </DemoBlock>
 
-    <DemoBlock title="前缀图标 + 文字">
+    <DemoBlock title="前缀图标 + 文字" :code="iconCode">
       <div class="row">
         <RsButton icon="plus">新建对话</RsButton>
         <RsButton icon="search" variant="ghost">搜索</RsButton>

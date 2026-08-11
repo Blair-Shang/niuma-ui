@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { RsCodeEditorDiagnostic } from '@ruoshui/ui'
-import { RsButton, RsCodeEditor } from '@ruoshui/ui'
+import type { RsCodeEditorDiagnostic } from 'niuma-ui'
+import { RsButton, RsCodeEditor } from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 

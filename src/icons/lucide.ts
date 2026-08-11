@@ -10,6 +10,7 @@ import { DamengIcon } from './custom/dameng'
 import { OracleIcon } from './custom/oracle'
 import { ClickhouseIcon } from './custom/clickhouse'
 import { KingbaseIcon } from './custom/kingbase'
+import { SqlserverIcon } from './custom/sqlserver'
 
 export const LUCIDE_LICENSE = 'ISC'
 export const LUCIDE_ATTRIBUTION =
@@ -28,6 +29,7 @@ const customIconMap = new Map<string, Component>([
   ['oracle', OracleIcon],
   ['clickhouse', ClickhouseIcon],
   ['kingbase', KingbaseIcon],
+  ['sqlserver', SqlserverIcon],
 ])
 
 /** Vite 构建时收集全部 Lucide 图标，运行时按名称 O(1) 查找 */

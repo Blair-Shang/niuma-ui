@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { RsUpload } from '@ruoshui/ui'
-import type { RsUploadValidationError } from '@ruoshui/ui'
+import { RsUpload } from 'niuma-ui'
+import type { RsUploadValidationError } from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 

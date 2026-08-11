@@ -1,10 +1,10 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import {
   RsIcon,
   rsCommonIconNames,
   lucideIconCount,
   LUCIDE_ATTRIBUTION,
-} from '@ruoshui/ui'
+} from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 

@@ -3,7 +3,7 @@
  *
  * 用法：
  * 1. 复制到 apps/web/src/theme/brand.css
- * 2. 在 main.ts 中于 @ruoshui/ui/styles.css 之后 import
+ * 2. 在 main.ts 中于 niuma-ui/styles.css 之后 import
  *
  * 原理：CSS 变量级联，后加载的同名 --rs-* 覆盖公共 preset
  *

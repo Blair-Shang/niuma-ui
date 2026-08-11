@@ -31,25 +31,25 @@ describe('RsTable', () => {
     expect(wrapper.text()).toContain('20')
   })
 
-  it('sorts rows ascending then descending on header click', async () => {
+  it('sorts rows ascending then descending on sort icon click', async () => {
     const wrapper = mount(RsTable, {
       props: { columns, data },
     })
-    const nameHeader = wrapper.findAll('th')[0]
-    await nameHeader.trigger('click')
+    const nameSort = wrapper.findAll('.rs-table__sort')[0]!
+    await nameSort.trigger('click')
     expect(wrapper.findAll('.rs-table__row td')[0].text()).toBe('A')
-    await nameHeader.trigger('click')
+    await nameSort.trigger('click')
     expect(wrapper.findAll('.rs-table__row td')[0].text()).toBe('C')
   })
 
-  it('clears sort on third header click', async () => {
+  it('clears sort on third sort icon click', async () => {
     const wrapper = mount(RsTable, {
       props: { columns, data },
     })
-    const nameHeader = wrapper.findAll('th')[0]
-    await nameHeader.trigger('click')
-    await nameHeader.trigger('click')
-    await nameHeader.trigger('click')
+    const nameSort = wrapper.findAll('.rs-table__sort')[0]!
+    await nameSort.trigger('click')
+    await nameSort.trigger('click')
+    await nameSort.trigger('click')
     expect(wrapper.find('.rs-table__sort--active').exists()).toBe(false)
     expect(wrapper.findAll('.rs-table__row td')[0].text()).toBe('B')
   })
@@ -64,7 +64,7 @@ describe('RsTable', () => {
       },
     })
     expect(wrapper.findAll('.rs-table__row td')[1].text()).toBe('5')
-    await wrapper.findAll('th')[1].trigger('click')
+    await wrapper.findAll('.rs-table__sort')[1]!.trigger('click')
     expect(wrapper.emitted('update:sort')?.[0]?.[0]).toEqual({ key: 'count', order: 'desc' })
   })
 
@@ -311,7 +311,7 @@ describe('RsTable', () => {
     const sortIcons = wrapper.findAll('.rs-table__sort')
     expect(sortIcons.length).toBe(2)
     expect(wrapper.find('.rs-table__sort--active').exists()).toBe(false)
-    await wrapper.findAll('th')[0].trigger('click')
+    await sortIcons[0]!.trigger('click')
     expect(wrapper.find('.rs-table__sort--active').exists()).toBe(true)
     expect(wrapper.find('.rs-table__sort--active .rs-icon').exists()).toBe(true)
   })
@@ -916,7 +916,7 @@ describe('RsTable', () => {
         'onUpdate:sort': (value: { key: string; order: 'asc' | 'desc' } | null) => wrapper.setProps({ sort: value }),
       },
     })
-    await wrapper.findAll('th')[0].trigger('click')
+    await wrapper.findAll('.rs-table__sort')[0]!.trigger('click')
     expect(wrapper.emitted('update:sort')?.[0]?.[0]).toEqual({ key: 'name', order: 'asc' })
     expect(wrapper.findAll('.rs-table__row td')[0].text()).toBe('B')
   })
@@ -952,7 +952,7 @@ describe('RsTable', () => {
         data,
       },
     })
-    await wrapper.find('th').trigger('click')
+    await wrapper.find('.rs-table__sort').trigger('click')
     expect(wrapper.findAll('.rs-table__row td')[0].text()).toBe('C')
   })
 
@@ -966,8 +966,9 @@ describe('RsTable', () => {
         'onUpdate:sorts': (value: { key: string; order: 'asc' | 'desc' }[]) => wrapper.setProps({ sorts: value }),
       },
     })
-    await wrapper.findAll('th')[0].trigger('click')
-    await wrapper.findAll('th')[1].trigger('click')
+    const sortButtons = wrapper.findAll('.rs-table__sort')
+    await sortButtons[0]!.trigger('click')
+    await sortButtons[1]!.trigger('click')
     expect(wrapper.emitted('update:sorts')?.[1]?.[0]).toEqual([
       { key: 'name', order: 'asc' },
       { key: 'count', order: 'asc' },

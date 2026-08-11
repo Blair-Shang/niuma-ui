@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [vue(), tailwindcss()],
   resolve: {
     alias: {
-      '@ruoshui/ui': fileURLToPath(new URL('./src', import.meta.url)),
+      'niuma-ui': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
   test: {

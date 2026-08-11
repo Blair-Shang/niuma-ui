@@ -5,7 +5,7 @@ import {
   parseDateValue,
   type RsParsedDate,
   RsCalendarGrid,
-} from '@ruoshui/ui'
+} from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 

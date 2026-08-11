@@ -41,8 +41,11 @@ function faviconIcoFallback(): Plugin {
   }
 }
 
+const base = process.env.VITE_BASE || '/'
+
 export default defineConfig({
   root: playgroundRoot,
+  base,
   publicDir: 'public',
   plugins: [
     vue(),
@@ -54,12 +57,15 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      '@ruoshui/ui': fileURLToPath(new URL('../src', import.meta.url)),
-      '@niuma/ui': fileURLToPath(new URL('../src', import.meta.url)),
+      'niuma-ui': fileURLToPath(new URL('../src', import.meta.url)),
     },
   },
   server: {
     port: 5180,
     strictPort: true,
+  },
+  build: {
+    outDir: fileURLToPath(new URL('../playground-dist', import.meta.url)),
+    emptyOutDir: true,
   },
 })

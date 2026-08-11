@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { RsButton, RsSplitPane } from '@ruoshui/ui'
-import type { RsSplitPaneItem } from '@ruoshui/ui'
+import { RsButton, RsSplitPane } from 'niuma-ui'
+import type { RsSplitPaneItem } from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 

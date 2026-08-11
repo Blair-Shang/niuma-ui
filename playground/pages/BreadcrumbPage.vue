@@ -1,6 +1,6 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref } from 'vue'
-import { RsBreadcrumb, RsButton, type RsBreadcrumbItem } from '@ruoshui/ui'
+import { RsBreadcrumb, RsButton, type RsBreadcrumbItem } from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 

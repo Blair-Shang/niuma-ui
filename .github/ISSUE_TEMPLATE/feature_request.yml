@@ -1,0 +1,36 @@
+name: 功能建议
+description: 为 niuma-ui 提出新想法
+title: "[feat]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        较大的 API 变更请先在此讨论再开大型 PR。
+        新组件请遵循 docs/components.md 与 CONTRIBUTING.md。
+  - type: textarea
+    id: problem
+    attributes:
+      label: 问题 / 动机
+      description: 该能力解决宿主应用的什么问题？
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 方案建议
+      description: API 草图、组件名（Rs*）、token 或行为说明。
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 已考虑的替代方案
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: 范围确认
+      options:
+        - label: 与现有 --rs-* token / RsConfigProvider 兼容
+        - label: 不要求消费方直接依赖 reka-ui
+        - label: 愿意补充测试与 Playground 演示

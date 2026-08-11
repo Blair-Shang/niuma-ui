@@ -1,9 +1,19 @@
 {
-  "name": "@niuma/ui",
+  "name": "niuma-ui",
   "version": "1.0.0",
-  "private": true,
+  "license": "Apache-2.0",
   "type": "module",
-  "description": "NiuMa 设计系统组件库（Rs* + --rs-* token）",
+  "description": "Vue 3 设计系统与 Rs* 组件库（--rs-* token）",
+  "keywords": [
+    "vue",
+    "vue3",
+    "ui",
+    "components",
+    "design-system",
+    "reka-ui",
+    "niuma"
+  ],
+  "author": "Blair-Shang",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Blair-Shang/niuma-ui.git"
@@ -11,6 +21,9 @@
   "homepage": "https://github.com/Blair-Shang/niuma-ui#readme",
   "bugs": {
     "url": "https://github.com/Blair-Shang/niuma-ui/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -22,8 +35,19 @@
     "./vite-plugins/silence-antlr-parse-console": "./vite-plugins/silence-antlr-parse-console.ts",
     "./package.json": "./package.json"
   },
+  "files": [
+    "src",
+    "vite-plugins",
+    "LICENSE",
+    "NOTICE",
+    "README.md",
+    "README.en.md",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "dev": "vite --config playground/vite.config.ts",
+    "build:playground": "vite build --config playground/vite.config.ts",
+    "preview:playground": "vite preview --config playground/vite.config.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

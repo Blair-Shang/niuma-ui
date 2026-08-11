@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { RsButton, RsMonacoEditor } from '@ruoshui/ui'
-import type { MonacoLanguage } from '@ruoshui/ui'
+import { RsButton, RsMonacoEditor } from 'niuma-ui'
+import type { MonacoLanguage } from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 

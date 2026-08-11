@@ -1,13 +1,21 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { RouterLink, RouterView } from 'vue-router'
-import { RsContainer, RsLabel, RsSelect, useRsConfig } from '@ruoshui/ui'
-import { playgroundRoutes } from '../routes'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { RsButton, RsContainer, RsInput, RsLabel, RsSelect, useRsConfig } from 'niuma-ui'
+import {
+  playgroundGroupOrder,
+  playgroundRoutes,
+  type PlaygroundGroup,
+  type PlaygroundRoute,
+} from '../routes'
 
 const { theme, locale, setTheme, setLocale, t } = useRsConfig()
+const route = useRoute()
 
 const themeModel = ref(theme.value)
 const localeModel = ref(locale.value)
+const navQuery = ref('')
+const mobileNavOpen = ref(false)
 
 const themeOptions = computed(() => [
   { label: t('playground.theme.dark'), value: 'dark' },
@@ -19,13 +27,43 @@ const localeOptions = [
   { label: 'English', value: 'en-US' },
 ]
 
-const componentRoutes = computed(() =>
-  playgroundRoutes.filter((route) => !['/theme', '/studio-components'].includes(route.path)),
-)
+const groupLabelKeys: Record<PlaygroundGroup, string> = {
+  start: 'playground.nav.start',
+  basic: 'playground.nav.basic',
+  form: 'playground.nav.form',
+  nav: 'playground.nav.navigation',
+  feedback: 'playground.nav.feedback',
+  data: 'playground.nav.data',
+  editor: 'playground.nav.editor',
+  lab: 'playground.nav.lab',
+}
 
-const labRoutes = computed(() =>
-  playgroundRoutes.filter((route) => ['/theme', '/studio-components'].includes(route.path)),
-)
+const filteredRoutes = computed(() => {
+  const q = navQuery.value.trim().toLowerCase()
+  if (!q) return playgroundRoutes
+  return playgroundRoutes.filter((item) => {
+    return (
+      item.title.toLowerCase().includes(q) ||
+      item.name.toLowerCase().includes(q) ||
+      item.description.toLowerCase().includes(q) ||
+      item.path.toLowerCase().includes(q)
+    )
+  })
+})
+
+const groupedRoutes = computed(() => {
+  const groups: { key: PlaygroundGroup; title: string; items: PlaygroundRoute[] }[] = []
+  for (const key of playgroundGroupOrder) {
+    const items = filteredRoutes.value.filter((item) => item.group === key)
+    if (items.length === 0) continue
+    groups.push({
+      key,
+      title: t(groupLabelKeys[key]),
+      items,
+    })
+  }
+  return groups
+})
 
 watch(themeModel, (value) => setTheme(value as 'dark' | 'light'))
 watch(localeModel, (value) => setLocale(value as 'zh-CN' | 'en-US'))
@@ -35,16 +73,41 @@ watch(theme, (value) => {
 watch(locale, (value) => {
   localeModel.value = value
 })
+watch(
+  () => route.path,
+  () => {
+    mobileNavOpen.value = false
+  },
+)
 </script>
 
 <template>
   <div class="pg-shell">
     <header class="pg-shell__header">
-      <div class="pg-shell__brand">
-        <span class="pg-shell__brand-name">{{ t('playground.brand') }}</span>
-        <span class="pg-shell__brand-sub">{{ t('playground.subtitle') }}</span>
+      <div class="pg-shell__brand-row">
+        <RsButton
+          class="pg-shell__menu-btn"
+          size="sm"
+          variant="ghost"
+          icon="menu"
+          icon-only
+          :tooltip="t('playground.nav.toggle')"
+          @click="mobileNavOpen = !mobileNavOpen"
+        />
+        <RouterLink to="/" class="pg-shell__brand">
+          <span class="pg-shell__brand-name">{{ t('playground.brand') }}</span>
+          <span class="pg-shell__brand-sub">{{ t('playground.subtitle') }}</span>
+        </RouterLink>
       </div>
       <div class="pg-shell__toolbar">
+        <a
+          class="pg-shell__repo"
+          href="https://github.com/Blair-Shang/niuma-ui"
+          target="_blank"
+          rel="noreferrer"
+        >
+          GitHub
+        </a>
         <div class="pg-shell__control">
           <RsLabel class="pg-shell__control-label">{{ t('playground.theme.label') }}</RsLabel>
           <RsSelect v-model="themeModel" :options="themeOptions" size="sm" />
@@ -56,8 +119,24 @@ watch(locale, (value) => {
       </div>
     </header>
 
+    <div
+      v-if="mobileNavOpen"
+      class="pg-shell__backdrop"
+      aria-hidden="true"
+      @click="mobileNavOpen = false"
+    />
+
     <div class="pg-shell__body">
-      <aside class="pg-shell__aside">
+      <aside class="pg-shell__aside" :class="{ 'pg-shell__aside--open': mobileNavOpen }">
+        <div class="pg-shell__search">
+          <RsInput
+            v-model="navQuery"
+            type="search"
+            size="sm"
+            clearable
+            :placeholder="t('playground.nav.search')"
+          />
+        </div>
         <nav class="pg-shell__nav" :aria-label="t('playground.nav.label')">
           <section class="pg-shell__group">
             <h2 class="pg-shell__group-title">{{ t('playground.nav.start') }}</h2>
@@ -66,31 +145,23 @@ watch(locale, (value) => {
             </RouterLink>
           </section>
 
-          <section class="pg-shell__group">
-            <h2 class="pg-shell__group-title">{{ t('playground.nav.components') }}</h2>
+          <section v-for="group in groupedRoutes" :key="group.key" class="pg-shell__group">
+            <h2 class="pg-shell__group-title">{{ group.title }}</h2>
             <RouterLink
-              v-for="route in componentRoutes"
-              :key="route.path"
-              :to="route.path"
+              v-for="item in group.items"
+              :key="item.path"
+              :to="item.path"
               class="pg-shell__link"
               active-class="pg-shell__link--active"
+              :title="item.description"
             >
-              {{ route.title }}
+              {{ item.title }}
             </RouterLink>
           </section>
 
-          <section class="pg-shell__group">
-            <h2 class="pg-shell__group-title">{{ t('playground.nav.lab') }}</h2>
-            <RouterLink
-              v-for="route in labRoutes"
-              :key="route.path"
-              :to="route.path"
-              class="pg-shell__link"
-              active-class="pg-shell__link--active"
-            >
-              {{ route.title }}
-            </RouterLink>
-          </section>
+          <p v-if="groupedRoutes.length === 0" class="pg-shell__empty">
+            {{ t('playground.nav.empty') }}
+          </p>
         </nav>
       </aside>
 
@@ -123,6 +194,18 @@ watch(locale, (value) => {
   padding: var(--rs-space-md) var(--rs-space-xl);
   border-bottom: 1px solid var(--rs-border-subtle);
   background: var(--rs-surface);
+  z-index: 20;
+}
+
+.pg-shell__brand-row {
+  display: flex;
+  align-items: center;
+  gap: var(--rs-space-sm);
+  min-width: 0;
+}
+
+.pg-shell__menu-btn {
+  display: none;
 }
 
 .pg-shell__brand {
@@ -130,6 +213,8 @@ watch(locale, (value) => {
   flex-direction: column;
   gap: var(--rs-space-xs);
   min-width: 0;
+  text-decoration: none;
+  color: inherit;
 }
 
 .pg-shell__brand-name {
@@ -154,6 +239,16 @@ watch(locale, (value) => {
   gap: var(--rs-space-md);
 }
 
+.pg-shell__repo {
+  font-size: var(--rs-font-size-sm);
+  color: var(--rs-muted);
+  text-decoration: none;
+}
+
+.pg-shell__repo:hover {
+  color: var(--rs-primary);
+}
+
 .pg-shell__control {
   display: flex;
   align-items: center;
@@ -176,6 +271,7 @@ watch(locale, (value) => {
   display: flex;
   flex: 1;
   min-height: 0;
+  position: relative;
 }
 
 .pg-shell__aside {
@@ -186,6 +282,13 @@ watch(locale, (value) => {
   min-height: 0;
   border-right: 1px solid var(--rs-border-subtle);
   background: var(--rs-surface);
+  z-index: 30;
+}
+
+.pg-shell__search {
+  flex-shrink: 0;
+  padding: var(--rs-space-sm);
+  border-bottom: 1px solid var(--rs-border-subtle);
 }
 
 .pg-shell__nav {
@@ -206,6 +309,7 @@ watch(locale, (value) => {
   letter-spacing: 0.04em;
   line-height: var(--rs-line-height-normal);
   color: var(--rs-muted);
+  text-transform: uppercase;
 }
 
 .pg-shell__link {
@@ -241,6 +345,12 @@ watch(locale, (value) => {
   box-shadow: 0 0 0 var(--rs-focus-ring-width, 2px) var(--rs-focus-ring);
 }
 
+.pg-shell__empty {
+  margin: var(--rs-space-md) var(--rs-space-sm);
+  font-size: var(--rs-font-size-sm);
+  color: var(--rs-muted);
+}
+
 .pg-shell__main {
   flex: 1;
   min-width: 0;
@@ -249,23 +359,49 @@ watch(locale, (value) => {
   padding-block: var(--rs-space-xl);
 }
 
-@media (width < 48rem) {
+.pg-shell__backdrop {
+  display: none;
+}
+
+@media (width < 56rem) {
+  .pg-shell__menu-btn {
+    display: inline-flex;
+  }
+
+  .pg-shell__aside {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    height: 100%;
+    transform: translateX(-105%);
+    transition: transform var(--rs-transition-fast);
+    box-shadow: var(--rs-shadow-lg, 0 16px 40px rgb(0 0 0 / 18%));
+  }
+
+  .pg-shell__aside--open {
+    transform: translateX(0);
+  }
+
+  .pg-shell__backdrop {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 25;
+    background: rgb(0 0 0 / 35%);
+  }
+
   .pg-shell__header {
-    flex-direction: column;
-    align-items: stretch;
+    flex-wrap: wrap;
   }
 
   .pg-shell__toolbar {
+    width: 100%;
     justify-content: stretch;
   }
 
   .pg-shell__control {
     flex: 1;
     min-width: 0;
-  }
-
-  .pg-shell__aside {
-    width: 14rem;
   }
 }
 </style>

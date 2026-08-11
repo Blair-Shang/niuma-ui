@@ -1,5 +1,5 @@
-﻿<script setup lang="ts">
-import { RsAvatar } from '@ruoshui/ui'
+<script setup lang="ts">
+import { RsAvatar } from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 

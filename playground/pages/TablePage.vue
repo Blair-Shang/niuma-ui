@@ -15,7 +15,7 @@ import {
   type RsTableColumn,
   type RsTableRowDropPosition,
   type RsTableSortState,
-} from '@ruoshui/ui'
+} from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 
