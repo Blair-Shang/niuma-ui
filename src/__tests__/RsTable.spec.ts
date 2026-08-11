@@ -265,6 +265,15 @@ describe('RsTable', () => {
     const wrapper = mount(RsTable, {
       props: { columns, data, resizable: true },
     })
+    // jsdom 无真实布局，offsetWidth 默认为 0；按列 width 注入测量值以模拟浏览器
+    for (const th of wrapper.findAll('th[data-col-key]')) {
+      const key = th.attributes('data-col-key')
+      const width = key === 'name' ? 120 : 80
+      Object.defineProperty(th.element, 'offsetWidth', {
+        configurable: true,
+        get: () => width,
+      })
+    }
     const handle = wrapper.find('.rs-table__resize-handle')
     await handle.trigger('mousedown', { clientX: 100 })
     document.dispatchEvent(new MouseEvent('mousemove', { clientX: 140 }))
