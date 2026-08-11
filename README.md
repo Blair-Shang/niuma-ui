@@ -120,7 +120,16 @@ git tag v1.0.1
 git push origin v1.0.1
 ```
 
-需在仓库 Settings → Secrets 配置 `NPM_TOKEN`（npm 官网生成的 Granular Access Token，权限含 publish）。也可在 Actions 里手动运行 **Publish** 工作流。
+需在仓库 Settings → Secrets 配置 **`NPM_TOKEN`**：
+
+1. 打开 https://www.npmjs.com/settings/shangjian/tokens → **Generate New Token** → **Granular Access Token**
+2. Permissions：对包 `niuma-ui` 勾选 **Read and write**
+3. 务必开启 **Bypass two-factor authentication**（否则 CI 会报 `EOTP`）
+4. 把 token 填进 GitHub Secret 名 `NPM_TOKEN`
+
+不要配置 `NPM_OTP`：一次性验证码约 30 秒过期，无法用于自动发版。
+
+也可在 Actions 里手动运行 **Publish** 工作流。
 
 消费方应锁定 **tag**（或 npm 精确版本），避免长期跟踪 `main`。
 

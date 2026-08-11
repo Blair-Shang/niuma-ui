@@ -49,6 +49,8 @@ jobs:
           fi
 
       - name: Publish to npm
+        # Requires Granular Access Token with publish + "Bypass two-factor authentication".
+        # Do NOT use a one-time OTP secret: codes expire in ~30s and break automated releases.
         run: pnpm publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

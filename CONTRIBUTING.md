@@ -48,7 +48,16 @@ pnpm test:watch
 3. GitHub Actions **Publish** 工作流会跑测试并用 `NPM_TOKEN` 执行 `pnpm publish`。
 4. 也可在 Actions 页面手动 **Run workflow**（适合补发已存在版本，例如首次配置 token 后发布 `1.0.0`）。
 
-仓库需配置 Secret：`NPM_TOKEN`（npm Granular Access Token，具备 publish 权限）。
+仓库需配置 Secret：`NPM_TOKEN`。
+
+生成方式（避免 CI 报 `EOTP`）：
+
+1. npm → Access Tokens → **Granular Access Token**
+2. 包 `niuma-ui`：**Read and write**
+3. 勾选 **Bypass two-factor authentication**
+4. 将 token 写入 GitHub Actions Secret `NPM_TOKEN`
+
+不要使用会过期的 OTP 作为 Secret。
 
 ## 组件规范
 
