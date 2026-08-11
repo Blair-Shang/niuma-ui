@@ -34,12 +34,12 @@ const customIconMap = new Map<string, Component>([
 
 /** Vite 构建时收集全部 Lucide 图标，运行时按名称 O(1) 查找 */
 const iconModules = import.meta.glob<{ default: Component }>(
-  '../../node_modules/lucide-vue-next/dist/esm/icons/*.js',
+  '../../node_modules/@lucide/vue/dist/esm/icons/*.mjs',
   { eager: true },
 )
 
 const iconMap = new Map<string, Component>(customIconMap)
-const iconPathPattern = /[/\\]icons[/\\]([^/\\]+)\.js$/
+const iconPathPattern = /[/\\]icons[/\\]([^/\\]+)\.mjs$/
 
 /** Lucide 更名兼容：旧 kebab 名 → 新图标文件名 */
 const iconAliases = new Map<string, string>([

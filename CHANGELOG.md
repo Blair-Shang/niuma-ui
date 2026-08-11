@@ -6,6 +6,17 @@
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-08-11
+
+### 变更
+
+- 图标依赖由弃用的 `lucide-vue-next` 迁移为 `@lucide/vue`。
+- 终端依赖由弃用的 `xterm` 迁移为 `@xterm/xterm`（配合现有 `@xterm/addon-fit`）。
+
+### 说明
+
+- 安装时仍可能看到 `antlr4ng-cli` 弃用提示：来自 `monaco-sql-languages` → `dt-sql-parser` 的传递依赖，待上游更新；不影响使用。
+
 ## [1.0.0] - 2026-08-11
 
 ### 新增
@@ -25,5 +36,6 @@
 
 - 1.0 之前的私有 tag（如 `v0.1.0`）仅作历史记录；新接入请依赖 `v1.0.0` 及之后版本。
 
-[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.0.0

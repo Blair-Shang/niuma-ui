@@ -41,7 +41,7 @@ vi.mock('@xterm/addon-fit', () => ({
   },
 }))
 
-vi.mock('xterm', () => ({
+vi.mock('@xterm/xterm', () => ({
   Terminal: class {
     cols = 80
     rows = 24

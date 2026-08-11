@@ -1,4 +1,4 @@
-import type { ITheme, Terminal } from 'xterm'
+import type { ITheme, Terminal } from '@xterm/xterm'
 import { readDocumentTheme } from './code-editor-utils'
 
 export type RsTerminalThemeMode = 'auto' | 'light' | 'dark'

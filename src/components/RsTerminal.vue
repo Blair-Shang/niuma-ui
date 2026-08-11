@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { FitAddon } from '@xterm/addon-fit'
-import type { ITheme } from 'xterm'
-import { Terminal } from 'xterm'
-import 'xterm/css/xterm.css'
+import type { ITheme } from '@xterm/xterm'
+import { Terminal } from '@xterm/xterm'
+import '@xterm/xterm/css/xterm.css'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRsI18n } from '../composables/useRsI18n'
 import {

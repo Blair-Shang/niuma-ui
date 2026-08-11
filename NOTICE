@@ -15,10 +15,10 @@ See the LICENSE file for the full license text.
 |------|------------|------|
 | Vue | MIT | peer 框架 |
 | Reka UI | MIT | 无障碍交互原语 |
-| Lucide (lucide-vue-next) | ISC | 默认图标 |
+| Lucide (@lucide/vue) | ISC | 默认图标 |
 | Monaco Editor | MIT | RsMonacoEditor |
 | CodeMirror | MIT | RsCodeEditor |
-| xterm.js | MIT | RsTerminal |
+| xterm.js (@xterm/xterm) | MIT | RsTerminal |
 | marked | MIT | Markdown 解析 |
 | DOMPurify | Apache-2.0 / MPL-2.0 | HTML 消毒 |
 | dayjs | MIT | 日期辅助 |
