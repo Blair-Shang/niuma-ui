@@ -262,23 +262,27 @@ describe('RsTable', () => {
   })
 
   it('updates column width when resize handle is dragged', async () => {
-    const wrapper = mount(RsTable, {
-      props: { columns, data, resizable: true },
-    })
-    // jsdom 无真实布局，offsetWidth 默认为 0；按列 width 注入测量值以模拟浏览器
-    for (const th of wrapper.findAll('th[data-col-key]')) {
-      const key = th.attributes('data-col-key')
-      const width = key === 'name' ? 120 : 80
-      Object.defineProperty(th.element, 'offsetWidth', {
-        configurable: true,
-        get: () => width,
+    const offsetWidth = vi
+      .spyOn(HTMLElement.prototype, 'offsetWidth', 'get')
+      .mockImplementation(function (this: HTMLElement) {
+        const key = this.getAttribute('data-col-key')
+        if (key === 'name') return 120
+        if (key === 'count') return 80
+        return 0
       })
+
+    try {
+      const wrapper = mount(RsTable, {
+        props: { columns, data, resizable: true },
+      })
+      const handle = wrapper.find('.rs-table__resize-handle')
+      await handle.trigger('mousedown', { clientX: 100 })
+      document.dispatchEvent(new MouseEvent('mousemove', { clientX: 140, bubbles: true }))
+      document.dispatchEvent(new MouseEvent('mouseup', { clientX: 140, bubbles: true }))
+      expect(wrapper.emitted('columnResize')?.[0]).toEqual(['name', 160])
+    } finally {
+      offsetWidth.mockRestore()
     }
-    const handle = wrapper.find('.rs-table__resize-handle')
-    await handle.trigger('mousedown', { clientX: 100 })
-    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 140 }))
-    document.dispatchEvent(new MouseEvent('mouseup'))
-    expect(wrapper.emitted('columnResize')?.[0]).toEqual(['name', 160])
   })
 
   it('supports row selection with select all', async () => {
