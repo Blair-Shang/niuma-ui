@@ -115,11 +115,14 @@ pnpm test:watch
 ```bash
 # 1. 更新 package.json 的 version
 # 2. 更新 CHANGELOG.md
+# 3. 提交并推送 main 后打 tag（推送 tag 会触发 Publish 流水线自动 pnpm publish）
 git tag v1.0.1
 git push origin v1.0.1
 ```
 
-消费方应锁定 **tag**（或日后 npm 精确版本），避免长期跟踪 `main`。
+需在仓库 Settings → Secrets 配置 `NPM_TOKEN`（npm 官网生成的 Granular Access Token，权限含 publish）。也可在 Actions 里手动运行 **Publish** 工作流。
+
+消费方应锁定 **tag**（或 npm 精确版本），避免长期跟踪 `main`。
 
 详见 [CHANGELOG.md](./CHANGELOG.md)。
 
