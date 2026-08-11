@@ -39,6 +39,17 @@ pnpm test:watch
 - `docs: 补充 Tree fieldNames 说明`
 - `chore: 收紧 CI`
 
+本地提交请使用本人身份（例如 name=`shangjian`），不要使用 Cursor / bot 账号作为 author。
+
+## 发版
+
+1. 更新 `package.json` 的 `version` 与 [CHANGELOG.md](./CHANGELOG.md)。
+2. 合并到 `main` 后推送 tag：`git tag vX.Y.Z && git push origin vX.Y.Z`。
+3. GitHub Actions **Publish** 工作流会跑测试并用 `NPM_TOKEN` 执行 `pnpm publish`。
+4. 也可在 Actions 页面手动 **Run workflow**（适合补发已存在版本，例如首次配置 token 后发布 `1.0.0`）。
+
+仓库需配置 Secret：`NPM_TOKEN`（npm Granular Access Token，具备 publish 权限）。
+
 ## 组件规范
 
 完整清单与规则见 **[docs/components.md](./docs/components.md)**。摘要：
