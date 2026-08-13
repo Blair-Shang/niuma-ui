@@ -25,6 +25,80 @@ export interface RsDateRangeValue {
   end?: string
 }
 
+/** v-model 取值格式：string 为默认字符串；timestamp 为毫秒时间戳 */
+export type RsDatePickerValueFormat = 'string' | 'timestamp'
+
+/** 时间戳范围（毫秒），用于 valueFormat=timestamp 的 range 模式 */
+export type RsDatePickerTimestampRange = [number, number]
+
+/** 组件对外 v-model 联合类型 */
+export type RsDatePickerModelValue =
+  | string
+  | number
+  | null
+  | RsDateRangeValue
+  | RsDatePickerTimestampRange
+
+/** 快捷项可返回字符串、时间戳或范围 */
+export type RsDatePickerShortcutValue =
+  | string
+  | number
+  | RsDateRangeValue
+  | RsDatePickerTimestampRange
+
+/** 日期/时间范围面板快捷项 */
+export interface RsDatePickerShortcut {
+  label: string
+  value: () => RsDatePickerShortcutValue
+}
+
+/** 将毫秒时间戳格式化为组件内部日期时间字符串 */
+export function formatTimestampValue(ms: number, withTime = true): string {
+  const parsed = dayjs(ms)
+  return withTime ? parsed.format(RS_DATETIME_FORMAT) : parsed.format(RS_DATE_FORMAT)
+}
+
+/** 将组件内部日期/日期时间字符串解析为毫秒时间戳 */
+export function parseTimestampValue(value?: string): number | null {
+  if (!value) return null
+  const parsed = parseRsDateTimeDayjs(value) ?? parseRsDayjs(value)
+  return parsed ? parsed.valueOf() : null
+}
+
+/** 判断是否为时间戳范围元组 */
+export function isTimestampRange(value: unknown): value is RsDatePickerTimestampRange {
+  return (
+    Array.isArray(value)
+    && value.length === 2
+    && typeof value[0] === 'number'
+    && typeof value[1] === 'number'
+  )
+}
+
+/** 将快捷项返回值规范为内部 string / RsDateRangeValue */
+export function normalizeShortcutValue(
+  next: RsDatePickerShortcutValue,
+  options?: { withTime?: boolean },
+): string | RsDateRangeValue | null {
+  const withTime = options?.withTime ?? true
+  if (typeof next === 'number') {
+    return formatTimestampValue(next, withTime)
+  }
+  if (isTimestampRange(next)) {
+    return {
+      start: formatTimestampValue(next[0], withTime),
+      end: formatTimestampValue(next[1], withTime),
+    }
+  }
+  if (typeof next === 'string') {
+    return next || null
+  }
+  if (next && typeof next === 'object') {
+    return { ...next }
+  }
+  return null
+}
+
 export interface RsCalendarCell extends RsParsedDate {
   inCurrentMonth: boolean
 }
@@ -78,10 +152,16 @@ export function formatDateTimeParts(
   withSeconds = true,
 ): string | null {
   const dateText = formatDateParts(date)
-  const timeFormat = withSeconds ? RS_TIME_SECONDS_FORMAT : RS_TIME_MINUTE_FORMAT
-  const parsed = dayjs(`${dateText} ${time}`, `${RS_DATE_FORMAT} ${timeFormat}`, true)
-  if (!parsed.isValid()) return null
-  return parsed.format(RS_DATETIME_FORMAT)
+  const formats = withSeconds
+    ? [`${RS_DATE_FORMAT} ${RS_TIME_SECONDS_FORMAT}`, `${RS_DATE_FORMAT} ${RS_TIME_MINUTE_FORMAT}`]
+    : [`${RS_DATE_FORMAT} ${RS_TIME_MINUTE_FORMAT}`]
+  for (const format of formats) {
+    const parsed = dayjs(`${dateText} ${time}`, format, true)
+    if (parsed.isValid()) {
+      return parsed.format(withSeconds ? RS_DATETIME_FORMAT : `${RS_DATE_FORMAT} ${RS_TIME_MINUTE_FORMAT}`)
+    }
+  }
+  return null
 }
 
 export function extractTimeFromDateTime(value?: string, withSeconds = true): string {

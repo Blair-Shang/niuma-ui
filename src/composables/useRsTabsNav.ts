@@ -18,6 +18,8 @@ interface UseRsTabsNavOptions {
   navRef: Ref<HTMLElement | null>
   measureRef: Ref<HTMLElement | null>
   overflowRef: Ref<HTMLElement | null>
+  /** 右侧 #extra 区域，计入下拉溢出预留宽度 */
+  extraRef?: Ref<HTMLElement | null>
   addButtonWidth: number
 }
 
@@ -80,6 +82,8 @@ export function useRsTabsNav(options: UseRsTabsNavOptions) {
       width += options.overflowRef.value?.offsetWidth ?? 76
     }
     if (options.canAdd.value) width += options.addButtonWidth
+    // 顶栏右侧操作区不参与标签折叠预算，需从可用宽度中扣除
+    width += options.extraRef?.value?.offsetWidth ?? 0
     return width
   }
 

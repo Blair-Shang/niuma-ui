@@ -1,4 +1,4 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { h } from 'vue'
 import RsTable from '../components/RsTable.vue'
@@ -163,6 +163,7 @@ describe('RsTable', () => {
       props: { columns, data: [] },
     })
     expect(wrapper.find('.rs-table__empty').text()).toBe('暂无数据')
+    expect(wrapper.find('.rs-table__empty-content').exists()).toBe(true)
   })
 
   it('renders custom empty slot', () => {
@@ -171,6 +172,20 @@ describe('RsTable', () => {
       slots: { empty: '暂无数据' },
     })
     expect(wrapper.find('.rs-table__empty').text()).toBe('暂无数据')
+  })
+
+  it('wraps empty and loading placeholders in sticky viewport content', () => {
+    const empty = mount(RsTable, {
+      props: { columns, data: [] },
+    })
+    expect(empty.find('.rs-table__empty-content').exists()).toBe(true)
+    empty.unmount()
+
+    const loading = mount(RsTable, {
+      props: { columns, data, loading: true },
+    })
+    expect(loading.find('.rs-table__empty-content').text()).toBe('加载中…')
+    loading.unmount()
   })
 
   it('applies compact and bordered modifiers', () => {
@@ -329,11 +344,16 @@ describe('RsTable', () => {
     expect(wrapper.find('.rs-table__sort--active .rs-icon').exists()).toBe(true)
   })
 
-  it('hides header when showHeader is false', () => {
+  it('showHeader=false 时表头视觉隐藏但仍保留 th', () => {
     const wrapper = mount(RsTable, {
       props: { columns, data, showHeader: false },
     })
-    expect(wrapper.find('thead').exists()).toBe(false)
+    const head = wrapper.find('thead.rs-table__head--sr-only')
+    expect(head.exists()).toBe(true)
+    expect(head.findAll('th').length).toBeGreaterThan(0)
+    expect(wrapper.find('thead.rs-table__head:not(.rs-table__head--sr-only)').exists()).toBe(
+      false,
+    )
   })
 
   it('applies ellipsis wrapper and overflow styles', () => {
@@ -856,6 +876,41 @@ describe('RsTable', () => {
     expect(wrapper.find('.expand-slot').exists()).toBe(true)
   })
 
+  it('renders tree rows with indent toggle on expand column', async () => {
+    const treeData = [
+      {
+        id: 'p',
+        name: 'Parent',
+        count: 1,
+        children: [
+          { id: 'c1', name: 'Child', count: 2 },
+        ],
+      },
+    ]
+    const wrapper = mount(RsTable, {
+      props: {
+        columns,
+        data: treeData,
+        rowKey: 'id',
+        treeConfig: {
+          childrenField: 'children',
+          expandColumnKey: 'name',
+          indent: 16,
+        },
+        expandedRowKeys: [] as string[],
+        'onUpdate:expandedRowKeys': (keys: string[]) => wrapper.setProps({ expandedRowKeys: keys }),
+      },
+    })
+    expect(wrapper.find('.rs-table--tree').exists()).toBe(true)
+    expect(wrapper.findAll('.rs-table__row')).toHaveLength(1)
+    expect(wrapper.find('.rs-table__tree-toggle').exists()).toBe(true)
+    await wrapper.find('.rs-table__tree-toggle').trigger('click')
+    expect(wrapper.props('expandedRowKeys')).toEqual(['p'])
+    await wrapper.setProps({ expandedRowKeys: ['p'] })
+    expect(wrapper.findAll('.rs-table__row')).toHaveLength(2)
+    expect(wrapper.text()).toContain('Child')
+  })
+
   it('supports row selection without checkbox column', async () => {
     const wrapper = mount(RsTable, {
       props: {
@@ -1087,7 +1142,7 @@ describe('RsTable', () => {
       attachTo: document.body,
     })
     await wrapper.find('.rs-table__td--data').trigger('contextmenu')
-    await wrapper.vm.$nextTick()
+    await flushPromises()
     const labels = [...document.body.querySelectorAll('.rs-context-menu__label')].map(
       (node) => node.textContent?.trim(),
     )
@@ -1104,22 +1159,22 @@ describe('RsTable', () => {
       attachTo: document.body,
     })
     await wrapper.find('.rs-table__td--data').trigger('contextmenu')
-    await wrapper.vm.$nextTick()
+    await flushPromises()
     const items = document.body.querySelectorAll('.rs-context-menu__item')
     const copyCell = [...items].find((item) => item.textContent?.includes('复制单元格'))
     expect(copyCell).toBeTruthy()
     ;(copyCell as HTMLElement).click()
-    await wrapper.vm.$nextTick()
+    await flushPromises()
     expect(copyMock).toHaveBeenCalledWith('B')
 
     copyMock.mockClear()
     await wrapper.find('.rs-table__td--data').trigger('contextmenu')
-    await wrapper.vm.$nextTick()
+    await flushPromises()
     const copyRow = [...document.body.querySelectorAll('.rs-context-menu__item')].find((item) =>
       item.textContent?.includes('复制行'),
     )
     ;(copyRow as HTMLElement).click()
-    await wrapper.vm.$nextTick()
+    await flushPromises()
     expect(copyMock).toHaveBeenCalledWith('B\t20')
     wrapper.unmount()
   })

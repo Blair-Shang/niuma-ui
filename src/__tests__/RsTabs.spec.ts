@@ -3,7 +3,16 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { h } from 'vue'
 import RsTabs from '../components/RsTabs.vue'
 import RsConfigProvider from '../components/RsConfigProvider.vue'
-import { getNextTabAfterClose, isTabClosable, isTabRenamable, reorderTabItems, resolveVisibleTabValues } from '../components/tabs-utils'
+import {
+  getNextTabAfterBatchClose,
+  getNextTabAfterClose,
+  isTabClosable,
+  isTabFixed,
+  isTabRenamable,
+  reorderTabItems,
+  resolveTabsToClose,
+  resolveVisibleTabValues,
+} from '../components/tabs-utils'
 
 const items = [
   { value: 'a', label: '标签 A' },
@@ -35,6 +44,34 @@ describe('tabs-utils', () => {
     expect(isTabClosable({ value: 'a', label: 'A' }, true)).toBe(true)
     expect(isTabClosable({ value: 'a', label: 'A', closable: false }, true)).toBe(false)
     expect(isTabClosable({ value: 'a', label: 'A', closable: true }, false)).toBe(true)
+  })
+
+  it('isTabFixed and fixed forbids closable', () => {
+    expect(isTabFixed({ value: 'a', label: 'A', fixed: true })).toBe(true)
+    expect(isTabClosable({ value: 'a', label: 'A', fixed: true, closable: true }, true)).toBe(false)
+  })
+
+  it('resolveTabsToClose skips fixed tabs for batch actions', () => {
+    const items = [
+      { value: 'home', label: 'Home', fixed: true },
+      { value: 'a', label: 'A' },
+      { value: 'b', label: 'B' },
+      { value: 'c', label: 'C' },
+    ]
+    expect(resolveTabsToClose(items, 'others', 'b', true)).toEqual(['a', 'c'])
+    expect(resolveTabsToClose(items, 'left', 'b', true)).toEqual(['a'])
+    expect(resolveTabsToClose(items, 'right', 'b', true)).toEqual(['c'])
+    expect(resolveTabsToClose(items, 'all', 'b', true)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('getNextTabAfterBatchClose keeps active when still present', () => {
+    const remaining = [
+      { value: 'home', label: 'Home' },
+      { value: 'b', label: 'B' },
+    ]
+    expect(getNextTabAfterBatchClose(remaining, 'b', 'b')).toBe('b')
+    expect(getNextTabAfterBatchClose(remaining, 'a', 'b')).toBe('b')
+    expect(getNextTabAfterBatchClose([], 'a')).toBeUndefined()
   })
 
   it('getNextTabAfterClose prefers right neighbor then left', () => {
@@ -177,6 +214,12 @@ describe('RsTabs', () => {
     expect(wrapper.find('.panel-a').exists()).toBe(false)
   })
 
+  it('applies contentGap class for title-to-content spacing', () => {
+    const wrapper = mountTabs({ borderless: true, contentGap: 'xl' })
+    expect(wrapper.find('.rs-tabs').classes()).toContain('rs-tabs--content-gap-xl')
+    expect(wrapper.find('.rs-tabs').classes()).toContain('rs-tabs--borderless')
+  })
+
   it('wraps list and panels in a shared body container', () => {
     const wrapper = mountTabs()
     expect(wrapper.find('.rs-tabs__body').exists()).toBe(true)
@@ -283,15 +326,18 @@ describe('RsTabs', () => {
     expect(wrapper.find('.rs-tabs').classes()).toContain('rs-tabs--card')
   })
 
-  it('renders drag handle when draggable', () => {
+  it('makes movable tabs draggable without a handle', () => {
     const wrapper = mountTabs({ draggable: true })
-    expect(wrapper.find('.rs-tabs__drag-handle').exists()).toBe(true)
+    expect(wrapper.find('.rs-tabs').classes()).toContain('rs-tabs--draggable')
+    expect(wrapper.find('.rs-tabs__drag-handle').exists()).toBe(false)
+    expect(wrapper.findAll('.rs-tabs__trigger--movable')).toHaveLength(items.length)
+    expect(wrapper.find('.rs-tabs__trigger--movable').attributes('draggable')).toBe('true')
   })
 
   it('emits reorder on drop', async () => {
     const wrapper = mountTabs({ draggable: true })
     const triggers = wrapper.findAll('.rs-tabs__trigger')
-    await wrapper.findAll('.rs-tabs__drag-handle')[0]?.trigger('dragstart', {
+    await triggers[0]?.trigger('dragstart', {
       dataTransfer: { setData: () => {}, effectAllowed: 'move' },
     })
     await triggers[2]?.trigger('drop', { preventDefault: () => {} })
@@ -324,5 +370,57 @@ describe('RsTabs', () => {
   it('applies dropdown overflow class when overflow is dropdown', () => {
     const wrapper = mountTabs({ overflow: 'dropdown' })
     expect(wrapper.find('.rs-tabs').classes()).toContain('rs-tabs--dropdown-overflow')
+  })
+
+  it('hides close button and shows pin for fixed tabs', () => {
+    const wrapper = mount(RsTabs, {
+      props: {
+        items: [
+          { value: 'home', label: 'Home', fixed: true },
+          { value: 'a', label: 'A' },
+        ],
+        modelValue: 'home',
+        closable: true,
+      },
+      slots: {
+        home: () => h('p', 'Home'),
+        a: () => h('p', 'A'),
+      },
+    })
+    expect(wrapper.find('.rs-tabs__trigger--fixed').exists()).toBe(true)
+    expect(wrapper.find('.rs-tabs__pin').exists()).toBe(true)
+    expect(wrapper.findAll('.rs-tabs__close')).toHaveLength(1)
+  })
+
+  it('renders extra slot actions', () => {
+    const wrapper = mount(RsTabs, {
+      props: {
+        items,
+        modelValue: 'a',
+        panelless: true,
+      },
+      slots: {
+        extra: () => h('button', { class: 'extra-action' }, '刷新'),
+      },
+    })
+    expect(wrapper.find('.rs-tabs__extra .extra-action').exists()).toBe(true)
+    expect(wrapper.find('.rs-tabs').classes()).toContain('rs-tabs--has-extra')
+  })
+
+  it('blocks tab switch when beforeLeave returns false', async () => {
+    const wrapper = mountTabs({
+      beforeLeave: () => false,
+    })
+    await wrapper.findAll('.rs-tabs__trigger')[1]?.trigger('mousedown', { button: 0 })
+    await flushPromises()
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+  })
+
+  it('emits closeBatch for middle-click close', async () => {
+    const wrapper = mountTabs({ modelValue: 'b', closable: true })
+    await wrapper.findAll('.rs-tabs__trigger')[1]?.trigger('auxclick', { button: 1 })
+    await flushPromises()
+    expect(wrapper.emitted('close')?.[0]).toEqual(['b'])
+    expect(wrapper.emitted('update:modelValue')?.pop()).toEqual(['c'])
   })
 })

@@ -5,6 +5,14 @@ import RsCalendarGrid from './RsCalendarGrid.vue'
 import RsIcon from './RsIcon.vue'
 import RsTimePicker from './RsTimePicker.vue'
 import { useRsI18n } from '../composables/useRsI18n'
+import { RS_COMPONENT_SIZE_ICON_PX, type RsComponentSize } from '../theme/types'
+import { useResolvedRsComponentSize } from './resolve-size'
+import { useRsFormContext, useRsFormField } from './form-utils'
+import {
+  buildLocalInputRules,
+  runFormFieldRules,
+  type RsFormRuleTrigger,
+} from './form-rules'
 import {
   compareDates,
   EMPTY_DATE_RANGE,
@@ -17,29 +25,43 @@ import {
   formatDateTimeRangeLabel,
   getNextMonth,
   getNowDateTime,
+  formatTimestampValue,
   getTodayDate,
   isDateRangeEmpty,
   isDateRangeOrdered,
   isDateWithinBounds,
+  isTimestampRange,
+  normalizeShortcutValue,
   parseDateTimeValue,
   parseDateValue,
+  parseTimestampValue,
+  type RsDatePickerModelValue,
+  type RsDatePickerShortcut,
+  type RsDatePickerValueFormat,
   type RsDateRangeValue,
   type RsParsedDate,
 } from './date-picker-utils'
 import { formatTimeParts } from './time-picker-utils'
 
-export type { RsDateRangeValue } from './date-picker-utils'
+export type {
+  RsDatePickerModelValue,
+  RsDatePickerShortcut,
+  RsDatePickerValueFormat,
+  RsDateRangeValue,
+} from './date-picker-utils'
 export type RsDatePickerLabelPosition = 'top' | 'left'
 
-function isRangeModel(value: string | RsDateRangeValue): value is RsDateRangeValue {
-  return typeof value === 'object' && value !== null && ('start' in value || 'end' in value)
+function isRangeModel(value: RsDatePickerModelValue): value is RsDateRangeValue {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) && ('start' in value || 'end' in value)
 }
 
-const model = defineModel<string | RsDateRangeValue>({ default: '' })
+const model = defineModel<RsDatePickerModelValue>({ default: '' })
 const open = defineModel<boolean>('open', { default: false })
 
 const props = withDefaults(
   defineProps<{
+    /** 表单字段名，用于 RsForm rules 匹配与校验注册 */
+    name?: string
     label?: string
     hint?: string
     placeholder?: string
@@ -49,21 +71,37 @@ const props = withDefaults(
     minDate?: string
     maxDate?: string
     withTime?: boolean
+    /**
+     * 是否选择秒。未传时：withTime 为 true 则默认带秒，纯日期为 false。
+     */
     withSeconds?: boolean
+    /** string：YYYY-MM-DD[/HH:mm:ss]；timestamp：毫秒时间戳 / [start, end] */
+    valueFormat?: RsDatePickerValueFormat
     labelPosition?: RsDatePickerLabelPosition
+    /** 底部快捷选项（有值时替代「今天/现在」链接） */
+    shortcuts?: RsDatePickerShortcut[]
+    size?: RsComponentSize
   }>(),
   {
     disabled: false,
     required: false,
     range: false,
     withTime: false,
-    withSeconds: false,
+    valueFormat: 'string',
     labelPosition: 'top',
   },
 )
 
 const fieldId = useId()
 const { t } = useRsI18n()
+const resolvedSize = useResolvedRsComponentSize(() => props.size)
+const triggerIconSize = computed(() => RS_COMPONENT_SIZE_ICON_PX[resolvedSize.value])
+/** withTime 默认带秒；显式 withSeconds 优先（勿与 prop 同名，避免模板取到未传 prop） */
+const resolvedWithSeconds = computed(() =>
+  props.withSeconds !== undefined ? props.withSeconds : props.withTime,
+)
+const formContext = useRsFormContext()
+const autoMessage = ref('')
 
 const viewYear = ref(getTodayDate().year)
 const viewMonth = ref(getTodayDate().month)
@@ -79,12 +117,28 @@ const draftTime = ref('')
 const draftStartTime = ref('')
 const draftEndTime = ref('')
 
+const useTimestamp = computed(() => props.valueFormat === 'timestamp')
+
 const rangeModel = computed<RsDateRangeValue>({
   get() {
     if (!props.range) return { ...EMPTY_DATE_RANGE }
-    return isRangeModel(model.value) ? model.value : { ...EMPTY_DATE_RANGE }
+    const value = model.value
+    if (useTimestamp.value) {
+      if (!isTimestampRange(value)) return { ...EMPTY_DATE_RANGE }
+      return {
+        start: formatTimestampValue(value[0], props.withTime),
+        end: formatTimestampValue(value[1], props.withTime),
+      }
+    }
+    return isRangeModel(value) ? value : { ...EMPTY_DATE_RANGE }
   },
   set(value) {
+    if (useTimestamp.value) {
+      const start = parseTimestampValue(value.start)
+      const end = parseTimestampValue(value.end)
+      model.value = start != null && end != null ? [start, end] : null
+      return
+    }
     model.value = value
   },
 })
@@ -92,9 +146,17 @@ const rangeModel = computed<RsDateRangeValue>({
 const singleModel = computed({
   get() {
     if (props.range) return ''
-    return typeof model.value === 'string' ? model.value : ''
+    const value = model.value
+    if (useTimestamp.value) {
+      return typeof value === 'number' ? formatTimestampValue(value, props.withTime) : ''
+    }
+    return typeof value === 'string' ? value : ''
   },
   set(value: string) {
+    if (useTimestamp.value) {
+      model.value = value ? parseTimestampValue(value) : null
+      return
+    }
     model.value = value
   },
 })
@@ -139,7 +201,7 @@ const triggerIcon = computed(() => {
 
 function currentTimeValue(): string {
   const now = getNowDateTime()
-  return formatTimeParts(now.hour, now.minute, props.withSeconds ? now.second : undefined)
+  return formatTimeParts(now.hour, now.minute, resolvedWithSeconds.value ? now.second : undefined)
 }
 
 function resetRangeTimeDrafts(): void {
@@ -149,7 +211,7 @@ function resetRangeTimeDrafts(): void {
 }
 
 function combineDraftDateTime(date: RsParsedDate, time: string): string | null {
-  return formatDateTimeParts(date, time, props.withSeconds)
+  return formatDateTimeParts(date, time, resolvedWithSeconds.value)
 }
 
 function setEndViewFromStart(start: RsParsedDate): void {
@@ -163,7 +225,7 @@ function syncSingleDraft(): void {
     const parsed = parseDateTimeValue(singleModel.value)
     if (parsed) {
       draftDate.value = { year: parsed.year, month: parsed.month, day: parsed.day }
-      draftTime.value = extractTimeFromDateTime(singleModel.value, props.withSeconds)
+      draftTime.value = extractTimeFromDateTime(singleModel.value, resolvedWithSeconds.value)
       viewYear.value = parsed.year
       viewMonth.value = parsed.month
       return
@@ -205,7 +267,7 @@ function syncRangeDraft(): void {
     draftEnd.value = end ? { year: end.year, month: end.month, day: end.day } : null
 
     if (start) {
-      draftStartTime.value = extractTimeFromDateTime(value.start, props.withSeconds)
+      draftStartTime.value = extractTimeFromDateTime(value.start, resolvedWithSeconds.value)
       startViewYear.value = start.year
       startViewMonth.value = start.month
     } else {
@@ -215,7 +277,7 @@ function syncRangeDraft(): void {
     }
 
     if (end) {
-      draftEndTime.value = extractTimeFromDateTime(value.end, props.withSeconds)
+      draftEndTime.value = extractTimeFromDateTime(value.end, resolvedWithSeconds.value)
       endViewYear.value = end.year
       endViewMonth.value = end.month
     } else if (start) {
@@ -329,14 +391,42 @@ function confirmSelection(): void {
   confirmSingleSelection()
 }
 
+function applyShortcut(shortcut: RsDatePickerShortcut): void {
+  if (props.disabled) return
+  const normalized = normalizeShortcutValue(shortcut.value(), { withTime: props.withTime })
+  if (!normalized) return
+
+  if (props.range) {
+    const rangeValue: RsDateRangeValue =
+      typeof normalized === 'string' ? { start: normalized, end: normalized } : normalized
+    if (!rangeValue.start || !rangeValue.end) return
+    if (!isDateRangeOrdered(rangeValue)) return
+    rangeModel.value = rangeValue
+    open.value = false
+    return
+  }
+
+  if (typeof normalized !== 'string') return
+  singleModel.value = normalized
+  open.value = false
+}
+
 function clearSelection(): void {
   if (props.range) {
-    rangeModel.value = { ...EMPTY_DATE_RANGE }
+    if (useTimestamp.value) {
+      model.value = null
+    } else {
+      rangeModel.value = { ...EMPTY_DATE_RANGE }
+    }
     draftStart.value = null
     draftEnd.value = null
     if (props.withTime) resetRangeTimeDrafts()
   } else {
-    singleModel.value = ''
+    if (useTimestamp.value) {
+      model.value = null
+    } else {
+      singleModel.value = ''
+    }
     draftDate.value = null
     if (props.withTime) draftTime.value = currentTimeValue()
   }
@@ -355,7 +445,7 @@ function selectToday(): void {
     endViewYear.value = today.year
     endViewMonth.value = today.month
     if (props.withTime) {
-      const time = formatTimeParts(now.hour, now.minute, props.withSeconds ? now.second : undefined)
+      const time = formatTimeParts(now.hour, now.minute, resolvedWithSeconds.value ? now.second : undefined)
       draftStartTime.value = time
       draftEndTime.value = time
     }
@@ -367,7 +457,7 @@ function selectToday(): void {
   viewYear.value = today.year
   viewMonth.value = today.month
   if (props.withTime) {
-    draftTime.value = formatTimeParts(now.hour, now.minute, props.withSeconds ? now.second : undefined)
+    draftTime.value = formatTimeParts(now.hour, now.minute, resolvedWithSeconds.value ? now.second : undefined)
   }
   confirmSingleSelection()
 }
@@ -417,8 +507,62 @@ function handleEndSelect(date: RsParsedDate): void {
   endViewMonth.value = date.month
 }
 
+function clearValidation(): void {
+  autoMessage.value = ''
+}
+
+function setFieldValue(value: unknown): void {
+  if (props.range) {
+    if (isRangeModel(value as RsDatePickerModelValue)) {
+      model.value = value as RsDateRangeValue
+      return
+    }
+    if (Array.isArray(value) && value.length >= 2) {
+      model.value = { start: String(value[0] ?? ''), end: String(value[1] ?? '') }
+      return
+    }
+    model.value = { ...EMPTY_DATE_RANGE }
+    return
+  }
+  model.value = value == null ? '' : (value as RsDatePickerModelValue)
+}
+
+async function runValidate(trigger: RsFormRuleTrigger = 'submit') {
+  const formRules = formContext?.getFieldRules(props.name) ?? []
+  const localRules = buildLocalInputRules({ required: props.required })
+  const rules = [...formRules, ...localRules]
+  if (!rules.length) {
+    autoMessage.value = ''
+    return { valid: true as const, name: props.name }
+  }
+  const result = await runFormFieldRules(model.value, rules, { trigger })
+  autoMessage.value = result.message ?? ''
+  return { valid: result.valid, message: result.message, name: props.name }
+}
+
+useRsFormField(() => ({
+  get name() {
+    return props.name
+  },
+  getValue: () => model.value,
+  setValue: setFieldValue,
+  validate: (trigger) => runValidate(trigger ?? 'submit'),
+  clearValidation,
+  setError: (message: string) => {
+    autoMessage.value = message
+  },
+}))
+
+defineExpose({
+  setValue: setFieldValue,
+  clearValidation,
+  validate: runValidate,
+})
+
 watch(open, (isOpen) => {
   if (isOpen) syncDraftFromModel()
+  // 关闭面板后按 change 触发校验（对齐选择类控件）
+  if (!isOpen && props.name) void runValidate('change')
 })
 </script>
 
@@ -430,20 +574,24 @@ watch(open, (isOpen) => {
       <span v-if="required" class="rs-field__required" aria-hidden="true">*</span>
     </span>
 
-    <div class="rs-date-picker">
+    <div class="rs-date-picker" :class="`rs-date-picker--${resolvedSize}`">
       <PopoverRoot v-model:open="open">
         <PopoverTrigger
           :id="fieldId"
           type="button"
           class="rs-date-picker__trigger"
-          :class="{ 'rs-date-picker__trigger--placeholder': isEmpty }"
+          :class="{
+            'rs-date-picker__trigger--placeholder': isEmpty,
+            'rs-date-picker__trigger--invalid': !!autoMessage,
+          }"
           :disabled="disabled"
+          :aria-invalid="autoMessage ? true : undefined"
         >
           <span class="rs-date-picker__leading">
-            <RsIcon :name="triggerIcon" :size="16" class="rs-date-picker__icon" />
+            <RsIcon :name="triggerIcon" :size="triggerIconSize" class="rs-date-picker__icon" />
             <span class="rs-date-picker__value">{{ displayValue }}</span>
           </span>
-          <RsIcon name="chevron-down" :size="16" class="rs-date-picker__chevron" />
+          <RsIcon name="chevron-down" :size="triggerIconSize" class="rs-date-picker__chevron" />
         </PopoverTrigger>
 
         <PopoverPortal>
@@ -476,7 +624,8 @@ watch(open, (isOpen) => {
                         v-model="draftStartTime"
                         class="rs-date-picker__time-picker"
                         embedded
-                        :with-seconds="withSeconds"
+                        :size="resolvedSize"
+                        :with-seconds="resolvedWithSeconds"
                         :disabled="!draftStart || disabled"
                       />
                     </div>
@@ -502,7 +651,8 @@ watch(open, (isOpen) => {
                         v-model="draftEndTime"
                         class="rs-date-picker__time-picker"
                         embedded
-                        :with-seconds="withSeconds"
+                        :size="resolvedSize"
+                        :with-seconds="resolvedWithSeconds"
                         :disabled="!draftEnd || disabled"
                       />
                     </div>
@@ -525,24 +675,39 @@ watch(open, (isOpen) => {
                     v-model="draftTime"
                     class="rs-date-picker__time-picker"
                     embedded
-                    :with-seconds="withSeconds"
+                    :size="resolvedSize"
+                    :with-seconds="resolvedWithSeconds"
                     :disabled="!draftDate || disabled"
                   />
                 </div>
               </template>
 
               <footer class="rs-date-picker__footer">
-                <button type="button" class="rs-date-picker__link" @click="selectToday">
-                  {{
-                    range
-                      ? withTime
-                        ? t('dateTimePicker.now')
-                        : t('datePicker.rangeToday')
-                      : withTime
-                        ? t('dateTimePicker.now')
-                        : t('datePicker.today')
-                  }}
-                </button>
+                <div class="rs-date-picker__footer-start">
+                  <div v-if="shortcuts?.length" class="rs-date-picker__shortcuts">
+                    <button
+                      v-for="item in shortcuts"
+                      :key="item.label"
+                      type="button"
+                      class="rs-date-picker__shortcut"
+                      :disabled="disabled"
+                      @click="applyShortcut(item)"
+                    >
+                      {{ item.label }}
+                    </button>
+                  </div>
+                  <button v-else type="button" class="rs-date-picker__link" @click="selectToday">
+                    {{
+                      range
+                        ? withTime
+                          ? t('dateTimePicker.now')
+                          : t('datePicker.rangeToday')
+                        : withTime
+                          ? t('dateTimePicker.now')
+                          : t('datePicker.today')
+                    }}
+                  </button>
+                </div>
                 <div class="rs-date-picker__actions">
                   <button type="button" class="rs-date-picker__ghost" @click="clearSelection">
                     {{ withTime ? t('dateTimePicker.clear') : t('datePicker.clear') }}
@@ -563,6 +728,9 @@ watch(open, (isOpen) => {
       </PopoverRoot>
     </div>
 
+    <p v-if="autoMessage" class="rs-date-picker-field__error" role="alert">
+      {{ autoMessage }}
+    </p>
     <span v-if="hint" class="rs-field__hint">{{ hint }}</span>
   </div>
 </template>
@@ -576,7 +744,9 @@ watch(open, (isOpen) => {
   align-items: center;
   justify-content: space-between;
   gap: var(--rs-space-sm);
+  box-sizing: border-box;
   width: 100%;
+  height: var(--rs-control-height-md);
   min-height: var(--rs-control-height-md);
   padding: 0 var(--rs-space-md);
   border: 1px solid var(--rs-input-border, var(--rs-border));
@@ -585,6 +755,7 @@ watch(open, (isOpen) => {
   color: var(--rs-text);
   font: inherit;
   font-size: var(--rs-font-size-sm);
+  line-height: var(--rs-line-height-tight);
   text-align: left;
   cursor: pointer;
   box-shadow: var(--rs-input-shadow, none);
@@ -592,6 +763,24 @@ watch(open, (isOpen) => {
     border-color var(--rs-transition-fast),
     box-shadow var(--rs-transition-fast),
     background var(--rs-transition-fast);
+}
+.rs-date-picker--ssm .rs-date-picker__trigger {
+  height: var(--rs-control-height-ssm);
+  min-height: var(--rs-control-height-ssm);
+  padding: 0 var(--rs-space-xs);
+  font-size: var(--rs-font-size-xs);
+}
+.rs-date-picker--sm .rs-date-picker__trigger {
+  height: var(--rs-control-height-sm);
+  min-height: var(--rs-control-height-sm);
+  padding: 0 var(--rs-space-sm);
+  font-size: var(--rs-font-size-xs);
+}
+.rs-date-picker--lg .rs-date-picker__trigger {
+  height: var(--rs-control-height-lg);
+  min-height: var(--rs-control-height-lg);
+  padding: 0 var(--rs-space-lg);
+  font-size: var(--rs-font-size-base);
 }
 .rs-date-picker__trigger:hover:not(:disabled) {
   border-color: var(--rs-input-border-hover, var(--rs-border));
@@ -610,6 +799,15 @@ watch(open, (isOpen) => {
 }
 .rs-date-picker__trigger--placeholder .rs-date-picker__value {
   color: var(--rs-placeholder);
+}
+.rs-date-picker__trigger--invalid {
+  border-color: var(--rs-danger, var(--rs-color-danger, #dc2626));
+}
+.rs-date-picker-field__error {
+  margin: var(--rs-space-xs) 0 0;
+  color: var(--rs-danger, var(--rs-color-danger, #dc2626));
+  font-size: var(--rs-font-size-xs);
+  line-height: var(--rs-line-height-tight);
 }
 .rs-date-picker__leading {
   display: inline-flex;
@@ -690,6 +888,41 @@ watch(open, (isOpen) => {
   padding-top: 0.75rem;
   border-top: 1px solid var(--rs-border-subtle);
   background: var(--rs-surface-elevated);
+}
+.rs-date-picker__footer-start {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+}
+.rs-date-picker__shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  align-items: center;
+}
+.rs-date-picker__shortcut {
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--rs-border);
+  border-radius: var(--rs-radius-xs);
+  background: transparent;
+  color: var(--rs-text);
+  font-size: var(--rs-font-size-xs);
+  line-height: 1.5;
+  cursor: pointer;
+  transition:
+    border-color var(--rs-transition-fast),
+    color var(--rs-transition-fast),
+    background var(--rs-transition-fast);
+}
+.rs-date-picker__shortcut:hover:not(:disabled) {
+  border-color: var(--rs-primary);
+  color: var(--rs-primary);
+  background: color-mix(in srgb, var(--rs-primary) 8%, transparent);
+}
+.rs-date-picker__shortcut:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
 }
 .rs-date-picker__link {
   border: 0;

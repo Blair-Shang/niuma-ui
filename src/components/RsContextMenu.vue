@@ -1,21 +1,25 @@
 <script setup lang="ts">
+import { computed, watch } from 'vue'
 import {
   ContextMenuContent,
   ContextMenuPortal,
   ContextMenuRoot,
   ContextMenuTrigger,
 } from './reka'
-import type { RsContextMenuItem } from './context-menu-utils'
+import {
+  hasActionableContextMenuItems,
+  type RsContextMenuItem,
+} from './context-menu-utils'
 import RsContextMenuItems from './RsContextMenuItems.vue'
 
-defineProps<{
+const props = defineProps<{
   items: RsContextMenuItem[]
   /** 禁用时不拦截右键事件，直接透传 slot，浏览器原生菜单正常显示 */
   disabled?: boolean
 }>()
 
 /**
- * 展开状态。不绑定时组件自行维护（与原行为一致）；
+ * 展开状态。不绑定时组件自行维护（与原行为一致）。
  * 绑定后可由外部主动关闭——例如菜单所依赖的数据已失效时。
  */
 const open = defineModel<boolean>('open', { default: false })
@@ -24,14 +28,49 @@ const emit = defineEmits<{
   select: [key: string]
 }>()
 
+/** 无有效菜单项时不打开，避免空表/空白区右键出现空气泡 */
+const hasActionableItems = computed(() => hasActionableContextMenuItems(props.items))
+
+watch(hasActionableItems, (ok) => {
+  if (!ok && open.value) open.value = false
+})
+
+function onUpdateOpen(next: boolean): void {
+  if (next && !hasActionableItems.value) {
+    open.value = false
+    return
+  }
+  open.value = next
+}
+
+function onTriggerContextMenu(event: MouseEvent): void {
+  if (!hasActionableItems.value) {
+    event.preventDefault()
+    open.value = false
+  }
+}
+
 function onSelect(item: RsContextMenuItem) {
   emit('select', item.key)
 }
 </script>
 
 <template>
-  <ContextMenuRoot v-if="!disabled" v-model:open="open">
-    <ContextMenuTrigger class="rs-ctx-trigger" @contextmenu.stop>
+  <!--
+    as-child：把触发器 props 合并到 slot 唯一根节点，避免 span + display:contents
+    在 Teleport/Presence 开关时把子 DOM 移出 Vue 追踪（__vnode null）。
+    Content 不用 v-if：由 Root open + Presence 管理显隐，避免与 items 更新竞态。
+  -->
+  <ContextMenuRoot v-if="!disabled" :open="open" @update:open="onUpdateOpen">
+    <!--
+      不因 items 为空禁用 Trigger：表格等场景会在同一次右键里先同步填充 items，
+      若 Trigger 已 disabled，Reka 不会打开菜单（与子节点填充产生竞态）。
+      空菜单仍由 onUpdateOpen / onTriggerContextMenu 拦截。
+    -->
+    <ContextMenuTrigger
+      as-child
+      @contextmenu.stop="onTriggerContextMenu"
+    >
       <slot />
     </ContextMenuTrigger>
     <ContextMenuPortal>
@@ -40,7 +79,11 @@ function onSelect(item: RsContextMenuItem) {
         :side-offset="4"
         :collision-padding="8"
       >
-        <RsContextMenuItems :items="items" @select="onSelect" />
+        <RsContextMenuItems
+          v-if="hasActionableItems"
+          :items="items"
+          @select="onSelect"
+        />
       </ContextMenuContent>
     </ContextMenuPortal>
   </ContextMenuRoot>
@@ -48,16 +91,11 @@ function onSelect(item: RsContextMenuItem) {
 </template>
 
 <style>
-/* 触发器包装：display:contents 令 span 不产生盒模型，不影响父级 flex/grid 布局。
-   ContextMenuTrigger 默认渲染为 span，加此 class 使其透明于布局。 */
-.rs-ctx-trigger {
-  display: contents;
-}
-
 /* ── 菜单容器：macOS 毛玻璃浮层 ── */
 .rs-context-menu__content,
 .rs-context-menu__sub-content {
-  z-index: var(--rs-z-dropdown);
+  /* 与 Select/DatePicker 一致：Portal 挂到 body 时须高于 modal，否则 Dialog 内右键会被挡住 */
+  z-index: calc(var(--rs-z-modal) + 2);
   box-sizing: border-box;
   min-width: 11rem;
   max-width: min(22rem, calc(100vw - 1rem));

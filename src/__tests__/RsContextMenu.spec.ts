@@ -115,4 +115,16 @@ describe('RsContextMenu', () => {
     expect(document.body.textContent).toContain('项 19')
     wrapper.unmount()
   })
+
+  it('does not open empty menu bubble when items are empty', async () => {
+    const wrapper = mount(RsContextMenu, {
+      props: { items: [] },
+      slots: { default: '<div class="trigger">Right click</div>' },
+      attachTo: document.body,
+    })
+    await wrapper.find('.trigger').trigger('contextmenu')
+    await flushPromises()
+    expect(document.body.querySelector('.rs-context-menu__content')).toBeNull()
+    wrapper.unmount()
+  })
 })

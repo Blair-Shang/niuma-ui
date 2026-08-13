@@ -62,6 +62,76 @@ describe('RsConfirmDialog', () => {
     wrapper.unmount()
   })
 
+  it('renders subtitle and description separately', async () => {
+    const wrapper = mount(RsConfirmDialog, {
+      props: {
+        open: true,
+        title: '确认删除',
+        subtitle: '此操作不可恢复',
+        description: '确定删除该用户吗？',
+      },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const content = document.body.querySelector('.rs-confirm-dialog__content')
+    expect(content?.querySelector('.rs-confirm-dialog__subtitle')?.textContent).toContain(
+      '此操作不可恢复',
+    )
+    expect(content?.querySelector('.rs-confirm-dialog__description')?.textContent).toContain(
+      '确定删除该用户吗？',
+    )
+    wrapper.unmount()
+  })
+
+  it('applies custom width as max-width', async () => {
+    const wrapper = mount(RsConfirmDialog, {
+      props: { open: true, title: '宽', width: 500 },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const content = document.body.querySelector('.rs-confirm-dialog__content') as HTMLElement
+    expect(content.style.maxWidth).toBe('500px')
+    wrapper.unmount()
+  })
+
+  it('applies preset width class', async () => {
+    const wrapper = mount(RsConfirmDialog, {
+      props: { open: true, title: 'md', width: 'md' },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const content = document.body.querySelector('.rs-confirm-dialog__content')
+    expect(content?.classList.contains('rs-confirm-dialog__content--md')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('keeps open when autoCloseOnConfirm is false', async () => {
+    const Host = defineComponent({
+      components: { RsConfirmDialog },
+      setup() {
+        const open = ref(true)
+        return { open }
+      },
+      template: `
+        <RsConfirmDialog
+          v-model:open="open"
+          title="异步确认"
+          :auto-close-on-confirm="false"
+          @confirm="$emit('confirmed')"
+        />
+      `,
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await flushPromises()
+    const buttons = document.body.querySelectorAll('.rs-confirm-dialog__footer button')
+    const confirmBtn = buttons[buttons.length - 1] as HTMLElement
+    await confirmBtn.click()
+    await flushPromises()
+    expect(wrapper.emitted('confirmed')).toHaveLength(1)
+    expect(wrapper.findComponent(RsConfirmDialog).props('open')).toBe(true)
+    wrapper.unmount()
+  })
+
   it('hides overlay by default', async () => {
     const wrapper = mount(RsConfirmDialog, {
       props: { open: true, title: '无遮罩' },
@@ -153,6 +223,63 @@ describe('RsConfirmDialog', () => {
 
     await flushPromises()
     expect(target.querySelector('.rs-confirm-dialog__content')).not.toBeNull()
+    wrapper.unmount()
+  })
+
+  it('hides cancel button when showCancel is false', async () => {
+    const wrapper = mount(RsConfirmDialog, {
+      props: {
+        open: true,
+        title: '单按钮提示',
+        showCancel: false,
+        confirmText: '知道了',
+      },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const buttons = document.body.querySelectorAll('.rs-confirm-dialog__footer button')
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0]?.textContent).toContain('知道了')
+    wrapper.unmount()
+  })
+
+  it('renders #extra slot between description and footer', async () => {
+    const wrapper = mount(RsConfirmDialog, {
+      props: { open: true, title: '额外内容', description: '正文' },
+      slots: {
+        extra: () => h('div', { class: 'extra-probe' }, 'extra-body'),
+      },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const extra = document.body.querySelector('.rs-confirm-dialog__extra .extra-probe')
+    expect(extra?.textContent).toContain('extra-body')
+    wrapper.unmount()
+  })
+
+  it('blocks close when beforeClose returns false', async () => {
+    const Host = defineComponent({
+      components: { RsConfirmDialog },
+      setup() {
+        const open = ref(true)
+        return { open }
+      },
+      template: `
+        <RsConfirmDialog
+          v-model:open="open"
+          title="拦截"
+          :before-close="() => false"
+        />
+      `,
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await flushPromises()
+    const cancelBtn = document.body.querySelector(
+      '.rs-confirm-dialog__footer button',
+    ) as HTMLElement
+    await cancelBtn.click()
+    await flushPromises()
+    expect(wrapper.findComponent(RsConfirmDialog).props('open')).toBe(true)
     wrapper.unmount()
   })
 })

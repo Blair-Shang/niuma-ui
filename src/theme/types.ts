@@ -44,8 +44,68 @@ export const RS_RADIUS_CSS: Record<RsRadius, string> = {
 }
 
 /**
+ * 字号档位（由小到大）：
+ * - xs：Caption / 辅助
+ * - sm：次要正文
+ * - base：正文（默认）
+ * - lg：强调正文
+ * - xl：小标题
+ * - 2xl：标题
+ * - 3xl：展示级标题
+ *
+ * 对应 `--rs-font-size-*`；业务侧优先用 token，勿硬编码 px。
+ */
+export type RsFontSize = 'xs' | 'sm' | 'base' | 'lg' | 'xl' | '2xl' | '3xl'
+
+export const RS_FONT_SIZES: readonly RsFontSize[] = [
+  'xs',
+  'sm',
+  'base',
+  'lg',
+  'xl',
+  '2xl',
+  '3xl',
+]
+
+/** 各档字号对应的 CSS 值。 */
+export const RS_FONT_SIZE_CSS: Record<RsFontSize, string> = {
+  xs: 'var(--rs-font-size-xs)',
+  sm: 'var(--rs-font-size-sm)',
+  base: 'var(--rs-font-size-base)',
+  lg: 'var(--rs-font-size-lg)',
+  xl: 'var(--rs-font-size-xl)',
+  '2xl': 'var(--rs-font-size-2xl)',
+  '3xl': 'var(--rs-font-size-3xl)',
+}
+
+/**
+ * 字重档位：
+ * - regular：正文
+ * - medium：标签 / 弱强调
+ * - semibold：标题 / 表头
+ * - bold：强强调
+ */
+export type RsFontWeight = 'regular' | 'medium' | 'semibold' | 'bold'
+
+export const RS_FONT_WEIGHTS: readonly RsFontWeight[] = [
+  'regular',
+  'medium',
+  'semibold',
+  'bold',
+]
+
+/** 各档字重对应的 CSS 值。 */
+export const RS_FONT_WEIGHT_CSS: Record<RsFontWeight, string> = {
+  regular: 'var(--rs-font-weight-regular)',
+  medium: 'var(--rs-font-weight-medium)',
+  semibold: 'var(--rs-font-weight-semibold)',
+  bold: 'var(--rs-font-weight-bold)',
+}
+
+/**
  * 设计 token
  * 色彩语义：Google MD3 容器色 + 字节 Arco 中性色 + 国际 SaaS 功能色
+ * 文字语义：Ant / Arco 四级（primary / secondary / tertiary / disabled）+ link / inverse
  */
 export interface RsThemeTokens {
   primary: string
@@ -60,9 +120,16 @@ export interface RsThemeTokens {
   inputBg: string
   border: string
   borderSubtle: string
+  /** 主文案（与 --rs-text / --rs-text-primary 同步） */
   text: string
+  /** 次要文案（与 --rs-muted / --rs-text-secondary 同步） */
   muted: string
+  /** 占位 / 三级文案（与 --rs-placeholder / --rs-text-tertiary 同步） */
   placeholder: string
+  /** 禁用文案（与 --rs-text-disabled 同步） */
+  textDisabled: string
+  /** 反色文案，用于主色 / 深色底（与 --rs-text-inverse 同步） */
+  textInverse: string
   danger: string
   dangerContainer: string
   onDangerContainer: string

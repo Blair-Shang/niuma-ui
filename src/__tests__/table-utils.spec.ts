@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildTableEntries,
+  buildTableTreeEntries,
+  buildTableTreeNodeIndex,
   clampColumnWidth,
+  collectTableTreeExpandableKeys,
   filterTableRows,
   filterTableRowsByColumnFilters,
+  filterTableTreeRows,
+  flattenVisibleTableTreeEntries,
   isColumnFilterActive,
   fixedCellStyle,
   groupTableRows,
@@ -12,6 +17,7 @@ import {
   resolveFixedColumnStyles,
   resolveSelectableRowKeys,
   resolveSelectAllState,
+  resolveTableTreeCheckState,
   resolveTableVirtualEnabled,
   selectRowKeys,
   selectRowKeysByClick,
@@ -22,6 +28,7 @@ import {
   toggleRowSelection,
   toggleSelectAll,
   toggleSortState,
+  toggleTableTreeCheck,
   reorderColumnKeys,
   reorderTableRows,
   resolveColumnOrder,
@@ -282,5 +289,122 @@ describe('table-utils', () => {
     })
     const dataRows = entries.filter((entry) => entry.type === 'row')
     expect(dataRows[0].type === 'row' && dataRows[0].row.name).toBe('Gamma')
+  })
+
+  it('flattens tree rows by expanded keys with depth', () => {
+    const treeRows = [
+      {
+        id: 'p',
+        name: 'Parent',
+        status: 'running',
+        count: 1,
+        children: [
+          { id: 'c1', name: 'Child1', status: 'running', count: 2 },
+          {
+            id: 'c2',
+            name: 'Child2',
+            status: 'stopped',
+            count: 3,
+            children: [{ id: 'g1', name: 'Grand', status: 'running', count: 4 }],
+          },
+        ],
+      },
+    ]
+    const collapsed = flattenVisibleTableTreeEntries(treeRows, new Set(), { rowKey: 'id' })
+    expect(collapsed.map((e) => e.row.id)).toEqual(['p'])
+    expect(collapsed[0]?.depth).toBe(0)
+    expect(collapsed[0]?.hasChildren).toBe(true)
+
+    const expanded = flattenVisibleTableTreeEntries(treeRows, new Set(['p', 'c2']), { rowKey: 'id' })
+    expect(expanded.map((e) => e.row.id)).toEqual(['p', 'c1', 'c2', 'g1'])
+    expect(expanded.map((e) => e.depth)).toEqual([0, 1, 1, 2])
+  })
+
+  it('collects expandable keys and filters tree keeping ancestors', () => {
+    const treeRows = [
+      {
+        id: 'p',
+        name: 'Parent',
+        status: 'running',
+        count: 1,
+        children: [
+          { id: 'c1', name: 'AlphaChild', status: 'running', count: 2 },
+          { id: 'c2', name: 'BetaChild', status: 'stopped', count: 3 },
+        ],
+      },
+    ]
+    expect(collectTableTreeExpandableKeys(treeRows, { rowKey: 'id' })).toEqual(['p'])
+
+    const filtered = filterTableTreeRows(treeRows, 'Alpha', columns, { childrenField: 'children' })
+    expect(filtered).toHaveLength(1)
+    expect(filtered[0]?.id).toBe('p')
+    expect((filtered[0] as { children: typeof treeRows }).children.map((c) => c.id)).toEqual(['c1'])
+  })
+
+  it('builds tree entries with sibling sort', () => {
+    const treeRows = [
+      {
+        id: 'p',
+        name: 'Parent',
+        status: 'running',
+        count: 1,
+        children: [
+          { id: 'c2', name: 'Beta', status: 'stopped', count: 3 },
+          { id: 'c1', name: 'Alpha', status: 'running', count: 2 },
+        ],
+      },
+    ]
+    const entries = buildTableTreeEntries(treeRows, columns, new Set(['p']), {
+      tree: { childrenField: 'children', expandColumnKey: 'name' },
+      rowKey: 'id',
+      sort: { key: 'name', order: 'asc' },
+    })
+    expect(entries.filter((e) => e.type === 'row').map((e) => (e.type === 'row' ? e.row.id : ''))).toEqual([
+      'p',
+      'c1',
+      'c2',
+    ])
+  })
+
+  it('uses path fallback keys when rowKey missing to avoid sibling collisions', () => {
+    const treeRows = [
+      {
+        name: 'A',
+        status: 'running',
+        count: 1,
+        children: [{ name: 'A1', status: 'running', count: 2 }],
+      },
+      {
+        name: 'B',
+        status: 'stopped',
+        count: 3,
+        children: [{ name: 'B1', status: 'stopped', count: 4 }],
+      },
+    ]
+    const expanded = flattenVisibleTableTreeEntries(treeRows, new Set(['tree:0', 'tree:1']))
+    const keys = expanded.map((e) => e.treeKey)
+    expect(keys).toEqual(['tree:0', 'tree:0/0', 'tree:1', 'tree:1/0'])
+  })
+
+  it('cascades tree check when checkStrictly is false', () => {
+    const treeRows = [
+      {
+        id: 'p',
+        name: 'Parent',
+        status: 'running',
+        count: 1,
+        children: [
+          { id: 'c1', name: 'C1', status: 'running', count: 2 },
+          { id: 'c2', name: 'C2', status: 'stopped', count: 3 },
+        ],
+      },
+    ]
+    const index = buildTableTreeNodeIndex(treeRows, { rowKey: 'id' })
+    const checked = toggleTableTreeCheck('c1', new Set(), index, false)
+    expect(checked.sort()).toEqual(['c1'])
+    expect(resolveTableTreeCheckState('p', new Set(checked), index, false)).toBe('indeterminate')
+
+    const all = toggleTableTreeCheck('p', new Set(), index, false)
+    expect(all.sort()).toEqual(['c1', 'c2', 'p'])
   })
 })

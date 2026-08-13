@@ -18,6 +18,13 @@ defineProps<{
   columnStyleMap: Map<string, Record<string, string> | undefined>
   showRowDragHandle: boolean
   expandable: boolean
+  /** 树表模式：在指定数据列内缩进展开 */
+  treeMode?: boolean
+  treeDepth?: number
+  treeHasChildren?: boolean
+  treeIndent?: number
+  treeColumnKey?: string | null
+  treeLoading?: boolean
   selectable: boolean
   showIndex: boolean
   showEditGutter: boolean
@@ -34,6 +41,8 @@ defineProps<{
   selected: boolean
   highlighted: boolean
   expanded: boolean
+  /** 树级联半选 */
+  indeterminate?: boolean
   disabled: boolean
   rowDragByRow: boolean
   dragging: boolean
@@ -99,7 +108,9 @@ const emit = defineEmits<{
 
 <template>
   <tr
+    role="row"
     class="rs-table__row"
+    :data-row-key="rowKey"
     :class="{
       'rs-table__row--selected': selected,
       'rs-table__row--highlighted': highlighted && !selected,
@@ -157,12 +168,19 @@ const emit = defineEmits<{
       :style="selectLeadStyle"
       @click.stop
     >
-      <label class="rs-table__checkbox" :class="{ 'rs-table__checkbox--checked': selected }">
+      <label
+        class="rs-table__checkbox"
+        :class="{
+          'rs-table__checkbox--checked': selected,
+          'rs-table__checkbox--indeterminate': indeterminate && !selected,
+        }"
+      >
         <input
           :type="selectionType"
           class="rs-table__checkbox-input"
           :name="isRadioSelection ? 'rs-table-radio' : undefined"
           :checked="selected"
+          :indeterminate="Boolean(indeterminate && !selected)"
           :disabled="!canSelect"
           :aria-label="selectRowLabel"
           @change="emit('toggleSelect')"
@@ -218,7 +236,9 @@ const emit = defineEmits<{
     <td
       v-for="column in columns"
       :key="column.key"
+      role="gridcell"
       class="rs-table__td rs-table__td--data"
+      :data-col-key="column.key"
       :class="[
         columnTdClassMap.get(column.key),
         {
@@ -226,10 +246,12 @@ const emit = defineEmits<{
           'rs-table__td--editing': editingColKey === column.key,
           'rs-table__td--focused': focusColKey === column.key && editingColKey !== column.key,
           'rs-table__td--invalid': !!getCellError(rowKey, column.key),
+          'rs-table__td--tree': treeMode && treeColumnKey === column.key,
         },
       ]"
       :style="columnStyleMap.get(column.key)"
       :draggable="rowDragByRow"
+      :tabindex="focusColKey === column.key && editingColKey !== column.key ? 0 : -1"
       :aria-selected="focusColKey === column.key || editingColKey === column.key ? 'true' : undefined"
       @click.stop="emit('cellClick', column.key, $event)"
       @dblclick.stop="emit('cellDblclick', column.key, $event)"
@@ -237,7 +259,74 @@ const emit = defineEmits<{
       @dragstart="rowDragByRow ? emit('rowDragStart', $event) : undefined"
       @dragend="rowDragByRow ? emit('rowDragEnd') : undefined"
     >
+      <div
+        v-if="treeMode && treeColumnKey === column.key"
+        class="rs-table__tree-cell"
+        :style="{ paddingInlineStart: `${(treeDepth ?? 0) * (treeIndent ?? 20)}px` }"
+      >
+        <button
+          v-if="treeHasChildren"
+          type="button"
+          class="rs-table__expand-btn rs-table__tree-toggle"
+          :class="{
+            'rs-table__expand-btn--expanded': expanded,
+            'rs-table__tree-toggle--loading': treeLoading,
+          }"
+          :disabled="treeLoading"
+          :aria-label="expanded ? collapseRowLabel : expandRowLabel"
+          @click.stop="emit('toggleExpand')"
+        >
+          ›
+        </button>
+        <span
+          v-else
+          class="rs-table__tree-leaf"
+          aria-hidden="true"
+        />
+        <span
+          :class="[
+            'rs-table__tree-content',
+            { 'rs-table__cell-tip': cellTooltipEnabled(column, rowIndex) },
+            { 'rs-table__cell-tip--editing': editingColKey === column.key },
+          ]"
+          :data-rs-table-tip-mode="cellTooltipEnabled(column, rowIndex) ? cellTooltipMode(column, rowIndex) : undefined"
+          :data-rs-table-tip-text="cellTooltipText(column, row, rowIndex)"
+          :title="getCellError(rowKey, column.key) || cellTooltipFallbackTitle(column, row, rowIndex)"
+        >
+          <RsTableCell
+            :column="column"
+            :row="row"
+            :row-index="rowIndex"
+            :row-key="rowKey"
+            :table-editable="tableEditable"
+            :editing="editingColKey === column.key"
+            :dirty="isCellDirty(rowKey, column.key)"
+            :focused="focusColKey === column.key"
+            :draft="getCellDraft(rowKey, column.key)"
+            :has-custom-slot="hasColumnSlot(column.key)"
+            :has-edit-slot="hasEditSlot(column.key)"
+            :edit-trigger="editTrigger"
+            :row-commit="rowCommit"
+            :allow-null="allowNull"
+            :focus-mode="focusMode"
+            :null-label="nullLabel"
+            :error-message="getCellError(rowKey, column.key) ?? null"
+            :validating="isCellValidating(rowKey, column.key)"
+            @start-edit="emit('cellStartEdit', column.key)"
+            @commit="emit('cellCommit', column.key, $event)"
+            @cancel="emit('cellCancel', column.key)"
+            @update-draft="emit('cellUpdateDraft', column.key, $event)"
+            @navigate="emit('cellNavigate', column.key, $event)"
+          >
+            <slot :name="column.key" :row="row" :column="column" :index="rowIndex" />
+            <template v-if="hasEditSlot(column.key)" #editor="scope">
+              <slot :name="`edit-${column.key}`" v-bind="scope" />
+            </template>
+          </RsTableCell>
+        </span>
+      </div>
       <span
+        v-else
         :class="[
           { 'rs-table__cell-tip': cellTooltipEnabled(column, rowIndex) },
           { 'rs-table__cell-tip--editing': editingColKey === column.key },

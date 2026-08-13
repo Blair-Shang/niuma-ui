@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { createRsConfigState } from '../composables/useRsConfig'
 import { applyTheme } from '../theme/apply'
+import { themePresets } from '../theme/presets'
+import {
+  RS_FONT_SIZES,
+  RS_FONT_SIZE_CSS,
+  RS_FONT_WEIGHTS,
+  RS_FONT_WEIGHT_CSS,
+} from '../theme/types'
 
 describe('useRsConfig / theme', () => {
   it('translates by locale', () => {
@@ -18,5 +25,23 @@ describe('useRsConfig / theme', () => {
     expect(document.documentElement.dataset.rsTheme).toBe('light')
     applyTheme('dark')
     expect(document.documentElement.dataset.rsTheme).toBe('dark')
+  })
+
+  it('exposes typography token ladders', () => {
+    expect(RS_FONT_SIZES).toEqual(['xs', 'sm', 'base', 'lg', 'xl', '2xl', '3xl'])
+    expect(RS_FONT_SIZE_CSS['3xl']).toBe('var(--rs-font-size-3xl)')
+    expect(RS_FONT_WEIGHTS).toEqual(['regular', 'medium', 'semibold', 'bold'])
+    expect(RS_FONT_WEIGHT_CSS.semibold).toBe('var(--rs-font-weight-semibold)')
+  })
+
+  it('theme presets include text semantic fields', () => {
+    for (const mode of ['light', 'dark'] as const) {
+      const p = themePresets[mode]
+      expect(p.text).toBeTruthy()
+      expect(p.muted).toBeTruthy()
+      expect(p.placeholder).toBeTruthy()
+      expect(p.textDisabled).toBeTruthy()
+      expect(p.textInverse).toBe('#ffffff')
+    }
   })
 })

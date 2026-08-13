@@ -609,7 +609,8 @@ function onIntoRowDrop(
     <DemoBlock title="行展开 expandable">
       <p class="hint">
         对齐 Ant <code>expandable</code> / Arco 展开行；<code>v-model:expanded-row-keys</code> +
-        <code>#expand</code> 插槽。
+        <code>#expand</code> 插槽。层级树列表请看
+        <a href="#/table-tree">RsTable · 树列表</a>（<code>treeConfig</code>，与明细展开互斥）。
       </p>
       <RsTable
         v-model:expanded-row-keys="expandedRowKeys"

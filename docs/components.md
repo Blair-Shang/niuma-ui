@@ -31,9 +31,14 @@ import { RsButton, RsConfigProvider } from 'niuma-ui'
 | `RsEmpty` | 空状态 |
 | `RsLink` | 文字链接 |
 | `RsBadge` | 状态 / 数量徽标 |
+| `RsTag` / `RsDynamicTags` | 标签 / 可编辑标签组 |
 | `RsAvatar` | 头像 / 回退 |
 | `RsLabel` | 表单标签 |
 | `RsCard` / `RsStatCard` | 内容卡 / 指标卡 |
+| `RsDivider` | 分隔线 |
+| `RsAlert` | 反馈提示条 |
+| `RsDescriptions` / `RsDescriptionsItem` | 描述列表 |
+| `RsLoadingBar` | 顶栏加载进度（配合 `useRsLoadingBar`） |
 
 ### 操作与输入
 
@@ -41,6 +46,8 @@ import { RsButton, RsConfigProvider } from 'niuma-ui'
 |------|------|
 | `RsButton` | 按钮（变体、加载、仅图标） |
 | `RsCheckbox` | 复选框 |
+| `RsSwitch` | 开关 |
+| `RsRadio` / `RsRadioItem` | 单选分组 |
 | `RsInput` | 文本输入与校验规则 |
 | `RsInputNumber` | 数字输入 |
 | `RsSelect` | 选择器 / 分组选项 |
@@ -80,9 +87,9 @@ import { RsButton, RsConfigProvider } from 'niuma-ui'
 
 | 组件 | 说明 |
 |------|------|
-| `RsTable` | 数据表（排序、选择、虚拟、编辑） |
+| `RsTable` | 数据表（排序、选择、虚拟、编辑）；架构见 [rs-table-architecture.md](./rs-table-architecture.md)；SSR [rs-table-ssr.md](./rs-table-ssr.md)；图表 [rs-table-chart-adapter.md](./rs-table-chart-adapter.md)；像素回归 [rs-table-visual.md](./rs-table-visual.md) |
 | `RsTableCellEditor` | 单元格编辑器 |
-| `RsTableHeaderRow` / `RsTableColgroup` | 表头 / colgroup 辅助 |
+| `RsTableHeader` / `RsTableBody` / `RsTableColGroup` | 表格视图子件（ViewContext inject） |
 | `RsTree` | 树（勾选、拖拽、虚拟） |
 | `RsCodeBlock` | 只读代码块 |
 | `RsMarkdown` | Markdown 渲染 |

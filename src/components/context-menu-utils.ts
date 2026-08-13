@@ -18,3 +18,9 @@ export interface RsContextMenuItem {
   /** 键盘快捷键提示（仅展示，不绑定事件），如 "⌘K"、"⌃C" */
   shortcut?: string
 }
+
+/** 是否存在可操作项（排除纯分隔线），用于避免空菜单气泡 */
+export function hasActionableContextMenuItems(items: RsContextMenuItem[] | undefined): boolean {
+  if (!items?.length) return false
+  return items.some((item) => !item.separator)
+}

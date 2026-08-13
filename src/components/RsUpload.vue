@@ -1,7 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import RsIcon from './RsIcon.vue'
-import { formatFileSize, mergeUploadFiles, removeUploadFileAt, validateUploadFiles } from './upload-utils'
+import {
+  downloadUploadFile,
+  formatFileSize,
+  mergeUploadFiles,
+  removeUploadFileAt,
+  resolveUploadFileIcon,
+  validateUploadFiles,
+} from './upload-utils'
 import { useRsI18n } from '../composables/useRsI18n'
 
 const model = defineModel<File[]>({ default: () => [] })
@@ -15,25 +22,44 @@ const props = withDefaults(
     disabled?: boolean
     label?: string
     hint?: string
+    /** 是否展示已选文件列表 */
+    showFileList?: boolean
+    /** 文件行是否显示下载按钮 */
+    showDownload?: boolean
+    /** 达到 maxCount 后隐藏拖拽区（仅保留列表） */
+    hideDropzoneWhenFull?: boolean
   }>(),
   {
     multiple: false,
     disabled: false,
+    showFileList: true,
+    showDownload: false,
+    hideDropzoneWhenFull: false,
   },
 )
 
 const emit = defineEmits<{
   reject: [errors: ReturnType<typeof validateUploadFiles>['rejected']]
+  download: [file: File, index: number]
+  remove: [file: File, index: number]
 }>()
 
 const { t } = useRsI18n()
+const dragging = ref(false)
+const dragDepth = ref(0)
+
 const canAdd = computed(() => !props.maxCount || model.value.length < props.maxCount)
 const isDropzoneDisabled = computed(() => props.disabled || !canAdd.value)
-const resolvedHint = computed(() => props.hint ?? t('upload.browse'))
+const showDropzone = computed(
+  () => !(props.hideDropzoneWhenFull && props.maxCount != null && model.value.length >= props.maxCount),
+)
+const resolvedHint = computed(() => {
+  if (dragging.value && !isDropzoneDisabled.value) return t('upload.dropActive')
+  return props.hint ?? t('upload.browse')
+})
 
-function onFilesChange(event: Event): void {
-  const input = event.target as HTMLInputElement
-  const files = Array.from(input.files ?? [])
+function applyFiles(files: File[]): void {
+  if (!files.length || isDropzoneDisabled.value) return
   const result = validateUploadFiles(files, {
     accept: props.accept,
     maxSize: props.maxSize,
@@ -41,19 +67,71 @@ function onFilesChange(event: Event): void {
   })
   model.value = mergeUploadFiles(model.value, result.accepted, props.maxCount)
   if (result.rejected.length) emit('reject', result.rejected)
+}
+
+function onFilesChange(event: Event): void {
+  const input = event.target as HTMLInputElement
+  applyFiles(Array.from(input.files ?? []))
   input.value = ''
 }
 
+function onDragEnter(event: DragEvent): void {
+  event.preventDefault()
+  if (isDropzoneDisabled.value) return
+  dragDepth.value += 1
+  dragging.value = true
+}
+
+function onDragOver(event: DragEvent): void {
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = isDropzoneDisabled.value ? 'none' : 'copy'
+}
+
+function onDragLeave(event: DragEvent): void {
+  event.preventDefault()
+  dragDepth.value = Math.max(0, dragDepth.value - 1)
+  if (dragDepth.value === 0) dragging.value = false
+}
+
+function onDrop(event: DragEvent): void {
+  event.preventDefault()
+  dragDepth.value = 0
+  dragging.value = false
+  if (isDropzoneDisabled.value) return
+  applyFiles(Array.from(event.dataTransfer?.files ?? []))
+}
+
 function removeFile(index: number): void {
+  const file = model.value[index]
+  if (!file) return
   model.value = removeUploadFileAt(model.value, index)
+  emit('remove', file, index)
+}
+
+function onDownload(file: File, index: number): void {
+  emit('download', file, index)
+  // 无外部监听时仍提供默认下载；有监听时由业务决定是否自行处理
+  downloadUploadFile(file)
+}
+
+function fileIcon(file: File): string {
+  return resolveUploadFileIcon(file)
 }
 </script>
 
 <template>
   <div class="rs-upload">
     <label
+      v-if="showDropzone"
       class="rs-upload__dropzone"
-      :class="{ 'rs-upload__dropzone--disabled': isDropzoneDisabled }"
+      :class="{
+        'rs-upload__dropzone--disabled': isDropzoneDisabled,
+        'rs-upload__dropzone--dragging': dragging && !isDropzoneDisabled,
+      }"
+      @dragenter="onDragEnter"
+      @dragover="onDragOver"
+      @dragleave="onDragLeave"
+      @drop="onDrop"
     >
       <input
         class="rs-upload__input"
@@ -71,20 +149,36 @@ function removeFile(index: number): void {
         <span class="rs-upload__hint">{{ resolvedHint }}</span>
       </span>
     </label>
-    <ul v-if="model.length" class="rs-upload__list">
+
+    <ul v-if="showFileList && model.length" class="rs-upload__list">
       <li
         v-for="(file, index) in model"
         :key="`${file.name}-${file.size}-${index}`"
         class="rs-upload__file"
       >
-        <span class="rs-upload__file-icon" aria-hidden="true">
-          <RsIcon name="file" :size="16" />
+        <span
+          class="rs-upload__file-icon"
+          :class="`rs-upload__file-icon--${fileIcon(file)}`"
+          aria-hidden="true"
+        >
+          <RsIcon :name="fileIcon(file)" :size="16" />
         </span>
         <span class="rs-upload__file-meta">
           <span class="rs-upload__file-name">{{ file.name }}</span>
           <span class="rs-upload__file-size">{{ formatFileSize(file.size) }}</span>
         </span>
         <button
+          v-if="showDownload"
+          type="button"
+          class="rs-upload__file-action"
+          :aria-label="t('upload.download')"
+          :title="t('upload.download')"
+          @click.stop="onDownload(file, index)"
+        >
+          <RsIcon name="download" :size="14" />
+        </button>
+        <button
+          v-if="!disabled"
           type="button"
           class="rs-upload__file-remove"
           :aria-label="t('common.remove')"
@@ -123,7 +217,8 @@ function removeFile(index: number): void {
     box-shadow var(--rs-transition-fast);
 }
 
-.rs-upload__dropzone:hover:not(.rs-upload__dropzone--disabled) {
+.rs-upload__dropzone:hover:not(.rs-upload__dropzone--disabled),
+.rs-upload__dropzone--dragging:not(.rs-upload__dropzone--disabled) {
   border-color: color-mix(in srgb, var(--rs-primary) 55%, var(--rs-border));
   background: color-mix(in srgb, var(--rs-primary) 6%, var(--rs-surface));
 }
@@ -163,7 +258,8 @@ function removeFile(index: number): void {
     box-shadow var(--rs-transition-fast);
 }
 
-.rs-upload__dropzone:hover:not(.rs-upload__dropzone--disabled) .rs-upload__icon {
+.rs-upload__dropzone:hover:not(.rs-upload__dropzone--disabled) .rs-upload__icon,
+.rs-upload__dropzone--dragging:not(.rs-upload__dropzone--disabled) .rs-upload__icon {
   transform: translateY(-1px);
   box-shadow: var(--rs-shadow);
 }
@@ -226,6 +322,40 @@ function removeFile(index: number): void {
   color: var(--rs-muted);
 }
 
+.rs-upload__file-icon--file-image {
+  color: var(--rs-info, #2563eb);
+}
+
+.rs-upload__file-icon--file-code,
+.rs-upload__file-icon--file-braces,
+.rs-upload__file-icon--file-terminal {
+  color: var(--rs-primary);
+}
+
+.rs-upload__file-icon--file-key,
+.rs-upload__file-icon--key-round,
+.rs-upload__file-icon--file-lock {
+  color: var(--rs-warning, #d97706);
+}
+
+.rs-upload__file-icon--file-archive {
+  color: var(--rs-secondary, #7c3aed);
+}
+
+.rs-upload__file-icon--file-spreadsheet {
+  color: var(--rs-success, #16a34a);
+}
+
+.rs-upload__file-icon--file-type,
+.rs-upload__file-icon--file-text {
+  color: var(--rs-danger, #dc2626);
+}
+
+.rs-upload__file-icon--file-music,
+.rs-upload__file-icon--file-video-camera {
+  color: var(--rs-info, #2563eb);
+}
+
 .rs-upload__file-meta {
   display: grid;
   gap: 0.125rem;
@@ -249,6 +379,7 @@ function removeFile(index: number): void {
   line-height: var(--rs-line-height-tight);
 }
 
+.rs-upload__file-action,
 .rs-upload__file-remove {
   display: inline-flex;
   flex-shrink: 0;
@@ -267,11 +398,13 @@ function removeFile(index: number): void {
     color var(--rs-transition-fast);
 }
 
+.rs-upload__file-action:hover,
 .rs-upload__file-remove:hover {
   background: var(--rs-item-hover);
   color: var(--rs-text);
 }
 
+.rs-upload__file-action:focus-visible,
 .rs-upload__file-remove:focus-visible {
   outline: none;
   box-shadow: 0 0 0 var(--rs-focus-ring-width, 2px) var(--rs-focus-ring);

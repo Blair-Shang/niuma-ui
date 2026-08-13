@@ -9,24 +9,23 @@ import { useResolvedRsComponentSize } from './resolve-size'
 import { rsRadiusCss, useResolvedRsRadius } from './resolve-radius'
 
 import {
-
-  runInputValidation,
-
   type RsInputRule,
-
   type RsInputValidateTrigger,
-
 } from './input-rules'
 
 import {
-
   useRsFormContext,
-
   useRsFormField,
-
   type RsFormLabelPosition,
-
 } from './form-utils'
+
+import {
+  buildLocalInputRules,
+  runFormFieldRules,
+  type RsFormRuleTrigger,
+} from './form-rules'
+
+import RsVNodeHost from './RsVNodeHost.vue'
 
 import RsIcon from './RsIcon.vue'
 
@@ -94,6 +93,9 @@ const props = withDefaults(
 
     validateTrigger?: RsInputValidateTrigger
 
+    /** 字段名：匹配 RsForm.rules[name]，并对齐大厂 Form.Item name */
+    name?: string
+
     /** 文本前缀（也可用 prefix 插槽） */
 
     prefix?: string
@@ -132,6 +134,13 @@ const props = withDefaults(
 
     labelPosition?: RsFormLabelPosition
 
+    /**
+     * 浏览器自动填充。
+     * 默认：普通输入 off；password 用 new-password（off 常被浏览器忽略）。
+     * 需要记住时可显式传 on / username / current-password 等。
+     */
+    autocomplete?: string
+
   }>(),
 
   {
@@ -155,8 +164,6 @@ const props = withDefaults(
     visibilityToggle: true,
 
     showValidateMessage: true,
-
-    labelPosition: 'top',
 
   },
 
@@ -206,6 +213,12 @@ const hasPrefix = computed(() => Boolean(props.prefix || slots.prefix))
 
 const resolvedId = computed(() => props.id ?? fieldId)
 
+/** 未显式传 autocomplete 时关闭快捷填充；密码框用 new-password 更稳 */
+const resolvedAutocomplete = computed(() => {
+  if (props.autocomplete != null && props.autocomplete !== '') return props.autocomplete
+  return props.type === 'password' ? 'new-password' : 'off'
+})
+
 const resolvedLabelPosition = computed(
 
   () => props.labelPosition ?? formContext?.labelPosition.value ?? 'top',
@@ -219,13 +232,21 @@ const errorId = computed(() => `${resolvedId.value}-error`)
 
 
 const displayMessage = computed(() => {
-
   if (props.errorMessage) return props.errorMessage
-
   if (props.showValidateMessage && autoInvalid.value) return autoMessage.value
-
   return ''
+})
 
+const errorSlotProps = computed(() => ({
+  name: props.name,
+  message: displayMessage.value,
+  value: model.value,
+}))
+
+/** Form 级 #error / errorRender；字段无 #error 时使用 */
+const formErrorContent = computed(() => {
+  if (!displayMessage.value || !formContext?.renderError) return null
+  return formContext.renderError(errorSlotProps.value)
 })
 
 
@@ -316,68 +337,44 @@ const fieldStyle = computed(() => {
 
 
 
-function runValidate() {
+async function runValidate(trigger: RsFormRuleTrigger = 'submit') {
+  const formRules = formContext?.getFieldRules(props.name) ?? []
+  const localRules = buildLocalInputRules({
+    required: props.required,
+    rule: props.rule,
+    validator: props.validator,
+  })
+  const rules = [...formRules, ...localRules]
 
-  if (!props.rule && !props.validator && !props.required) {
-
+  if (!rules.length) {
     autoInvalid.value = false
-
     autoMessage.value = ''
-
     emit('validate', { valid: true })
-
     return true
-
   }
 
-
-
-  const result = runInputValidation(
-
-    model.value,
-
-    {
-
-      rule: props.rule,
-
-      required: props.required,
-
-      validator: props.validator,
-
-    },
-
-    t,
-
-  )
-
-
+  const result = await runFormFieldRules(model.value, rules, { trigger, t })
 
   autoInvalid.value = !result.valid
-
   autoMessage.value = result.message ?? ''
-
   emit('validate', result)
-
   return result.valid
+}
 
+function setError(message: string): void {
+  autoInvalid.value = true
+  autoMessage.value = message
 }
 
 
 
 function onInput() {
-
   if (
-
     touched.value &&
-
     (props.validateTrigger === 'input' || props.validateTrigger === 'both')
-
   ) {
-
-    runValidate()
-
+    void runValidate('change')
   }
-
 }
 
 /** 受控写入：始终取 DOM string value，不依赖 v-model 对 type=number 的隐式行为。 */
@@ -390,17 +387,11 @@ function onNativeInput(event: Event) {
 
 
 function onBlur(event: FocusEvent) {
-
   touched.value = true
-
   if (props.validateTrigger === 'blur' || props.validateTrigger === 'both') {
-
-    runValidate()
-
+    void runValidate('blur')
   }
-
   emit('blur', event)
-
 }
 
 
@@ -431,8 +422,7 @@ function onClear() {
 
   emit('clear')
 
-  if (touched.value) runValidate()
-
+  if (touched.value) void runValidate('change')
 }
 
 
@@ -466,27 +456,24 @@ function clearValidation(): void {
 
 
 useRsFormField(() => ({
-
+  get name() {
+    return props.name
+  },
   getValue: () => model.value,
-
   setValue,
-
-  validate: () => ({ valid: runValidate() }),
-
+  validate: async (trigger) => {
+    const valid = await runValidate(trigger ?? 'submit')
+    return { valid, message: autoMessage.value || undefined, name: props.name }
+  },
   clearValidation,
-
+  setError,
 }))
 
-
-
 defineExpose({
-
   validate: runValidate,
-
   clearValidation,
-
   setValue,
-
+  setError,
 })
 
 </script>
@@ -585,6 +572,8 @@ defineExpose({
 
           :maxlength="maxlength"
 
+          :autocomplete="resolvedAutocomplete"
+
           :aria-invalid="isInvalid || undefined"
 
           :aria-describedby="displayMessage ? errorId : undefined"
@@ -674,19 +663,18 @@ defineExpose({
 
 
     <p
-
       v-if="displayMessage"
-
       :id="errorId"
-
       class="rs-input-field__error"
-
       role="alert"
-
     >
-
-      {{ displayMessage }}
-
+      <slot name="error" v-bind="errorSlotProps">
+        <RsVNodeHost
+          v-if="formErrorContent !== null && formErrorContent !== undefined"
+          :content="formErrorContent"
+        />
+        <template v-else>{{ displayMessage }}</template>
+      </slot>
     </p>
 
 
@@ -755,7 +743,11 @@ defineExpose({
 
   align-items: center;
 
+  box-sizing: border-box;
+
   width: 100%;
+
+  height: var(--rs-control-height-md);
 
   min-height: var(--rs-control-height-md);
 
@@ -783,17 +775,23 @@ defineExpose({
 
 .rs-input-group--ssm {
 
+  height: var(--rs-control-height-ssm);
+
   min-height: var(--rs-control-height-ssm);
 
 }
 
 .rs-input-group--sm {
 
+  height: var(--rs-control-height-sm);
+
   min-height: var(--rs-control-height-sm);
 
 }
 
 .rs-input-group--lg {
+
+  height: var(--rs-control-height-lg);
 
   min-height: var(--rs-control-height-lg);
 

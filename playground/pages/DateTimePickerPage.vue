@@ -26,6 +26,7 @@ const disabledRange = ref<DateTimeRange>({
 
 const scheduleStart = ref('2025-06-20 09:00:00')
 const scheduleEnd = ref('2025-06-20 18:00:00')
+const sizeDemo = ref('2025-06-16 10:00:00')
 </script>
 
 <template>
@@ -97,6 +98,18 @@ const scheduleEnd = ref('2025-06-20 18:00:00')
       <p class="hint"><code>with-seconds</code> 开启秒级时间列。</p>
       <RsDateTimePicker v-model="withSeconds" label="精确到秒" with-seconds />
       <p class="value">当前值：<code>{{ withSeconds }}</code></p>
+    </DemoBlock>
+
+    <DemoBlock title="尺寸 size（ssm / sm / md / lg）">
+      <p class="hint">
+        <code>size</code> 贯通触发器与内嵌时间列；打开面板后时分秒滚动区会随档位缩放。
+      </p>
+      <div class="stack">
+        <RsDateTimePicker v-model="sizeDemo" label="ssm" size="ssm" />
+        <RsDateTimePicker v-model="sizeDemo" label="sm" size="sm" />
+        <RsDateTimePicker v-model="sizeDemo" label="md" size="md" />
+        <RsDateTimePicker v-model="sizeDemo" label="lg" size="lg" />
+      </div>
     </DemoBlock>
 
     <DemoBlock title="禁用态">

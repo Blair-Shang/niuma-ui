@@ -184,6 +184,17 @@ const skillOptions: RsSelectOption[] = [
 /** 可清空 */
 const clearableModel = ref('gpt-4o')
 
+/**
+ * 空串选项映射：options 可含 value: ''，组件内部转哨兵，对外仍是 ''。
+ * 其它具体值（如 all）由业务自行传入，组件不做约定。
+ */
+const emptyValueModel = ref('claude')
+const emptyValueOptions: RsSelectOption[] = [
+  { label: '空串项', value: '' },
+  { label: 'Claude', value: 'claude' },
+  { label: 'GPT-4o', value: 'gpt-4o' },
+]
+
 /** 选项分组 */
 const groupedFramework = ref('')
 const groupedOptions: RsSelectOptionGroup[] = [
@@ -542,6 +553,26 @@ const teamSkills = ref<string[]>([])
           clearable
         />
         <p class="value-hint">当前值：<code>{{ clearableModel || '（空）' }}</code></p>
+      </div>
+    </DemoBlock>
+
+    <DemoBlock title="空串 value 映射">
+      <p class="hint">
+        选项 <code>value: ''</code> 时组件内部映射哨兵，避免 Reka Combobox 报错；v-model 仍为
+        <code>''</code>。其它业务值自行传入即可。
+      </p>
+      <div class="field">
+        <RsLabel for-id="pg-empty-value">选项</RsLabel>
+        <RsSelect
+          id="pg-empty-value"
+          v-model="emptyValueModel"
+          :options="emptyValueOptions"
+          clearable
+          placeholder="请选择"
+        />
+        <p class="value-hint">
+          当前值：<code>{{ emptyValueModel === '' ? "''" : emptyValueModel }}</code>
+        </p>
       </div>
     </DemoBlock>
 

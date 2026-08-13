@@ -1,15 +1,23 @@
 /** 面板分割方向：horizontal 左右排布（拖动横向）· vertical 上下排布（拖动纵向） */
 export type RsSplitOrientation = 'horizontal' | 'vertical'
 
-/** 单个面板定义；尺寸单位统一为「占比百分比」(0~100) */
+/** 面板尺寸：数字为占比百分比；'auto' 按内容自适应（不占百分比配额） */
+export type RsSplitPaneSize = number | 'auto'
+
+/** 单个面板定义；百分比尺寸单位为 0~100 */
 export interface RsSplitPaneItem {
   /** 唯一标识，用于插槽名与 v-model:sizes 的顺序映射 */
   key: string
-  /** 初始尺寸（百分比）；缺省时在剩余空间内均分 */
-  size?: number
-  /** 最小尺寸（百分比），默认 0 */
+  /**
+   * 初始尺寸
+   * - number：占比百分比
+   * - 'auto'：按内容自适应（flex-basis: auto）
+   * - 缺省：在「非 auto」面板的剩余百分比内均分
+   */
+  size?: RsSplitPaneSize
+  /** 最小尺寸（百分比），默认 0；auto 面板可作为 min-height/min-width % */
   min?: number
-  /** 最大尺寸（百分比），默认 100 */
+  /** 最大尺寸（百分比），默认 100；auto 面板可作为 max-height/max-width % */
   max?: number
   /** 是否可折叠：拖动越过阈值时吸附到 collapsedSize */
   collapsible?: boolean
@@ -34,6 +42,16 @@ const clamp = (value: number, lower: number, upper: number): number =>
 export function roundSize(value: number, precision = 4): number {
   const factor = 10 ** precision
   return Math.round(value * factor) / factor
+}
+
+/** 是否为内容自适应尺寸 */
+export function isRsSplitPaneAutoSize(size: RsSplitPaneSize | undefined): size is 'auto' {
+  return size === 'auto'
+}
+
+/** 各面板是否声明为 auto（忽略受控 provided 时的瞬时物化） */
+export function resolveSplitAutoFlags(panes: RsSplitPaneItem[]): boolean[] {
+  return panes.map((pane) => isRsSplitPaneAutoSize(pane.size))
 }
 
 /** 将面板定义解析为规范化约束，保证 0 ≤ min ≤ max ≤ 100 且 collapsedSize ≤ min */
@@ -65,8 +83,8 @@ function rescaleTo100(sizes: number[]): number[] {
 }
 
 /**
- * 计算初始尺寸数组（总和 100）。
- * 优先使用 provided（受控值），其次面板自身的 size，未指定的项在剩余空间内均分。
+ * 计算初始尺寸数组（非 auto 面板总和 100；auto 位为 0 占位，样式层不使用 flex-grow）。
+ * 优先使用 provided（受控值），其次面板自身的 number size，未指定的非 auto 项在剩余空间内均分。
  */
 export function normalizeSplitSizes(
   panes: RsSplitPaneItem[],
@@ -75,18 +93,53 @@ export function normalizeSplitSizes(
   const count = panes.length
   if (count === 0) return []
 
+  const autoFlags = resolveSplitAutoFlags(panes)
+  // 受控 sizes 一旦提供完整数组，视为已全部物化为百分比（含原 auto）
+  const fullyControlled =
+    Array.isArray(provided) &&
+    provided.length === count &&
+    provided.every((value) => typeof value === 'number' && Number.isFinite(value))
+
+  if (fullyControlled) {
+    return rescaleTo100(provided!.map((value) => Math.max(0, value))).map((value) =>
+      roundSize(value),
+    )
+  }
+
   const seed: (number | null)[] = panes.map((pane, index) => {
-    const candidate = provided?.[index] ?? pane.size
+    if (autoFlags[index]) return 0
+    const candidate = provided?.[index] ?? (typeof pane.size === 'number' ? pane.size : null)
     return typeof candidate === 'number' && Number.isFinite(candidate)
       ? Math.max(0, candidate)
       : null
   })
 
-  const missing = seed.filter((value) => value === null).length
-  const knownSum = seed.reduce<number>((acc, value) => acc + (value ?? 0), 0)
+  const flexibleIndices = panes
+    .map((_, index) => index)
+    .filter((index) => !autoFlags[index])
+
+  if (flexibleIndices.length === 0) {
+    // 全部 auto：占位全 0，由内容撑开
+    return panes.map(() => 0)
+  }
+
+  const missing = flexibleIndices.filter((index) => seed[index] === null).length
+  const knownSum = flexibleIndices.reduce<number>((acc, index) => acc + (seed[index] ?? 0), 0)
   const each = missing > 0 ? Math.max(0, 100 - knownSum) / missing : 0
-  const filled = seed.map((value) => value ?? each)
-  return rescaleTo100(filled).map((value) => roundSize(value))
+
+  const filled = seed.map((value, index) => {
+    if (autoFlags[index]) return 0
+    return value ?? each
+  })
+
+  // 只对非 auto 部分缩放到 100
+  const flexibleValues = flexibleIndices.map((index) => filled[index] ?? 0)
+  const scaledFlexible = rescaleTo100(flexibleValues)
+  const next = filled.slice()
+  flexibleIndices.forEach((paneIndex, i) => {
+    next[paneIndex] = roundSize(scaledFlexible[i] ?? 0)
+  })
+  return next
 }
 
 /** 判断某面板当前是否处于折叠态 */

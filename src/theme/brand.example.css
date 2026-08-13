@@ -7,8 +7,18 @@
  *
  * 原理：CSS 变量级联，后加载的同名 --rs-* 覆盖公共 preset
  *
- * 表格专用 token（--rs-table-*）可单独覆盖，色值参考 VS Code Dark/Light Modern
- * 终端专用 token（--rs-terminal-*）可单独覆盖 xterm 调色板（默认 macOS Terminal.app 风格）
+ * 可覆盖的常见 token：
+ * - 品牌色：--rs-primary / --rs-primary-hover / --rs-*-container
+ * - 文字语义：--rs-text-primary / --rs-text-secondary / --rs-text-tertiary /
+ *   --rs-text-disabled / --rs-text-link（底层亦兼容 --rs-text / --rs-muted）
+ * - 按钮次要态：--rs-btn-outline-border / --rs-btn-secondary-bg /
+ *   --rs-btn-secondary-bg-hover / --rs-btn-secondary-bg-active
+ * - 排版：--rs-font-sans / --rs-font-mono / --rs-font-size-* / --rs-font-weight-*
+ * - 菜单：--rs-menu-item-active-fg|bg|weight、--rs-menu-item-fg、--rs-menu-item-bg-hover
+ * - 表单标签：--rs-label-font-size|font-weight|line-height|color（RsLabel / .rs-field__label）
+ * - 表格专用：--rs-table-*（色值参考 VS Code Dark/Light Modern）
+ * - 树专用：--rs-tree-*（导航线 / 选中 / 焦点）
+ * - 终端专用：--rs-terminal-*（默认 macOS Terminal.app 风格）
  */
 
 [data-rs-theme='light'] {
@@ -16,6 +26,11 @@
   --rs-primary-hover: #4f46e5;
   --rs-primary-container: #eef2ff;
   --rs-on-primary-container: #312e81;
+  /* secondary 轮廓：按需加深（默认已可读，一般无需改） */
+  --rs-btn-outline-border: #6b7280;
+  --rs-btn-secondary-bg: #f3f4f6;
+  --rs-btn-secondary-bg-hover: #ede9fe;
+  --rs-btn-secondary-bg-active: color-mix(in srgb, #6366f1 16%, #f3f4f6);
 }
 
 [data-rs-theme='dark'] {
@@ -23,6 +38,10 @@
   --rs-primary-hover: #a5b4fc;
   --rs-primary-container: #1e1b4b;
   --rs-on-primary-container: #c7d2fe;
+  --rs-btn-outline-border: #a3a3a3;
+  --rs-btn-secondary-bg: #2e2e2e;
+  --rs-btn-secondary-bg-hover: #3730a3;
+  --rs-btn-secondary-bg-active: color-mix(in srgb, #818cf8 22%, #2e2e2e);
 }
 
 /* 子树隔离：把 data-rs-theme 挂在业务根节点时同样生效 */

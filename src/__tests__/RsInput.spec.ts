@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { h } from 'vue'
 import RsConfigProvider from '../components/RsConfigProvider.vue'
 import RsInput from '../components/RsInput.vue'
@@ -33,6 +33,16 @@ describe('RsInput', () => {
     const wrapper = mount(RsInput, { props: { modelValue: '' } })
     await wrapper.find('input').setValue('world')
     expect(wrapper.emitted('update:modelValue')?.[0]).toEqual(['world'])
+  })
+
+  it('defaults autocomplete to off (new-password for password)', () => {
+    const text = mount(RsInput, { props: { modelValue: '' } })
+    expect(text.find('input').attributes('autocomplete')).toBe('off')
+    text.unmount()
+
+    const password = mount(RsInput, { props: { modelValue: '', type: 'password' } })
+    expect(password.find('input').attributes('autocomplete')).toBe('new-password')
+    password.unmount()
   })
 
   it('marks invalid state on group', () => {
@@ -154,6 +164,7 @@ describe('RsInput', () => {
       props: { modelValue: 'bad-email', rule: 'email', id: 'e1' },
     })
     await wrapper.find('input').trigger('blur')
+    await flushPromises()
     expect(wrapper.find('.rs-input-group').classes()).toContain('rs-input-group--invalid')
     expect(wrapper.find('.rs-input-field__error').text()).toContain('邮箱')
     expect(wrapper.emitted('validate')?.[0]?.[0]).toEqual({
@@ -167,6 +178,7 @@ describe('RsInput', () => {
       props: { modelValue: 'user@example.com', rule: 'email' },
     })
     await wrapper.find('input').trigger('blur')
+    await flushPromises()
     expect(wrapper.find('.rs-input-group').classes()).not.toContain('rs-input-group--invalid')
     expect(wrapper.emitted('validate')?.[0]?.[0]).toEqual({ valid: true })
   })
@@ -179,6 +191,7 @@ describe('RsInput', () => {
       },
     })
     await wrapper.find('input').trigger('blur')
+    await flushPromises()
     expect(wrapper.find('.rs-input-field__error').text()).toBe('至少 3 个字符')
   })
 
@@ -196,6 +209,7 @@ describe('RsInput', () => {
       },
     })
     await wrapper.find('input').trigger('blur')
+    await flushPromises()
     expect(wrapper.find('.rs-input-field__error').text()).toContain('email')
   })
 

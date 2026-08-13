@@ -11,6 +11,22 @@ export interface RsSelectOptionGroup {
 
 export type RsSelectOptions = ReadonlyArray<RsSelectOption | RsSelectOptionGroup>
 
+/**
+ * Reka ComboboxItem 禁止 value 为空串（空串表示未选中 / placeholder）。
+ * 选项若传入 value: ''，对内映射为此哨兵，避免崩溃；对外读写仍为 ''。
+ */
+export const RS_SELECT_EMPTY_VALUE = '__rs_select_empty__'
+
+/** 业务 value → ComboboxItem value（仅处理空串） */
+export function toComboboxValue(value: string): string {
+  return value === '' ? RS_SELECT_EMPTY_VALUE : value
+}
+
+/** ComboboxItem value → 业务 value（仅处理空串哨兵） */
+export function fromComboboxValue(value: string): string {
+  return value === RS_SELECT_EMPTY_VALUE ? '' : value
+}
+
 export function isSelectOptionGroup(
   item: RsSelectOption | RsSelectOptionGroup,
 ): item is RsSelectOptionGroup {
@@ -33,6 +49,7 @@ export function buildOptionLabelMap(options: RsSelectOptions): Map<string, strin
   const map = new Map<string, string>()
   for (const opt of flattenSelectOptions(options)) {
     map.set(opt.value, opt.label)
+    if (opt.value === '') map.set(RS_SELECT_EMPTY_VALUE, opt.label)
   }
   return map
 }
@@ -40,7 +57,9 @@ export function buildOptionLabelMap(options: RsSelectOptions): Map<string, strin
 export function buildOptionDisabledMap(options: RsSelectOptions): Map<string, boolean> {
   const map = new Map<string, boolean>()
   for (const opt of flattenSelectOptions(options)) {
-    map.set(opt.value, Boolean(opt.disabled))
+    const disabled = Boolean(opt.disabled)
+    map.set(opt.value, disabled)
+    if (opt.value === '') map.set(RS_SELECT_EMPTY_VALUE, disabled)
   }
   return map
 }
@@ -68,5 +87,5 @@ export function filterSelectOptions(
 }
 
 export function flattenSelectValues(options: RsSelectOptions): string[] {
-  return flattenSelectOptions(options).map((opt) => opt.value)
+  return flattenSelectOptions(options).map((opt) => toComboboxValue(opt.value))
 }

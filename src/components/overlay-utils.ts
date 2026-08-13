@@ -12,6 +12,9 @@ export const RS_Z_PANEL = 'var(--rs-z-panel)'
 /** 模态对话框 */
 export const RS_Z_MODAL = 'var(--rs-z-modal)'
 
+/** 顶栏加载进度条（低于 toast，避免遮挡通知） */
+export const RS_Z_LOADING_BAR = 'var(--rs-z-loading-bar)'
+
 /** 全局 Toast */
 export const RS_Z_TOAST = 'var(--rs-z-toast)'
 

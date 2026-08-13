@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { RsButton, RsDialog, type RsFeedbackTone } from 'niuma-ui'
+import {
+  RsButton,
+  RsDialog,
+  openRsDialog,
+  rsConfirm,
+  type RsFeedbackTone,
+} from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 
@@ -9,8 +15,14 @@ const descOpen = ref(false)
 
 const widthOpen = ref(false)
 const widthPreset = ref<'sm' | 'md' | 'lg'>('md')
+const customWidthOpen = ref(false)
 
 const footerOpen = ref(false)
+const builtinFooterOpen = ref(false)
+const builtinLoading = ref(false)
+
+const beforeCloseOpen = ref(false)
+const beforeCloseBlocked = ref(true)
 
 const overlayCloseOpen = ref(false)
 const noOverlayOpen = ref(false)
@@ -31,6 +43,39 @@ const scopedOpenA = ref(false)
 const scopedOpenB = ref(false)
 const scopedMountA = 'pg-dialog-mount-a'
 const scopedMountB = 'pg-dialog-mount-b'
+const imperativeResult = ref('')
+
+async function runRsConfirm(): Promise<void> {
+  const ok = await rsConfirm({
+    title: '确认删除该成员？',
+    description: '删除后不可恢复。',
+    showOverlay: true,
+  })
+  imperativeResult.value = ok ? '已确认' : '已取消'
+}
+
+function runOpenRsDialog(): void {
+  openRsDialog({
+    title: '命令式工作窗',
+    description: 'openRsDialog 默认 layout=window；确认请用 rsConfirm。',
+    showOverlay: true,
+    showFooter: true,
+    body: () => '适合临时表单或一次性说明层，关闭后自动销毁。',
+    onConfirm: () => {
+      imperativeResult.value = '命令式确定'
+    },
+    onCancel: () => {
+      imperativeResult.value = '命令式取消'
+    },
+  })
+}
+
+async function onBuiltinConfirm(): Promise<void> {
+  builtinLoading.value = true
+  await new Promise((r) => setTimeout(r, 600))
+  builtinLoading.value = false
+  builtinFooterOpen.value = false
+}
 </script>
 
 <template>
@@ -39,7 +84,8 @@ const scopedMountB = 'pg-dialog-mount-b'
       <p class="hint">
         默认 <code>layout="window"</code>，支持边缘缩放与全屏；通过
         <code>v-model:open</code> 控制显隐。标题栏拖拽需额外设置 <code>draggable</code>。
-        简单表单可设 <code>layout="confirm"</code> 并关闭缩放。
+        确认/危险提示请用 <code>RsConfirmDialog</code> /
+        <code>rsConfirm.*</code>，不要再用 <code>layout="confirm"</code>（已弃用）。
       </p>
       <RsButton @click="basicOpen = true">打开对话框</RsButton>
       <RsDialog v-model:open="basicOpen" title="编辑成员">
@@ -94,6 +140,10 @@ const scopedMountB = 'pg-dialog-mount-b'
     </DemoBlock>
 
     <DemoBlock title="标题与描述">
+      <p class="hint">
+        下列仍演示历史 <code>layout="confirm"</code>（开发环境会 warn）；新代码请改用 window 或
+        RsConfirmDialog。
+      </p>
       <RsButton variant="default" @click="descOpen = true">查看详情</RsButton>
       <RsDialog
         v-model:open="descOpen"
@@ -154,6 +204,74 @@ const scopedMountB = 'pg-dialog-mount-b'
           <RsButton @click="footerOpen = false">保存</RsButton>
         </template>
       </RsDialog>
+    </DemoBlock>
+
+    <DemoBlock title="内置 footer / beforeClose / 自定义宽度">
+      <p class="hint">
+        默认不渲染内置页脚（兼容旧用法）。设置 <code>show-footer</code> 后提供取消/确定；
+        <code>before-close</code> 可拦截关闭；<code>width</code> 支持数字或 CSS 长度。
+      </p>
+      <div class="row">
+        <RsButton size="sm" @click="builtinFooterOpen = true">内置 footer</RsButton>
+        <RsButton size="sm" variant="default" @click="beforeCloseOpen = true">beforeClose</RsButton>
+        <RsButton size="sm" variant="default" @click="customWidthOpen = true">width: 520</RsButton>
+      </div>
+      <RsDialog
+        v-model:open="builtinFooterOpen"
+        layout="confirm"
+        :resizable="false"
+        :fullscreenable="false"
+        title="内置底部按钮"
+        description="confirmLoading 时禁用关闭。"
+        show-footer
+        :confirm-loading="builtinLoading"
+        @confirm="onBuiltinConfirm"
+      >
+        <template #body>
+          <p class="body-text">点击确定后模拟 600ms 提交。</p>
+        </template>
+      </RsDialog>
+      <RsDialog
+        v-model:open="beforeCloseOpen"
+        layout="confirm"
+        :resizable="false"
+        :fullscreenable="false"
+        title="关闭拦截"
+        :before-close="() => !beforeCloseBlocked"
+        show-footer
+        auto-close-on-confirm
+      >
+        <template #body>
+          <label class="row">
+            <input v-model="beforeCloseBlocked" type="checkbox" />
+            阻止关闭（勾选时 beforeClose 返回 false）
+          </label>
+        </template>
+      </RsDialog>
+      <RsDialog
+        v-model:open="customWidthOpen"
+        layout="confirm"
+        :resizable="false"
+        :fullscreenable="false"
+        :width="520"
+        title="自定义宽度 520px"
+      >
+        <template #body>
+          <p class="body-text">确认布局下 max-width 为 520px。</p>
+        </template>
+      </RsDialog>
+    </DemoBlock>
+
+    <DemoBlock title="命令式 rsConfirm / openRsDialog">
+      <p class="hint">
+        <code>rsConfirm</code> → 确认 UI（见 ConfirmDialog 页）；
+        <code>openRsDialog</code> → 工作窗/表单，默认 window。
+      </p>
+      <div class="row">
+        <RsButton size="sm" @click="runRsConfirm">rsConfirm</RsButton>
+        <RsButton size="sm" variant="default" @click="runOpenRsDialog">openRsDialog</RsButton>
+        <span v-if="imperativeResult" class="meta">结果：{{ imperativeResult }}</span>
+      </div>
     </DemoBlock>
 
     <DemoBlock title="点击遮罩关闭">

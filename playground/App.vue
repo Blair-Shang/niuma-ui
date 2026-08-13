@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { RsConfigProvider, RsToaster } from 'niuma-ui'
+import { RsConfigProvider, RsLoadingBar, RsToaster } from 'niuma-ui'
 import PlaygroundLayout from './layouts/PlaygroundLayout.vue'
 import {
   playgroundToasterCloseButton,
@@ -15,6 +15,9 @@ import {
       :close-button="playgroundToasterCloseButton"
       :rich-colors="playgroundToasterRichColors"
     />
-    <PlaygroundLayout />
+    <!-- 页面树须包在插槽内，useRsLoadingBar() 才能拿到真实 API -->
+    <RsLoadingBar>
+      <PlaygroundLayout />
+    </RsLoadingBar>
   </RsConfigProvider>
 </template>

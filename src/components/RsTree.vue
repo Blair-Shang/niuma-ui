@@ -39,7 +39,11 @@ import {
   splitTreeLabelHighlight,
   toggleTreeCheck,
 } from './tree-utils'
-import { resolveVirtualListHeight } from './virtual-list-utils'
+import {
+  isVirtualListFillHeight,
+  parseVirtualListHeightPx,
+  resolveVirtualListHeight,
+} from './virtual-list-utils'
 
 defineOptions({ name: 'RsTree' })
 
@@ -130,12 +134,19 @@ const _measuredHeight = ref(0)
 let _heightObs: ResizeObserver | null = null
 
 onMounted(() => {
-  // 必须由消费方显式声明 virtual，才启动自动高度测量
-  if (!props.virtual || props.height !== undefined || !treeRootRef.value) return
+  // 虚拟滚动且高度为填满/百分比/未指定时，用 ResizeObserver 测量真实视口
+  if (!props.virtual || !treeRootRef.value) return
+  if (
+    props.height !== undefined
+    && !isVirtualListFillHeight(props.height)
+  ) {
+    return
+  }
   _heightObs = new ResizeObserver((entries) => {
     _measuredHeight.value = entries[0]?.contentRect.height ?? 0
   })
   _heightObs.observe(treeRootRef.value)
+  _measuredHeight.value = treeRootRef.value.clientHeight
 })
 
 onUnmounted(() => {
@@ -243,10 +254,12 @@ if (import.meta.env.DEV) {
 }
 
 const viewportHeightPx = computed(() => {
-  if (props.height !== undefined) {
-    return Number.parseInt(resolveVirtualListHeight(props.height, 320) ?? '', 10)
-  }
-  return _measuredHeight.value > 0 ? _measuredHeight.value : 320
+  const parsed = parseVirtualListHeightPx(props.height)
+  if (parsed != null) return parsed
+  if (_measuredHeight.value > 0) return _measuredHeight.value
+  const el = treeRootRef.value
+  if (el && el.clientHeight > 0) return el.clientHeight
+  return 320
 })
 
 /** 过滤后滚回顶部；内容缩短时钳位，避免内部 scrollTop 与 DOM 脱节导致虚拟列表空白 */
@@ -288,8 +301,12 @@ const fillCapture = computed(() => props.virtual || props.height !== undefined)
 
 const viewportStyle = computed(() => {
   if (!useVirtualScroll.value && props.height === undefined) return undefined
-  if (props.height !== undefined) {
+  if (props.height !== undefined && !isVirtualListFillHeight(props.height)) {
     return { maxHeight: resolveVirtualListHeight(props.height, 320) }
+  }
+  // 百分比 / 填满：由 CSS height:100% 承接，不再写死 maxHeight px
+  if (isVirtualListFillHeight(props.height)) {
+    return { height: '100%', maxHeight: '100%' }
   }
   const h = _measuredHeight.value > 0 ? _measuredHeight.value : 320
   return { maxHeight: `${h}px` }
@@ -954,27 +971,27 @@ defineExpose({
 }
 
 .rs-tree__row:hover:not(.rs-tree__row--disabled):not(.rs-tree__row--selected) {
-  background: var(--rs-item-hover);
+  background: var(--rs-tree-row-hover);
 }
 
 .rs-tree__row--selected {
-  background: color-mix(in srgb, var(--rs-primary) 14%, var(--rs-surface));
+  background: var(--rs-tree-selected-bg);
 }
 
 .rs-tree__row--selected .rs-tree__label,
 .rs-tree__row--selected .rs-tree__label--block {
-  color: var(--rs-primary);
-  font-weight: 500;
+  color: var(--rs-tree-selected-fg);
+  font-weight: inherit;
 }
 
 .rs-tree__row--focused {
-  background: color-mix(in srgb, var(--rs-primary) 8%, var(--rs-surface));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rs-primary) 55%, transparent);
+  background: var(--rs-tree-focused-bg);
+  box-shadow: inset 0 0 0 1px var(--rs-tree-focused-ring);
 }
 
 .rs-tree__row--selected.rs-tree__row--focused {
-  background: color-mix(in srgb, var(--rs-primary) 18%, var(--rs-surface));
-  box-shadow: inset 0 0 0 1px var(--rs-primary);
+  background: var(--rs-tree-selected-focused-bg);
+  box-shadow: inset 0 0 0 1px var(--rs-tree-selected-focused-ring);
 }
 
 .rs-tree--block .rs-tree__row {
@@ -993,7 +1010,7 @@ defineExpose({
   left: 0;
   right: 0;
   height: 2px;
-  background: var(--rs-primary);
+  background: var(--rs-tree-drop-indicator);
   pointer-events: none;
 }
 
@@ -1015,12 +1032,13 @@ defineExpose({
   pointer-events: none;
 }
 
+/* 导航线：半透明字色 token，避免宿主把 --rs-border-subtle 桥成实色灰后过深 */
 .rs-tree--line .rs-tree__line-vert {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 1px;
-  background: var(--rs-border-subtle);
+  width: var(--rs-tree-line-width, 1px);
+  background: var(--rs-tree-line);
 }
 
 .rs-tree--line .rs-tree__line-vert--self.rs-tree__line-vert--end {
@@ -1030,8 +1048,8 @@ defineExpose({
 .rs-tree--line .rs-tree__line-horz {
   position: absolute;
   top: 50%;
-  height: 1px;
-  background: var(--rs-border-subtle);
+  height: var(--rs-tree-line-width, 1px);
+  background: var(--rs-tree-line);
 }
 
 .rs-tree__drag-handle {

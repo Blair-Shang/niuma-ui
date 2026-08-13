@@ -1,16 +1,53 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { RsButton, RsConfirmDialog, type RsFeedbackTone } from 'niuma-ui'
+import { defineComponent, h, ref } from 'vue'
+import {
+  RsButton,
+  RsConfirmDialog,
+  RsIcon,
+  rsConfirm,
+  type RsDialogWidth,
+  type RsFeedbackTone,
+} from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 
+/** 演示 icon prop：传入组件而非默认 "!" */
+const WarningIcon = defineComponent({
+  name: 'PgConfirmWarningIcon',
+  setup() {
+    return () => h(RsIcon, { name: 'shield-check', size: 20 })
+  },
+})
+
+const TrashIcon = defineComponent({
+  name: 'PgConfirmTrashIcon',
+  setup() {
+    return () => h(RsIcon, { name: 'trash-2', size: 20 })
+  },
+})
+
 const defaultOpen = ref(false)
 const deleteOpen = ref(false)
+const subtitleOpen = ref(false)
+const widthOpen = ref(false)
+const widthPreset = ref<RsDialogWidth>('md')
+const iconPropOpen = ref(false)
+const iconSlotOpen = ref(false)
+const loadingOpen = ref(false)
+const loading = ref(false)
+const asyncOpen = ref(false)
+const asyncLoading = ref(false)
+const overlayOpen = ref(false)
 const customButtonsOpen = ref(false)
 const primaryConfirmOpen = ref(false)
 const eventOpen = ref(false)
 const scopedConfirmOpen = ref(false)
 const scopedConfirmMount = 'pg-confirm-dialog-mount'
+
+const alertOnlyOpen = ref(false)
+const extraOpen = ref(false)
+const beforeCloseOpen = ref(false)
+const beforeCloseBlocked = ref(true)
 
 const toneOpen = ref(false)
 const toneConfig = ref<{
@@ -26,6 +63,7 @@ const toneConfig = ref<{
 })
 
 const lastEvent = ref('（尚未操作）')
+const imperativeResult = ref('（尚未调用）')
 
 function openTone(
   tone: RsFeedbackTone,
@@ -40,6 +78,89 @@ function openTone(
 function logEvent(name: string): void {
   lastEvent.value = `${name} · ${new Date().toLocaleTimeString()}`
 }
+
+function openWidth(preset: RsDialogWidth): void {
+  widthPreset.value = preset
+  widthOpen.value = true
+}
+
+async function onLoadingConfirm(): Promise<void> {
+  loading.value = true
+  await new Promise((r) => setTimeout(r, 1200))
+  loading.value = false
+  loadingOpen.value = false
+  logEvent('confirmLoading 完成')
+}
+
+async function onAsyncConfirm(): Promise<void> {
+  asyncLoading.value = true
+  await new Promise((r) => setTimeout(r, 1200))
+  asyncLoading.value = false
+  asyncOpen.value = false
+  logEvent('autoCloseOnConfirm=false 完成')
+}
+
+async function runRsConfirmBasic(): Promise<void> {
+  const ok = await rsConfirm({
+    title: '确认删除该成员？',
+    subtitle: '此操作不可恢复，请谨慎操作',
+    description: '删除后相关权限与历史记录将一并清理。',
+    icon: TrashIcon,
+    width: 500,
+    confirmText: '确定删除',
+    showOverlay: true,
+  })
+  imperativeResult.value = ok ? 'rsConfirm：已确认' : 'rsConfirm：已取消'
+}
+
+async function runRsConfirmAsync(): Promise<void> {
+  imperativeResult.value = 'rsConfirm：提交中…'
+  try {
+    const ok = await rsConfirm({
+      title: '提交变更？',
+      subtitle: '将写入远程配置',
+      description: '确认后模拟 1.2s 异步请求；失败可保持打开（本例成功）。',
+      tone: 'info',
+      confirmVariant: 'primary',
+      width: 'md',
+      showOverlay: true,
+      onConfirm: async () => {
+        await new Promise((r) => setTimeout(r, 1200))
+      },
+    })
+    imperativeResult.value = ok ? 'rsConfirm 异步：已确认' : 'rsConfirm 异步：已取消'
+  } catch {
+    imperativeResult.value = 'rsConfirm 异步：异常'
+  }
+}
+
+async function runRsConfirmReject(): Promise<void> {
+  imperativeResult.value = 'rsConfirm：将演示失败保持打开…'
+  const ok = await rsConfirm({
+    title: '保存配置？',
+    description: '点击确认后会模拟失败，对话框应保持打开并可重试。',
+    tone: 'warning',
+    confirmVariant: 'primary',
+    showOverlay: true,
+    onConfirm: async () => {
+      await new Promise((r) => setTimeout(r, 800))
+      throw new Error('模拟保存失败')
+    },
+  })
+  imperativeResult.value = ok ? '不应到达' : 'rsConfirm 失败态：已取消或关闭'
+}
+
+async function runShortcut(kind: 'warning' | 'danger' | 'info' | 'success' | 'error' | 'confirm'): Promise<void> {
+  const ok = await rsConfirm[kind]({
+    title:
+      kind === 'info' || kind === 'success' || kind === 'error'
+        ? `rsConfirm.${kind}（单按钮）`
+        : `rsConfirm.${kind}`,
+    description: `快捷 API：tone / confirmVariant / showCancel 已按 ${kind} 预设。`,
+    width: 480,
+  })
+  imperativeResult.value = `rsConfirm.${kind} → ${ok ? '确认' : '取消/关闭'}`
+}
 </script>
 
 <template>
@@ -51,6 +172,217 @@ function logEvent(name: string): void {
       </p>
       <RsButton @click="defaultOpen = true">打开确认框</RsButton>
       <RsConfirmDialog v-model:open="defaultOpen" />
+    </DemoBlock>
+
+    <DemoBlock title="subtitle 分层文案">
+      <p class="hint">
+        <code>subtitle</code> 在标题与正文之间；<code>description</code> 为主要说明，支持换行
+       （<code>white-space: pre-wrap</code>）。
+      </p>
+      <RsButton variant="default" @click="subtitleOpen = true">带副标题确认</RsButton>
+      <RsConfirmDialog
+        v-model:open="subtitleOpen"
+        title="确认删除"
+        subtitle="此操作不可恢复，请谨慎操作"
+        description="确定要删除选中的 3 个资源吗？&#10;&#10;删除后无法从回收站恢复。"
+        confirm-text="确定删除"
+        :width="500"
+      />
+    </DemoBlock>
+
+    <DemoBlock title="width 预设 / 自定义">
+      <p class="hint">
+        不传保持历史默认 <code>28rem</code>；预设 <code>sm/md/lg</code>；数字按 px；也可传 CSS
+        长度。
+      </p>
+      <div class="row">
+        <RsButton size="sm" variant="default" @click="openWidth('sm')">sm</RsButton>
+        <RsButton size="sm" variant="default" @click="openWidth('md')">md</RsButton>
+        <RsButton size="sm" variant="default" @click="openWidth('lg')">lg</RsButton>
+        <RsButton size="sm" variant="default" @click="openWidth(500)">500px</RsButton>
+        <RsButton size="sm" variant="default" @click="openWidth('40rem')">40rem</RsButton>
+      </div>
+      <RsConfirmDialog
+        v-model:open="widthOpen"
+        title="宽度演示"
+        :subtitle="`当前 width = ${String(widthPreset)}`"
+        description="对比不同宽度下标题与正文的换行表现。"
+        :width="widthPreset"
+        confirm-variant="primary"
+        tone="info"
+      />
+    </DemoBlock>
+
+    <DemoBlock title="自定义 icon（prop）">
+      <p class="hint">
+        传入 <code>icon</code> 组件替换默认 <code>!</code>；背景色仍由 <code>tone</code> 控制。
+      </p>
+      <RsButton variant="default" @click="iconPropOpen = true">icon prop</RsButton>
+      <RsConfirmDialog
+        v-model:open="iconPropOpen"
+        title="删除工作区？"
+        subtitle="所有成员将失去访问权限"
+        description="此操作不可撤销。"
+        :icon="WarningIcon"
+        tone="danger"
+        confirm-text="删除"
+      />
+    </DemoBlock>
+
+    <DemoBlock title="自定义 icon（#icon 插槽）">
+      <p class="hint">需要额外样式或组合图标时用插槽覆盖。</p>
+      <RsButton variant="default" @click="iconSlotOpen = true">#icon slot</RsButton>
+      <RsConfirmDialog
+        v-model:open="iconSlotOpen"
+        title="归档项目？"
+        description="归档后可在「已归档」列表中找回。"
+        tone="warning"
+        confirm-variant="primary"
+        confirm-text="归档"
+      >
+        <template #icon>
+          <RsIcon name="archive" :size="20" />
+        </template>
+      </RsConfirmDialog>
+    </DemoBlock>
+
+    <DemoBlock title="confirmLoading 受控加载">
+      <p class="hint">
+        需配合 <code>:auto-close-on-confirm="false"</code>，否则一点确认就会关掉，看不到
+        loading；确认中禁用按钮并阻止 Esc。
+      </p>
+      <div class="row">
+        <RsButton variant="default" @click="loadingOpen = true">打开并模拟提交</RsButton>
+        <span class="event-log">最近：<code>{{ lastEvent }}</code></span>
+      </div>
+      <RsConfirmDialog
+        v-model:open="loadingOpen"
+        title="保存更改？"
+        description="确认后模拟 1.2s 请求，期间按钮 loading。"
+        confirm-variant="primary"
+        tone="info"
+        :auto-close-on-confirm="false"
+        :confirm-loading="loading"
+        @confirm="onLoadingConfirm"
+      />
+    </DemoBlock>
+
+    <DemoBlock title="autoCloseOnConfirm=false">
+      <p class="hint">
+        点击确认不自动关闭，由业务在异步结束后再把 <code>open</code> 设为
+        <code>false</code>。
+      </p>
+      <RsButton variant="default" @click="asyncOpen = true">手动关闭流程</RsButton>
+      <RsConfirmDialog
+        v-model:open="asyncOpen"
+        title="发布版本？"
+        description="确认后保持打开，待请求完成再关闭。"
+        tone="warning"
+        confirm-variant="primary"
+        :auto-close-on-confirm="false"
+        :confirm-loading="asyncLoading"
+        @confirm="onAsyncConfirm"
+      />
+    </DemoBlock>
+
+    <DemoBlock title="showOverlay 遮罩">
+      <p class="hint">默认无遮罩；命令式 <code>rsConfirm</code> 默认开启遮罩。</p>
+      <RsButton variant="default" @click="overlayOpen = true">带遮罩确认</RsButton>
+      <RsConfirmDialog
+        v-model:open="overlayOpen"
+        title="离开当前页？"
+        description="未保存的内容将丢失。"
+        tone="warning"
+        show-overlay
+      />
+    </DemoBlock>
+
+    <DemoBlock title="命令式 rsConfirm（增强选项）">
+      <p class="hint">
+        覆盖 <code>subtitle</code> / <code>width</code> / <code>icon</code> / 异步
+        <code>onConfirm</code>（成功关闭；reject 保持打开）。详见
+        <code>createRsDialog.spec.ts</code>。
+      </p>
+      <div class="row">
+        <RsButton size="sm" @click="runRsConfirmBasic">subtitle + icon + width</RsButton>
+        <RsButton size="sm" variant="default" @click="runRsConfirmAsync">异步 onConfirm</RsButton>
+        <RsButton size="sm" variant="danger" @click="runRsConfirmReject">onConfirm reject</RsButton>
+        <span class="event-log">结果：<code>{{ imperativeResult }}</code></span>
+      </div>
+    </DemoBlock>
+
+    <DemoBlock title="tone 快捷 API（rsConfirm.*）">
+      <p class="hint">
+        <code>warning</code> / <code>danger</code> / <code>confirm</code> 为双按钮确认；
+        <code>info</code> / <code>success</code> / <code>error</code> 默认
+        <code>showCancel: false</code> 单按钮提示。业务侧请直接用这些 API，不要再走
+        Dialog layout=confirm。
+      </p>
+      <div class="row">
+        <RsButton size="sm" variant="danger" @click="runShortcut('warning')">warning</RsButton>
+        <RsButton size="sm" variant="danger" @click="runShortcut('danger')">danger</RsButton>
+        <RsButton size="sm" @click="runShortcut('confirm')">confirm</RsButton>
+        <RsButton size="sm" variant="default" @click="runShortcut('info')">info</RsButton>
+        <RsButton size="sm" variant="default" @click="runShortcut('success')">success</RsButton>
+        <RsButton size="sm" variant="default" @click="runShortcut('error')">error</RsButton>
+        <span class="event-log">结果：<code>{{ imperativeResult }}</code></span>
+      </div>
+    </DemoBlock>
+
+    <DemoBlock title="showCancel=false（单按钮提示）">
+      <p class="hint">声明式单按钮；与 <code>rsConfirm.info</code> 同构。</p>
+      <RsButton variant="default" @click="alertOnlyOpen = true">打开提示</RsButton>
+      <RsConfirmDialog
+        v-model:open="alertOnlyOpen"
+        title="操作完成"
+        description="配置已保存，无需取消按钮。"
+        tone="success"
+        confirm-variant="primary"
+        confirm-text="知道了"
+        :show-cancel="false"
+        show-overlay
+      />
+    </DemoBlock>
+
+    <DemoBlock title="#extra 插槽">
+      <p class="hint">正文与底部按钮之间插入自定义内容；命令式对应 <code>extra</code> 渲染函数。</p>
+      <RsButton variant="default" @click="extraOpen = true">带额外内容</RsButton>
+      <RsConfirmDialog
+        v-model:open="extraOpen"
+        title="删除选中项？"
+        subtitle="将同时清理关联缓存"
+        description="请核对即将删除的资源。"
+        confirm-text="删除"
+        show-overlay
+      >
+        <template #extra>
+          <ul class="extra-list">
+            <li>route-assert-01</li>
+            <li>route-assert-02</li>
+            <li>route-assert-03</li>
+          </ul>
+        </template>
+      </RsConfirmDialog>
+    </DemoBlock>
+
+    <DemoBlock title="beforeClose 拦截">
+      <p class="hint">返回 <code>false</code> 可阻止关闭（含取消 / Esc / 确认自动关闭）。</p>
+      <div class="row">
+        <RsButton variant="default" @click="beforeCloseOpen = true">打开</RsButton>
+        <label class="row">
+          <input v-model="beforeCloseBlocked" type="checkbox" />
+          阻止关闭
+        </label>
+      </div>
+      <RsConfirmDialog
+        v-model:open="beforeCloseOpen"
+        title="关闭拦截演示"
+        description="勾选「阻止关闭」时，任何关闭路径都应失败。"
+        tone="warning"
+        confirm-variant="primary"
+        show-overlay
+        :before-close="() => !beforeCloseBlocked"
+      />
     </DemoBlock>
 
     <DemoBlock title="危险删除（默认 tone）">
@@ -123,7 +455,7 @@ function logEvent(name: string): void {
 
     <DemoBlock title="confirm / cancel 事件">
       <p class="hint">
-        点击确认触发 <code>confirm</code> 并关闭；取消触发 <code>cancel</code>（由 AlertDialog 关闭）。
+        点击确认触发 <code>confirm</code> 并关闭；取消触发 <code>cancel</code>。
       </p>
       <div class="row">
         <RsButton @click="eventOpen = true">触发事件</RsButton>
@@ -184,5 +516,12 @@ function logEvent(name: string): void {
 }
 .scoped-mount {
   position: relative;
+}
+.extra-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: var(--rs-font-size-sm);
+  color: var(--rs-dialog-description-fg);
+  line-height: var(--rs-line-height-normal);
 }
 </style>

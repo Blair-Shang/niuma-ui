@@ -275,9 +275,14 @@ describe('RsDialog', () => {
     header.dispatchEvent(
       new PointerEvent('pointerdown', { clientX: 120, clientY: 80, bubbles: true, cancelable: true }),
     )
+    expect(document.body.style.cursor).toBe('move')
     window.dispatchEvent(
       new PointerEvent('pointermove', { clientX: 180, clientY: 120, bubbles: true, cancelable: true }),
     )
+    // 拖拽过程中应即时位移，不能等到 pointerup
+    expect(content.style.left).not.toBe(startLeft)
+    expect(content.style.top).not.toBe(startTop)
+
     window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, cancelable: true }))
     await flushPromises()
 
@@ -399,6 +404,118 @@ describe('RsDialog', () => {
     onOutside!(event)
     expect(event.defaultPrevented).toBe(true)
     expect(wrapper.props('open')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('beforeClose returning false keeps dialog open', async () => {
+    const Host = defineComponent({
+      components: { RsDialog },
+      setup() {
+        const open = ref(true)
+        const beforeClose = () => false
+        return { open, beforeClose }
+      },
+      template:
+        '<RsDialog v-model:open="open" title="拦截关闭" :fullscreenable="false" :before-close="beforeClose" />',
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await flushPromises()
+    const closeBtn = document.body.querySelector('.rs-dialog__actions button') as HTMLElement
+    await closeBtn.click()
+    await flushPromises()
+    expect(wrapper.findComponent(RsDialog).props('open')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('renders builtin footer when showFooter is true and no footer slot', async () => {
+    const wrapper = mount(RsDialog, {
+      props: {
+        open: true,
+        title: '内置页脚',
+        showFooter: true,
+        layout: 'confirm',
+        resizable: false,
+        fullscreenable: false,
+      },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const footer = document.body.querySelector('.rs-dialog__footer')
+    expect(footer).not.toBeNull()
+    expect(footer?.querySelectorAll('button').length).toBe(2)
+    wrapper.unmount()
+  })
+
+  it('does not render builtin footer by default', async () => {
+    const wrapper = mount(RsDialog, {
+      props: {
+        open: true,
+        title: '无页脚',
+        layout: 'confirm',
+        resizable: false,
+        fullscreenable: false,
+      },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    expect(document.body.querySelector('.rs-dialog__footer')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('applies custom numeric width on confirm layout', async () => {
+    const wrapper = mount(RsDialog, {
+      props: {
+        open: true,
+        title: '自定义宽度',
+        layout: 'confirm',
+        width: 520,
+        resizable: false,
+        fullscreenable: false,
+      },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const content = document.body.querySelector('.rs-dialog__content') as HTMLElement
+    expect(content.classList.contains('rs-dialog__content--custom-width')).toBe(true)
+    expect(content.style.maxWidth).toBe('520px')
+    wrapper.unmount()
+  })
+
+  it('title slot overrides title prop text', async () => {
+    const wrapper = mount(RsDialog, {
+      props: { open: true, title: '属性标题', fullscreenable: false },
+      slots: { title: '<span class="slot-title">插槽标题</span>' },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    expect(document.body.querySelector('.slot-title')?.textContent).toBe('插槽标题')
+    wrapper.unmount()
+  })
+
+  it('emits afterClose when closed via close button', async () => {
+    const Host = defineComponent({
+      components: { RsDialog },
+      setup() {
+        const open = ref(true)
+        const reason = ref('')
+        return { open, reason }
+      },
+      template: `
+        <RsDialog
+          v-model:open="open"
+          title="关闭事件"
+          :fullscreenable="false"
+          @after-close="reason = $event"
+        />
+      `,
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await flushPromises()
+    const closeBtn = document.body.querySelector('.rs-dialog__actions button') as HTMLElement
+    await closeBtn.click()
+    await flushPromises()
+    expect(wrapper.vm.reason).toBe('close')
+    expect(wrapper.findComponent(RsDialog).props('open')).toBe(false)
     wrapper.unmount()
   })
 })

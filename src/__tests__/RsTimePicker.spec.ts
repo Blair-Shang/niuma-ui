@@ -68,6 +68,17 @@ describe('RsTimePicker', () => {
     wrapper.unmount()
   })
 
+  it('applies size class on root and columns panel', async () => {
+    const wrapper = mount(RsTimePicker, {
+      props: { modelValue: '08:00', size: 'sm', open: true },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    expect(wrapper.classes()).toContain('rs-time-picker--sm')
+    expect(document.body.querySelector('.rs-time-columns--sm')).not.toBeNull()
+    wrapper.unmount()
+  })
+
   it('disables trigger when disabled', () => {
     const wrapper = mount(RsTimePicker, {
       props: { modelValue: '10:00', disabled: true },

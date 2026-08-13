@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { h } from 'vue'
 import { mount } from '@vue/test-utils'
 import RsConfigProvider from '../components/RsConfigProvider.vue'
@@ -8,6 +8,7 @@ import {
   isFileAccepted,
   mergeUploadFiles,
   removeUploadFileAt,
+  resolveUploadFileIcon,
   validateUploadFiles,
 } from '../components/upload-utils'
 
@@ -62,6 +63,17 @@ describe('upload-utils', () => {
   it('removes file at index', () => {
     const files = [createFile('a.txt', 'a'), createFile('b.txt', 'b')]
     expect(removeUploadFileAt(files, 0).map((file) => file.name)).toEqual(['b.txt'])
+  })
+
+  it('resolves list icons by extension and mime', () => {
+    expect(resolveUploadFileIcon('localhost.pem')).toBe('file-key')
+    expect(resolveUploadFileIcon('localhost.key')).toBe('key-round')
+    expect(resolveUploadFileIcon('photo.png')).toBe('file-image')
+    expect(resolveUploadFileIcon('app.ts')).toBe('file-code')
+    expect(resolveUploadFileIcon('data.xlsx')).toBe('file-spreadsheet')
+    expect(resolveUploadFileIcon('pack.zip')).toBe('file-archive')
+    expect(resolveUploadFileIcon(createFile('blob.bin', 'x', 'image/png'))).toBe('file-image')
+    expect(resolveUploadFileIcon('unknown.xyz')).toBe('file')
   })
 })
 
@@ -149,12 +161,56 @@ describe('RsUpload', () => {
     expect(wrapper.find('.rs-upload__dropzone').classes()).toContain('rs-upload__dropzone--disabled')
   })
 
-  it('binds accept and multiple attributes', () => {
+  it('hides file list when showFileList is false', () => {
     const wrapper = mount(RsUpload, {
-      props: { accept: 'image/*', multiple: true },
+      props: {
+        modelValue: [createFile('a.txt', 'a')],
+        showFileList: false,
+      },
     })
-    const input = wrapper.find('input')
-    expect(input.attributes('accept')).toBe('image/*')
-    expect(input.attributes('multiple')).toBeDefined()
+    expect(wrapper.find('.rs-upload__list').exists()).toBe(false)
+  })
+
+  it('shows download action and emits download', async () => {
+    const createObjectURL = vi.fn(() => 'blob:mock')
+    const revokeObjectURL = vi.fn()
+    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL })
+
+    const file = createFile('a.txt', 'hello')
+    const wrapper = mount(RsUpload, {
+      props: {
+        modelValue: [file],
+        showDownload: true,
+      },
+    })
+    expect(wrapper.find('.rs-upload__file-action').exists()).toBe(true)
+    await wrapper.find('.rs-upload__file-action').trigger('click')
+    expect(wrapper.emitted('download')?.[0]?.[0]).toBe(file)
+    expect(createObjectURL).toHaveBeenCalled()
+
+    vi.unstubAllGlobals()
+  })
+
+  it('accepts dropped files', async () => {
+    const wrapper = mount(RsUpload, {
+      props: { modelValue: [] },
+    })
+    const file = createFile('drop.txt', 'x')
+    await wrapper.find('.rs-upload__dropzone').trigger('drop', {
+      dataTransfer: { files: [file] },
+    })
+    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toEqual([file])
+  })
+
+  it('hides dropzone when full and hideDropzoneWhenFull', () => {
+    const wrapper = mount(RsUpload, {
+      props: {
+        modelValue: [createFile('a.txt', 'a')],
+        maxCount: 1,
+        hideDropzoneWhenFull: true,
+      },
+    })
+    expect(wrapper.find('.rs-upload__dropzone').exists()).toBe(false)
+    expect(wrapper.find('.rs-upload__file-name').text()).toBe('a.txt')
   })
 })

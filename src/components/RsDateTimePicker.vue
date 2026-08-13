@@ -1,11 +1,22 @@
 <script setup lang="ts">
 import RsDatePicker from './RsDatePicker.vue'
-import type { RsDateRangeValue } from './date-picker-utils'
+import type { RsComponentSize } from '../theme/types'
+import type {
+  RsDatePickerModelValue,
+  RsDatePickerShortcut,
+  RsDatePickerValueFormat,
+  RsDateRangeValue,
+} from './date-picker-utils'
 
 export type RsDateTimeRangeValue = RsDateRangeValue
 export type RsDateTimePickerLabelPosition = 'top' | 'left'
+export type {
+  RsDatePickerModelValue,
+  RsDatePickerShortcut,
+  RsDatePickerValueFormat,
+}
 
-const model = defineModel<string | RsDateTimeRangeValue>({ default: '' })
+const model = defineModel<RsDatePickerModelValue>({ default: '' })
 const open = defineModel<boolean>('open', { default: false })
 
 withDefaults(
@@ -19,13 +30,18 @@ withDefaults(
     withSeconds?: boolean
     minDate?: string
     maxDate?: string
+    /** string：YYYY-MM-DD HH:mm:ss；timestamp：毫秒时间戳 / [start, end] */
+    valueFormat?: RsDatePickerValueFormat
     labelPosition?: RsDateTimePickerLabelPosition
+    shortcuts?: RsDatePickerShortcut[]
+    size?: RsComponentSize
   }>(),
   {
     disabled: false,
     required: false,
     range: false,
     withSeconds: false,
+    valueFormat: 'string',
     labelPosition: 'top',
   },
 )
@@ -38,5 +54,6 @@ withDefaults(
     v-model:open="open"
     with-time
     :with-seconds="withSeconds"
+    :value-format="valueFormat"
   />
 </template>

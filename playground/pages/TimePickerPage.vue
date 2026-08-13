@@ -16,6 +16,7 @@ const shiftRange = ref<RsTimeRangeValue>({ start: '08:30', end: '17:30' })
 const withSeconds = ref('14:30:45')
 const disabledSingle = ref('10:00')
 const disabledRange = ref<RsTimeRangeValue>({ start: '08:00', end: '20:00' })
+const sizeDemo = ref('09:30')
 </script>
 
 <template>
@@ -86,6 +87,18 @@ const disabledRange = ref<RsTimeRangeValue>({ start: '08:00', end: '20:00' })
         hint="开启 withSeconds 后格式为 HH:mm:ss"
       />
       <p class="value">当前值：<code>{{ withSeconds }}</code></p>
+    </DemoBlock>
+
+    <DemoBlock title="尺寸 size（ssm / sm / md / lg）">
+      <p class="hint">
+        与日期选择器同一套 <code>size</code>，触发器与时分秒列高度/字号一并缩放。
+      </p>
+      <div class="stack">
+        <RsTimePicker v-model="sizeDemo" label="ssm" size="ssm" />
+        <RsTimePicker v-model="sizeDemo" label="sm" size="sm" />
+        <RsTimePicker v-model="sizeDemo" label="md" size="md" />
+        <RsTimePicker v-model="sizeDemo" label="lg" size="lg" />
+      </div>
     </DemoBlock>
 
     <DemoBlock title="禁用态">

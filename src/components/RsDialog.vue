@@ -1,5 +1,15 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, toRef, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  toRef,
+  useAttrs,
+  useSlots,
+  watch,
+} from 'vue'
 import {
   DialogContent,
   DialogDescription,
@@ -11,28 +21,60 @@ import {
 import { useRsI18n } from '../composables/useRsI18n'
 import RsButton from './RsButton.vue'
 import type { RsFeedbackTone } from './overlay-utils'
+import {
+  isRsDialogWidthPreset,
+  resolveDialogOverlayStyle,
+  resolveRsDialogCssWidth,
+  runRsDialogBeforeClose,
+  type RsDialogBeforeClose,
+  type RsDialogCloseReason,
+  type RsDialogLayout,
+  type RsDialogWidth,
+  type RsDialogWidthPreset,
+} from './dialog-utils'
 import { useRsDialogWindow } from './dialog-window'
+
+defineOptions({ inheritAttrs: false })
 
 const open = defineModel<boolean>('open', { default: false })
 
 const props = withDefaults(
   defineProps<{
-    title: string
+    /** 标题文案；也可用 `#title` / `#header` 插槽。缺省时用空格满足无障碍 Title */
+    title?: string
     description?: string
-    width?: 'sm' | 'md' | 'lg'
+    width?: RsDialogWidth
     tone?: RsFeedbackTone
-    layout?: 'window' | 'confirm'
+    /**
+     * window：可拖拽/缩放工作窗（推荐）。
+     * confirm：历史兼容的居中轻量窗；新代码的确认/提示请用 RsConfirmDialog。
+     */
+    layout?: RsDialogLayout
     draggable?: boolean
     resizable?: boolean
     fullscreenable?: boolean
     /** 是否模态（false 时不锁焦点/不挡背后交互，适合页签内浮层） */
     modal?: boolean
     showOverlay?: boolean
+    /**
+     * 遮罩不透明度 0–1；覆盖主题默认（最浅）。
+     * 例：0.08 最浅、0.35 适中、0.55 较深。
+     */
+    overlayOpacity?: number
+    /** 遮罩模糊；number 为 px。默认主题为 0（无模糊，背后内容清晰） */
+    overlayBlur?: number | string
     showClose?: boolean
     /** 点击外部是否关闭；默认 false。与 modal 独立：非模态也可保持打开。 */
     closeOnOverlayClick?: boolean
-    /** DialogPortal 挂载目标（id 选择器或 Element） */
-    teleportTo?: string | HTMLElement
+    /** 按 Esc 是否关闭；默认 true（与 Reka 默认一致） */
+    closeOnEsc?: boolean
+    /**
+     * DialogPortal 挂载目标
+     * - string / HTMLElement：Teleport 到指定节点
+     * - false：禁用 Teleport，就地渲染（不挂到 body / 全局挂载点）
+     * - undefined：走 Reka 默认（通常为 body，或 ConfigProvider.teleportTo）
+     */
+    teleportTo?: string | HTMLElement | false
     /**
      * 延后挂载 #body 插槽，避免与打开动画/重组件 init 争抢主线程。
      * 默认：window 布局为 true，confirm 为 false。
@@ -40,8 +82,25 @@ const props = withDefaults(
     deferBodyMount?: boolean
     /** 全屏/还原时是否播放 bounds 过渡（含编辑器时建议保持 false） */
     boundsTransition?: boolean
+    /** 关闭前钩子；返回 false 可阻止关闭（支持 async） */
+    beforeClose?: RsDialogBeforeClose
+    /**
+     * 显示内置底部按钮区。默认 false，避免影响仅用 `#footer` 或不需要按钮的旧用法。
+     * 无 `#footer` 且为 true 时渲染取消/确定。
+     * 危险确认/提示请用 RsConfirmDialog，不要用本 footer 冒充确认 UI。
+     */
+    showFooter?: boolean
+    showCancel?: boolean
+    showConfirm?: boolean
+    cancelText?: string
+    confirmText?: string
+    confirmLoading?: boolean
+    confirmVariant?: 'primary' | 'danger'
+    /** 点击确定后是否自动关闭（仍会走 beforeClose） */
+    autoCloseOnConfirm?: boolean
   }>(),
   {
+    title: '',
     width: 'md',
     tone: 'default',
     layout: 'window',
@@ -52,20 +111,64 @@ const props = withDefaults(
     showOverlay: false,
     showClose: true,
     closeOnOverlayClick: false,
+    closeOnEsc: true,
     boundsTransition: false,
+    showFooter: false,
+    showCancel: true,
+    showConfirm: true,
+    confirmLoading: false,
+    confirmVariant: 'primary',
+    autoCloseOnConfirm: false,
   },
 )
 
+const emit = defineEmits<{
+  openChange: [open: boolean]
+  afterOpen: []
+  afterClose: [reason: RsDialogCloseReason]
+  confirm: []
+  cancel: []
+}>()
+
+const attrs = useAttrs()
+const slots = useSlots()
 const { t } = useRsI18n()
+
 const isWindowLayout = computed(() => props.layout === 'window')
 const isConfirmLayout = computed(() => props.layout === 'confirm')
 const enableDraggable = computed(() => props.draggable && isWindowLayout.value)
 const enableResizable = computed(() => props.resizable && isWindowLayout.value)
 const deferBodyMount = computed(() => props.deferBodyMount ?? isWindowLayout.value)
+const overlayStyle = computed(() =>
+  resolveDialogOverlayStyle({
+    overlayOpacity: props.overlayOpacity,
+    overlayBlur: props.overlayBlur,
+  }),
+)
+
+const widthPreset = computed<RsDialogWidthPreset>(() =>
+  isRsDialogWidthPreset(props.width) ? props.width : 'md',
+)
+
+const initialWidthPx = computed(() => {
+  if (typeof props.width === 'number' && Number.isFinite(props.width) && props.width > 0) {
+    return props.width
+  }
+  if (typeof props.width === 'string') {
+    const trimmed = props.width.trim()
+    if (/^\d+(\.\d+)?px$/i.test(trimmed)) return Number.parseFloat(trimmed)
+  }
+  return undefined
+})
+
+const customCssWidth = computed(() => resolveRsDialogCssWidth(props.width))
 
 const bodyReady = ref(false)
+const closing = ref(false)
+let pendingCloseReason: RsDialogCloseReason = 'programmatic'
 let bodyMountFrameOuter = 0
 let bodyMountFrameInner = 0
+let afterOpenTimer = 0
 
 function resetBodyMount(): void {
   if (bodyMountFrameOuter) {
@@ -103,17 +206,152 @@ watch(
   { immediate: true },
 )
 
-onBeforeUnmount(resetBodyMount)
+function clearAfterOpenTimer(): void {
+  if (!afterOpenTimer) return
+  window.clearTimeout(afterOpenTimer)
+  afterOpenTimer = 0
+}
+
+function queueAfterOpen(): void {
+  clearAfterOpenTimer()
+  // 略晚于打开动画，便于业务在可见后聚焦
+  afterOpenTimer = window.setTimeout(() => {
+    afterOpenTimer = 0
+    if (open.value) emit('afterOpen')
+  }, 230)
+}
+
+watch(open, (isOpen, wasOpen) => {
+  if (isOpen && !wasOpen) {
+    emit('openChange', true)
+    queueAfterOpen()
+    return
+  }
+  if (!isOpen && wasOpen) {
+    emit('openChange', false)
+    // 父级直接改 v-model 关闭时补发 afterClose（requestClose 路径已发过）
+    if (!closing.value) emit('afterClose', 'programmatic')
+  }
+})
+
+onMounted(() => {
+  if (import.meta.env.DEV && props.layout === 'confirm') {
+    console.warn(
+      '[RsDialog] layout:"confirm" 已弃用。确认/提示请使用 RsConfirmDialog / rsConfirm；RsDialog 仅用于工作窗与表单。',
+    )
+  }
+})
+
+onBeforeUnmount(() => {
+  resetBodyMount()
+  clearAfterOpenTimer()
+})
 
 const showBodyContent = computed(() => !deferBodyMount.value || bodyReady.value)
 
+const showBuiltinFooter = computed(
+  () => props.showFooter && !slots.footer && (props.showCancel || props.showConfirm),
+)
+
+const resolvedTitle = computed(() => {
+  const text = props.title?.trim()
+  return text || ' '
+})
+
+const contentClass = computed(() => {
+  const presetClass = isRsDialogWidthPreset(props.width)
+    ? `rs-dialog__content--${props.width}`
+    : 'rs-dialog__content--custom-width'
+  return [
+    `rs-dialog__content--${props.layout}`,
+    presetClass,
+    `rs-dialog__content--tone-${props.tone}`,
+    {
+      'rs-dialog__content--fullscreen': isFullscreen.value,
+      'rs-dialog__content--draggable': enableDraggable.value,
+      'rs-dialog__content--bounds-transition': boundsTransitionEnabled.value,
+    },
+  ]
+})
+
+const contentStyle = computed(() => {
+  const base = isWindowLayout.value ? dialogStyle.value : undefined
+  const cssW = customCssWidth.value
+  // 数值/px 已通过 initialWidth 进入 window bounds；其它自定义宽度用 CSS 覆盖
+  if (!cssW) return base
+  if (isWindowLayout.value && initialWidthPx.value != null) return base
+  return {
+    ...(base ?? {}),
+    width: isConfirmLayout.value ? undefined : cssW,
+    maxWidth: cssW,
+  }
+})
+
+async function requestClose(reason: RsDialogCloseReason): Promise<boolean> {
+  if (!open.value || closing.value) return false
+  closing.value = true
+  pendingCloseReason = reason
+  try {
+    const allowed = await runRsDialogBeforeClose(props.beforeClose, reason)
+    if (!allowed) return false
+    open.value = false
+    await nextTick()
+    emit('afterClose', reason)
+    return true
+  } finally {
+    closing.value = false
+  }
+}
+
+/** DialogRoot 受控更新：打开直通；关闭统一走 beforeClose */
+async function onUpdateOpen(next: boolean): Promise<void> {
+  if (next) {
+    open.value = true
+    return
+  }
+  await requestClose(pendingCloseReason)
+  pendingCloseReason = 'programmatic'
+}
+
+function onEscapeKeyDown(event: Event): void {
+  if (!props.closeOnEsc || props.confirmLoading) {
+    event.preventDefault()
+    return
+  }
+  pendingCloseReason = 'escape'
+}
+
 /** 是否因外部交互关闭：与 modal 无关；非模态仍允许背后操作，仅控制是否 dismiss。 */
 function onPointerDownOutside(event: Event): void {
-  if (!props.closeOnOverlayClick) event.preventDefault()
+  if (!props.closeOnOverlayClick || props.confirmLoading) {
+    event.preventDefault()
+    return
+  }
+  pendingCloseReason = 'overlay'
 }
 
 function onInteractOutside(event: Event): void {
-  if (!props.closeOnOverlayClick) event.preventDefault()
+  if (!props.closeOnOverlayClick || props.confirmLoading) {
+    event.preventDefault()
+    return
+  }
+  pendingCloseReason = 'overlay'
+}
+
+async function onHeaderCloseClick(): Promise<void> {
+  await requestClose('close')
+}
+
+async function onBuiltinCancel(): Promise<void> {
+  emit('cancel')
+  await requestClose('cancel')
+}
+
+async function onBuiltinConfirm(): Promise<void> {
+  emit('confirm')
+  if (props.autoCloseOnConfirm) {
+    await requestClose('confirm')
+  }
 }
 
 const {
@@ -121,38 +359,61 @@ const {
   boundsTransitionEnabled,
   dialogStyle,
   resizeHandles,
+  setPanelEl,
   toggleFullscreen,
   onHeaderPointerDown,
   onResizePointerDown,
 } = useRsDialogWindow({
   open,
-  widthPreset: toRef(props, 'width'),
+  widthPreset,
+  initialWidth: initialWidthPx,
   draggable: enableDraggable,
   resizable: enableResizable,
   compact: isConfirmLayout,
   boundsTransition: toRef(props, 'boundsTransition'),
 })
+
+const contentRef = ref<{ $el?: HTMLElement } | HTMLElement | null>(null)
+
+watch(
+  contentRef,
+  (inst) => {
+    if (!inst) {
+      setPanelEl(null)
+      return
+    }
+    const el = inst instanceof HTMLElement ? inst : (inst.$el ?? null)
+    setPanelEl(el instanceof HTMLElement ? el : null)
+  },
+  { flush: 'post' },
+)
+
+defineExpose({
+  /** 请求关闭（走 beforeClose） */
+  close: (reason: RsDialogCloseReason = 'programmatic') => requestClose(reason),
+  /** 打开对话框 */
+  openDialog: () => {
+    open.value = true
+  },
+})
 </script>
 
 <template>
-  <DialogRoot v-model:open="open" :modal="modal">
-    <DialogPortal :to="teleportTo">
-      <DialogOverlay v-if="showOverlay" class="rs-dialog__overlay rs-motion-reduce" />
+  <DialogRoot :open="open" :modal="modal" @update:open="onUpdateOpen">
+    <DialogPortal
+      :disabled="teleportTo === false"
+      :to="teleportTo === false ? undefined : teleportTo"
+    >
+      <DialogOverlay v-if="showOverlay" class="rs-dialog__overlay rs-motion-reduce" :style="overlayStyle" />
       <DialogContent
+        ref="contentRef"
+        v-bind="attrs"
         class="rs-dialog__content rs-motion-reduce"
-        :class="[
-          `rs-dialog__content--${width}`,
-          `rs-dialog__content--${layout}`,
-          `rs-dialog__content--tone-${tone}`,
-          {
-            'rs-dialog__content--fullscreen': isFullscreen,
-            'rs-dialog__content--draggable': enableDraggable,
-            'rs-dialog__content--bounds-transition': boundsTransitionEnabled,
-          },
-        ]"
-        :style="isWindowLayout ? dialogStyle : undefined"
+        :class="contentClass"
+        :style="contentStyle"
         @pointer-down-outside="onPointerDownOutside"
         @interact-outside="onInteractOutside"
+        @escape-key-down="onEscapeKeyDown"
       >
         <template v-if="enableResizable && !isFullscreen">
           <div
@@ -164,15 +425,19 @@ const {
           />
         </template>
         <header class="rs-dialog__header" @pointerdown="onHeaderPointerDown">
-          <div class="rs-dialog__heading">
-            <DialogTitle class="rs-dialog__title">{{ title }}</DialogTitle>
-            <DialogDescription
-              class="rs-dialog__description"
-              :class="{ 'rs-dialog__description--sr-only': !description }"
-            >
-              {{ description || title }}
-            </DialogDescription>
-          </div>
+          <slot name="header">
+            <div class="rs-dialog__heading">
+              <DialogTitle class="rs-dialog__title">
+                <slot name="title">{{ resolvedTitle }}</slot>
+              </DialogTitle>
+              <DialogDescription
+                class="rs-dialog__description"
+                :class="{ 'rs-dialog__description--sr-only': !description && !$slots.description }"
+              >
+                <slot name="description">{{ description || resolvedTitle }}</slot>
+              </DialogDescription>
+            </div>
+          </slot>
           <div class="rs-dialog__actions">
             <RsButton
               v-if="fullscreenable && isWindowLayout"
@@ -189,8 +454,9 @@ const {
               size="sm"
               icon-only
               icon="x"
+              :disabled="confirmLoading"
               :tooltip="t('dialog.close')"
-              @click="open = false"
+              @click="onHeaderCloseClick"
             />
           </div>
         </header>
@@ -200,8 +466,34 @@ const {
             <slot name="body-placeholder" />
           </div>
         </div>
-        <footer v-if="$slots.footer" class="rs-dialog__footer">
-          <slot name="footer" />
+        <footer v-if="$slots.footer || showBuiltinFooter" class="rs-dialog__footer">
+          <slot
+            name="footer"
+            :confirm-loading="confirmLoading"
+            :on-confirm="onBuiltinConfirm"
+            :on-cancel="onBuiltinCancel"
+          >
+            <template v-if="showBuiltinFooter">
+              <RsButton
+                v-if="showCancel"
+                variant="default"
+                size="sm"
+                :disabled="confirmLoading"
+                @click="onBuiltinCancel"
+              >
+                {{ cancelText ?? t('common.cancel') }}
+              </RsButton>
+              <RsButton
+                v-if="showConfirm"
+                :variant="confirmVariant"
+                size="sm"
+                :loading="confirmLoading"
+                @click="onBuiltinConfirm"
+              >
+                {{ confirmText ?? t('common.confirm') }}
+              </RsButton>
+            </template>
+          </slot>
         </footer>
       </DialogContent>
     </DialogPortal>
@@ -243,9 +535,10 @@ const {
   overflow: hidden;
   border-radius: var(--rs-radius-lg);
   border: 1px solid var(--rs-dialog-border);
-  background: var(--rs-dialog-header-bg);
+  background: var(--rs-dialog-bg);
   box-shadow: var(--rs-dialog-shadow);
   outline: none;
+  color: var(--rs-dialog-title-fg);
 }
 
 /* 亮色 confirm：轻微 vibrancy；window 用实底避免 CEF 下 blur 合成开销 */
@@ -349,7 +642,8 @@ const {
 }
 .rs-dialog__content--window.rs-dialog__content--sm,
 .rs-dialog__content--window.rs-dialog__content--md,
-.rs-dialog__content--window.rs-dialog__content--lg {
+.rs-dialog__content--window.rs-dialog__content--lg,
+.rs-dialog__content--window.rs-dialog__content--custom-width {
   max-width: none;
 }
 .rs-dialog__content--fullscreen {
@@ -359,26 +653,40 @@ const {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--rs-space-md);
   flex-shrink: 0;
-  padding: 0.625rem 0.75rem 0.625rem 1.25rem;
+  box-sizing: border-box;
+  height: var(--rs-dialog-header-height);
+  min-height: var(--rs-dialog-header-min-height);
+  padding: var(--rs-dialog-header-padding-y) var(--rs-dialog-header-padding-x);
   background: var(--rs-dialog-header-bg);
   border-bottom: 1px solid var(--rs-dialog-separator);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
+}
+.rs-dialog__heading {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
 }
 .rs-dialog__content--window.rs-dialog__content--draggable .rs-dialog__header {
-  cursor: grab;
+  cursor: move;
   user-select: none;
 }
 .rs-dialog__title {
   margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rs-space-sm);
   font-size: var(--rs-font-size-base);
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
+  line-height: var(--rs-line-height-tight, 1.3);
   color: var(--rs-dialog-title-fg);
 }
 .rs-dialog__description {
-  margin: 0.25rem 0 0;
+  margin: var(--rs-space-xs) 0 0;
   font-size: var(--rs-font-size-sm);
   color: var(--rs-dialog-description-fg);
   line-height: var(--rs-line-height-normal);
@@ -398,7 +706,8 @@ const {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 1.25rem;
+  box-sizing: border-box;
+  padding: var(--rs-dialog-body-padding-y) var(--rs-dialog-body-padding-x);
   background: var(--rs-dialog-body-bg);
 }
 .rs-dialog__content--window .rs-dialog__body {
@@ -411,20 +720,23 @@ const {
 }
 .rs-dialog__footer {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  gap: var(--rs-space-sm);
   flex-shrink: 0;
-  padding: 0.75rem 1.25rem;
+  box-sizing: border-box;
+  height: var(--rs-dialog-footer-height);
+  min-height: var(--rs-dialog-footer-min-height);
+  padding: var(--rs-dialog-footer-padding-y) var(--rs-dialog-footer-padding-x);
   background: var(--rs-dialog-footer-bg);
-  border-top: 1px solid var(--rs-dialog-separator);
-}
-[data-rs-theme='light'] .rs-dialog__header {
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.75);
+  border-top: 1px solid var(--rs-dialog-footer-border);
 }
 .rs-dialog__actions {
   display: inline-flex;
   align-items: center;
   gap: var(--rs-space-xs);
+  flex-shrink: 0;
 }
 .rs-dialog__resize-handle {
   position: absolute;

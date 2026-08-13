@@ -4,7 +4,35 @@ export { default as RsContainer } from './components/RsContainer.vue'
 export { default as RsBreadcrumb } from './components/RsBreadcrumb.vue'
 export { default as RsToolbar } from './components/RsToolbar.vue'
 export { default as RsButton } from './components/RsButton.vue'
+export type { RsButtonTone, RsButtonVariant } from './components/button-utils'
+export {
+  isRsButtonFilledVariant,
+  supportsRsButtonTone,
+} from './components/button-utils'
 export { default as RsCheckbox } from './components/RsCheckbox.vue'
+export { default as RsSwitch } from './components/RsSwitch.vue'
+export { default as RsRadio } from './components/RsRadio.vue'
+export { default as RsRadioItem } from './components/RsRadioItem.vue'
+export type { RsRadioValue } from './components/radio-utils'
+export { default as RsTag } from './components/RsTag.vue'
+export type { RsTagVariant } from './components/RsTag.vue'
+export { default as RsDynamicTags } from './components/RsDynamicTags.vue'
+export type {
+  RsDynamicTagsInputMode,
+  RsDynamicTagsRejectReason,
+} from './components/RsDynamicTags.vue'
+export { default as RsAlert } from './components/RsAlert.vue'
+export { default as RsDivider } from './components/RsDivider.vue'
+export { default as RsDescriptions } from './components/RsDescriptions.vue'
+export { default as RsDescriptionsItem } from './components/RsDescriptionsItem.vue'
+export type {
+  RsDescriptionsItem as RsDescriptionsItemData,
+  RsDescriptionsLabelPlacement,
+  RsDescriptionsSize,
+} from './components/descriptions-utils'
+export { default as RsLoadingBar } from './components/RsLoadingBar.vue'
+export { useRsLoadingBar } from './composables/useRsLoadingBar'
+export type { RsLoadingBarApi } from './composables/useRsLoadingBar'
 export { default as RsDropdown } from './components/RsDropdown.vue'
 export { default as RsIcon } from './components/RsIcon.vue'
 export { default as RsInput } from './components/RsInput.vue'
@@ -29,7 +57,7 @@ export { default as RsSelect } from './components/RsSelect.vue'
 export { default as RsScrollbar } from './components/RsScrollbar.vue'
 export { default as RsAvatar } from './components/RsAvatar.vue'
 export { default as RsCard } from './components/RsCard.vue'
-export type { RsCardVariant } from './components/RsCard.vue'
+export type { RsCardSize, RsCardVariant } from './components/RsCard.vue'
 export { default as RsEmpty } from './components/RsEmpty.vue'
 export { default as RsLoading } from './components/RsLoading.vue'
 export { default as RsTabs } from './components/RsTabs.vue'
@@ -39,7 +67,45 @@ export { default as RsPopover } from './components/RsPopover.vue'
 export { default as RsDialog } from './components/RsDialog.vue'
 export { default as RsContextMenu } from './components/RsContextMenu.vue'
 export { default as RsConfirmDialog } from './components/RsConfirmDialog.vue'
+export { openRsDialog, rsConfirm } from './composables/createRsDialog'
+export type {
+  RsConfirmApi,
+  RsConfirmInput,
+  RsDialogHandle,
+  RsDialogOpenOptions,
+  RsConfirmResult,
+} from './composables/createRsDialog'
+export type {
+  RsConfirmBeforeClose,
+  RsConfirmCloseReason,
+  RsConfirmOptions,
+  RsDialogBeforeClose,
+  RsDialogCloseReason,
+  RsDialogLayout,
+  RsDialogWidth,
+  RsDialogWidthPreset,
+} from './components/dialog-utils'
+export {
+  isRsDialogWidthPreset,
+  resolveDialogOverlayStyle,
+  resolveRsDialogCssWidth,
+  runRsConfirmBeforeClose,
+  runRsDialogBeforeClose,
+} from './components/dialog-utils'
 export { default as RsDrawer } from './components/RsDrawer.vue'
+export type {
+  RsDrawerBeforeClose,
+  RsDrawerCloseReason,
+  RsDrawerDimension,
+  RsDrawerSide,
+  RsDrawerSize,
+} from './components/drawer-utils'
+export {
+  resolveDrawerOverlayStyle,
+  resolveRsDrawerDimensionCss,
+  resolveRsDrawerSizeCss,
+  runRsDrawerBeforeClose,
+} from './components/drawer-utils'
 export { default as RsForm } from './components/RsForm.vue'
 export { default as RsToaster } from './components/RsToaster.vue'
 export { default as RsDatePicker } from './components/RsDatePicker.vue'
@@ -55,9 +121,8 @@ export { default as RsStatCard } from './components/RsStatCard.vue'
 export { default as RsSteps } from './components/RsSteps.vue'
 export { default as RsTable } from './components/RsTable.vue'
 export { default as RsTableCellEditor } from './components/table/RsTableCellEditor.vue'
-export { default as RsTableHeaderRow } from './components/RsTableHeaderRow.vue'
-export { default as RsTableColgroup } from './components/RsTableColgroup.vue'
 export { default as RsPagination } from './components/RsPagination.vue'
+export type { RsPaginationSize } from './components/RsPagination.vue'
 export { default as RsTree } from './components/RsTree.vue'
 export { default as RsUpload } from './components/RsUpload.vue'
 export { default as RsVirtualList } from './components/RsVirtualList.vue'
@@ -141,11 +206,19 @@ export type { RsDropdownItem, RsDropdownItemGroup, RsDropdownItems } from './com
 export type { RsMenuItem, RsMenuItemGroup, RsMenuItems } from './components/menu-utils'
 export type { RsScrollbarOrientation, RsScrollbarType } from './components/scrollbar-utils'
 export type { RsSelectOption, RsSelectOptionGroup, RsSelectOptions } from './components/select-utils'
+export {
+  RS_SELECT_EMPTY_VALUE,
+  fromComboboxValue,
+  toComboboxValue,
+} from './components/select-utils'
 export type { RsFeedbackTone, RsToastPosition, RsToastType } from './components/overlay-utils'
 export { RS_TOAST_DEFAULT_GAP, RS_TOAST_DEFAULT_POSITION, rsToastPositions, rsFeedbackIconClass } from './components/overlay-utils'
 export type {
   RsFormContext,
+  RsFormErrorRender,
+  RsFormErrorRenderContext,
   RsFormFieldExpose,
+  RsFormFieldValidationResult,
   RsFormGap,
   RsFormLabelAlign,
   RsFormLabelPosition,
@@ -156,26 +229,60 @@ export type {
 export {
   cloneFormFieldValue,
   RS_FORM_INJECTION_KEY,
+  resolveFieldRules,
   useRsFormContext,
   useRsFormField,
 } from './components/form-utils'
-export type { RsTabItem, RsTabsOverflow, RsTabsSize, RsTabsVariant } from './components/tabs-utils'
+export type {
+  RsFormRuleItem,
+  RsFormRuleMessage,
+  RsFormRules,
+  RsFormRuleTrigger,
+  RsFormRuleValidateResult,
+} from './components/form-rules'
 export {
+  buildLocalInputRules,
+  matchFormRuleTrigger,
+  normalizeFormRules,
+  resolveRuleMessage,
+  runFormFieldRules,
+} from './components/form-rules'
+export type {
+  RsTabItem,
+  RsTabsCloseAction,
+  RsTabsContentGap,
+  RsTabsOverflow,
+  RsTabsSize,
+  RsTabsJustify,
+  RsTabsVariant,
+} from './components/tabs-utils'
+export {
+  buildTabContextMenuItems,
+  getNextTabAfterBatchClose,
   getNextTabAfterClose,
   isTabClosable,
+  isTabFixed,
   isTabRenamable,
   reorderTabItems,
+  resolveTabsToClose,
   resolveVisibleTabValues,
 } from './components/tabs-utils'
 export type { RsStepItem, RsStepStatus, RsStepsOrientation, RsStepsSize } from './components/steps-utils'
 export { isStepSeparatorCompleted, resolveStepStatus } from './components/steps-utils'
-export type { RsSplitConstraint, RsSplitOrientation, RsSplitPaneItem } from './components/split-pane-utils'
+export type {
+  RsSplitConstraint,
+  RsSplitOrientation,
+  RsSplitPaneItem,
+  RsSplitPaneSize,
+} from './components/split-pane-utils'
 export {
   applySplitResize,
   collapseSplitPane,
   expandSplitPane,
+  isRsSplitPaneAutoSize,
   isSplitPaneCollapsed,
   normalizeSplitSizes,
+  resolveSplitAutoFlags,
   resolveSplitConstraints,
   splitSizesEqual,
 } from './components/split-pane-utils'
@@ -198,6 +305,148 @@ export {
   validateCellValueAsync,
 } from './components/table/table-edit-utils'
 export type { RsTableStagedCell, RsTableUndoEntry, RsTableFocusCell } from './composables/useTableEdit'
+export {
+  useRsTable,
+  useRsTableApi,
+  RS_TABLE_API_KEY,
+  RS_TABLE_API_VERSION,
+  isRsTableApi,
+  RsTableModuleRegistry,
+  resolveInstanceFeatures,
+  type RsTableApi,
+  type UseRsTableSurface,
+} from './composables/useRsTable'
+export { useRsTableCore, type RsTableCoreApi, type UseRsTableCoreOptions } from './composables/useRsTableCore'
+export {
+  useRsTableShell,
+  type RsTableShellApi,
+  type UseRsTableShellCoreSlice,
+  type UseRsTableShellOptions,
+} from './composables/useRsTableShell'
+export {
+  useRsTableEditLayer,
+  type RsTableApiEditSlice,
+  type RsTableEditLayerApi,
+  type UseRsTableEditLayerOptions,
+} from './composables/useRsTableEditLayer'
+export {
+  createRsTableApi,
+  type RsTableColumnChartMeta,
+  type RsTableColumnWithChartMeta,
+} from './components/table/rs-table-api'
+export {
+  createRsTableFeatureHost,
+  type RsTableContextMenuContributor,
+  type RsTableFeatureHost,
+} from './components/table/rs-table-feature-host'
+export { useRsTableColumns } from './composables/useRsTableColumns'
+export { useRsTableEngine } from './composables/useRsTableEngine'
+export { flattenVisibleCountRough, useRsTableVirtual } from './composables/useRsTableVirtual'
+export { useRsTableScrollLayout } from './composables/useRsTableScrollLayout'
+export {
+  measureRsTablePrefixWidth,
+  RS_TABLE_PREFIX_COL_WIDTH,
+  useRsTableColumnVirtual,
+} from './composables/useRsTableColumnVirtual'
+export { useRsTableColumnLayout } from './composables/useRsTableColumnLayout'
+export { useRsTableColumnResize } from './composables/useRsTableColumnResize'
+export { useRsTableContextMenu } from './composables/useRsTableContextMenu'
+export { useRsTableEditActions } from './composables/useRsTableEditActions'
+export { useRsTableInteraction } from './composables/useRsTableInteraction'
+export { RS_TABLE_SUMMARY_FEATURE_ID, useRsTableSummary } from './composables/useRsTableSummary'
+export {
+  useRsTableSelectionSource,
+  type RsTableAnalyticsSnapshot,
+  type RsTableAnalyticsSourceMode,
+} from './composables/useRsTableSelectionSource'
+export { useRsTableChartBridge } from './composables/useRsTableChartBridge'
+export type {
+  RsTableChartKind,
+  RsTableChartPoint,
+  RsTableChartSeries,
+  RsTableChartSeriesDef,
+  RsTableChartValueAgg,
+} from './components/table/table-chart-utils'
+export {
+  buildTableChartSeries,
+  buildTableChartSeriesList,
+} from './components/table/table-chart-utils'
+export {
+  mapRsTableSeriesToEChartsOption,
+  type RsTableEChartsOption,
+  type MapRsTableSeriesToEChartsOptions,
+} from './components/table/rs-table-echarts-adapter'
+export type {
+  RsTableBuiltinFeatureId,
+  RsTableFeature,
+  RsTableFeatureContext,
+} from './components/table/table-features'
+export {
+  createAnalyticsTableFeature,
+  createBuiltinTableFeatures,
+  createChartSeriesTableFeature,
+  createContextMenuTableFeature,
+  createOverlayTableFeature,
+  createToolbarTableFeature,
+  resolveBuiltinTableFeatures,
+  RS_TABLE_ANALYTICS_SHELL,
+  RS_TABLE_FEATURE_COMPOSABLE_MAP,
+  setupTableFeatures,
+} from './components/table/table-features'
+export {
+  createRsTableViewContext,
+  provideRsTableView,
+  useRsTableView,
+  RS_TABLE_VIEW_KEY,
+  type RsTableViewContext,
+} from './components/table/rs-table-view-context'
+export type {
+  RsTableOverlayContribution,
+  RsTableToolbarItem,
+} from './components/table/rs-table-feature-host'
+export { useRsTableHeadless } from './composables/useRsTableHeadless'
+export { useRsTableViewProvide } from './composables/useRsTableViewProvide'
+export { useRsTableA11y } from './composables/useRsTableA11y'
+export { useRsTableShellChrome } from './composables/useRsTableShellChrome'
+export { useRsTableScrollHost } from './composables/useRsTableScrollHost'
+export { createRsTableEditEmitBridge } from './composables/createRsTableEditEmitBridge'
+export { assembleRsTableApi } from './composables/assembleRsTableApi'
+export { bindRsTableViewContext } from './composables/bindRsTableViewContext'
+export {
+  RS_TABLE_API_REQUIRED_METHODS,
+  RS_TABLE_API_OPTIONAL_METHODS,
+  RS_TABLE_STABLE_EMITS,
+  RS_TABLE_COMPAT_API_VERSION,
+} from './components/table/rs-table-compat-matrix'
+export type {
+  RsTableProps,
+  RsTableEmits,
+} from './components/table/rs-table-props'
+export { RS_TABLE_PROP_DEFAULTS } from './components/table/rs-table-props'
+export { useRsTableGridKeyboard } from './composables/useRsTableGridKeyboard'
+export {
+  navigateGridCell,
+  resolveGridNavDirection,
+  type RsTableGridNavDirection,
+  type RsTableGridCellRef,
+} from './components/table/rs-table-grid-nav'
+export type {
+  RsTableColumnSummary,
+  RsTableSummaryCell,
+  RsTableSummaryData,
+  RsTableSummaryMode,
+  RsTableSummaryType,
+} from './components/table/table-summary-utils'
+export {
+  aggregateColumnSummary,
+  buildTableSummaryCells,
+  hasTableSummaryConfig,
+} from './components/table/table-summary-utils'
+export { default as RsTableSummaryRow } from './components/table/RsTableSummaryRow.vue'
+export { default as RsTableHeader } from './components/table/RsTableHeader.vue'
+export { default as RsTableBody } from './components/table/RsTableBody.vue'
+export { default as RsTableColGroup } from './components/table/RsTableColGroup.vue'
+export type { RsTableHeaderProps } from './components/table/rs-table-header-types'
 export type { RsTableRowDragTrigger, RsTableRowDropMode } from './components/table-drag'
 export type {
   RsTableCellRenderResult,
@@ -219,18 +468,32 @@ export type {
   RsTableSize,
   RsTableSortOrder,
   RsTableSortState,
+  RsTableTreeCheckState,
+  RsTableTreeConfig,
+  RsTableTreeNodeIndex,
 } from './components/table-utils'
 export {
   buildTableEntries,
+  buildTableTreeEntries,
+  buildTableTreeNodeIndex,
   clampColumnWidth,
+  collectTableTreeDescendantKeys,
+  collectTableTreeExpandableKeys,
+  collectTableTreeHalfCheckedKeys,
   compareTableValues,
   createInitialColumnWidths,
   filterTableRows,
+  filterTableTreeRows,
   fixedCellStyle,
+  flattenVisibleTableTreeEntries,
   getCellValue,
   getSortOrderForKey,
   getSortPriorityForKey,
+  getTableTreeChildren,
+  getTableTreeIsLeaf,
   groupTableRows,
+  hasStableTableTreeRowKey,
+  hasTableTreeChildren,
   injectExpandRows,
   isNearScrollBottom,
   isTableRowDisabled,
@@ -245,17 +508,22 @@ export {
   resolveSelectableRowKeys,
   resolveSelectAllState,
   resolveTableSize,
+  resolveTableTreeCheckState,
+  resolveTableTreeIndent,
+  resolveTableTreeRowKey,
   resolveTableVirtualEnabled,
   selectRowKeys,
   selectRowKeysByClick,
   sliceVirtualTableEntries,
   sortTableRows,
   sortTableRowsMulti,
+  sortTableTreeRows,
   toggleExpandedRowKeys,
   toggleMultiSortState,
   toggleRowSelection,
   toggleSelectAll,
   toggleSortState,
+  toggleTableTreeCheck,
 } from './components/table-utils'
 export type {
   RsTreeCheckState,
@@ -296,10 +564,13 @@ export {
 } from './components/tree-utils'
 export type { RsUploadValidationError, RsUploadValidationRules } from './components/upload-utils'
 export {
+  createUploadFileFromContent,
+  downloadUploadFile,
   formatFileSize,
   isFileAccepted,
   mergeUploadFiles,
   removeUploadFileAt,
+  resolveUploadFileIcon,
   validateUploadFiles,
 } from './components/upload-utils'
 export type { RsVirtualListItemSize } from './components/virtual-list-utils'
@@ -321,7 +592,15 @@ export {
   resolveCodeEditorSize,
   resolveCodeEditorTheme,
 } from './components/code-editor-utils'
-export type { RsDateRangeValue, RsParsedDate, RsParsedDateTime } from './components/date-picker-utils'
+export type {
+  RsDatePickerModelValue,
+  RsDatePickerShortcut,
+  RsDatePickerTimestampRange,
+  RsDatePickerValueFormat,
+  RsDateRangeValue,
+  RsParsedDate,
+  RsParsedDateTime,
+} from './components/date-picker-utils'
 export {
   EMPTY_DATE_RANGE,
   formatDateDisplay,
@@ -347,17 +626,22 @@ export {
   looksLikeIsoDateTimeWithTz,
   parseLocalDateTimeToUtcIso,
 } from './lib/iso-local-datetime'
-export type { RsParsedTime, RsTimeRangeValue } from './components/time-picker-utils'
+export type { RsParsedTime, RsTimeRangeValue, RsTimeUnit, RsTimeUnitOption } from './components/time-picker-utils'
 export {
   EMPTY_TIME_RANGE,
+  TIME_HOUR_OPTIONS,
+  TIME_SECOND_OPTIONS,
   formatTimeFromParts,
   formatTimeParts,
   formatTimeRangeDisplay,
+  formatTimeUnitLabel,
   formatTimeValue,
+  getTimeMinuteOptions,
   isTimeRangeEmpty,
   isTimeRangeOrdered,
   isTimeWithinBounds,
   parseTimeValue,
+  scrollTimeColumnToValue,
 } from './components/time-picker-utils'
 export type {
   RsDateTimeValidationError,
@@ -415,8 +699,24 @@ export {
   lucideIconCount,
   isRsIconName,
 } from './icons/registry'
-export type { RsThemeMode, RsThemeTokens, RsComponentSize, RsRadius } from './theme/types'
-export { RS_COMPONENT_SIZES, RS_COMPONENT_SIZE_ICON_PX, RS_RADII, RS_RADIUS_CSS } from './theme/types'
+export type {
+  RsThemeMode,
+  RsThemeTokens,
+  RsComponentSize,
+  RsRadius,
+  RsFontSize,
+  RsFontWeight,
+} from './theme/types'
+export {
+  RS_COMPONENT_SIZES,
+  RS_COMPONENT_SIZE_ICON_PX,
+  RS_RADII,
+  RS_RADIUS_CSS,
+  RS_FONT_SIZES,
+  RS_FONT_SIZE_CSS,
+  RS_FONT_WEIGHTS,
+  RS_FONT_WEIGHT_CSS,
+} from './theme/types'
 export type { RsLocale } from './locale/types'
 export { useRsConfig, useRsConfigOptional, createRsConfigState } from './composables/useRsConfig'
 export { useResolvedRsComponentSize, resolveRsComponentSize } from './components/resolve-size'

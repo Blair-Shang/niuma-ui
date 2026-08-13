@@ -51,6 +51,27 @@ describe('normalizeSplitSizes', () => {
     const sizes = normalizeSplitSizes([{ key: 'a', size: 0 }, { key: 'b', size: 0 }])
     expect(sizes).toEqual([50, 50])
   })
+
+  it('keeps auto panes out of percentage pool', () => {
+    const sizes = normalizeSplitSizes([
+      { key: 'search', size: 'auto' },
+      { key: 'table' },
+    ])
+    expect(sizes[0]).toBe(0)
+    expect(sizes[1]).toBeCloseTo(100)
+  })
+
+  it('distributes remaining percent among non-auto panes only', () => {
+    const sizes = normalizeSplitSizes([
+      { key: 'a', size: 'auto' },
+      { key: 'b', size: 40 },
+      { key: 'c' },
+    ])
+    expect(sizes[0]).toBe(0)
+    expect(sizes[1]).toBeCloseTo(40)
+    expect(sizes[2]).toBeCloseTo(60)
+    expect(sizes[1]! + sizes[2]!).toBeCloseTo(100)
+  })
 })
 
 describe('applySplitResize', () => {

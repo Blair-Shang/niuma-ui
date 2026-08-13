@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RsButton, RsCard } from 'niuma-ui'
-import type { RsCardVariant } from 'niuma-ui'
+import type { RsCardSize, RsCardVariant, RsRadius } from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 
@@ -26,7 +26,7 @@ const materialVariants: { id: RsCardVariant; label: string; hint: string }[] = [
   {
     id: 'outlined',
     label: 'outlined',
-    hint: 'MD3 Outlined：1px 描边、无底色 header，信息密度高。',
+    hint: 'MD3 Outlined：1px 描边、无底色 header，后台信息面板首选。',
   },
   {
     id: 'filled',
@@ -34,10 +34,82 @@ const materialVariants: { id: RsCardVariant; label: string; hint: string }[] = [
     hint: 'MD3 Filled：色调填充、无边框，elevated 时叠加 elevation 阴影。',
   },
 ]
+
+const sizes: { id: RsCardSize; label: string; hint: string }[] = [
+  { id: 'sm', label: 'sm', hint: '后台紧凑：更小 padding / 标题' },
+  { id: 'md', label: 'md', hint: '默认密度：后台面板、详情块' },
+  { id: 'lg', label: 'lg', hint: '前台宽松：营销面、产品介绍' },
+]
+
+const radii: { id: RsRadius; label: string }[] = [
+  { id: 'none', label: 'none' },
+  { id: 'sm', label: 'sm' },
+  { id: 'md', label: 'md（默认）' },
+  { id: 'lg', label: 'lg' },
+]
 </script>
 
 <template>
   <DemoPage title="RsCard" test-file="RsCard.spec.ts">
+    <DemoBlock title="场景约定：后台 vs 前台">
+      <p class="hint">
+        <strong>后台</strong>：CRUD 列表页通常不包 Card（Split + Search + Grid）；需要边界时用
+        <code>outlined + size=md + radius=md</code>。KPI 用 <code>plain</code>。
+        <br />
+        <strong>前台</strong>：直接用 RsCard，<code>filled/grouped + size=lg + radius=lg</code>，需要封面时加
+        <code>clip</code>。
+      </p>
+      <div class="preset-grid">
+        <div class="preset-col">
+          <p class="preset-label">后台 · 配置面板</p>
+          <RsCard
+            variant="outlined"
+            size="md"
+            radius="md"
+            title="访问控制"
+            description="IP / 域名 / Agent 策略"
+          >
+            <template #actions>
+              <RsButton size="sm" variant="ghost">刷新</RsButton>
+            </template>
+            <p class="body-text">outlined 描边清晰，适合表格外的说明与开关组。</p>
+            <template #footer>
+              <RsButton size="sm" variant="ghost">取消</RsButton>
+              <RsButton size="sm">保存</RsButton>
+            </template>
+          </RsCard>
+        </div>
+        <div class="preset-col">
+          <p class="preset-label">后台 · KPI</p>
+          <RsCard variant="plain" size="sm" radius="md" title="今日调用" elevated>
+            <p class="metric">12,480</p>
+            <p class="metric-hint">较昨日 +8.2%</p>
+          </RsCard>
+        </div>
+        <div class="preset-col">
+          <p class="preset-label">前台 · 产品卡</p>
+          <RsCard
+            variant="filled"
+            size="lg"
+            radius="lg"
+            elevated
+            hoverable
+            clip
+            title="边缘网关"
+            description="统一接入、观测与策略下发"
+          >
+            <template #cover>
+              <div class="cover-demo">Cover</div>
+            </template>
+            <p class="body-text">封面 + footer CTA，clip 保证圆角裁切封面。</p>
+            <template #footer>
+              <RsButton size="sm">了解更多</RsButton>
+            </template>
+          </RsCard>
+        </div>
+      </div>
+    </DemoBlock>
+
     <DemoBlock title="设计风格对比：macOS">
       <p class="hint">
         macOS 强调<strong>分层材质</strong>（grouped / glass）与<strong>内容优先</strong>（plain）。
@@ -58,7 +130,7 @@ const materialVariants: { id: RsCardVariant; label: string; hint: string }[] = [
     <DemoBlock title="设计风格对比：Material 3（Google）">
       <p class="hint">
         Google Material 3 用<strong>描边 vs 填充</strong>区分层级：Outlined 靠边框、Filled 靠 surface tone；
-        标题用 Title Medium（500 字重），圆角 12dp，阴影按 elevation 分级而非 macOS 发丝高光。
+        标题密度由 <code>size</code> 控制，圆角由 <code>radius</code> 控制。
       </p>
       <div class="style-lab style-lab--material">
         <div v-for="item in materialVariants" :key="item.id" class="style-lab__item">
@@ -97,6 +169,70 @@ const materialVariants: { id: RsCardVariant; label: string; hint: string }[] = [
       </div>
     </DemoBlock>
 
+    <DemoBlock title="size 密度（非控件高度）">
+      <p class="hint">
+        <code>size</code> 只改变 header/body/footer 的 padding 与标题字号，与 Button/Input 的
+        <code>controlSize</code> 无关。
+      </p>
+      <div class="variant-row">
+        <RsCard
+          v-for="item in sizes"
+          :key="item.id"
+          variant="outlined"
+          :size="item.id"
+          :title="item.label"
+          :description="item.hint"
+          class="card-flex"
+        >
+          <p class="body-text">size="{{ item.id }}"</p>
+          <template #footer>
+            <RsButton size="sm" variant="ghost">操作</RsButton>
+          </template>
+        </RsCard>
+      </div>
+    </DemoBlock>
+
+    <DemoBlock title="radius 圆角">
+      <p class="hint">
+        默认 <code>md</code>。卡片圆角<strong>不跟随</strong>
+        <code>RsConfigProvider.controlRadius</code>，避免表单全局 sm 压扁面板。
+      </p>
+      <div class="variant-row">
+        <RsCard
+          v-for="item in radii"
+          :key="item.id"
+          variant="outlined"
+          :radius="item.id"
+          :title="item.label"
+          class="card-flex"
+        >
+          <p class="body-text">radius="{{ item.id }}"</p>
+        </RsCard>
+      </div>
+    </DemoBlock>
+
+    <DemoBlock title="hoverable / elevated / clip / fill">
+      <div class="feature-grid">
+        <RsCard title="hoverable" hoverable variant="outlined">
+          <p class="body-text">悬停抬升阴影，适合可选中卡片。</p>
+        </RsCard>
+        <RsCard title="elevated" elevated variant="outlined">
+          <p class="body-text">常驻抬升，适合浮层感面板。</p>
+        </RsCard>
+        <RsCard title="clip + cover" clip variant="filled" radius="lg">
+          <template #cover>
+            <div class="cover-demo cover-demo--short">需 clip 裁切圆角</div>
+          </template>
+          <p class="body-text">默认 overflow:visible，内嵌表格更安全。</p>
+        </RsCard>
+        <div class="fill-stage">
+          <RsCard title="fill" fill variant="outlined" :padding="false" class="fill-card">
+            <div class="fill-body">height:100% + flex 伸展，适合 Pane。</div>
+          </RsCard>
+        </div>
+      </div>
+    </DemoBlock>
+
     <DemoBlock title="毛玻璃背景预览">
       <p class="hint">将卡片置于渐变背景上，观察 <code>glass</code> 的 vibrancy 效果。</p>
       <div class="glass-stage">
@@ -113,7 +249,7 @@ const materialVariants: { id: RsCardVariant; label: string; hint: string }[] = [
     </DemoBlock>
 
     <DemoBlock title="基础内容区">
-      <p class="hint">默认 <code>variant="grouped"</code>，带内边距；无标题时不渲染 header。</p>
+      <p class="hint">默认 <code>variant="grouped"</code>、<code>size="md"</code>；无标题时不渲染 header。</p>
       <RsCard>
         <p class="body-text">卡片主体内容，适合承载表单、说明文字或列表。</p>
       </RsCard>
@@ -130,49 +266,57 @@ const materialVariants: { id: RsCardVariant; label: string; hint: string }[] = [
       </div>
     </DemoBlock>
 
-    <DemoBlock title="elevated 阴影">
-      <div class="row">
-        <RsCard title="默认平面" class="card-flex">
-          <p class="body-text">无额外抬升阴影，靠描边区分层级。</p>
-        </RsCard>
-        <RsCard title="elevated" elevated class="card-flex">
-          <p class="body-text">轻阴影，适合浮层感面板或选中卡片。</p>
-        </RsCard>
-      </div>
-    </DemoBlock>
-
     <DemoBlock title="padding 内边距">
       <div class="stack">
-        <RsCard title="padding: true（默认）">
-          <p class="body-text">body 区域有 1.25rem 内边距。</p>
+        <RsCard title="padding: true（默认）" variant="outlined">
+          <p class="body-text">body 使用当前 size 对应的内边距。</p>
         </RsCard>
-        <RsCard title="padding: false" :padding="false">
+        <RsCard title="padding: false" variant="outlined" :padding="false">
           <div class="flush-content">无内边距，适合内嵌表格或全宽图表。</div>
         </RsCard>
       </div>
     </DemoBlock>
 
-    <DemoBlock title="actions 操作区">
-      <RsCard title="成员管理" description="邀请协作者并分配角色。">
-        <template #actions>
-          <RsButton size="sm" variant="ghost">导出</RsButton>
-          <RsButton size="sm">邀请</RsButton>
-        </template>
-        <p class="body-text">header 右侧 actions 插槽，与标题同行对齐。</p>
+    <DemoBlock title="borderless 嵌套去框">
+      <RsCard variant="outlined" title="外层面板" description="内层用 borderless 避免双边框。">
+        <RsCard borderless title="内层区块" size="sm">
+          <p class="body-text">嵌在已有面板里时只保留标题结构，不叠加边框阴影。</p>
+        </RsCard>
       </RsCard>
     </DemoBlock>
 
-    <DemoBlock title="自定义 header 插槽">
-      <RsCard>
-        <template #header>
-          <div class="custom-header">
-            <span class="custom-header__badge">Beta</span>
-            <h3 class="custom-header__title">自定义标题区</h3>
-            <p class="custom-header__desc">完全接管 header 内容，适合复杂筛选或 Tab。</p>
-          </div>
-        </template>
-        <p class="body-text">使用 header 插槽时 title / description props 被插槽内容替代。</p>
-      </RsCard>
+    <DemoBlock title="actions / footer / cover / 自定义 header">
+      <div class="stack">
+        <RsCard title="成员管理" description="邀请协作者并分配角色。" variant="outlined">
+          <template #actions>
+            <RsButton size="sm" variant="ghost">导出</RsButton>
+            <RsButton size="sm">邀请</RsButton>
+          </template>
+          <p class="body-text">header 右侧 actions，与标题同行。</p>
+          <template #footer>
+            <RsButton size="sm" variant="ghost">取消</RsButton>
+            <RsButton size="sm">保存</RsButton>
+          </template>
+        </RsCard>
+
+        <RsCard>
+          <template #header>
+            <div class="custom-header">
+              <span class="custom-header__badge">Beta</span>
+              <h3 class="custom-header__title">自定义标题区</h3>
+              <p class="custom-header__desc">完全接管 header 内容，适合复杂筛选或 Tab。</p>
+            </div>
+          </template>
+          <p class="body-text">使用 header 插槽时 title / description props 被插槽内容替代。</p>
+        </RsCard>
+
+        <RsCard title="仅 actions（无标题）" variant="outlined">
+          <template #actions>
+            <RsButton size="sm" variant="ghost">更多</RsButton>
+          </template>
+          <p class="body-text">仅有 actions 时也会渲染 header 行。</p>
+        </RsCard>
+      </div>
     </DemoBlock>
 
     <DemoBlock title="as 语义标签">
@@ -184,18 +328,18 @@ const materialVariants: { id: RsCardVariant; label: string; hint: string }[] = [
 
     <DemoBlock title="组合示例：仪表盘面板（推荐 plain）">
       <div class="dashboard">
-        <RsCard variant="plain" title="今日调用" elevated>
+        <RsCard variant="plain" size="sm" title="今日调用" elevated>
           <template #actions>
             <RsButton size="sm" variant="ghost">详情</RsButton>
           </template>
           <p class="metric">12,480</p>
           <p class="metric-hint">较昨日 +8.2%</p>
         </RsCard>
-        <RsCard variant="plain" title="错误率" elevated>
+        <RsCard variant="plain" size="sm" title="错误率" elevated>
           <p class="metric metric--warn">0.12%</p>
           <p class="metric-hint">过去 24 小时</p>
         </RsCard>
-        <RsCard variant="plain" title="最近任务" :padding="false">
+        <RsCard variant="plain" size="sm" title="最近任务" :padding="false">
           <ul class="task-list">
             <li>索引重建 · 完成</li>
             <li>模型微调 · 进行中</li>
@@ -239,6 +383,61 @@ const materialVariants: { id: RsCardVariant; label: string; hint: string }[] = [
 .card-flex {
   flex: 1 1 10rem;
   min-width: 0;
+}
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+.preset-label {
+  margin: 0 0 0.5rem;
+  font-size: var(--rs-font-size-xs);
+  font-weight: 600;
+  color: var(--rs-primary);
+}
+.preset-col {
+  min-width: 0;
+}
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 0.75rem;
+}
+.fill-stage {
+  min-height: 8rem;
+  border: 1px dashed var(--rs-border-subtle);
+  border-radius: var(--rs-radius-sm);
+  padding: 0.5rem;
+}
+.fill-card {
+  height: 100%;
+}
+.fill-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 5rem;
+  padding: 0.75rem;
+  font-size: var(--rs-font-size-sm);
+  color: var(--rs-muted);
+  background: var(--rs-surface-elevated);
+}
+.cover-demo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 5.5rem;
+  font-size: var(--rs-font-size-sm);
+  font-weight: 600;
+  color: var(--rs-primary);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--rs-primary) 22%, transparent), transparent),
+    var(--rs-surface-elevated);
+}
+.cover-demo--short {
+  height: 3.5rem;
 }
 .style-lab {
   display: grid;

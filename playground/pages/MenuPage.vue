@@ -1,11 +1,21 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { RsMenu, type RsMenuItem, type RsMenuItemGroup } from 'niuma-ui'
+import { RsButton, RsMenu, type RsMenuItem, type RsMenuItemGroup } from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 
+const flatActive = ref('dashboard')
+const flatItems: RsMenuItem[] = [
+  { key: 'dashboard', label: '仪表盘', icon: 'layout-dashboard' },
+  { key: 'chat', label: '对话', icon: 'message-square' },
+  { key: 'settings', label: '设置', icon: 'settings' },
+  { key: 'disabled', label: '不可用', icon: 'ban', disabled: true },
+]
+
 const active = ref('projects')
 const openKeys = ref<string[]>([])
+const lastSelect = ref('projects')
+const highlightParent = ref(false)
 
 const menuItems: RsMenuItem[] = [
   { key: 'dashboard', label: '仪表盘', icon: 'layout-dashboard' },
@@ -121,8 +131,35 @@ const groupedDeepItems: RsMenuItemGroup[] = [
   },
 ]
 
-const collapsedActive = ref('projects')
+const collapsed = ref(true)
+const collapsedActive = ref('settings')
 const collapsedOpenKeys = ref<string[]>(['workspace'])
+const collapsedLastSelect = ref('settings')
+
+/** 折叠态专用：父级与子级均带图标，便于验证仅图标栏与 flyout 内图标 */
+const collapsedIconItems: RsMenuItem[] = [
+  { key: 'dashboard', label: '仪表盘', icon: 'layout-dashboard' },
+  {
+    key: 'workspace',
+    label: '工作区',
+    icon: 'folder',
+    children: [
+      { key: 'projects', label: '项目', icon: 'box' },
+      { key: 'docs', label: '文档', icon: 'file-text' },
+      {
+        key: 'share',
+        label: '分享',
+        icon: 'share-2',
+        children: [
+          { key: 'share-slack', label: 'Slack', icon: 'message-square' },
+          { key: 'share-email', label: '邮件', icon: 'mail' },
+        ],
+      },
+      { key: 'archive', label: '归档', icon: 'archive', disabled: true },
+    ],
+  },
+  { key: 'settings', label: '设置', icon: 'settings' },
+]
 
 const groupedActive = ref('billing')
 const groupedItems: RsMenuItemGroup[] = [
@@ -167,24 +204,58 @@ const horizontalNestedItems: RsMenuItem[] = [
   },
   { key: 'settings', label: '设置', icon: 'settings' },
 ]
+
+const horizontalCollapsedActive = ref('home')
+const horizontalCollapsedOpenKeys = ref<string[]>([])
 </script>
 
 <template>
   <DemoPage title="RsMenu" test-file="RsMenu.spec.ts">
+    <DemoBlock title="扁平菜单">
+      <p class="menu-hint">无分组、无嵌套；点击叶子项更新选中态。禁用项不可选。</p>
+      <p class="menu-hint">
+        选中项：<code>{{ flatActive }}</code>
+      </p>
+      <div class="menu-frame">
+        <RsMenu v-model="flatActive" :items="flatItems" />
+      </div>
+    </DemoBlock>
+
     <DemoBlock title="单层嵌套">
+      <p class="menu-hint">
+        点击父级展开/收起子菜单；选中深层叶子时会自动把祖先写入
+        <code>openKeys</code>。默认只高亮叶子；开启
+        <code>highlightParent</code>
+        后祖先父级仅字体高亮（无背景）。
+      </p>
+      <div class="menu-toolbar">
+        <RsButton size="sm" variant="secondary" @click="highlightParent = !highlightParent">
+          {{ highlightParent ? '关闭父级高亮' : '开启父级高亮' }}
+        </RsButton>
+        <span class="menu-hint menu-hint--inline">
+          选中项：<code>{{ active }}</code>
+          · 展开：<code>{{ openKeys.join(', ') || '—' }}</code>
+          · select：<code>{{ lastSelect }}</code>
+          · highlightParent：<code>{{ highlightParent }}</code>
+        </span>
+      </div>
       <div class="menu-frame">
         <RsMenu
           v-model="active"
           v-model:open-keys="openKeys"
           :items="menuItems"
+          :highlight-parent="highlightParent"
+          @select="lastSelect = $event"
         />
       </div>
     </DemoBlock>
 
     <DemoBlock title="多层嵌套（4 级）">
       <p class="menu-hint">
-        选中项：<code>{{ deepActive }}</code>
-        · 展开：<code>{{ deepOpenKeys.join(', ') || '—' }}</code>
+        选中深层项会自动展开全部祖先。选中项：
+        <code>{{ deepActive }}</code>
+        · 展开：
+        <code>{{ deepOpenKeys.join(', ') || '—' }}</code>
       </p>
       <div class="menu-frame menu-frame--tall">
         <RsMenu
@@ -195,7 +266,8 @@ const horizontalNestedItems: RsMenuItem[] = [
       </div>
     </DemoBlock>
 
-    <DemoBlock title="分组 + 多层嵌套">
+    <DemoBlock title="分组菜单（垂直）">
+      <p class="menu-hint">分组标题仅展示，不参与选中；分组内可继续嵌套。</p>
       <div class="menu-frame menu-frame--tall">
         <RsMenu
           v-model="groupedDeepActive"
@@ -206,29 +278,84 @@ const horizontalNestedItems: RsMenuItem[] = [
     </DemoBlock>
 
     <DemoBlock title="收起态（仅图标）">
-      <div class="menu-frame menu-frame--collapsed">
-        <RsMenu
-          v-model="collapsedActive"
-          v-model:open-keys="collapsedOpenKeys"
-          :items="menuItems"
-          collapsed
-        />
+      <p class="menu-hint">
+        垂直折叠后只显示图标。叶子项悬停显示原生
+        <code>title</code>
+        ；有子菜单的项悬停会在右侧弹出浮层子菜单（子项也可带图标），选中后浮层关闭。
+      </p>
+      <div class="menu-toolbar">
+        <RsButton size="sm" variant="secondary" @click="collapsed = !collapsed">
+          {{ collapsed ? '展开菜单' : '收起菜单' }}
+        </RsButton>
+        <span class="menu-hint menu-hint--inline">
+          选中：<code>{{ collapsedActive }}</code>
+          · openKeys：<code>{{ collapsedOpenKeys.join(', ') || '—' }}</code>
+          · select：<code>{{ collapsedLastSelect }}</code>
+        </span>
+      </div>
+      <div class="menu-compare">
+        <div
+          class="menu-frame"
+          :class="{ 'menu-frame--collapsed': collapsed }"
+        >
+          <p class="menu-caption">可切换 · 父子均带图标</p>
+          <RsMenu
+            v-model="collapsedActive"
+            v-model:open-keys="collapsedOpenKeys"
+            :items="collapsedIconItems"
+            :collapsed="collapsed"
+            @select="collapsedLastSelect = $event"
+          />
+        </div>
+        <div class="menu-frame menu-frame--collapsed">
+          <p class="menu-caption">固定收起 · 悬停看 flyout 图标</p>
+          <RsMenu
+            v-model="collapsedActive"
+            v-model:open-keys="collapsedOpenKeys"
+            :items="collapsedIconItems"
+            collapsed
+            @select="collapsedLastSelect = $event"
+          />
+        </div>
       </div>
     </DemoBlock>
 
     <DemoBlock title="分组菜单（水平）">
+      <p class="menu-hint">水平模式下分组标题隐藏，子项横向排列。</p>
       <div class="menu-frame menu-frame--wide">
         <RsMenu v-model="groupedActive" :items="groupedItems" mode="horizontal" />
       </div>
     </DemoBlock>
 
     <DemoBlock title="水平 + 嵌套子菜单">
+      <p class="menu-hint">
+        水平模式下子菜单以悬浮面板展开。选中：
+        <code>{{ horizontalNestedActive }}</code>
+        · 展开：
+        <code>{{ horizontalNestedOpenKeys.join(', ') || '—' }}</code>
+      </p>
       <div class="menu-frame menu-frame--wide">
         <RsMenu
           v-model="horizontalNestedActive"
           v-model:open-keys="horizontalNestedOpenKeys"
           :items="horizontalNestedItems"
           mode="horizontal"
+        />
+      </div>
+    </DemoBlock>
+
+    <DemoBlock title="水平 + collapsed 属性">
+      <p class="menu-hint">
+        <code>collapsed</code>
+        仅约束垂直模式；水平模式下该属性被忽略（不隐藏文案、不折叠子菜单），行为与普通水平菜单一致。
+      </p>
+      <div class="menu-frame menu-frame--wide">
+        <RsMenu
+          v-model="horizontalCollapsedActive"
+          v-model:open-keys="horizontalCollapsedOpenKeys"
+          :items="horizontalNestedItems"
+          mode="horizontal"
+          collapsed
         />
       </div>
     </DemoBlock>
@@ -256,6 +383,10 @@ const horizontalNestedItems: RsMenuItem[] = [
   margin: 0 0 0.75rem;
   font-size: var(--rs-font-size-xs);
   color: var(--rs-muted);
+  line-height: 1.5;
+}
+.menu-hint--inline {
+  margin: 0;
 }
 .menu-hint code {
   padding: 0.125rem 0.375rem;
@@ -264,5 +395,23 @@ const horizontalNestedItems: RsMenuItem[] = [
   font-family: ui-monospace, monospace;
   font-size: 0.9em;
   color: var(--rs-text);
+}
+.menu-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.menu-compare {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1rem;
+}
+.menu-caption {
+  margin: 0 0 0.375rem;
+  font-size: var(--rs-font-size-xs);
+  color: var(--rs-muted);
 }
 </style>

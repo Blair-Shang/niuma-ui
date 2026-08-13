@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useRsI18n } from '../composables/useRsI18n'
 import {
   findMenuParentKeys,
@@ -16,10 +16,13 @@ const props = withDefaults(
     items: RsMenuData
     mode?: 'vertical' | 'horizontal'
     collapsed?: boolean
+    /** 选中叶子时是否同时高亮祖先父级（仅字体色，无背景）；默认 false 只高亮叶子 */
+    highlightParent?: boolean
   }>(),
   {
     mode: 'vertical',
     collapsed: false,
+    highlightParent: false,
   },
 )
 
@@ -28,6 +31,11 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useRsI18n()
+
+/** collapsed 仅对垂直模式生效；水平模式忽略，避免空气泡子菜单 */
+const isCollapsedVertical = computed(
+  () => props.mode === 'vertical' && props.collapsed,
+)
 
 function onSelect(key: string) {
   model.value = key
@@ -67,19 +75,20 @@ watch(
 <template>
   <nav
     class="rs-menu"
-    :class="[`rs-menu--${mode}`, { 'rs-menu--collapsed': collapsed }]"
+    :class="[`rs-menu--${mode}`, { 'rs-menu--collapsed': isCollapsedVertical }]"
     :aria-label="t('menu.label')"
   >
     <ul class="rs-menu__root-list">
       <template v-for="(entry, index) in items" :key="index">
         <li v-if="isMenuItemGroup(entry)" class="rs-menu__group">
-          <span v-if="!collapsed" class="rs-menu__group-label">{{ entry.label }}</span>
+          <span v-if="!isCollapsedVertical" class="rs-menu__group-label">{{ entry.label }}</span>
           <RsMenuItems
             :items="entry.children"
             :active-key="model"
             :open-keys="openKeys"
-            :collapsed="collapsed"
+            :collapsed="isCollapsedVertical"
             :mode="mode"
+            :highlight-parent="highlightParent"
             @select="onSelect"
             @toggle-open="onToggleOpen"
           />
@@ -90,8 +99,9 @@ watch(
             :items="[entry]"
             :active-key="model"
             :open-keys="openKeys"
-            :collapsed="collapsed"
+            :collapsed="isCollapsedVertical"
             :mode="mode"
+            :highlight-parent="highlightParent"
             @select="onSelect"
             @toggle-open="onToggleOpen"
           />
@@ -159,14 +169,14 @@ watch(
   align-items: center;
   gap: 0.5rem;
   width: 100%;
-  min-height: var(--rs-control-height-md);
+  min-height: var(--rs-menu-item-height);
   padding: 0 0.5rem;
   padding-left: calc(0.5rem + var(--rs-menu-depth, 0) * 0.875rem);
   border: none;
-  border-radius: var(--rs-radius-sm);
+  border-radius: var(--rs-menu-item-radius);
   background: transparent;
-  color: var(--rs-muted);
-  font-size: var(--rs-font-size-sm);
+  color: var(--rs-menu-item-fg);
+  font-size: var(--rs-menu-item-font-size);
   text-align: left;
   cursor: pointer;
   transition:
@@ -188,22 +198,70 @@ watch(
 .rs-menu--collapsed .rs-menu__list--nested {
   display: none;
 }
+.rs-menu__flyout {
+  z-index: var(--rs-z-dropdown);
+  min-width: 10rem;
+  max-width: min(16rem, 90vw);
+  padding: 0.25rem;
+  border-radius: var(--rs-radius-sm);
+  border: 1px solid var(--rs-border);
+  background: var(--rs-surface-elevated);
+  box-shadow: var(--rs-shadow);
+  outline: none;
+}
+.rs-menu__flyout-title {
+  display: block;
+  padding: 0.375rem 0.5rem 0.25rem;
+  margin-bottom: 0.125rem;
+  border-bottom: 1px solid var(--rs-border);
+  font-size: var(--rs-font-size-xs);
+  font-weight: 600;
+  color: var(--rs-muted);
+  letter-spacing: 0.04em;
+  line-height: var(--rs-line-height-tight);
+  user-select: none;
+}
+.rs-menu__flyout .rs-menu__list--nested {
+  display: flex;
+}
 .rs-menu__item:hover:not(:disabled):not(.rs-menu__item--active) {
-  color: var(--rs-text);
-  background: var(--rs-surface-hover);
+  color: var(--rs-menu-item-fg-hover);
+  background: var(--rs-menu-item-bg-hover);
 }
 .rs-menu__item:focus-visible {
   outline: none;
   box-shadow: 0 0 0 var(--rs-focus-ring-width, 2px) var(--rs-focus-ring);
 }
 .rs-menu__item--active {
-  color: var(--rs-primary);
-  background: color-mix(in srgb, var(--rs-primary) 12%, transparent);
-  font-weight: 500;
+  color: var(--rs-menu-item-active-fg);
+  background: var(--rs-menu-item-active-bg);
+  font-weight: var(--rs-menu-item-active-weight);
+}
+/* 子菜单选中时父级仅字体高亮，不加背景 */
+.rs-menu__item--active-parent {
+  color: var(--rs-menu-item-active-parent-fg);
+  background: var(--rs-menu-item-active-parent-bg);
+  font-weight: var(--rs-menu-item-active-weight);
+}
+.rs-menu__item--active-parent:hover:not(:disabled) {
+  color: var(--rs-menu-item-active-parent-fg);
+  background: var(--rs-menu-item-bg-hover);
 }
 .rs-menu__item:disabled {
   opacity: 0.38;
   cursor: not-allowed;
+}
+/** 固定图标列宽：有/无图标时文案起点一致，嵌套缩进再叠在左侧 padding 上 */
+.rs-menu__icon-slot {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+}
+.rs-menu__icon {
+  display: block;
 }
 .rs-menu__label {
   flex: 1;
@@ -239,7 +297,7 @@ watch(
   position: absolute;
   top: calc(100% + 0.25rem);
   left: 0;
-  z-index: 50;
+  z-index: var(--rs-z-dropdown);
   min-width: 10rem;
   padding: 0.25rem;
   border-radius: var(--rs-radius-sm);

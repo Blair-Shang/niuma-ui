@@ -4,7 +4,12 @@ import { defineComponent, h, ref } from 'vue'
 import RsConfigProvider from '../components/RsConfigProvider.vue'
 import RsForm from '../components/RsForm.vue'
 import RsSelect from '../components/RsSelect.vue'
-import { filterSelectOptions } from '../components/select-utils'
+import {
+  filterSelectOptions,
+  fromComboboxValue,
+  toComboboxValue,
+  RS_SELECT_EMPTY_VALUE,
+} from '../components/select-utils'
 
 describe('RsSelect', () => {
   const options = [
@@ -88,6 +93,35 @@ describe('RsSelect', () => {
       props: { options, modelValue: 'gpt-4o', clearable: true },
     })
     await wrapper.find('.rs-select__clear').trigger('click')
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([''])
+  })
+
+  it('maps empty option value through sentinel without crashing', async () => {
+    const withEmpty = [
+      { label: '空串项', value: '' },
+      { label: 'Claude', value: 'claude' },
+    ]
+    const wrapper = mount(RsSelect, {
+      props: { options: withEmpty, modelValue: '', clearable: true },
+      attachTo: document.body,
+    })
+    expect(wrapper.find('.rs-select__placeholder').exists()).toBe(true)
+    await wrapper.find('.rs-select__trigger').trigger('click')
+    await flushPromises()
+    expect(document.body.textContent).toContain('空串项')
+    wrapper.unmount()
+  })
+
+  it('selecting empty sentinel emits empty string', async () => {
+    const withEmpty = [
+      { label: '空串项', value: '' },
+      { label: 'Claude', value: 'claude' },
+    ]
+    const wrapper = mount(RsSelect, {
+      props: { options: withEmpty, modelValue: 'claude', clearable: true },
+    })
+    const root = wrapper.getComponent({ name: 'ComboboxRoot' })
+    await root.vm.$emit('update:modelValue', '__rs_select_empty__')
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([''])
   })
 
@@ -265,6 +299,13 @@ describe('RsSelect', () => {
 describe('select-utils', () => {
   const contains = (text: string, search: string) =>
     text.toLowerCase().includes(search.toLowerCase())
+
+  it('maps empty string to combobox sentinel and back', () => {
+    expect(toComboboxValue('')).toBe(RS_SELECT_EMPTY_VALUE)
+    expect(toComboboxValue('claude')).toBe('claude')
+    expect(fromComboboxValue(RS_SELECT_EMPTY_VALUE)).toBe('')
+    expect(fromComboboxValue('claude')).toBe('claude')
+  })
 
   it('filterSelectOptions filters flat and grouped options', () => {
     const grouped = [

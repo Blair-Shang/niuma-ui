@@ -131,7 +131,13 @@ describe('RsPagination', () => {
 
   it('jumps to page when confirm is clicked', async () => {
     const wrapper = mount(RsPagination, {
-      props: { total: 100, page: 1, pageSize: 10, showQuickJumper: true },
+      props: {
+        total: 100,
+        page: 1,
+        pageSize: 10,
+        showQuickJumper: true,
+        showJumpConfirm: true,
+      },
     })
     const input = wrapper.find('.rs-pagination__jumper-input input')
     await input.setValue('7')
@@ -143,9 +149,68 @@ describe('RsPagination', () => {
     expect(wrapper.emitted('update:page')?.pop()).toEqual([7])
   })
 
+  it('hides jump confirm button by default', () => {
+    const wrapper = mount(RsPagination, {
+      props: {
+        total: 100,
+        page: 1,
+        pageSize: 10,
+        showQuickJumper: true,
+      },
+    })
+    const jumperBtn = wrapper.findAll('button').find((btn) => btn.text() === '确定')
+    expect(jumperBtn).toBeUndefined()
+  })
+
+  it('hides jump confirm button when showJumpConfirm is false', () => {
+    const wrapper = mount(RsPagination, {
+      props: {
+        total: 100,
+        page: 1,
+        pageSize: 10,
+        showQuickJumper: true,
+        showJumpConfirm: false,
+      },
+    })
+    const jumperBtn = wrapper.findAll('button').find((btn) => btn.text() === '确定')
+    expect(jumperBtn).toBeUndefined()
+  })
+
+  it('jumps to page on enter when confirm is hidden', async () => {
+    const wrapper = mount(RsPagination, {
+      props: {
+        total: 100,
+        page: 1,
+        pageSize: 10,
+        showQuickJumper: true,
+        showJumpConfirm: false,
+      },
+    })
+    const input = wrapper.find('.rs-pagination__jumper-input input')
+    await input.setValue('4')
+    // RsInput 对 Enter 发 pressEnter；需带 key 才能命中 onKeydown
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('update:page')?.pop()).toEqual([4])
+  })
+
+  it('applies size class for sm / md / lg', () => {
+    for (const size of ['sm', 'md', 'lg'] as const) {
+      const wrapper = mount(RsPagination, {
+        props: { total: 40, page: 1, pageSize: 10, size },
+      })
+      expect(wrapper.find('nav').classes()).toContain(`rs-pagination--${size}`)
+    }
+  })
+
   it('clamps jump target to valid page range', async () => {
     const wrapper = mount(RsPagination, {
-      props: { total: 100, page: 1, pageSize: 10, showQuickJumper: true },
+      props: {
+        total: 100,
+        page: 1,
+        pageSize: 10,
+        showQuickJumper: true,
+        showJumpConfirm: true,
+      },
     })
     const input = wrapper.find('.rs-pagination__jumper-input input')
     await input.setValue('99')

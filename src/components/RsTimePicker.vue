@@ -4,6 +4,8 @@ import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from './re
 import RsIcon from './RsIcon.vue'
 import RsTimePickerColumns from './RsTimePickerColumns.vue'
 import { useRsI18n } from '../composables/useRsI18n'
+import { RS_COMPONENT_SIZE_ICON_PX, type RsComponentSize } from '../theme/types'
+import { useResolvedRsComponentSize } from './resolve-size'
 import {
   EMPTY_TIME_RANGE,
   formatTimeFromParts,
@@ -16,6 +18,7 @@ import {
   pickEarlierTime,
   pickLaterTime,
   type RsTimeRangeValue,
+  type RsTimeUnit,
 } from './time-picker-utils'
 
 defineOptions({ name: 'RsTimePicker' })
@@ -43,6 +46,7 @@ const props = withDefaults(
     maxTime?: string
     embedded?: boolean
     labelPosition?: RsTimePickerLabelPosition
+    size?: RsComponentSize
   }>(),
   {
     disabled: false,
@@ -56,6 +60,8 @@ const props = withDefaults(
 
 const fieldId = useId()
 const { t } = useRsI18n()
+const resolvedSize = useResolvedRsComponentSize(() => props.size)
+const triggerIconSize = computed(() => RS_COMPONENT_SIZE_ICON_PX[resolvedSize.value])
 const columnsRef = useTemplateRef<InstanceType<typeof RsTimePickerColumns>>('columnsRef')
 
 const draftHour = ref(0)
@@ -171,7 +177,7 @@ function syncDraftFromModel(): void {
   syncSingleDraft()
 }
 
-function isUnitDisabled(unit: 'hour' | 'minute' | 'second', value: number): boolean {
+function isUnitDisabled(unit: RsTimeUnit, value: number): boolean {
   const hour = unit === 'hour' ? value : draftHour.value
   const minute = unit === 'minute' ? value : draftMinute.value
   const second = unit === 'second' ? value : draftSecond.value
@@ -275,6 +281,7 @@ watch(open, async (isOpen) => {
   <div
     :class="[
       embedded ? 'rs-time-picker-embedded' : 'rs-field',
+      `rs-time-picker--${resolvedSize}`,
       !embedded && `rs-field--label-${labelPosition}`,
     ]"
   >
@@ -297,10 +304,15 @@ watch(open, async (isOpen) => {
           :disabled="disabled"
         >
           <span class="rs-time-picker__leading">
-            <RsIcon v-if="!embedded" name="clock" :size="16" class="rs-time-picker__icon" />
+            <RsIcon
+              v-if="!embedded"
+              name="clock"
+              :size="triggerIconSize"
+              class="rs-time-picker__icon"
+            />
             <span class="rs-time-picker__value">{{ displayValue }}</span>
           </span>
-          <RsIcon name="chevron-down" :size="16" class="rs-time-picker__chevron" />
+          <RsIcon name="chevron-down" :size="triggerIconSize" class="rs-time-picker__chevron" />
         </PopoverTrigger>
 
         <PopoverPortal>
@@ -321,6 +333,7 @@ watch(open, async (isOpen) => {
                     <RsTimePicker
                       v-model="draftStartTime"
                       embedded
+                      :size="resolvedSize"
                       :with-seconds="withSeconds"
                       :min-time="minTime"
                       :max-time="startMaxTime"
@@ -333,6 +346,7 @@ watch(open, async (isOpen) => {
                     <RsTimePicker
                       v-model="draftEndTime"
                       embedded
+                      :size="resolvedSize"
                       :with-seconds="withSeconds"
                       :min-time="endMinTime"
                       :max-time="maxTime"
@@ -347,6 +361,7 @@ watch(open, async (isOpen) => {
                   ref="columnsRef"
                   v-model="draftTime"
                   :second="withSeconds"
+                  :size="resolvedSize"
                   :disabled="disabled"
                   :is-unit-disabled="isUnitDisabled"
                 />
@@ -392,7 +407,9 @@ watch(open, async (isOpen) => {
   align-items: center;
   justify-content: space-between;
   gap: var(--rs-space-sm);
+  box-sizing: border-box;
   width: 100%;
+  height: var(--rs-control-height-md);
   min-height: var(--rs-control-height-md);
   padding: 0 var(--rs-space-md);
   border: 1px solid var(--rs-input-border, var(--rs-border));
@@ -401,6 +418,7 @@ watch(open, async (isOpen) => {
   color: var(--rs-text);
   font: inherit;
   font-size: var(--rs-font-size-sm);
+  line-height: var(--rs-line-height-tight);
   text-align: left;
   cursor: pointer;
   box-shadow: var(--rs-input-shadow, none);
@@ -409,12 +427,33 @@ watch(open, async (isOpen) => {
     box-shadow var(--rs-transition-fast),
     background var(--rs-transition-fast);
 }
-.rs-time-picker__trigger--embedded {
+.rs-time-picker--ssm .rs-time-picker__trigger {
+  height: var(--rs-control-height-ssm);
+  min-height: var(--rs-control-height-ssm);
+  padding: 0 var(--rs-space-xs);
+  font-size: var(--rs-font-size-xs);
+}
+.rs-time-picker--sm .rs-time-picker__trigger {
+  height: var(--rs-control-height-sm);
   min-height: var(--rs-control-height-sm);
-  min-width: 5.5rem;
   padding: 0 var(--rs-space-sm);
   font-size: var(--rs-font-size-xs);
+}
+.rs-time-picker--lg .rs-time-picker__trigger {
+  height: var(--rs-control-height-lg);
+  min-height: var(--rs-control-height-lg);
+  padding: 0 var(--rs-space-lg);
+  font-size: var(--rs-font-size-base);
+}
+.rs-time-picker__trigger--embedded {
+  min-width: 5.5rem;
   background: color-mix(in srgb, var(--rs-surface) 72%, transparent);
+}
+.rs-time-picker--ssm .rs-time-picker__trigger--embedded {
+  min-width: 4.75rem;
+}
+.rs-time-picker--lg .rs-time-picker__trigger--embedded {
+  min-width: 6.25rem;
 }
 .rs-time-picker__trigger:hover:not(:disabled) {
   border-color: var(--rs-input-border-hover, var(--rs-border));

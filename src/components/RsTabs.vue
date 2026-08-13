@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, useSlots } from 'vue'
 import {
   DropdownMenuContent,
   DropdownMenuItem,
@@ -13,12 +13,20 @@ import {
 } from './reka'
 import { useRsI18n } from '../composables/useRsI18n'
 import { useRsTabsNav } from '../composables/useRsTabsNav'
+import RsContextMenu from './RsContextMenu.vue'
 import RsIcon from './RsIcon.vue'
 import {
+  buildTabContextMenuItems,
+  getNextTabAfterBatchClose,
   getNextTabAfterClose,
   isTabClosable,
+  isTabFixed,
   isTabRenamable,
+  resolveTabsToClose,
   type RsTabItem,
+  type RsTabsCloseAction,
+  type RsTabsContentGap,
+  type RsTabsJustify,
   type RsTabsOverflow,
   type RsTabsSize,
   type RsTabsVariant,
@@ -31,39 +39,77 @@ const props = withDefaults(
     items: RsTabItem[]
     size?: RsTabsSize
     variant?: RsTabsVariant
+    /**
+     * 仅渲染导航栏，不渲染内容面板；内容由业务自行根据 v-model 切换。
+     * 需要内容插槽且无外框时，用 borderless 替代（保留具名内容插槽）。
+     */
     panelless?: boolean
+    /**
+     * 无外框：去掉 body/nav 边框与底色，内容区默认无内边距。
+     * 适合嵌在 Card 内的登录 Tab 等，业务无需 :deep 清边框。
+     */
+    borderless?: boolean
+    /**
+     * 标题栏与内容区间距（borderless 下控制 panel 上边距）。
+     * 也可用样式覆盖 --rs-tabs-content-gap。
+     */
+    contentGap?: RsTabsContentGap
+    /**
+     * 标签栏对齐方式；stretch/evenly 用于等分铺满，避免业务 :deep 改 list。
+     */
+    justify?: RsTabsJustify
     closable?: boolean
     addable?: boolean
     maxCount?: number
     /** 双击标签重命名 */
     renamable?: boolean
-    /** 拖拽调整标签顺序 */
+    /** 按住标签拖动排序（整项可拖，不展示手柄） */
     draggable?: boolean
     /** 标签过多：scroll 横向滚动 · dropdown 折叠到「更多」 */
     overflow?: RsTabsOverflow | false
+    /**
+     * 顶栏导航右键菜单：关闭 / 关闭其他 / 关闭左侧 / 关闭右侧 / 关闭全部
+     *（对齐 GTabs / Chrome / VS Code 多页签）
+     */
+    contextMenu?: boolean
+    /**
+     * 切换前校验（对齐 Ant Design Tabs beforeLeave）。
+     * 返回 false 时阻止切换；支持异步。
+     */
+    beforeLeave?: (to: string, from: string) => boolean | void | Promise<boolean | void>
   }>(),
   {
     size: 'md',
     variant: 'line',
     panelless: false,
+    borderless: false,
+    contentGap: 'none',
+    justify: 'start',
     closable: false,
     addable: false,
     renamable: false,
     draggable: false,
     overflow: false,
+    contextMenu: false,
   },
 )
 
 const emit = defineEmits<{
   close: [value: string]
+  /** 批量关闭（右键菜单 / 中键以外的批量动作），values 为待移除的标签 value */
+  closeBatch: [values: string[], action: RsTabsCloseAction, anchor?: string]
   add: []
   rename: [value: string, label: string]
   reorder: [dragValue: string, dropValue: string]
+  /** 右键菜单选中动作 */
+  contextMenu: [action: RsTabsCloseAction, value: string]
 }>()
 
+const slots = useSlots()
 const { t } = useRsI18n()
 const itemsRef = computed(() => props.items)
 const overflowMode = computed(() => props.overflow)
+const hasExtra = computed(() => Boolean(slots.extra))
 const canAdd = computed(() => {
   if (!props.addable) return false
   if (props.maxCount == null) return true
@@ -73,6 +119,7 @@ const canAdd = computed(() => {
 const navRef = ref<HTMLElement | null>(null)
 const measureRef = ref<HTMLElement | null>(null)
 const overflowWrapRef = ref<HTMLElement | null>(null)
+const extraRef = ref<HTMLElement | null>(null)
 
 const {
   navViewportRef,
@@ -96,6 +143,7 @@ const {
   navRef,
   measureRef,
   overflowRef: overflowWrapRef,
+  extraRef,
   addButtonWidth: 36,
 })
 
@@ -104,6 +152,7 @@ const renameDraft = ref('')
 const dragValue = ref<string | null>(null)
 const dragOverValue = ref<string | null>(null)
 let renameInputEl: HTMLInputElement | null = null
+let leaveLock = false
 
 function setRenameInputRef(el: unknown, item: RsTabItem) {
   if (!(el instanceof HTMLInputElement) || renamingValue.value !== item.value) return
@@ -127,17 +176,78 @@ const moreLabel = computed(() => {
   return t('tabs.more')
 })
 
+const contextMenuLabels = computed(() => ({
+  close: t('tabs.closeTab'),
+  closeOthers: t('tabs.closeOthers'),
+  closeLeft: t('tabs.closeLeft'),
+  closeRight: t('tabs.closeRight'),
+  closeAll: t('tabs.closeAll'),
+}))
+
 function closeAriaLabel(item: RsTabItem): string {
   return t('tabs.close', 'Close {label}').replace('{label}', item.label)
 }
 
+function contextItemsFor(item: RsTabItem) {
+  return buildTabContextMenuItems(
+    props.items,
+    item,
+    props.closable,
+    contextMenuLabels.value,
+  )
+}
+
+function labelTitle(item: RsTabItem): string | undefined {
+  return item.label.length > 12 ? item.label : undefined
+}
+
+async function onSelectTab(next: string | number): Promise<void> {
+  const value = String(next)
+  if (value === model.value || leaveLock) return
+  if (props.beforeLeave) {
+    leaveLock = true
+    try {
+      const ok = await props.beforeLeave(value, model.value)
+      if (ok === false) return
+    } finally {
+      leaveLock = false
+    }
+  }
+  model.value = value
+}
+
+function applyCloseValues(
+  values: string[],
+  action: RsTabsCloseAction,
+  anchor?: string,
+): void {
+  if (!values.length) return
+  if (action === 'close' && values.length === 1) {
+    const closed = values[0]!
+    const next = getNextTabAfterClose(props.items, closed, model.value)
+    if (next && model.value === closed) model.value = next
+    emit('close', closed)
+    return
+  }
+
+  const remaining = props.items.filter((item) => !values.includes(item.value))
+  const next = getNextTabAfterBatchClose(remaining, model.value, anchor)
+  if (next !== undefined && next !== model.value) model.value = next
+  else if (next === undefined) model.value = ''
+  emit('closeBatch', values, action, anchor)
+}
+
 function onCloseTab(item: RsTabItem): void {
   if (item.disabled || !isTabClosable(item, props.closable)) return
-  const next = getNextTabAfterClose(props.items, item.value, model.value)
-  if (next && model.value === item.value) {
-    model.value = next
-  }
-  emit('close', item.value)
+  applyCloseValues([item.value], 'close', item.value)
+}
+
+function onContextSelect(actionKey: string, item: RsTabItem): void {
+  const action = actionKey as RsTabsCloseAction
+  if (!['close', 'others', 'left', 'right', 'all'].includes(action)) return
+  const values = resolveTabsToClose(props.items, action, item.value, props.closable)
+  emit('contextMenu', action, item.value)
+  applyCloseValues(values, action, item.value)
 }
 
 function onAddTab(): void {
@@ -146,7 +256,26 @@ function onAddTab(): void {
 }
 
 function onOverflowSelect(value: string): void {
-  model.value = value
+  void onSelectTab(value)
+}
+
+/** 中键关闭（对齐浏览器 / VS Code 页签） */
+function onTabAuxClick(item: RsTabItem, event: MouseEvent): void {
+  if (event.button !== 1) return
+  event.preventDefault()
+  onCloseTab(item)
+}
+
+/** 纵向滚轮转为横向滚动（scroll 溢出模式） */
+function onNavWheel(event: WheelEvent): void {
+  if (!useScrollOverflow.value) return
+  const viewport = navViewportRef.value
+  if (!viewport) return
+  if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return
+  if (viewport.scrollWidth <= viewport.clientWidth) return
+  event.preventDefault()
+  viewport.scrollLeft += event.deltaY
+  onNavScroll()
 }
 
 async function startRename(item: RsTabItem): Promise<void> {
@@ -170,8 +299,24 @@ function commitRename(item: RsTabItem): void {
   cancelRename()
 }
 
+function canDragItem(item: RsTabItem): boolean {
+  return props.draggable && !item.disabled && !isTabFixed(item)
+}
+
 function onDragStart(item: RsTabItem, event: DragEvent): void {
-  if (!props.draggable || item.disabled) return
+  if (!canDragItem(item)) {
+    event.preventDefault()
+    return
+  }
+  // 关闭 / 重命名控件上不启动拖拽，避免误触
+  const target = event.target
+  if (
+    target instanceof Element &&
+    target.closest('.rs-tabs__close, .rs-tabs__rename-input')
+  ) {
+    event.preventDefault()
+    return
+  }
   dragValue.value = item.value
   event.dataTransfer?.setData('text/plain', item.value)
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
@@ -179,6 +324,7 @@ function onDragStart(item: RsTabItem, event: DragEvent): void {
 
 function onDragOver(item: RsTabItem, event: DragEvent): void {
   if (!props.draggable || !dragValue.value || dragValue.value === item.value) return
+  if (isTabFixed(item)) return
   event.preventDefault()
   dragOverValue.value = item.value
 }
@@ -190,7 +336,7 @@ function onDragLeave(item: RsTabItem): void {
 function onDrop(item: RsTabItem, event: DragEvent): void {
   if (!props.draggable || !dragValue.value) return
   event.preventDefault()
-  if (dragValue.value !== item.value) {
+  if (dragValue.value !== item.value && !isTabFixed(item)) {
     emit('reorder', dragValue.value, item.value)
   }
   dragValue.value = null
@@ -206,18 +352,24 @@ function onDragEnd(): void {
 
 <template>
   <TabsRoot
-    v-model="model"
+    :model-value="model"
     class="rs-tabs"
     :class="[
       `rs-tabs--${variant}`,
       `rs-tabs--${size}`,
+      `rs-tabs--justify-${justify}`,
+      `rs-tabs--content-gap-${contentGap}`,
       {
         'rs-tabs--panelless': panelless,
+        'rs-tabs--borderless': borderless,
         'rs-tabs--scrollable': useScrollOverflow,
         'rs-tabs--dropdown-overflow': useDropdownOverflow,
+        'rs-tabs--has-extra': hasExtra,
+        'rs-tabs--draggable': draggable,
       },
     ]"
     :aria-label="t('tabs.label')"
+    @update:model-value="onSelectTab"
   >
     <div :class="panelless ? 'rs-tabs__shell' : 'rs-tabs__body'">
       <div
@@ -258,72 +410,86 @@ function onDragEnd(): void {
           ref="navViewportRef"
           class="rs-tabs__nav-viewport"
           @scroll="onNavScroll"
+          @wheel="onNavWheel"
         >
           <TabsList class="rs-tabs__list">
-            <TabsTrigger
+            <RsContextMenu
               v-for="item in tabBarItems"
               :key="item.value"
-              :value="item.value"
-              :disabled="item.disabled"
-              class="rs-tabs__trigger"
-              :class="{
-                'rs-tabs__trigger--dragging': dragValue === item.value,
-                'rs-tabs__trigger--drag-over': dragOverValue === item.value,
-              }"
-              :data-tab-value="item.value"
-              @dragover="onDragOver(item, $event)"
-              @dragleave="onDragLeave(item)"
-              @drop="onDrop(item, $event)"
+              :items="contextItemsFor(item)"
+              :disabled="!contextMenu"
+              @select="(key) => onContextSelect(key, item)"
             >
-              <span
-                v-if="draggable"
-                class="rs-tabs__drag-handle"
-                :aria-label="t('tabs.dragHandle')"
-                draggable="true"
-                @dragstart="onDragStart(item, $event)"
-                @dragend="onDragEnd"
-                @mousedown.stop
-                @click.stop
-              >
-                <RsIcon name="grip-vertical" :size="12" />
-              </span>
-              <RsIcon v-if="item.icon" :name="item.icon" :size="14" class="rs-tabs__icon" />
-              <input
-                v-if="renamingValue === item.value"
-                :ref="(el) => setRenameInputRef(el, item)"
-                v-model="renameDraft"
-                class="rs-tabs__rename-input"
-                :aria-label="t('tabs.rename')"
-                :placeholder="t('tabs.renamePlaceholder')"
-                @keydown.enter.prevent="commitRename(item)"
-                @keydown.escape.prevent="cancelRename"
-                @blur="commitRename(item)"
-                @mousedown.stop
-                @click.stop
-                @dblclick.stop
-              />
-              <span
-                v-else
-                class="rs-tabs__label"
-                @dblclick.stop="startRename(item)"
-              >
-                {{ item.label }}
-              </span>
-              <span v-if="item.badge != null && item.badge !== ''" class="rs-tabs__badge">
-                {{ item.badge }}
-              </span>
-              <button
-                v-if="isTabClosable(item, closable)"
-                type="button"
-                class="rs-tabs__close"
-                :aria-label="closeAriaLabel(item)"
+              <TabsTrigger
+                :value="item.value"
                 :disabled="item.disabled"
-                @mousedown.stop.prevent
-                @click.stop="onCloseTab(item)"
+                class="rs-tabs__trigger"
+                :class="{
+                  'rs-tabs__trigger--dragging': dragValue === item.value,
+                  'rs-tabs__trigger--drag-over': dragOverValue === item.value,
+                  'rs-tabs__trigger--fixed': isTabFixed(item),
+                  'rs-tabs__trigger--movable': canDragItem(item),
+                }"
+                :data-tab-value="item.value"
+                :data-fixed="isTabFixed(item) ? 'true' : undefined"
+                :draggable="canDragItem(item) || undefined"
+                @dragstart="onDragStart(item, $event)"
+                @dragover="onDragOver(item, $event)"
+                @dragleave="onDragLeave(item)"
+                @drop="onDrop(item, $event)"
+                @dragend="onDragEnd"
+                @auxclick="onTabAuxClick(item, $event)"
               >
-                <RsIcon name="x" :size="12" />
-              </button>
-            </TabsTrigger>
+                <RsIcon
+                  v-if="isTabFixed(item)"
+                  name="pin"
+                  :size="12"
+                  class="rs-tabs__pin"
+                />
+                <RsIcon v-if="item.icon" :name="item.icon" :size="14" class="rs-tabs__icon" />
+                <input
+                  v-if="renamingValue === item.value"
+                  :ref="(el) => setRenameInputRef(el, item)"
+                  v-model="renameDraft"
+                  class="rs-tabs__rename-input"
+                  :aria-label="t('tabs.rename')"
+                  :placeholder="t('tabs.renamePlaceholder')"
+                  draggable="false"
+                  @keydown.enter.prevent="commitRename(item)"
+                  @keydown.escape.prevent="cancelRename"
+                  @blur="commitRename(item)"
+                  @mousedown.stop
+                  @click.stop
+                  @dblclick.stop
+                  @dragstart.stop.prevent
+                />
+                <span
+                  v-else
+                  class="rs-tabs__label"
+                  :title="labelTitle(item)"
+                  @dblclick.stop="startRename(item)"
+                >
+                  {{ item.label }}
+                </span>
+                <span v-if="item.badge != null && item.badge !== ''" class="rs-tabs__badge">
+                  {{ item.badge }}
+                </span>
+                <button
+                  v-if="isTabClosable(item, closable)"
+                  type="button"
+                  class="rs-tabs__close"
+                  :aria-label="closeAriaLabel(item)"
+                  :disabled="item.disabled"
+                  draggable="false"
+                  @mousedown.stop.prevent
+                  @click.stop="onCloseTab(item)"
+                  @auxclick.stop.prevent
+                  @dragstart.stop.prevent
+                >
+                  <RsIcon name="x" :size="12" />
+                </button>
+              </TabsTrigger>
+            </RsContextMenu>
           </TabsList>
         </div>
 
@@ -379,6 +545,10 @@ function onDragEnd(): void {
         >
           <RsIcon name="chevron-right" :size="14" />
         </button>
+
+        <div v-if="hasExtra" ref="extraRef" class="rs-tabs__extra">
+          <slot name="extra" />
+        </div>
       </div>
 
       <template v-if="!panelless">
@@ -402,6 +572,14 @@ function onDragEnd(): void {
   display: flex;
   flex-direction: column;
   width: 100%;
+  /* 标题与内容间距；可由 contentGap 或样式覆盖 */
+  --rs-tabs-content-gap: 0px;
+}
+
+/* 非激活面板必须彻底隐藏，避免多页内容叠层 */
+.rs-tabs__panel[data-state='inactive'],
+.rs-tabs__panel[hidden] {
+  display: none !important;
 }
 
 .rs-tabs__shell,
@@ -416,6 +594,7 @@ function onDragEnd(): void {
   display: flex;
   align-items: stretch;
   min-width: 0;
+  width: 100%;
 }
 
 .rs-tabs__nav-viewport {
@@ -499,15 +678,23 @@ function onDragEnd(): void {
   box-shadow: inset 0 -2px 0 0 var(--rs-primary);
 }
 
-.rs-tabs__drag-handle {
-  display: inline-flex;
-  align-items: center;
-  color: var(--rs-placeholder);
+.rs-tabs__trigger--fixed {
+  font-weight: 500;
+}
+
+.rs-tabs--draggable .rs-tabs__trigger--movable {
   cursor: grab;
 }
 
-.rs-tabs__drag-handle:active {
+.rs-tabs--draggable .rs-tabs__trigger--movable:active,
+.rs-tabs--draggable .rs-tabs__trigger--dragging {
   cursor: grabbing;
+}
+
+.rs-tabs__pin {
+  flex: 0 0 auto;
+  color: var(--rs-placeholder);
+  opacity: 0.85;
 }
 
 .rs-tabs__icon {
@@ -517,6 +704,9 @@ function onDragEnd(): void {
 
 .rs-tabs__label {
   min-width: 0;
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rs-tabs__rename-input {
@@ -567,7 +757,9 @@ function onDragEnd(): void {
   background: transparent;
   color: var(--rs-muted);
   cursor: pointer;
-  opacity: 0.72;
+  /* 非激活：默认隐藏，悬停标签时再显示；占位保留避免宽度跳动 */
+  opacity: 0;
+  pointer-events: none;
   transition:
     opacity var(--rs-transition-fast),
     background var(--rs-transition-fast),
@@ -575,8 +767,10 @@ function onDragEnd(): void {
 }
 
 .rs-tabs__trigger:hover .rs-tabs__close,
+.rs-tabs__trigger:focus-within .rs-tabs__close,
 .rs-tabs__trigger[data-state='active'] .rs-tabs__close {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .rs-tabs__close:hover:not(:disabled) {
@@ -586,12 +780,38 @@ function onDragEnd(): void {
 
 .rs-tabs__close:focus-visible {
   outline: none;
+  opacity: 1;
+  pointer-events: auto;
   box-shadow: 0 0 0 var(--rs-focus-ring-width, 2px) var(--rs-focus-ring);
 }
 
 .rs-tabs__close:disabled {
-  opacity: 0.38;
   cursor: not-allowed;
+}
+
+.rs-tabs__trigger:hover .rs-tabs__close:disabled,
+.rs-tabs__trigger:focus-within .rs-tabs__close:disabled,
+.rs-tabs__trigger[data-state='active'] .rs-tabs__close:disabled {
+  opacity: 0.38;
+  pointer-events: none;
+}
+
+/* 触摸设备无悬停：可关闭标签始终显示关闭按钮 */
+@media (hover: none) {
+  .rs-tabs__close {
+    opacity: 0.85;
+    pointer-events: auto;
+  }
+
+  .rs-tabs__trigger[data-state='active'] .rs-tabs__close {
+    opacity: 1;
+  }
+
+  .rs-tabs__close:disabled,
+  .rs-tabs__trigger[data-state='active'] .rs-tabs__close:disabled {
+    opacity: 0.38;
+    pointer-events: none;
+  }
 }
 
 .rs-tabs__add,
@@ -622,6 +842,17 @@ function onDragEnd(): void {
 .rs-tabs__scroll-btn:hover {
   color: var(--rs-primary);
   background: var(--rs-surface-hover);
+}
+
+.rs-tabs__extra {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  align-self: stretch;
+  gap: var(--rs-space-xs);
+  margin-inline-start: auto;
+  padding-inline: var(--rs-space-sm);
+  border-inline-start: 1px solid var(--rs-border-subtle);
 }
 
 .rs-tabs__overflow-wrap {
@@ -734,6 +965,7 @@ function onDragEnd(): void {
 .rs-tabs--dropdown-overflow.rs-tabs--line .rs-tabs__nav {
   align-items: stretch;
   padding-inline: 0;
+  border-bottom: 1px solid var(--rs-border-subtle);
 }
 
 .rs-tabs--dropdown-overflow.rs-tabs--line .rs-tabs__list {
@@ -761,10 +993,6 @@ function onDragEnd(): void {
   background: var(--rs-primary);
 }
 
-.rs-tabs--dropdown-overflow.rs-tabs--line .rs-tabs__nav {
-  border-bottom: 1px solid var(--rs-border-subtle);
-}
-
 .rs-tabs--line.rs-tabs--sm .rs-tabs__more {
   min-height: var(--rs-control-height-sm);
   padding: 0 var(--rs-space-sm);
@@ -789,12 +1017,14 @@ function onDragEnd(): void {
 }
 
 .rs-tabs--line .rs-tabs__add,
-.rs-tabs--line .rs-tabs__scroll-btn {
+.rs-tabs--line .rs-tabs__scroll-btn,
+.rs-tabs--line .rs-tabs__extra {
   min-height: var(--rs-control-height-md);
 }
 
 .rs-tabs--line.rs-tabs--sm .rs-tabs__add,
-.rs-tabs--line.rs-tabs--sm .rs-tabs__scroll-btn {
+.rs-tabs--line.rs-tabs--sm .rs-tabs__scroll-btn,
+.rs-tabs--line.rs-tabs--sm .rs-tabs__extra {
   min-height: var(--rs-control-height-sm);
 }
 
@@ -829,8 +1059,17 @@ function onDragEnd(): void {
   font-size: var(--rs-font-size-xs);
 }
 
-.rs-tabs--line.rs-tabs--panelless .rs-tabs__list {
+.rs-tabs--line.rs-tabs--panelless .rs-tabs__nav {
   border-bottom: 1px solid var(--rs-border);
+  background: var(--rs-surface);
+}
+
+.rs-tabs--line.rs-tabs--panelless .rs-tabs__list {
+  border-bottom: none;
+}
+
+.rs-tabs--line.rs-tabs--panelless.rs-tabs--has-extra .rs-tabs__extra {
+  background: transparent;
 }
 
 /* —— segmented —— */
@@ -947,5 +1186,98 @@ function onDragEnd(): void {
 
 .rs-tabs--card.rs-tabs--panelless .rs-tabs__list {
   padding-bottom: var(--rs-space-sm);
+}
+
+.rs-tabs--card .rs-tabs__extra {
+  align-self: center;
+  margin-bottom: 0;
+  border-inline-start: none;
+}
+
+/* —— contentGap：标题与内容间距（borderless 默认 0，业务可设 sm/md/lg/xl） —— */
+.rs-tabs--content-gap-sm {
+  --rs-tabs-content-gap: var(--rs-space-sm);
+}
+
+.rs-tabs--content-gap-md {
+  --rs-tabs-content-gap: var(--rs-space-md);
+}
+
+.rs-tabs--content-gap-lg {
+  --rs-tabs-content-gap: var(--rs-space-lg);
+}
+
+.rs-tabs--content-gap-xl {
+  --rs-tabs-content-gap: var(--rs-space-xl);
+}
+
+/* —— borderless：无外框 / 无导航底色（业务用具名插槽，无需 :deep） —— */
+.rs-tabs--borderless.rs-tabs--line .rs-tabs__body,
+.rs-tabs--borderless.rs-tabs--segmented .rs-tabs__body,
+.rs-tabs--borderless.rs-tabs--card .rs-tabs__body {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.rs-tabs--borderless .rs-tabs__shell,
+.rs-tabs--borderless .rs-tabs__nav,
+.rs-tabs--borderless .rs-tabs__list,
+.rs-tabs--borderless .rs-tabs__nav-viewport {
+  border: none;
+  border-bottom: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.rs-tabs--borderless.rs-tabs--line .rs-tabs__list,
+.rs-tabs--borderless.rs-tabs--line.rs-tabs--panelless .rs-tabs__nav,
+.rs-tabs--borderless.rs-tabs--dropdown-overflow.rs-tabs--line .rs-tabs__nav {
+  border-bottom: none;
+  background: transparent;
+  padding-inline: 0;
+}
+
+.rs-tabs--borderless .rs-tabs__panel,
+.rs-tabs--borderless .rs-tabs__panel-inner {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.rs-tabs--borderless .rs-tabs__panel-inner {
+  padding-top: var(--rs-tabs-content-gap);
+}
+
+.rs-tabs--borderless.rs-tabs--card .rs-tabs__panel-inner {
+  border-top: none;
+}
+
+/* —— justify：标签栏对齐（stretch/evenly 铺满，免业务 :deep） —— */
+.rs-tabs--justify-center .rs-tabs__list {
+  justify-content: center;
+}
+
+.rs-tabs--justify-evenly .rs-tabs__list {
+  width: 100%;
+  justify-content: space-evenly;
+}
+
+.rs-tabs--justify-stretch .rs-tabs__list {
+  display: flex;
+  width: 100%;
+  justify-content: stretch;
+}
+
+.rs-tabs--justify-stretch .rs-tabs__trigger {
+  flex: 1 1 0;
+  justify-content: center;
+}
+
+.rs-tabs--justify-stretch.rs-tabs--line .rs-tabs__trigger[data-state='active']::after {
+  inset-inline: 18%;
 }
 </style>

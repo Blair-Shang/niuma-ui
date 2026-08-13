@@ -17,6 +17,11 @@ import {
   useRsFormField,
   type RsFormLabelPosition,
 } from './form-utils'
+import {
+  buildLocalInputRules,
+  runFormFieldRules,
+  type RsFormRuleTrigger,
+} from './form-rules'
 import RsIcon from './RsIcon.vue'
 import {
   formatNumberValue,
@@ -63,6 +68,12 @@ const props = withDefaults(
     label?: string
     hint?: string
     required?: boolean
+    /** 字段名：匹配 RsForm.rules[name] */
+    name?: string
+    /**
+     * 浏览器自动填充提示；数字框默认 off，避免 Chrome 误报 username 等建议。
+     */
+    autocomplete?: string
     labelPosition?: RsFormLabelPosition
     /** 展示格式化（对齐 Ant formatter） */
     formatter?: (value: number, info: { userTyping: boolean; input: string }) => string
@@ -78,6 +89,7 @@ const props = withDefaults(
     disabled: false,
     readonly: false,
     required: false,
+    autocomplete: 'off',
   },
 )
 
@@ -92,6 +104,11 @@ const formContext = useRsFormContext()
 const autoId = useId()
 const resolvedId = computed(() => props.id || `rs-input-number-${autoId}`)
 const resolvedSize = useResolvedRsComponentSize(() => props.size)
+const handlerIconSize = computed(() => {
+  if (resolvedSize.value === 'ssm' || resolvedSize.value === 'sm') return 10
+  if (resolvedSize.value === 'lg') return 14
+  return 12
+})
 const resolvedRadius = useResolvedRsRadius(() => props.radius, 'sm')
 const radiusStyle = computed(() => ({
   '--rs-input-radius': rsRadiusCss(resolvedRadius.value),
@@ -264,15 +281,22 @@ function setValue(value: unknown): void {
   syncDraftFromModel(model.value)
 }
 
+async function runValidate(trigger: RsFormRuleTrigger = 'submit') {
+  const formRules = formContext?.getFieldRules(props.name) ?? []
+  const localRules = buildLocalInputRules({ required: props.required })
+  const rules = [...formRules, ...localRules]
+  if (!rules.length) return { valid: true as const, name: props.name }
+  const result = await runFormFieldRules(model.value, rules, { trigger })
+  return { valid: result.valid, message: result.message, name: props.name }
+}
+
 useRsFormField(() => ({
+  get name() {
+    return props.name
+  },
   getValue: () => model.value,
   setValue,
-  validate: () => {
-    if (props.required && model.value == null) {
-      return { valid: false }
-    }
-    return { valid: true }
-  },
+  validate: (trigger) => runValidate(trigger ?? 'submit'),
   clearValidation: () => undefined,
 }))
 
@@ -326,6 +350,8 @@ defineExpose({
           type="text"
           inputmode="decimal"
           role="spinbutton"
+          :autocomplete="autocomplete"
+          :name="name"
           :value="draft"
           :placeholder="placeholder"
           :disabled="resolvedDisabled"
@@ -353,7 +379,7 @@ defineExpose({
             @pointerdown.prevent
             @click="applyStep(1)"
           >
-            <RsIcon name="chevron-up" :size="12" />
+            <RsIcon name="chevron-up" :size="handlerIconSize" />
           </button>
           <button
             type="button"
@@ -364,7 +390,7 @@ defineExpose({
             @pointerdown.prevent
             @click="applyStep(-1)"
           >
-            <RsIcon name="chevron-down" :size="12" />
+            <RsIcon name="chevron-down" :size="handlerIconSize" />
           </button>
         </div>
       </div>
@@ -406,7 +432,9 @@ defineExpose({
 .rs-input-number {
   display: flex;
   align-items: stretch;
+  box-sizing: border-box;
   width: 100%;
+  height: var(--rs-control-height-md);
   min-height: var(--rs-control-height-md);
   border-radius: var(--rs-input-radius, var(--rs-radius-sm));
   border: 1px solid var(--rs-input-border, var(--rs-border));
@@ -419,12 +447,15 @@ defineExpose({
   overflow: hidden;
 }
 .rs-input-number--ssm {
+  height: var(--rs-control-height-ssm);
   min-height: var(--rs-control-height-ssm);
 }
 .rs-input-number--sm {
+  height: var(--rs-control-height-sm);
   min-height: var(--rs-control-height-sm);
 }
 .rs-input-number--lg {
+  height: var(--rs-control-height-lg);
   min-height: var(--rs-control-height-lg);
 }
 .rs-input-number:hover:not(.rs-input-number--disabled):not(.rs-input-number--readonly):not(
@@ -450,33 +481,38 @@ defineExpose({
 .rs-input-number--disabled {
   opacity: 0.55;
   cursor: not-allowed;
-  background: var(--rs-surface-muted, var(--rs-input-bg));
+  background: var(--rs-surface-hover);
 }
 
 .rs-input-number__control {
   flex: 1;
+  align-self: stretch;
   min-width: 0;
+  min-height: 0;
+  height: 100%;
+  box-sizing: border-box;
+  margin: 0;
   border: 0;
   outline: none;
   background: transparent;
-  color: var(--rs-fg);
-  font: inherit;
-  padding: 0 10px;
-  height: 100%;
+  color: var(--rs-text);
+  font-size: var(--rs-font-size-sm);
+  line-height: 1;
+  padding: 0 var(--rs-space-md);
   appearance: textfield;
   -moz-appearance: textfield;
 }
 .rs-input-number__control--ssm {
-  padding: 0 8px;
-  font-size: 12px;
+  padding: 0 var(--rs-space-xs);
+  font-size: var(--rs-font-size-xs);
 }
 .rs-input-number__control--sm {
-  padding: 0 8px;
-  font-size: 12px;
+  padding: 0 var(--rs-space-sm);
+  font-size: var(--rs-font-size-xs);
 }
 .rs-input-number__control--lg {
-  padding: 0 12px;
-  font-size: 15px;
+  padding: 0 var(--rs-space-lg);
+  font-size: var(--rs-font-size-base);
 }
 .rs-input-number__control:disabled {
   cursor: not-allowed;
@@ -491,7 +527,11 @@ defineExpose({
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  align-self: stretch;
+  box-sizing: border-box;
   width: 22px;
+  height: 100%;
+  overflow: hidden;
   border-left: 1px solid var(--rs-input-border, var(--rs-border));
 }
 .rs-input-number--ssm .rs-input-number__handlers,
@@ -499,7 +539,8 @@ defineExpose({
   width: 18px;
 }
 .rs-input-number__handler {
-  flex: 1;
+  flex: 1 1 0;
+  min-height: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -507,13 +548,13 @@ defineExpose({
   margin: 0;
   padding: 0;
   background: transparent;
-  color: var(--rs-fg-muted);
+  color: var(--rs-muted);
   cursor: pointer;
   line-height: 1;
 }
 .rs-input-number__handler:hover:not(:disabled) {
-  color: var(--rs-fg);
-  background: var(--rs-surface-muted, transparent);
+  color: var(--rs-text);
+  background: var(--rs-surface-hover);
 }
 .rs-input-number__handler:disabled {
   opacity: 0.35;

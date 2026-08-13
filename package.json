@@ -1,6 +1,6 @@
 {
   "name": "niuma-ui",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "license": "Apache-2.0",
   "type": "module",
   "description": "Vue 3 设计系统与 Rs* 组件库（--rs-* token）",
@@ -49,7 +49,13 @@
     "build:playground": "vite build --config playground/vite.config.ts",
     "preview:playground": "vite preview --config playground/vite.config.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:perf": "vitest run src/__tests__/RsTable.perf.spec.ts src/__tests__/useRsTableCore.perf.spec.ts",
+    "test:compat": "vitest run src/__tests__/rs-table-compat-matrix.spec.ts src/__tests__/rs-table-api.spec.ts src/__tests__/rs-table-isolation.spec.ts",
+    "test:ssr": "vitest run src/__tests__/RsTable.ssr.spec.ts",
+    "test:dom-baseline": "vitest run src/__tests__/RsTable.dom-baseline.spec.ts src/__tests__/rs-table-echarts-adapter.spec.ts",
+    "test:visual": "playwright test",
+    "test:visual:update": "playwright test --update-snapshots"
   },
   "peerDependencies": {
     "vue": "^3.5.39"
@@ -87,9 +93,11 @@
     "vue-sonner": "^2.0.9"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/vite": "^4.3.2",
     "@types/node": "^26.1.1",
     "@vitejs/plugin-vue": "^6.0.7",
+    "@vue/server-renderer": "^3.5.39",
     "@vue/test-utils": "^2.4.11",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4.3.2",

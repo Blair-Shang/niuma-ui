@@ -2,19 +2,34 @@
 import { computed, nextTick, ref, useSlots, watch } from 'vue'
 import type { RsComponentSize, RsRadius } from '../theme/types'
 import { RS_COMPONENT_SIZE_ICON_PX } from '../theme/types'
+import {
+  supportsRsButtonTone,
+  type RsButtonTone,
+  type RsButtonVariant,
+} from './button-utils'
 import { useResolvedRsComponentSize } from './resolve-size'
 import { rsRadiusCss, useResolvedRsRadius } from './resolve-radius'
 import RsIcon from './RsIcon.vue'
 
+export type { RsButtonTone, RsButtonVariant } from './button-utils'
+
 const props = withDefaults(
   defineProps<{
-    variant?: 'primary' | 'default' | 'secondary' | 'ghost' | 'danger' | 'link'
+    variant?: RsButtonVariant
+    /**
+     * 语义色调：配合 text / ghost / link 使用。
+     * 例：variant="text" tone="primary" → 紫色文字按钮（工具栏 quaternary）。
+     * @default 'neutral'（text/ghost）；link 未传 tone 时保持主色链接观感
+     */
+    tone?: RsButtonTone
     size?: RsComponentSize
     /** 圆角档位；默认 full（胶囊）。直角 UI 传 `none`。 */
     radius?: RsRadius
     type?: 'button' | 'submit' | 'reset'
     disabled?: boolean
     loading?: boolean
+    /** 是否显示外边框；text 变体默认无边框 */
+    bordered?: boolean
     /** 前缀图标（Lucide kebab-case 名称） */
     icon?: string
     iconSize?: number
@@ -50,7 +65,36 @@ const rootStyle = computed(() => ({
 
 const hasLabel = computed(() => Boolean(slots.default))
 
-const resolvedVariant = computed(() => (props.variant === 'secondary' ? 'default' : props.variant))
+const resolvedVariant = computed(() =>
+  props.variant === 'secondary' ? ('default' as const) : (props.variant ?? 'primary'),
+)
+
+/** text 默认无边框；其它变体默认有边框（可由 bordered 覆盖） */
+const resolvedBordered = computed(() => {
+  if (props.bordered !== undefined) return props.bordered
+  return resolvedVariant.value !== 'text' && resolvedVariant.value !== 'link'
+})
+
+/**
+ * 可着色变体上的 tone。
+ * link 未显式传 tone 时视为 primary，保持历史链接主色。
+ */
+const resolvedTone = computed<RsButtonTone | null>(() => {
+  if (!supportsRsButtonTone(resolvedVariant.value)) return null
+  if (props.tone) return props.tone
+  if (resolvedVariant.value === 'link') return 'primary'
+  return 'neutral'
+})
+
+const rootClass = computed(() => ({
+  [`rs-btn--${resolvedVariant.value}`]: true,
+  [`rs-btn--${resolvedSize.value}`]: true,
+  [`rs-btn--tone-${resolvedTone.value}`]: Boolean(resolvedTone.value),
+  'rs-btn--icon-only': props.iconOnly,
+  'rs-btn--borderless': !resolvedBordered.value,
+  'rs-btn--reveal-label': props.revealLabel && props.icon && hasLabel.value,
+  'rs-btn--loading': props.loading,
+}))
 
 /** 仅在有 tooltip 文案或 icon-only 默认插槽文案时展示内置悬浮层 */
 const showFloatingText = computed(
@@ -104,13 +148,7 @@ watch(
     :type="type"
     :disabled="disabled"
     class="rs-btn"
-    :class="{
-      [`rs-btn--${resolvedVariant}`]: true,
-      [`rs-btn--${resolvedSize}`]: true,
-      'rs-btn--icon-only': iconOnly,
-      'rs-btn--reveal-label': revealLabel && icon && hasLabel,
-      'rs-btn--loading': loading,
-    }"
+    :class="rootClass"
     :style="rootStyle"
     :aria-busy="loading || undefined"
     :aria-disabled="disabled || loading || undefined"
@@ -160,7 +198,7 @@ watch(
   font-size: var(--rs-font-size-sm);
   font-weight: 500;
   letter-spacing: 0.01em;
-  line-height: var(--rs-line-height-tight);
+  line-height: 1;
   white-space: nowrap;
   cursor: pointer;
   transition:
@@ -207,8 +245,9 @@ watch(
   border-color: var(--rs-border);
   background: var(--rs-surface);
 }
-.rs-btn--loading.rs-btn--ghost {
-  color: var(--rs-text);
+.rs-btn--loading.rs-btn--ghost,
+.rs-btn--loading.rs-btn--text {
+  color: var(--rs-btn-tone, var(--rs-text));
   background: var(--rs-surface-hover);
 }
 .rs-btn:focus-visible {
@@ -241,27 +280,35 @@ watch(
   box-shadow: none;
 }
 .rs-btn--default {
-  background: var(--rs-surface);
-  border-color: var(--rs-border);
+  border: 1px solid var(--rs-btn-outline-border, var(--rs-border));
+  background: var(--rs-btn-secondary-bg, var(--rs-surface-hover));
   color: var(--rs-text);
-  box-shadow: var(--rs-shadow-sm);
+  box-shadow: none;
 }
 .rs-btn--default:hover:not(:disabled) {
   color: var(--rs-primary);
   border-color: var(--rs-primary);
+  background: var(--rs-btn-secondary-bg-hover, var(--rs-primary-container));
 }
 .rs-btn--default:active:not(:disabled) {
   color: var(--rs-primary-hover);
   border-color: var(--rs-primary-hover);
+  background: var(--rs-btn-secondary-bg-active, var(--rs-primary-container));
 }
 .rs-btn--ghost {
   background: transparent;
-  border-color: var(--rs-border);
-  color: var(--rs-text);
+  border: 1px solid var(--rs-btn-outline-border, var(--rs-border));
+  color: var(--rs-btn-tone, var(--rs-text));
 }
 .rs-btn--ghost:hover:not(:disabled) {
-  background: var(--rs-surface-hover);
-  border-color: var(--rs-border);
+  background: color-mix(in srgb, var(--rs-btn-tone, var(--rs-text)) 8%, transparent);
+  border-color: var(--rs-btn-outline-border, var(--rs-border));
+  color: var(--rs-btn-tone-hover, var(--rs-btn-tone, var(--rs-text)));
+}
+.rs-btn--borderless,
+.rs-btn--borderless:hover:not(:disabled),
+.rs-btn--borderless:active:not(:disabled) {
+  border-color: transparent;
 }
 .rs-btn--danger {
   background: var(--rs-danger-container);
@@ -272,19 +319,80 @@ watch(
   border-color: var(--rs-danger);
   background: color-mix(in srgb, var(--rs-danger) 20%, var(--rs-danger-container));
 }
+
+/* 行内链接：可下划线；色调由 tone 控制（默认 primary） */
 .rs-btn--link {
   min-height: auto;
   padding: 0;
   border-color: transparent;
   border-radius: 0;
   background: transparent;
-  color: var(--rs-primary);
+  color: var(--rs-btn-tone, var(--rs-primary));
   box-shadow: none;
+  font-weight: 500;
 }
 .rs-btn--link:hover:not(:disabled) {
-  color: var(--rs-primary-hover);
+  color: var(--rs-btn-tone-hover, var(--rs-primary-hover));
   text-decoration: underline;
 }
+
+/**
+ * text：工具栏 / 表格操作 quaternary
+ * 无底无边，靠 tone 着色；hover 使用同色浅底
+ */
+.rs-btn--text {
+  min-height: var(--rs-control-height-sm);
+  padding: 0 var(--rs-space-sm);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  font-weight: 400;
+  color: var(--rs-btn-tone, var(--rs-text));
+}
+.rs-btn--text.rs-btn--ssm {
+  min-height: var(--rs-control-height-ssm);
+}
+.rs-btn--text.rs-btn--md {
+  min-height: var(--rs-control-height-md);
+}
+.rs-btn--text.rs-btn--lg {
+  min-height: var(--rs-control-height-lg);
+}
+.rs-btn--text:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--rs-btn-tone, var(--rs-text)) 8%, transparent);
+  border-color: transparent;
+  color: var(--rs-btn-tone-hover, var(--rs-btn-tone, var(--rs-text)));
+}
+.rs-btn--text:active:not(:disabled) {
+  background: color-mix(in srgb, var(--rs-btn-tone, var(--rs-text)) 12%, transparent);
+}
+
+/* tone：写入 CSS 变量，供 text / ghost / link 消费 */
+.rs-btn--tone-neutral {
+  --rs-btn-tone: var(--rs-text);
+  --rs-btn-tone-hover: var(--rs-text);
+}
+.rs-btn--tone-primary {
+  --rs-btn-tone: var(--rs-primary);
+  --rs-btn-tone-hover: var(--rs-primary-hover);
+}
+.rs-btn--tone-danger {
+  --rs-btn-tone: var(--rs-danger);
+  --rs-btn-tone-hover: var(--rs-danger);
+}
+.rs-btn--tone-success {
+  --rs-btn-tone: var(--rs-success, #18a058);
+  --rs-btn-tone-hover: var(--rs-success, #18a058);
+}
+.rs-btn--tone-warning {
+  --rs-btn-tone: var(--rs-warning, #f0a020);
+  --rs-btn-tone-hover: var(--rs-warning, #f0a020);
+}
+.rs-btn--tone-info {
+  --rs-btn-tone: var(--rs-info, #2080f0);
+  --rs-btn-tone-hover: var(--rs-info, #2080f0);
+}
+
 .rs-btn__spinner {
   display: inline-flex;
   align-items: center;
@@ -309,6 +417,11 @@ watch(
   border-color: color-mix(in srgb, var(--rs-primary) 28%, transparent);
   border-top-color: var(--rs-primary);
 }
+.rs-btn--text .rs-btn__spinner-ring,
+.rs-btn--link .rs-btn__spinner-ring {
+  border-color: color-mix(in srgb, var(--rs-btn-tone, var(--rs-primary)) 28%, transparent);
+  border-top-color: var(--rs-btn-tone, var(--rs-primary));
+}
 .rs-btn--primary .rs-btn__spinner-ring {
   border-color: color-mix(in srgb, currentcolor 35%, transparent);
   border-top-color: currentcolor;
@@ -318,9 +431,20 @@ watch(
   border-top-color: var(--rs-danger);
 }
 .rs-btn__icon {
+  display: inline-flex;
   flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  color: inherit;
 }
+/* 插槽内自定义图标+文案时也能水平对齐 */
 .rs-btn__label {
+  display: inline-flex;
+  align-items: center;
+  gap: inherit;
+  min-width: 0;
+  line-height: 1;
   white-space: nowrap;
 }
 .rs-btn__label--reveal {

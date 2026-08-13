@@ -98,13 +98,20 @@ function onEditableClose(value: string) {
 const pinnedTab = ref('home')
 
 const pinnedItems = ref<RsTabItem[]>([
-  { value: 'home', label: '首页', closable: false },
+  { value: 'home', label: '首页', fixed: true, icon: 'house' },
   { value: 'workspace-a', label: '工作区 A', closable: true },
   { value: 'workspace-b', label: '工作区 B', closable: true },
 ])
 
 function onPinnedClose(value: string) {
   pinnedItems.value = pinnedItems.value.filter((item) => item.value !== value)
+  if (!pinnedItems.value.some((item) => item.value === pinnedTab.value)) {
+    pinnedTab.value = pinnedItems.value[0]?.value ?? ''
+  }
+}
+
+function onPinnedCloseBatch(values: string[]) {
+  pinnedItems.value = pinnedItems.value.filter((item) => !values.includes(item.value))
   if (!pinnedItems.value.some((item) => item.value === pinnedTab.value)) {
     pinnedTab.value = pinnedItems.value[0]?.value ?? ''
   }
@@ -120,6 +127,32 @@ function onPinnedAdd() {
     { value, label: `工作区 ${pinnedSeed}`, closable: true },
   ]
   pinnedTab.value = value
+}
+
+const navTab = ref('overview')
+const dirtyNav = ref(false)
+
+const navItems = ref<RsTabItem[]>([
+  { value: 'overview', label: '概览', fixed: true, icon: 'layout-dashboard' },
+  { value: 'orders', label: '订单中心', icon: 'shopping-bag', closable: true },
+  { value: 'customers', label: '客户管理', icon: 'users', closable: true },
+  { value: 'analytics', label: '数据分析报告（长标题演示省略）', icon: 'chart-column', closable: true },
+  { value: 'settings', label: '设置', icon: 'settings', closable: true },
+])
+
+function onNavClose(value: string) {
+  navItems.value = navItems.value.filter((item) => item.value !== value)
+}
+
+function onNavCloseBatch(values: string[]) {
+  navItems.value = navItems.value.filter((item) => !values.includes(item.value))
+}
+
+async function beforeLeaveNav(to: string, from: string) {
+  if (!dirtyNav.value) return true
+  const ok = window.confirm(`离开「${from}」前有未保存更改，仍要切换到「${to}」吗？`)
+  if (ok) dirtyNav.value = false
+  return ok
 }
 
 const cardTab = ref('tab-1')
@@ -322,27 +355,68 @@ const overflowItems = Array.from({ length: 10 }, (_, index) => ({
       </p>
     </DemoBlock>
 
-    <DemoBlock title="固定首项不可关闭">
-      <p class="hint">单项设置 <code>closable: false</code> 可固定首页等常驻标签，其余可关。</p>
+    <DemoBlock title="固定首项（fixed）">
+      <p class="hint">
+        单项设置 <code>fixed: true</code> 表示常驻标签（对齐 GTabs / 浏览器固定标签）：不可关闭、不被批量关闭，并显示钉住图标。
+      </p>
       <RsTabs
         v-model="pinnedTab"
         :items="pinnedItems"
         closable
         addable
+        context-menu
         :max-count="5"
         @add="onPinnedAdd"
         @close="onPinnedClose"
+        @close-batch="onPinnedCloseBatch"
       >
         <template #home>
-          <p class="demo-text">首页仪表盘，不可关闭。</p>
+          <p class="demo-text">首页仪表盘，固定不可关闭。</p>
         </template>
         <template #workspace-a>
-          <p class="demo-text">工作区 A 内容。</p>
+          <p class="demo-text">工作区 A 内容。右键标签可批量关闭。</p>
         </template>
         <template #workspace-b>
           <p class="demo-text">工作区 B 内容。</p>
         </template>
       </RsTabs>
+    </DemoBlock>
+
+    <DemoBlock title="顶栏导航（panelless + contextMenu + extra）">
+      <p class="hint">
+        作为应用顶部多页签导航：<code>panelless</code> 只渲染栏、<code>contextMenu</code>
+        提供关闭/关闭其他/左/右/全部、<code>#extra</code> 放右侧操作；中键可关标签；
+        <code>beforeLeave</code> 可拦截未保存切换。
+      </p>
+      <div class="app-chrome">
+        <RsTabs
+          v-model="navTab"
+          :items="navItems"
+          panelless
+          closable
+          context-menu
+          overflow="scroll"
+          :before-leave="beforeLeaveNav"
+          @close="onNavClose"
+          @close-batch="onNavCloseBatch"
+        >
+          <template #extra>
+            <RsButton size="sm" variant="ghost" @click="dirtyNav = !dirtyNav">
+              {{ dirtyNav ? '标记已保存' : '模拟脏数据' }}
+            </RsButton>
+            <RsButton size="sm">刷新</RsButton>
+          </template>
+        </RsTabs>
+        <div class="external-panel">
+          <p>
+            当前路由页签：<strong>{{ navItems.find((i) => i.value === navTab)?.label }}</strong>
+            · <code>{{ navTab }}</code>
+          </p>
+          <p class="external-panel__desc">
+            右键任意可关闭标签试用菜单；勾选「模拟脏数据」后再切换可体验 beforeLeave。
+          </p>
+        </div>
+      </div>
     </DemoBlock>
 
     <DemoBlock title="卡片式（card · Ant editable-card）">
@@ -358,8 +432,8 @@ const overflowItems = Array.from({ length: 10 }, (_, index) => ({
 
     <DemoBlock title="拖拽排序（draggable）">
       <p class="hint">
-        拖动标签左侧手柄排序，触发 <code>@reorder</code>；业务侧用
-        <code>reorderTabItems</code> 更新数组。
+        按住标签拖动排序（无拖拽手柄，对齐 Chrome / GTabs）；触发
+        <code>@reorder</code>，业务侧用 <code>reorderTabItems</code> 更新数组。固定标签不可拖。
       </p>
       <RsTabs
         v-model="dragTab"
@@ -618,5 +692,17 @@ const overflowItems = Array.from({ length: 10 }, (_, index) => ({
   background: var(--rs-bg);
   color: var(--rs-text);
   font-size: var(--rs-font-size-sm);
+}
+.app-chrome {
+  border: 1px solid var(--rs-border);
+  border-radius: var(--rs-radius);
+  overflow: hidden;
+  background: var(--rs-bg);
+}
+.app-chrome .external-panel {
+  margin-top: 0;
+  border: none;
+  border-top: 1px solid var(--rs-border-subtle);
+  border-radius: 0;
 }
 </style>

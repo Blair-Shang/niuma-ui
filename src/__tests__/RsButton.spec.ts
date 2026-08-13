@@ -31,6 +31,53 @@ describe('RsButton', () => {
     expect(wrapper.classes()).toContain('rs-btn--ghost')
   })
 
+  it('text variant defaults to borderless + neutral tone', () => {
+    const wrapper = mount(RsButton, {
+      props: { variant: 'text' },
+      slots: { default: '编辑' },
+    })
+    expect(wrapper.classes()).toContain('rs-btn--text')
+    expect(wrapper.classes()).toContain('rs-btn--borderless')
+    expect(wrapper.classes()).toContain('rs-btn--tone-neutral')
+  })
+
+  it('text + tone applies semantic tone class', () => {
+    const wrapper = mount(RsButton, {
+      props: { variant: 'text', tone: 'primary' },
+      slots: { default: '新增' },
+    })
+    expect(wrapper.classes()).toContain('rs-btn--text')
+    expect(wrapper.classes()).toContain('rs-btn--tone-primary')
+  })
+
+  it('ghost supports tone without becoming filled', () => {
+    const wrapper = mount(RsButton, {
+      props: { variant: 'ghost', tone: 'danger' },
+      slots: { default: '删除' },
+    })
+    expect(wrapper.classes()).toContain('rs-btn--ghost')
+    expect(wrapper.classes()).toContain('rs-btn--tone-danger')
+    expect(wrapper.classes()).not.toContain('rs-btn--danger')
+  })
+
+  it('filled primary ignores tone class', () => {
+    const wrapper = mount(RsButton, {
+      props: { variant: 'primary', tone: 'danger' },
+      slots: { default: '保存' },
+    })
+    expect(wrapper.classes()).toContain('rs-btn--primary')
+    expect(wrapper.classes()).not.toContain('rs-btn--tone-danger')
+  })
+
+  it('link defaults to primary tone', () => {
+    const wrapper = mount(RsButton, {
+      props: { variant: 'link' },
+      slots: { default: '查看' },
+    })
+    expect(wrapper.classes()).toContain('rs-btn--link')
+    expect(wrapper.classes()).toContain('rs-btn--tone-primary')
+  })
+
   it('renders prefix icon', () => {
     const wrapper = mount(RsButton, {
       props: { icon: 'plus' },

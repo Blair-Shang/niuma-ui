@@ -30,16 +30,89 @@ export function rangeInclusive(max: number): number[] {
   return Array.from({ length: max + 1 }, (_, index) => index)
 }
 
+/** 时分秒列选项（value + 预格式化 label，避免模板内反复 padStart） */
+export interface RsTimeUnitOption {
+  value: number
+  label: string
+}
+
+/** 时间列单位 */
+export type RsTimeUnit = 'hour' | 'minute' | 'second'
+
+export function formatTimeUnitLabel(value: number): string {
+  return String(value).padStart(2, '0')
+}
+
+function buildTimeUnitOptions(max: number, step = 1): RsTimeUnitOption[] {
+  const options: RsTimeUnitOption[] = []
+  for (let value = 0; value <= max; value += step) {
+    options.push({ value, label: formatTimeUnitLabel(value) })
+  }
+  return options
+}
+
+/** 小时列固定选项 00–23 */
+export const TIME_HOUR_OPTIONS: readonly RsTimeUnitOption[] = buildTimeUnitOptions(23)
+
+/** 秒列固定选项 00–59 */
+export const TIME_SECOND_OPTIONS: readonly RsTimeUnitOption[] = buildTimeUnitOptions(59)
+
+const minuteOptionsCache = new Map<number, readonly RsTimeUnitOption[]>()
+
+/** 按步进缓存分钟列选项，默认 step=1 为 00–59 */
+export function getTimeMinuteOptions(step = 1): readonly RsTimeUnitOption[] {
+  const normalized = Math.max(1, Math.floor(step) || 1)
+  const cached = minuteOptionsCache.get(normalized)
+  if (cached) return cached
+  const options = buildTimeUnitOptions(59, normalized)
+  minuteOptionsCache.set(normalized, options)
+  return options
+}
+
+/**
+ * 将时间列滚到指定 value，只改容器 scrollTop。
+ * 避免 scrollIntoView 带动外层页面 / Popover 滚动。
+ */
+export function scrollTimeColumnToValue(
+  container: HTMLElement | null | undefined,
+  value: number,
+): void {
+  if (!container) return
+  const item = container.querySelector<HTMLElement>(`:scope > [data-value="${value}"]`)
+  if (!item) return
+  const top = item.offsetTop - (container.clientHeight - item.offsetHeight) / 2
+  container.scrollTop = Math.max(0, top)
+}
+
 export function parseTimeValue(value?: string, withSeconds = false): RsParsedTime | null {
   if (!value?.trim()) return null
   const trimmed = value.trim()
-  const pattern = withSeconds ? TIME_WITH_SECONDS_PATTERN : TIME_PATTERN
-  const match = pattern.exec(trimmed)
+  if (withSeconds) {
+    const withSec = TIME_WITH_SECONDS_PATTERN.exec(trimmed)
+    if (withSec) {
+      return {
+        hour: Number.parseInt(withSec[1], 10),
+        minute: Number.parseInt(withSec[2], 10),
+        second: Number.parseInt(withSec[3], 10),
+      }
+    }
+    // 兼容仅到分的旧值，秒补 0
+    const minuteOnly = TIME_PATTERN.exec(trimmed)
+    if (minuteOnly) {
+      return {
+        hour: Number.parseInt(minuteOnly[1], 10),
+        minute: Number.parseInt(minuteOnly[2], 10),
+        second: 0,
+      }
+    }
+    return null
+  }
+  const match = TIME_PATTERN.exec(trimmed)
   if (!match) return null
   return {
     hour: Number.parseInt(match[1], 10),
     minute: Number.parseInt(match[2], 10),
-    second: withSeconds ? Number.parseInt(match[3], 10) : 0,
+    second: 0,
   }
 }
 

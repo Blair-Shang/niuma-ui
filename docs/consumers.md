@@ -86,6 +86,13 @@ pnpm dev
 - 默认主题由 `RsConfigProvider` 的 `theme`（`light` | `dark` | …）写入 `data-rs-theme`。
 - 产品品牌色可在业务 CSS 中覆盖同名 `--rs-*` 变量；参考 [`src/theme/brand.example.css`](../src/theme/brand.example.css)。
 - 表格、终端等子系统另有 `--rs-table-*`、`--rs-terminal-*` 等 token，可按需覆盖。
+- 排版与文字语义（对齐 Ant Design / Arco 常用档位）：
+  - 字号：`--rs-font-size-xs` … `--rs-font-size-3xl`
+  - 字重：`--rs-font-weight-regular|medium|semibold|bold`
+  - 字体族：`--rs-font-sans` / `--rs-font-mono` / `--rs-font-rounded`
+  - 文字色：`--rs-text-primary|secondary|tertiary|disabled|inverse|link|link-hover`
+    （兼容旧名 `--rs-text` / `--rs-muted` / `--rs-placeholder`）
+  - JS 侧也可使用导出的 `RS_FONT_SIZE_CSS` / `RS_FONT_WEIGHT_CSS`
 
 ### TypeScript
 
@@ -141,7 +148,12 @@ Monaco 体积大，不建议整包放入 `optimizeDeps.include`。可将 CodeMir
 
 桌面端 / 完整控制台可直接使用主入口。
 
-## 5. 升级策略
+## 5. RsTable SSR / 图表
+
+- SSR：优先 `useRsTableHeadless`；首屏只用轻量只读 `<RsTable>`（关 virtual / editable / contextMenu / cellTooltip）。详见 [rs-table-ssr.md](./rs-table-ssr.md)。
+- 图表：用 `createChartSeriesTableFeature` + `mapRsTableSeriesToEChartsOption`，echarts 留在宿主。详见 [rs-table-chart-adapter.md](./rs-table-chart-adapter.md)。
+
+## 6. 升级策略
 
 1. 阅读目标版本的 [CHANGELOG](../CHANGELOG.md) / GitHub Release。
 2. 将依赖 tag 从 `#v1.0.0` 改为新 tag（或更新 npm 版本区间），执行 `pnpm install`。
@@ -150,7 +162,7 @@ Monaco 体积大，不建议整包放入 `optimizeDeps.include`。可将 CodeMir
 
 本地 `link` 开发时无需改 tag；合并前再切回锁定版本验证 CI。
 
-## 6. 常见问题
+## 7. 常见问题
 
 **Q: link 后解析到错误路径？**  
 A: `link:` 相对路径相对的是**声明依赖的 package.json 所在目录**，不是仓库根。`web/package.json` 通常要用 `../../niuma-ui`。
@@ -167,7 +179,7 @@ A: 不支持。仅 Vue 3。
 **Q: 许可证？**  
 A: [Apache License 2.0](../LICENSE)。版权与第三方声明见 [NOTICE](../NOTICE)。依赖库各自保留其原许可证（Reka UI、Lucide、Monaco、CodeMirror、xterm 等）。
 
-## 7. 支持与反馈
+## 8. 支持与反馈
 
 - Issues：https://github.com/Blair-Shang/niuma-ui/issues  
 - 安全漏洞：[SECURITY.md](../SECURITY.md)  

@@ -189,14 +189,86 @@ export interface RsTableColumn<T extends RsTableRowData = Record<string, unknown
    * 纯文本格式化请优先用 `formatter`。
    */
   render?: (row: T, index: number) => RsTableCellRenderResult
+  /**
+   * 列汇总（footer / 分组小计）。配合表格 `summaryMode`：
+   * - client：对当前 viewRows 做本地聚合
+   * - server：展示 `summaryData[column.key]`
+   */
+  summary?: import('./table/table-summary-utils').RsTableColumnSummary<T>
 }
 
 export type RsTableSelectAllState = 'checked' | 'indeterminate' | 'unchecked'
 
 export type RsTableRowEntry<T extends RsTableRowData = Record<string, unknown>> =
-  | { type: 'row'; row: T; rowIndex: number }
+  | {
+      type: 'row'
+      row: T
+      rowIndex: number
+      /** 树表深度（根为 0）；非树表为 undefined */
+      depth?: number
+      /** 树表：是否有可展开子节点 */
+      hasChildren?: boolean
+      /** 树表：父行 key；根为 null */
+      parentKey?: string | null
+      /** 树表：展平时确定的稳定行 key（优先于重新 resolve） */
+      treeKey?: string
+    }
   | { type: 'group'; key: string; label: string }
   | { type: 'expand'; row: T; rowIndex: number; rowKey: string }
+
+/**
+ * 树形表格配置。
+ * 与 detail 展开（`expandable`）互斥：树表在数据列内缩进展开，不插入 `#expand` 明细行。
+ */
+export interface RsTableTreeConfig<T extends RsTableRowData = RsTableRowData> {
+  /** 子节点字段名，默认 `children` */
+  childrenField?: string
+  /** 叶子标记字段名，默认 `isLeaf`；为 true 时不可展开 */
+  isLeafField?: string
+  /**
+   * 展示缩进与展开按钮的列 key；
+   * 缺省为第一列（`columns[0].key`）。
+   */
+  expandColumnKey?: string
+  /**
+   * 是否自动将展开列设为 `fixed: 'left'`（避免横向滚动 / 列虚拟时丢失展开钮）。
+   * @default true
+   */
+  fixExpandColumn?: boolean
+  /** 每一层缩进像素；缺省按表格 size（sm/md/lg → 16/20/24） */
+  indent?: number
+  /**
+   * 仅在首次有数据时展开全部可展开节点（非受控）。
+   * 若同时提供非空 `defaultExpandedRowKeys`，则以后者为准且不再全开。
+   */
+  defaultExpandAll?: boolean
+  /**
+   * 勾选是否父子独立。
+   * - `true`（默认）：与平面表一致，只切换当前行
+   * - `false`：父子联动，父级可呈半选
+   */
+  checkStrictly?: boolean
+  /**
+   * 懒加载：无子节点且非叶子时仍显示展开按钮；
+   * 首次展开时调用 `loadData`。
+   */
+  lazy?: boolean
+  /**
+   * 懒加载回调。可直接改 `row[childrenField]`，或返回子节点数组由表格写入。
+   * 使用 bivarianceHack：具体行类型的 treeConfig 可赋给更宽泛的 treeConfig prop（如 RsGrid）。
+   */
+  loadData?: {
+    bivarianceHack(row: T, key: string): void | T[] | Promise<void | T[]>
+  }['bivarianceHack']
+}
+
+/** 树表节点索引（供级联勾选 / 半选） */
+export interface RsTableTreeNodeIndex {
+  parentKey: string | null
+  childrenKeys: string[]
+}
+
+export type RsTableTreeCheckState = 'checked' | 'indeterminate' | 'unchecked'
 
 export const TABLE_ROW_HEIGHT = {
   sm: 33,
@@ -523,6 +595,383 @@ export function toggleExpandedRowKeys(keys: readonly string[], key: string): str
   return [...next]
 }
 
+/** 读取树表子节点数组（非数组视为无子节点） */
+export function getTableTreeChildren<T extends RsTableRowData>(
+  row: T,
+  childrenField = 'children',
+): T[] {
+  const value = (row as Record<string, unknown>)[childrenField]
+  return Array.isArray(value) ? (value as T[]) : []
+}
+
+/** 是否为叶子（显式 isLeaf 优先） */
+export function getTableTreeIsLeaf<T extends RsTableRowData>(
+  row: T,
+  isLeafField = 'isLeaf',
+): boolean {
+  return Boolean((row as Record<string, unknown>)[isLeafField])
+}
+
+/** 是否可展开：非叶子且（有子节点，或懒加载） */
+export function hasTableTreeChildren<T extends RsTableRowData>(
+  row: T,
+  options: { childrenField?: string; isLeafField?: string; lazy?: boolean } = {},
+): boolean {
+  const childrenField = options.childrenField ?? 'children'
+  const isLeafField = options.isLeafField ?? 'isLeaf'
+  if (getTableTreeIsLeaf(row, isLeafField)) return false
+  if (getTableTreeChildren(row, childrenField).length > 0) return true
+  return Boolean(options.lazy)
+}
+
+/**
+ * 解析树表行 key。
+ * 有 `rowKey` 时走 `resolveRowKey`；否则用路径回退（避免兄弟下标跨分支碰撞）。
+ * 树表强烈建议显式传 `rowKey`。
+ */
+export function resolveTableTreeRowKey<T extends RsTableRowData>(
+  row: T,
+  index: number,
+  parentKey: string | null,
+  rowKey?: RsTableRowKey<T>,
+): string {
+  if (rowKey !== undefined && rowKey !== null && rowKey !== '') {
+    return resolveRowKey(row, index, rowKey)
+  }
+  return parentKey == null ? `tree:${index}` : `${parentKey}/${index}`
+}
+
+/** 是否配置了可用的稳定 rowKey（字段名或函数） */
+export function hasStableTableTreeRowKey<T extends RsTableRowData>(
+  rowKey?: RsTableRowKey<T>,
+): boolean {
+  return rowKey !== undefined && rowKey !== null && rowKey !== ''
+}
+
+/** 收集所有可展开节点 key（用于 defaultExpandAll） */
+export function collectTableTreeExpandableKeys<T extends RsTableRowData>(
+  rows: readonly T[],
+  options: {
+    childrenField?: string
+    isLeafField?: string
+    lazy?: boolean
+    rowKey?: RsTableRowKey<T>
+  } = {},
+): string[] {
+  const childrenField = options.childrenField ?? 'children'
+  const keys: string[] = []
+  const walk = (items: readonly T[], parentKey: string | null) => {
+    items.forEach((row, index) => {
+      const key = resolveTableTreeRowKey(row, index, parentKey, options.rowKey)
+      if (hasTableTreeChildren(row, options)) {
+        keys.push(key)
+        walk(getTableTreeChildren(row, childrenField), key)
+      }
+    })
+  }
+  walk(rows, null)
+  return keys
+}
+
+/** 构建整棵树的 parent/children key 索引（级联勾选） */
+export function buildTableTreeNodeIndex<T extends RsTableRowData>(
+  rows: readonly T[],
+  options: {
+    childrenField?: string
+    isLeafField?: string
+    lazy?: boolean
+    rowKey?: RsTableRowKey<T>
+  } = {},
+): Map<string, RsTableTreeNodeIndex> {
+  const childrenField = options.childrenField ?? 'children'
+  const map = new Map<string, RsTableTreeNodeIndex>()
+  const walk = (items: readonly T[], parentKey: string | null) => {
+    for (let i = 0; i < items.length; i += 1) {
+      const row = items[i] as T
+      const key = resolveTableTreeRowKey(row, i, parentKey, options.rowKey)
+      const children = getTableTreeChildren(row, childrenField)
+      const childrenKeys = hasTableTreeChildren(row, options)
+        ? children.map((child, childIndex) =>
+            resolveTableTreeRowKey(child, childIndex, key, options.rowKey),
+          )
+        : []
+      map.set(key, { parentKey, childrenKeys })
+      if (children.length > 0) walk(children, key)
+    }
+  }
+  walk(rows, null)
+  return map
+}
+
+export function collectTableTreeDescendantKeys(
+  key: string,
+  index: ReadonlyMap<string, RsTableTreeNodeIndex>,
+): string[] {
+  const entry = index.get(key)
+  if (!entry) return []
+  const result: string[] = []
+  for (const childKey of entry.childrenKeys) {
+    result.push(childKey, ...collectTableTreeDescendantKeys(childKey, index))
+  }
+  return result
+}
+
+export function resolveTableTreeCheckState(
+  key: string,
+  checkedKeys: ReadonlySet<string>,
+  index: ReadonlyMap<string, RsTableTreeNodeIndex>,
+  checkStrictly: boolean,
+): RsTableTreeCheckState {
+  if (checkStrictly) return checkedKeys.has(key) ? 'checked' : 'unchecked'
+  if (checkedKeys.size === 0) return 'unchecked'
+
+  const entry = index.get(key)
+  if (!entry || entry.childrenKeys.length === 0) {
+    return checkedKeys.has(key) ? 'checked' : 'unchecked'
+  }
+
+  const childStates = entry.childrenKeys.map((childKey) =>
+    resolveTableTreeCheckState(childKey, checkedKeys, index, checkStrictly),
+  )
+
+  if (childStates.every((state) => state === 'checked')) return 'checked'
+  if (childStates.some((state) => state === 'checked' || state === 'indeterminate')) {
+    return 'indeterminate'
+  }
+  return 'unchecked'
+}
+
+export function collectTableTreeHalfCheckedKeys(
+  index: ReadonlyMap<string, RsTableTreeNodeIndex>,
+  checkedKeys: ReadonlySet<string>,
+  checkStrictly: boolean,
+): string[] {
+  if (checkStrictly || checkedKeys.size === 0) return []
+  const half: string[] = []
+  for (const key of index.keys()) {
+    if (resolveTableTreeCheckState(key, checkedKeys, index, checkStrictly) === 'indeterminate') {
+      half.push(key)
+    }
+  }
+  return half
+}
+
+/** 切换树表勾选；`checkStrictly=false` 时父子联动 */
+export function toggleTableTreeCheck(
+  key: string,
+  checkedKeys: ReadonlySet<string>,
+  index: ReadonlyMap<string, RsTableTreeNodeIndex>,
+  checkStrictly: boolean,
+): string[] {
+  const next = new Set(checkedKeys)
+  const current = resolveTableTreeCheckState(key, next, index, checkStrictly)
+  const shouldCheck = current !== 'checked'
+
+  if (checkStrictly) {
+    if (shouldCheck) next.add(key)
+    else next.delete(key)
+    return [...next]
+  }
+
+  for (const id of [key, ...collectTableTreeDescendantKeys(key, index)]) {
+    if (shouldCheck) next.add(id)
+    else next.delete(id)
+  }
+
+  let parentKey = index.get(key)?.parentKey ?? null
+  while (parentKey) {
+    const parent = index.get(parentKey)
+    if (!parent) break
+    const allChecked = parent.childrenKeys.every(
+      (childKey) => resolveTableTreeCheckState(childKey, next, index, false) === 'checked',
+    )
+    if (allChecked) next.add(parentKey)
+    else next.delete(parentKey)
+    parentKey = parent.parentKey
+  }
+
+  return [...next]
+}
+
+/**
+ * 树过滤：匹配节点或其后代匹配时保留该节点，并裁剪子树。
+ * 与 RsTree `filterTreeNodes` 语义一致（保留祖先路径）。
+ */
+export function filterTableTreeRows<T extends RsTableRowData>(
+  rows: readonly T[],
+  query: string,
+  columns: readonly RsTableColumn<T>[],
+  options: {
+    childrenField?: string
+    filterKeys?: string[]
+    columnFilters?: Record<string, string>
+  } = {},
+): T[] {
+  const childrenField = options.childrenField ?? 'children'
+  const trimmed = query.trim()
+  const columnFilters = options.columnFilters ?? {}
+  const hasColumnFilters = Object.values(columnFilters).some((q) => q.trim())
+  if (!trimmed && !hasColumnFilters) return rows as T[]
+
+  const matchesSelf = (row: T): boolean => {
+    let ok = true
+    if (trimmed) {
+      const filtered = filterTableRows([row], trimmed, columns, options.filterKeys)
+      ok = filtered.length > 0
+    }
+    if (ok && hasColumnFilters) {
+      const filtered = filterTableRowsByColumnFilters([row], columns, columnFilters)
+      ok = filtered.length > 0
+    }
+    return ok
+  }
+
+  const walk = (items: readonly T[]): T[] => {
+    const result: T[] = []
+    for (const row of items) {
+      const children = getTableTreeChildren(row, childrenField)
+      const nextChildren = children.length ? walk(children) : []
+      if (matchesSelf(row) || nextChildren.length > 0) {
+        result.push(
+          nextChildren.length || children.length
+            ? ({ ...row, [childrenField]: nextChildren } as T)
+            : row,
+        )
+      }
+    }
+    return result
+  }
+  return walk(rows)
+}
+
+/** 树排序：仅对同级节点排序，递归处理子树 */
+export function sortTableTreeRows<T extends RsTableRowData>(
+  rows: readonly T[],
+  columns: readonly RsTableColumn<T>[],
+  options: {
+    childrenField?: string
+    sort?: RsTableSortState | null
+    sorts?: readonly RsTableSortState[]
+    multiSort?: boolean
+  },
+): T[] {
+  const childrenField = options.childrenField ?? 'children'
+  let sorted: T[]
+  if (options.multiSort && options.sorts?.length) {
+    sorted = sortTableRowsMulti(rows, columns, options.sorts)
+  } else if (options.sort) {
+    sorted = sortTableRows(rows, columns, options.sort)
+  } else {
+    sorted = rows as T[]
+  }
+  return sorted.map((row) => {
+    const children = getTableTreeChildren(row, childrenField)
+    if (!children.length) return row
+    return {
+      ...row,
+      [childrenField]: sortTableTreeRows(children, columns, options),
+    } as T
+  })
+}
+
+/**
+ * 按展开 key 展平可见树行为表格 row entries（不含 detail expand 行）。
+ */
+export function flattenVisibleTableTreeEntries<T extends RsTableRowData>(
+  rows: readonly T[],
+  expandedKeys: ReadonlySet<string>,
+  options: {
+    childrenField?: string
+    isLeafField?: string
+    lazy?: boolean
+    rowKey?: RsTableRowKey<T>
+  } = {},
+): Extract<RsTableRowEntry<T>, { type: 'row' }>[] {
+  const childrenField = options.childrenField ?? 'children'
+  const result: Extract<RsTableRowEntry<T>, { type: 'row' }>[] = []
+
+  const walk = (items: readonly T[], depth: number, parentKey: string | null) => {
+    items.forEach((row, index) => {
+      const key = resolveTableTreeRowKey(row, index, parentKey, options.rowKey)
+      const hasChildren = hasTableTreeChildren(row, options)
+      const rowIndex = result.length
+      result.push({
+        type: 'row',
+        row,
+        rowIndex,
+        depth,
+        hasChildren,
+        parentKey,
+        treeKey: key,
+      })
+      if (hasChildren && expandedKeys.has(key)) {
+        walk(getTableTreeChildren(row, childrenField), depth + 1, key)
+      }
+    })
+  }
+
+  walk(rows, 0, null)
+  return result
+}
+
+/**
+ * 树表入口构建：过滤 → 同级排序 → 按展开状态展平。
+ * 不支持与 `groupBy` / detail `expandable` 同时使用。
+ */
+export function buildTableTreeEntries<T extends RsTableRowData>(
+  rows: readonly T[],
+  columns: readonly RsTableColumn<T>[],
+  expandedKeys: ReadonlySet<string>,
+  options: {
+    tree: RsTableTreeConfig<T>
+    rowKey?: RsTableRowKey<T>
+    sort?: RsTableSortState | null
+    sorts?: readonly RsTableSortState[]
+    multiSort?: boolean
+    filterText?: string
+    filterKeys?: string[]
+    columnFilters?: Record<string, string>
+    remoteSort?: boolean
+  },
+): RsTableRowEntry<T>[] {
+  const childrenField = options.tree.childrenField ?? 'children'
+  let processed: readonly T[] = rows
+
+  const filterText = options.filterText ?? ''
+  const columnFilters = options.columnFilters ?? {}
+  if (filterText.trim() || Object.values(columnFilters).some((q) => q.trim())) {
+    processed = filterTableTreeRows(processed, filterText, columns, {
+      childrenField,
+      filterKeys: options.filterKeys,
+      columnFilters,
+    })
+  }
+
+  if (!options.remoteSort && (options.sort || (options.multiSort && options.sorts?.length))) {
+    processed = sortTableTreeRows(processed, columns, {
+      childrenField,
+      sort: options.sort,
+      sorts: options.sorts,
+      multiSort: options.multiSort,
+    })
+  }
+
+  return flattenVisibleTableTreeEntries(processed, expandedKeys, {
+    childrenField,
+    isLeafField: options.tree.isLeafField,
+    lazy: options.tree.lazy,
+    rowKey: options.rowKey,
+  })
+}
+
+/** 按表格 size 解析树缩进默认值 */
+export function resolveTableTreeIndent(size: RsTableSize = 'md', custom?: number): number {
+  if (custom !== undefined) return custom
+  if (size === 'sm') return 16
+  if (size === 'lg') return 24
+  return 20
+}
+
 export function resolveTableSize(compact: boolean, size: RsTableSize = 'md'): RsTableSize {
   if (compact) return 'sm'
   return size
@@ -583,7 +1032,7 @@ export function resolveLeadingColumnWidth(options: {
   if (options.expandable) width += 40
   if (options.selectable) width += 40
   if (options.showEditGutter) width += options.gutterWidth ?? 32
-  else if (options.showIndex) width += options.indexWidth ?? 56
+  else if (options.showIndex) width += options.indexWidth ?? 48
   return width
 }
 
@@ -843,6 +1292,7 @@ export function resolveEntryKey<T extends RsTableRowData>(
 ): string {
   if (entry.type === 'group') return `group:${entry.key}`
   if (entry.type === 'expand') return `expand:${entry.rowKey}`
+  if (entry.treeKey) return entry.treeKey
   return resolveRowKey(entry.row, entry.rowIndex, rowKey)
 }
 

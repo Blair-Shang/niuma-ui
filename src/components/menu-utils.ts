@@ -46,3 +46,14 @@ export function findMenuParentKeys(items: RsMenuItems, key: string): string[] {
 
   return []
 }
+
+/** 判断菜单项自身或其任意后代是否匹配 key（用于父级高亮） */
+export function menuItemContainsKey(item: RsMenuItem, key: string): boolean {
+  if (item.key === key) {
+    return true
+  }
+  if (!item.children?.length) {
+    return false
+  }
+  return item.children.some((child) => menuItemContainsKey(child, key))
+}

@@ -60,6 +60,17 @@ describe('RsDateTimePicker', () => {
     wrapper.unmount()
   })
 
+  it('propagates size to embedded time picker', async () => {
+    const wrapper = mount(RsDateTimePicker, {
+      props: { modelValue: '', size: 'lg', open: true },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    expect(wrapper.find('.rs-date-picker--lg').exists()).toBe(true)
+    expect(document.body.querySelector('.rs-time-picker--lg')).not.toBeNull()
+    wrapper.unmount()
+  })
+
   it('disables trigger when disabled', () => {
     const wrapper = mount(RsDateTimePicker, {
       props: { modelValue: '2025-06-16 14:30:00', disabled: true },

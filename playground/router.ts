@@ -6,7 +6,12 @@ const router = createRouter({
     { path: '/', component: () => import('./pages/IndexPage.vue') },
     { path: '/button', component: () => import('./pages/ButtonPage.vue') },
     { path: '/badge', component: () => import('./pages/BadgePage.vue') },
+    { path: '/tag', component: () => import('./pages/TagPage.vue') },
+    { path: '/divider', component: () => import('./pages/DividerPage.vue') },
     { path: '/checkbox', component: () => import('./pages/CheckboxPage.vue') },
+    { path: '/switch', component: () => import('./pages/SwitchPage.vue') },
+    { path: '/radio', component: () => import('./pages/RadioPage.vue') },
+    { path: '/dynamic-tags', component: () => import('./pages/DynamicTagsPage.vue') },
     { path: '/label', component: () => import('./pages/LabelPage.vue') },
     { path: '/link', component: () => import('./pages/LinkPage.vue') },
     { path: '/input', component: () => import('./pages/InputPage.vue') },
@@ -15,8 +20,11 @@ const router = createRouter({
     { path: '/avatar', component: () => import('./pages/AvatarPage.vue') },
     { path: '/card', component: () => import('./pages/CardPage.vue') },
     { path: '/stat-card', component: () => import('./pages/StatCardPage.vue') },
+    { path: '/descriptions', component: () => import('./pages/DescriptionsPage.vue') },
     { path: '/empty', component: () => import('./pages/EmptyPage.vue') },
     { path: '/loading', component: () => import('./pages/LoadingPage.vue') },
+    { path: '/loading-bar', component: () => import('./pages/LoadingBarPage.vue') },
+    { path: '/alert', component: () => import('./pages/AlertPage.vue') },
     { path: '/toaster', component: () => import('./pages/ToasterPage.vue') },
     { path: '/form', component: () => import('./pages/FormPage.vue') },
     { path: '/breadcrumb', component: () => import('./pages/BreadcrumbPage.vue') },
@@ -33,6 +41,7 @@ const router = createRouter({
     { path: '/table-cell-edit', component: () => import('./pages/TableCellEditPage.vue') },
     { path: '/table-row-commit', component: () => import('./pages/TableRowCommitPage.vue') },
     { path: '/table-row-select', component: () => import('./pages/TableRowSelectPage.vue') },
+    { path: '/table-tree', component: () => import('./pages/TableTreePage.vue') },
     { path: '/virtual-list', component: () => import('./pages/VirtualListPage.vue') },
     { path: '/popover', component: () => import('./pages/PopoverPage.vue') },
     { path: '/container', component: () => import('./pages/ContainerPage.vue') },
@@ -55,8 +64,14 @@ const router = createRouter({
     { path: '/markdown', component: () => import('./pages/MarkdownPage.vue') },
     { path: '/studio-components', component: () => import('./pages/StudioComponentsPage.vue') },
     { path: '/theme', component: () => import('./pages/ThemePage.vue') },
+    /** Playwright 像素回归夹具（不进侧栏） */
+    {
+      path: '/visual/rs-table',
+      component: () => import('./pages/visual/RsTableVisualPage.vue'),
+    },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })
+
 
 export default router

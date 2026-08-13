@@ -8,6 +8,7 @@ import {
   expandSplitPane,
   isSplitPaneCollapsed,
   normalizeSplitSizes,
+  resolveSplitAutoFlags,
   resolveSplitConstraints,
   roundSize,
   splitSizesEqual,
@@ -56,6 +57,9 @@ const sizes = ref<number[]>([])
 const constraints = computed(() => resolveSplitConstraints(props.panes))
 const resizerCount = computed(() => Math.max(0, props.panes.length - 1))
 
+/** 内容自适应面板标记；首次拖拽/键盘调整时会物化为百分比并清空 */
+const autoFlags = ref<boolean[]>(resolveSplitAutoFlags(props.panes))
+
 /** 归一化初始值，作为双击复位的基准 */
 let initialSizes: number[] = normalizeSplitSizes(props.panes, modelSeed())
 sizes.value = initialSizes.slice()
@@ -72,15 +76,31 @@ watch(
   () => paneKeySignature(),
   () => {
     const provided = sizes.value.length === props.panes.length ? sizes.value : undefined
+    autoFlags.value = resolveSplitAutoFlags(props.panes)
     initialSizes = normalizeSplitSizes(props.panes, provided)
     sizes.value = initialSizes.slice()
     syncModel(sizes.value)
   },
 )
 
+watch(
+  () => props.panes.map((pane) => pane.size).join('|'),
+  () => {
+    // panes 引用不变但 size 声明变化时同步 auto 标记与基准尺寸
+    autoFlags.value = resolveSplitAutoFlags(props.panes)
+    initialSizes = normalizeSplitSizes(props.panes, modelSeed())
+    if (!autoFlags.value.some(Boolean)) {
+      sizes.value = initialSizes.slice()
+      syncModel(sizes.value)
+    }
+  },
+)
+
 watch(model, (value) => {
   if (!value || value.length !== props.panes.length) return
   if (splitSizesEqual(value, sizes.value)) return
+  // 外部受控 sizes 一律视为百分比物化结果
+  autoFlags.value = props.panes.map(() => false)
   sizes.value = normalizeSplitSizes(props.panes, value)
 })
 
@@ -213,6 +233,7 @@ function measureFlexPx(): number {
 function onResizerPointerDown(index: number, event: PointerEvent): void {
   if (props.disabled) return
   if (event.pointerType === 'mouse' && event.button !== 0) return
+  materializeAutoPanes()
   const target = event.currentTarget as HTMLElement
   target.setPointerCapture?.(event.pointerId)
   dragIndex = index
@@ -241,6 +262,7 @@ function endDrag(index: number, event: PointerEvent): void {
 // —— 键盘无障碍 ——
 function onResizerKeydown(index: number, event: KeyboardEvent): void {
   if (props.disabled) return
+  materializeAutoPanes()
   const horizontal = props.orientation === 'horizontal'
   const step = props.keyboardStep
   let delta = 0
@@ -281,6 +303,7 @@ function onResizerKeydown(index: number, event: KeyboardEvent): void {
 
 function onResizerDblClick(index: number): void {
   if (props.disabled) return
+  materializeAutoPanes()
   const a = sizes.value[index]
   const b = sizes.value[index + 1]
   const initA = initialSizes[index]
@@ -324,12 +347,48 @@ function toggleCollapseAt(index: number): void {
   emit('resize-end', sizes.value.slice())
 }
 
+/** 将 auto 面板按当前像素占比物化为百分比，之后走统一拖拽逻辑 */
+function materializeAutoPanes(): void {
+  if (!autoFlags.value.some(Boolean)) return
+  const total = measureFlexPx()
+  if (total <= 0) return
+  const panes = paneElements()
+  const measured = panes.map((el) => (axisSize(el) / total) * 100)
+  const next = normalizeSplitSizes(
+    props.panes.map((pane) => ({
+      ...pane,
+      size: typeof pane.size === 'number' ? pane.size : undefined,
+    })),
+    measured,
+  )
+  autoFlags.value = props.panes.map(() => false)
+  sizes.value = next
+  syncModel(next)
+}
+
 function paneStyle(index: number): Record<string, string> {
+  if (autoFlags.value[index]) {
+    const pane = props.panes[index]
+    const style: Record<string, string> = {
+      flexGrow: '0',
+      flexShrink: '0',
+      flexBasis: 'auto',
+    }
+    const vertical = props.orientation === 'vertical'
+    if (typeof pane?.min === 'number' && pane.min > 0) {
+      style[vertical ? 'minHeight' : 'minWidth'] = `${pane.min}%`
+    }
+    if (typeof pane?.max === 'number' && pane.max < 100) {
+      style[vertical ? 'maxHeight' : 'maxWidth'] = `${pane.max}%`
+    }
+    return style
+  }
   const size = sizes.value[index] ?? 0
   return { flexGrow: String(size), flexShrink: '1', flexBasis: '0%' }
 }
 
 function paneCollapsed(index: number): boolean {
+  if (autoFlags.value[index]) return false
   return isSplitPaneCollapsed(sizes.value[index] ?? 0, constraints.value[index])
 }
 
@@ -368,6 +427,7 @@ function expand(key: string, toSize?: number): void {
 }
 
 function reset(): void {
+  autoFlags.value = resolveSplitAutoFlags(props.panes)
   initialSizes = normalizeSplitSizes(props.panes)
   commit(initialSizes.slice())
   emit('resize-end', sizes.value.slice())
@@ -388,7 +448,10 @@ defineExpose({ collapse, expand, reset, getSizes: () => sizes.value.slice() })
     <template v-for="(pane, index) in panes" :key="pane.key">
       <div
         class="rs-split__pane"
-        :class="{ 'rs-split__pane--collapsed': paneCollapsed(index) }"
+        :class="{
+          'rs-split__pane--collapsed': paneCollapsed(index),
+          'rs-split__pane--auto': autoFlags[index],
+        }"
         :style="paneStyle(index)"
         :data-pane-key="pane.key"
       >
@@ -455,6 +518,11 @@ defineExpose({ collapse, expand, reset, getSizes: () => sizes.value.slice() })
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+.rs-split__pane--auto {
+  /* 内容撑开；超出 max 时在面板内滚动 */
+  overflow: auto;
 }
 
 .rs-split__pane--collapsed {

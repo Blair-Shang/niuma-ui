@@ -119,21 +119,21 @@ const sonnerTheme = computed<'light' | 'dark'>(() => {
   overflow: hidden;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  column-gap: 0.75rem;
-  row-gap: 0.25rem;
+  align-items: center;
+  column-gap: 0.625rem;
+  row-gap: 0.5rem;
   width: var(--width, auto);
   min-width: 19rem;
   max-width: min(29rem, calc(100vw - 1.5rem));
-  padding: 0.875rem 0.9375rem 0.9375rem;
+  padding: 0.8125rem 2.25rem 0.8125rem 0.875rem;
   border: 1px solid var(--rs-toast-border);
   border-radius: var(--rs-toast-radius);
   background:
     linear-gradient(
       180deg,
-      transparent 0.625rem,
-      var(--rs-toast-accent) 0.625rem calc(100% - 0.625rem),
-      transparent calc(100% - 0.625rem)
+      transparent 0.5rem,
+      var(--rs-toast-accent) 0.5rem calc(100% - 0.5rem),
+      transparent calc(100% - 0.5rem)
     )
     0.5rem 0 / 2px 100% no-repeat,
     linear-gradient(180deg, var(--rs-toast-highlight), transparent 38%),
@@ -151,6 +151,13 @@ const sonnerTheme = computed<'light' | 'dark'>(() => {
     background var(--rs-transition-fast);
 }
 
+/* 带描述时顶对齐，图标与标题第一行光学对齐 */
+.rs-toast:has([data-description]) {
+  align-items: start;
+  padding-top: 0.875rem;
+  padding-bottom: 0.875rem;
+}
+
 .rs-toast:hover {
   box-shadow:
     0 18px 42px -20px rgb(0 0 0 / 0.34),
@@ -166,32 +173,48 @@ const sonnerTheme = computed<'light' | 'dark'>(() => {
 .rs-toast [data-icon] {
   position: relative;
   z-index: 1;
+  grid-column: 1;
+  grid-row: 1;
   display: inline-flex;
-  grid-row: 1 / span 2;
   align-items: center;
   justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  margin-top: 0.125rem;
+  align-self: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
   border-radius: 999px;
   background: transparent;
   color: var(--rs-info);
   box-shadow: none;
 }
 
+.rs-toast [data-icon] svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+}
+
+/* 多行内容时，图标略下移以对齐标题字面中线 */
+.rs-toast:has([data-description]) [data-icon] {
+  align-self: start;
+  margin-top: 0.125rem;
+}
+
 .rs-toast [data-content] {
   position: relative;
   z-index: 1;
+  grid-column: 2;
+  grid-row: 1;
   display: grid;
   gap: 0.1875rem;
   min-width: 0;
-  padding-right: 1.5rem;
 }
 
 .rs-toast [data-button] {
   position: relative;
   z-index: 1;
-  margin-top: 0.625rem;
+  grid-column: 2;
+  margin-top: 0;
 }
 
 .rs-toast__title {
@@ -199,7 +222,7 @@ const sonnerTheme = computed<'light' | 'dark'>(() => {
   color: var(--rs-text);
   font-size: 0.875rem;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.25;
   letter-spacing: -0.012em;
 }
 
@@ -212,7 +235,10 @@ const sonnerTheme = computed<'light' | 'dark'>(() => {
 
 .rs-toast [data-close-button].rs-toast__close {
   position: absolute;
-  inset: 0.75rem 0.75rem auto auto;
+  top: 50%;
+  right: 0.625rem;
+  left: auto;
+  bottom: auto;
   z-index: 2;
   display: inline-flex;
   align-items: center;
@@ -226,7 +252,7 @@ const sonnerTheme = computed<'light' | 'dark'>(() => {
   color: var(--rs-muted);
   box-shadow: none;
   cursor: pointer;
-  transform: none;
+  transform: translateY(-50%);
   opacity: 0.72;
   transition:
     opacity var(--rs-transition-fast),
@@ -234,6 +260,11 @@ const sonnerTheme = computed<'light' | 'dark'>(() => {
     border-color var(--rs-transition-fast),
     background var(--rs-transition-fast),
     box-shadow var(--rs-transition-fast);
+}
+
+.rs-toast:has([data-description]) [data-close-button].rs-toast__close {
+  top: 0.75rem;
+  transform: none;
 }
 
 .rs-toast [data-close-button].rs-toast__close svg {
@@ -371,14 +402,23 @@ const sonnerTheme = computed<'light' | 'dark'>(() => {
   .rs-toast {
     min-width: min(100%, 18.5rem);
     max-width: calc(100vw - 1rem);
-    padding: 0.8125rem 0.875rem 0.875rem;
+    padding: 0.75rem 2.125rem 0.75rem 0.8125rem;
     border-radius: 0.9375rem;
   }
 
+  .rs-toast:has([data-description]) {
+    padding-top: 0.8125rem;
+    padding-bottom: 0.8125rem;
+  }
+
   .rs-toast [data-close-button].rs-toast__close {
-    inset: 0.625rem 0.625rem auto auto;
+    right: 0.5rem;
     width: 1.25rem;
     height: 1.25rem;
+  }
+
+  .rs-toast:has([data-description]) [data-close-button].rs-toast__close {
+    top: 0.625rem;
   }
 
   .rs-toast__action {

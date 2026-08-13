@@ -9,13 +9,43 @@
   --rs-radius-lg: 1rem;
   --rs-radius-full: 9999px;
 
-  --rs-font-size-xs: 0.75rem;
-  --rs-font-size-sm: 0.875rem;
-  --rs-font-size-base: 1rem;
-  --rs-font-size-lg: 1.125rem;
+  /*
+   * 排版阶梯（对齐 Ant Design / Arco / MD3 常用档位）
+   * xs=Caption · sm=Secondary · base=Body · lg=Emphasized
+   * xl=Title · 2xl=Heading · 3xl=Display
+   */
+  --rs-font-size-xs: 0.75rem; /* 12px @ 16 */
+  --rs-font-size-sm: 0.875rem; /* 14px */
+  --rs-font-size-base: 1rem; /* 16px */
+  --rs-font-size-lg: 1.125rem; /* 18px */
+  --rs-font-size-xl: 1.25rem; /* 20px */
+  --rs-font-size-2xl: 1.5rem; /* 24px */
+  --rs-font-size-3xl: 1.875rem; /* 30px */
+
+  --rs-font-weight-regular: 400;
+  --rs-font-weight-medium: 500;
+  --rs-font-weight-semibold: 600;
+  --rs-font-weight-bold: 700;
 
   --rs-line-height-tight: 1.25;
   --rs-line-height-normal: 1.5;
+  --rs-line-height-relaxed: 1.625;
+
+  /* 字体族：业务可整体替换，组件勿硬编码 system 栈 */
+  --rs-font-sans:
+    -apple-system,
+    BlinkMacSystemFont,
+    'SF Pro Text',
+    'SF Pro Display',
+    system-ui,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    'PingFang SC',
+    'Microsoft YaHei',
+    sans-serif;
+  --rs-font-mono: ui-monospace, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+  --rs-font-rounded: ui-rounded, 'SF Pro Rounded', 'Segoe UI', system-ui, sans-serif;
 
   --rs-control-height-ssm: 1.25rem;
   --rs-control-height-sm: 1.5rem;
@@ -39,10 +69,61 @@
   /* Shell 底部 Dock / 常驻面板：低于 modal，避免盖住弹出对话框 */
   --rs-z-panel: 80;
   --rs-z-modal: 100;
+  /* 顶栏加载条：高于 modal，低于 toast，避免遮挡通知 */
+  --rs-z-loading-bar: 190;
   --rs-z-toast: 200;
 
   --rs-transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --rs-transition-normal: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Dialog 尺寸（静态；颜色在主题块内） */
+  --rs-dialog-header-padding-y: var(--rs-space-md);
+  --rs-dialog-header-padding-x: var(--rs-space-xl);
+  --rs-dialog-footer-padding-y: var(--rs-space-md);
+  --rs-dialog-footer-padding-x: var(--rs-space-xl);
+  --rs-dialog-body-padding-y: var(--rs-space-xl);
+  --rs-dialog-body-padding-x: var(--rs-space-xl);
+  /* 默认 0：由内容撑开；宿主可设为固定栏高（如 36px） */
+  --rs-dialog-header-min-height: 0px;
+  --rs-dialog-footer-min-height: 0px;
+  /* 默认 auto：不锁死；宿主设为具体值即固定栏高 */
+  --rs-dialog-header-height: auto;
+  --rs-dialog-footer-height: auto;
+  /* footer 顶部分割线；设为 transparent 可做开放式底栏 */
+  --rs-dialog-footer-border: color-mix(in srgb, var(--rs-dialog-separator, var(--rs-border-subtle)) 72%, transparent);
+
+  /* Drawer 尺寸（静态；颜色在主题块内） */
+  --rs-drawer-header-padding-y: var(--rs-space-md);
+  --rs-drawer-header-padding-x: var(--rs-space-xl);
+  --rs-drawer-footer-padding-y: var(--rs-space-md);
+  --rs-drawer-footer-padding-x: var(--rs-space-xl);
+  --rs-drawer-body-padding-y: var(--rs-space-xl);
+  --rs-drawer-body-padding-x: var(--rs-space-xl);
+  /* 默认 0：由内容撑开；宿主可设为固定栏高（如 36px） */
+  --rs-drawer-header-min-height: 0px;
+  --rs-drawer-footer-min-height: 0px;
+  /* 默认 auto：不锁死；宿主设为具体值即固定栏高 */
+  --rs-drawer-header-height: auto;
+  --rs-drawer-footer-height: auto;
+  /* footer 顶部分割线；设为 transparent 可做开放式底栏 */
+  --rs-drawer-footer-border: var(--rs-drawer-separator, var(--rs-border-subtle));
+  /* 滑入 / 滑出时长（与 RsDrawer keyframes 对齐） */
+  --rs-drawer-motion-duration-in: 240ms;
+  --rs-drawer-motion-duration-out: 180ms;
+
+  /* Menu 尺寸（静态；颜色在主题块内） */
+  --rs-menu-item-height: var(--rs-control-height-md);
+  --rs-menu-item-font-size: var(--rs-font-size-sm);
+  --rs-menu-item-radius: var(--rs-radius-sm);
+  --rs-menu-item-active-weight: 500;
+
+  /*
+   * 表单标签（RsLabel / .rs-field__label 共用）
+   * 默认对齐 Ant Form：与正文同档 14px；颜色在主题块内。
+   */
+  --rs-label-font-size: var(--rs-font-size-sm);
+  --rs-label-font-weight: var(--rs-font-weight-medium);
+  --rs-label-line-height: var(--rs-line-height-normal);
 
   /* FTP 图标内嵌字样默认强调色 */
   --rs-icon-ftp-accent: #ea580c;
@@ -139,6 +220,18 @@
   --rs-table-resize-handle: #6e6e6e;
   --rs-table-resize-handle-hover: var(--rs-primary);
 
+  /* ── Tree（导航线 / 行选中 / 焦点；业务可覆盖）── */
+  --rs-tree-line: color-mix(in srgb, var(--rs-text) 14%, transparent);
+  --rs-tree-line-width: 1px;
+  --rs-tree-row-hover: var(--rs-item-hover);
+  --rs-tree-selected-bg: color-mix(in srgb, var(--rs-primary) 12%, var(--rs-surface));
+  --rs-tree-selected-fg: var(--rs-text);
+  --rs-tree-focused-bg: color-mix(in srgb, var(--rs-primary) 8%, var(--rs-surface));
+  --rs-tree-focused-ring: color-mix(in srgb, var(--rs-primary) 28%, transparent);
+  --rs-tree-selected-focused-bg: color-mix(in srgb, var(--rs-primary) 16%, var(--rs-surface));
+  --rs-tree-selected-focused-ring: color-mix(in srgb, var(--rs-primary) 36%, transparent);
+  --rs-tree-drop-indicator: var(--rs-primary);
+
   /* VS Code 式抬升型输入底（比内容略亮），非 macOS 凹陷井 */
   /* WCAG AA: input-border 3.18:1 vs #2b2b2b; border 3.24:1 vs #1f1f1f; placeholder 4.5:1 vs #2b2b2b */
   --rs-input-bg: #2b2b2b;
@@ -147,9 +240,26 @@
   --rs-input-shadow: none;
   --rs-border: #6e6e6e;
   --rs-border-subtle: #3a3a3a;
+  /*
+   * Button secondary/default：轮廓与底色独立于分隔线 --rs-border，
+   * 业务可用 --rs-btn-* 覆盖（见 theme/brand.example.css）。
+   */
+  --rs-btn-outline-border: #a3a3a3;
+  --rs-btn-secondary-bg: var(--rs-surface-hover);
+  --rs-btn-secondary-bg-hover: color-mix(in srgb, var(--rs-primary) 16%, var(--rs-surface-hover));
+  --rs-btn-secondary-bg-active: color-mix(in srgb, var(--rs-primary) 24%, var(--rs-surface-hover));
   --rs-text: #cccccc;
   --rs-muted: #9d9d9d;
   --rs-placeholder: #919191;
+  /* 文字语义 alias（Ant / Arco 四级 + link；底层仍可用 --rs-text / --rs-muted） */
+  --rs-text-primary: var(--rs-text);
+  --rs-text-secondary: var(--rs-muted);
+  --rs-text-tertiary: var(--rs-placeholder);
+  --rs-text-disabled: #6e6e6e;
+  --rs-text-inverse: #ffffff;
+  --rs-text-link: var(--rs-primary);
+  --rs-text-link-hover: var(--rs-primary-hover);
+  --rs-label-color: var(--rs-text);
   --rs-danger: #ff453a;
   --rs-danger-container: #3b1210;
   --rs-on-danger-container: #ff8a84;
@@ -180,22 +290,71 @@
   --rs-focus-ring: color-mix(in srgb, var(--rs-primary) 28%, transparent);
   --rs-focus-ring-width: 2px;
 
-  /* ── Dialog（VS Code editorWidget 分层 + macOS sheet 实底分隔）── */
-  /* WCAG AA: dialog-border 3.49:1 vs frame bg #181818 */
-  --rs-dialog-overlay-bg: rgb(0 0 0 / 0.5);
-  --rs-dialog-overlay-blur: 12px;
-  --rs-dialog-border: #6e6e6e;
-  --rs-dialog-separator: #484848;
+  /* ── Dialog（浮层语义；默认 alias 全局 surface，业务可单独覆盖）── */
+  /* 遮罩默认最浅：可看清背后内容；可用 --rs-dialog-overlay-* 或 overlayOpacity/Blur 加深 */
+  --rs-dialog-overlay-bg: rgb(0 0 0 / 0.24);
+  --rs-dialog-overlay-blur: 0px;
+  --rs-dialog-border: color-mix(in srgb, var(--rs-border) 72%, transparent);
+  --rs-dialog-separator: var(--rs-border-subtle);
   --rs-dialog-shadow:
-    0 0 0 0.5px rgb(255 255 255 / 0.08),
-    0 8px 32px rgb(0 0 0 / 0.55),
-    0 2px 8px rgb(0 0 0 / 0.35);
-  --rs-dialog-header-bg: #2b2b2b;
-  --rs-dialog-body-bg: #1f1f1f;
-  --rs-dialog-footer-bg: #262626;
+    0 0 0 0.5px color-mix(in srgb, var(--rs-border) 50%, transparent),
+    0 18px 48px rgb(0 0 0 / 0.48),
+    0 4px 14px rgb(0 0 0 / 0.28);
+  /* 默认同色面：header/body/footer 统一，仅靠 separator 分区 */
+  --rs-dialog-body-bg: var(--rs-surface);
+  --rs-dialog-header-bg: var(--rs-dialog-body-bg);
+  --rs-dialog-footer-bg: var(--rs-dialog-body-bg);
   --rs-dialog-bg: var(--rs-dialog-body-bg);
-  --rs-dialog-title-fg: #ffffff;
-  --rs-dialog-description-fg: #9d9d9d;
+  --rs-dialog-title-fg: var(--rs-text);
+  --rs-dialog-description-fg: var(--rs-muted);
+
+  /* ── Drawer（浮层语义；默认 alias 全局 surface，业务可单独覆盖）── */
+  --rs-drawer-border: var(--rs-border);
+  --rs-drawer-separator: var(--rs-border-subtle);
+  --rs-drawer-body-bg: var(--rs-surface-elevated);
+  --rs-drawer-header-bg: var(--rs-drawer-body-bg);
+  --rs-drawer-footer-bg: var(--rs-drawer-body-bg);
+  --rs-drawer-title-fg: var(--rs-text);
+  --rs-drawer-description-fg: var(--rs-muted);
+  --rs-drawer-overlay-bg: var(--rs-dialog-overlay-bg);
+  --rs-drawer-overlay-blur: var(--rs-dialog-overlay-blur);
+
+  /* ── Tag / DynamicTags（可被业务覆盖）── */
+  --rs-tag-font-weight: var(--rs-font-weight-medium);
+  --rs-tag-border-alpha: 40%;
+  --rs-dynamic-tags-bg: var(--rs-input-bg);
+  --rs-dynamic-tags-border: var(--rs-input-border);
+  --rs-dynamic-tags-border-hover: var(--rs-input-border-hover);
+  --rs-dynamic-tags-shadow: var(--rs-input-shadow);
+  --rs-dynamic-tags-radius: var(--rs-radius);
+  --rs-dynamic-tags-gap: var(--rs-space-xs);
+  --rs-dynamic-tags-padding: var(--rs-space-xs);
+  --rs-dynamic-tags-trigger-border: var(--rs-border);
+
+  /* ── Menu（侧栏 / 导航；业务可在父级覆盖，无需 :deep）── */
+  --rs-menu-item-fg: var(--rs-muted);
+  --rs-menu-item-fg-hover: var(--rs-text);
+  --rs-menu-item-bg-hover: var(--rs-surface-hover);
+  --rs-menu-item-active-fg: var(--rs-primary);
+  --rs-menu-item-active-bg: color-mix(in srgb, var(--rs-primary) 12%, transparent);
+  --rs-menu-item-active-parent-fg: var(--rs-primary);
+  --rs-menu-item-active-parent-bg: transparent;
+
+  /* ── Alert（反馈条；正文色可按主题单独调）── */
+  --rs-alert-radius: var(--rs-radius);
+  --rs-alert-gap: var(--rs-space-sm);
+  --rs-alert-padding-y: var(--rs-space-md);
+  --rs-alert-padding-x: var(--rs-space-lg);
+  --rs-alert-border-alpha: 35%;
+  --rs-alert-content-fg: var(--rs-muted);
+
+  /* ── Descriptions（描述列表栅格）── */
+  --rs-descriptions-radius: var(--rs-radius);
+  --rs-descriptions-border: var(--rs-border);
+  /* 标签列用实色表面混合，避免 surface-hover 被桥成透明 overlay 时失效 */
+  --rs-descriptions-label-bg: color-mix(in srgb, var(--rs-surface-hover) 72%, var(--rs-surface));
+  --rs-descriptions-label-fg: var(--rs-muted);
+  --rs-descriptions-value-fg: var(--rs-text);
 
   /* ── Card（macOS grouped panel / inset 分组卡片）── */
   --rs-card-border: #3a3a3a;
@@ -303,6 +462,18 @@
   --rs-table-resize-handle: #8c8c8c;
   --rs-table-resize-handle-hover: var(--rs-primary);
 
+  /* ── Tree（导航线 / 行选中 / 焦点；业务可覆盖）── */
+  --rs-tree-line: color-mix(in srgb, var(--rs-text) 10%, transparent);
+  --rs-tree-line-width: 1px;
+  --rs-tree-row-hover: var(--rs-item-hover);
+  --rs-tree-selected-bg: color-mix(in srgb, var(--rs-primary) 8%, var(--rs-surface));
+  --rs-tree-selected-fg: var(--rs-text);
+  --rs-tree-focused-bg: color-mix(in srgb, var(--rs-primary) 5%, var(--rs-surface));
+  --rs-tree-focused-ring: color-mix(in srgb, var(--rs-primary) 22%, transparent);
+  --rs-tree-selected-focused-bg: color-mix(in srgb, var(--rs-primary) 10%, var(--rs-surface));
+  --rs-tree-selected-focused-ring: color-mix(in srgb, var(--rs-primary) 28%, transparent);
+  --rs-tree-drop-indicator: var(--rs-primary);
+
   /* macOS separator 风格：默认边框偏柔，focus 环承担可访问性反馈 */
   --rs-input-bg: #ffffff;
   --rs-input-border: rgb(60 60 67 / 0.18);
@@ -310,9 +481,26 @@
   --rs-input-shadow: none;
   --rs-border: rgb(60 60 67 / 0.16);
   --rs-border-subtle: rgb(60 60 67 / 0.10);
+  /*
+   * Button secondary/default：亮色分隔线偏淡，轮廓单独提高对比（≥3:1 vs 白底）。
+   * 业务覆盖 --rs-btn-* 即可，无需改组件。
+   */
+  --rs-btn-outline-border: #6e6e73;
+  --rs-btn-secondary-bg: var(--rs-surface-hover);
+  --rs-btn-secondary-bg-hover: color-mix(in srgb, var(--rs-primary) 12%, var(--rs-surface-hover));
+  --rs-btn-secondary-bg-active: color-mix(in srgb, var(--rs-primary) 18%, var(--rs-surface-hover));
   --rs-text: #1d1d1f;
   --rs-muted: #6e6e73;
   --rs-placeholder: #909090;
+  /* 文字语义 alias（Ant / Arco 四级 + link；底层仍可用 --rs-text / --rs-muted） */
+  --rs-text-primary: var(--rs-text);
+  --rs-text-secondary: var(--rs-muted);
+  --rs-text-tertiary: var(--rs-placeholder);
+  --rs-text-disabled: #aeaeb2;
+  --rs-text-inverse: #ffffff;
+  --rs-text-link: var(--rs-primary);
+  --rs-text-link-hover: var(--rs-primary-hover);
+  --rs-label-color: var(--rs-text);
   --rs-danger: #ff3b30;
   --rs-danger-container: #ffe5e3;
   --rs-on-danger-container: #c41e16;
@@ -329,21 +517,70 @@
   --rs-focus-ring: color-mix(in srgb, var(--rs-primary) 22%, transparent);
   --rs-focus-ring-width: 2px;
 
-  /* ── Dialog（VS Code Light Modern widget + macOS 浅色 sheet）── */
-  --rs-dialog-overlay-bg: rgb(0 0 0 / 0.28);
-  --rs-dialog-overlay-blur: 8px;
-  --rs-dialog-border: #c8c8ca;
-  --rs-dialog-separator: #d4d4d6;
+  /* ── Dialog（浮层语义；默认 alias 全局 surface，业务可单独覆盖）── */
+  /* 遮罩默认最浅：可看清背后内容；可用 --rs-dialog-overlay-* 或 overlayOpacity/Blur 加深 */
+  --rs-dialog-overlay-bg: rgb(0 0 0 / 0.08);
+  --rs-dialog-overlay-blur: 0px;
+  --rs-dialog-border: color-mix(in srgb, var(--rs-border) 88%, transparent);
+  --rs-dialog-separator: var(--rs-border-subtle);
   --rs-dialog-shadow:
-    0 0 0 0.5px rgb(0 0 0 / 0.06),
-    0 8px 28px rgb(0 0 0 / 0.18),
-    0 2px 8px rgb(0 0 0 / 0.08);
-  --rs-dialog-header-bg: #f8f8f8;
-  --rs-dialog-body-bg: #ffffff;
-  --rs-dialog-footer-bg: #f8f8f8;
-  --rs-dialog-bg: #ffffff;
+    0 0 0 0.5px color-mix(in srgb, var(--rs-border) 70%, transparent),
+    0 16px 40px rgb(0 0 0 / 0.14),
+    0 4px 12px rgb(0 0 0 / 0.06);
+  --rs-dialog-body-bg: var(--rs-surface);
+  --rs-dialog-header-bg: var(--rs-dialog-body-bg);
+  --rs-dialog-footer-bg: var(--rs-dialog-body-bg);
+  --rs-dialog-bg: var(--rs-dialog-body-bg);
   --rs-dialog-title-fg: var(--rs-text);
   --rs-dialog-description-fg: var(--rs-muted);
+
+  /* ── Drawer（浮层语义；默认 alias 全局 surface，业务可单独覆盖）── */
+  --rs-drawer-border: var(--rs-border);
+  --rs-drawer-separator: var(--rs-border-subtle);
+  --rs-drawer-body-bg: var(--rs-surface-elevated);
+  --rs-drawer-header-bg: var(--rs-drawer-body-bg);
+  --rs-drawer-footer-bg: var(--rs-drawer-body-bg);
+  --rs-drawer-title-fg: var(--rs-text);
+  --rs-drawer-description-fg: var(--rs-muted);
+  --rs-drawer-overlay-bg: var(--rs-dialog-overlay-bg);
+  --rs-drawer-overlay-blur: var(--rs-dialog-overlay-blur);
+
+  /* ── Tag / DynamicTags（可被业务覆盖）── */
+  --rs-tag-font-weight: var(--rs-font-weight-medium);
+  --rs-tag-border-alpha: 40%;
+  --rs-dynamic-tags-bg: var(--rs-input-bg);
+  --rs-dynamic-tags-border: var(--rs-input-border);
+  --rs-dynamic-tags-border-hover: var(--rs-input-border-hover);
+  --rs-dynamic-tags-shadow: var(--rs-input-shadow);
+  --rs-dynamic-tags-radius: var(--rs-radius);
+  --rs-dynamic-tags-gap: var(--rs-space-xs);
+  --rs-dynamic-tags-padding: var(--rs-space-xs);
+  --rs-dynamic-tags-trigger-border: var(--rs-border);
+
+  /* ── Menu（侧栏 / 导航；业务可在父级覆盖，无需 :deep）── */
+  --rs-menu-item-fg: var(--rs-muted);
+  --rs-menu-item-fg-hover: var(--rs-text);
+  --rs-menu-item-bg-hover: var(--rs-surface-hover);
+  --rs-menu-item-active-fg: var(--rs-primary);
+  --rs-menu-item-active-bg: color-mix(in srgb, var(--rs-primary) 12%, transparent);
+  --rs-menu-item-active-parent-fg: var(--rs-primary);
+  --rs-menu-item-active-parent-bg: transparent;
+
+  /* ── Alert（反馈条；正文色可按主题单独调）── */
+  --rs-alert-radius: var(--rs-radius);
+  --rs-alert-gap: var(--rs-space-sm);
+  --rs-alert-padding-y: var(--rs-space-md);
+  --rs-alert-padding-x: var(--rs-space-lg);
+  --rs-alert-border-alpha: 35%;
+  --rs-alert-content-fg: var(--rs-muted);
+
+  /* ── Descriptions（描述列表栅格）── */
+  --rs-descriptions-radius: var(--rs-radius);
+  --rs-descriptions-border: var(--rs-border);
+  /* 标签列用实色表面混合，避免 surface-hover 被桥成透明 overlay 时失效 */
+  --rs-descriptions-label-bg: color-mix(in srgb, var(--rs-surface-hover) 72%, var(--rs-surface));
+  --rs-descriptions-label-fg: var(--rs-muted);
+  --rs-descriptions-value-fg: var(--rs-text);
 
   /* ── Card（macOS systemGroupedBackground 上的圆角分组卡片）── */
   --rs-card-border: rgb(60 60 67 / 0.14);
@@ -460,38 +697,29 @@
 
 body {
   margin: 0;
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    'SF Pro Text',
-    'SF Pro Display',
-    system-ui,
-    'Segoe UI',
-    Roboto,
-    'Helvetica Neue',
-    'PingFang SC',
-    'Microsoft YaHei',
-    sans-serif;
+  font-family: var(--rs-font-sans);
   font-size: var(--rs-font-size-base);
+  font-weight: var(--rs-font-weight-regular);
   line-height: var(--rs-line-height-normal);
   background: var(--rs-bg);
-  color: var(--rs-text);
+  color: var(--rs-text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 a {
-  color: var(--rs-primary);
+  color: var(--rs-text-link);
   text-decoration: none;
   transition: color var(--rs-transition-fast);
 }
 
 a:hover {
-  color: var(--rs-primary-hover);
+  color: var(--rs-text-link-hover);
 }
 
 code {
   color: var(--rs-on-primary-container);
+  font-family: var(--rs-font-mono);
   font-size: 0.9em;
 }
 
@@ -545,6 +773,12 @@ code {
 }
 
 [data-reka-popper-content-wrapper]:has(> .rs-date-picker__content) {
+  z-index: calc(var(--rs-z-modal) + 2);
+}
+
+/* ContextMenu：Dialog 内表格右键菜单 Portal 后须高于 modal */
+[data-reka-popper-content-wrapper]:has(> .rs-context-menu__content),
+[data-reka-popper-content-wrapper]:has(> .rs-context-menu__sub-content) {
   z-index: calc(var(--rs-z-modal) + 2);
 }
 
@@ -735,7 +969,11 @@ code {
 
 .rs-field--label-left {
   display: grid;
-  grid-template-columns: var(--rs-field-label-width, max-content) minmax(0, 1fr);
+  /*
+   * 左侧标签：配置宽为下限，内容更长时按 max-content 撑开，避免中文标签换行。
+   * 未设置 --rs-field-label-width 时退回 max-content。
+   */
+  grid-template-columns: minmax(var(--rs-field-label-width, max-content), max-content) minmax(0, 1fr);
   align-items: start;
   column-gap: var(--rs-space-md);
 }
@@ -746,9 +984,16 @@ code {
 }
 
 .rs-field__label {
-  color: var(--rs-muted);
-  font-size: var(--rs-font-size-xs);
-  font-weight: 600;
+  color: var(--rs-label-color);
+  font-size: var(--rs-label-font-size);
+  font-weight: var(--rs-label-font-weight);
+  line-height: var(--rs-label-line-height);
+}
+
+/* 左侧标签默认单行（与常见表单库一致）；垂直布局不受影响 */
+.rs-field--label-left > .rs-field__label,
+.rs-field--label-left > .rs-label {
+  white-space: nowrap;
 }
 
 .rs-field__required {
@@ -806,7 +1051,7 @@ code {
 
 .rs-toast {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--rs-space-sm);
   position: relative;
   min-width: 18rem;
@@ -819,10 +1064,18 @@ code {
   box-shadow: var(--rs-shadow-lg);
 }
 
+.rs-toast:has([data-description]) {
+  align-items: flex-start;
+}
+
 .rs-toast [data-icon] {
   display: flex;
   flex-shrink: 0;
   align-items: center;
+  margin: 0;
+}
+
+.rs-toast:has([data-description]) [data-icon] {
   margin-top: 0.125rem;
 }
 
@@ -896,7 +1149,7 @@ code {
 .lucide-api-icon .api-icon__label {
   fill: currentColor;
   stroke: none;
-  font-family: ui-rounded, 'SF Pro Rounded', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--rs-font-rounded);
   font-size: 9.5px;
   font-weight: 800;
   letter-spacing: -0.04em;
@@ -914,7 +1167,7 @@ code {
 .lucide-ftp-icon .ftp-icon__label {
   fill: var(--rs-icon-ftp-on-accent);
   stroke: none;
-  font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  font-family: var(--rs-font-mono);
   font-size: 6.2px;
   font-weight: 900;
   letter-spacing: -0.08em;

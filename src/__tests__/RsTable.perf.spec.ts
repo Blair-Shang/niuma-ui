@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import RsTable from '../components/RsTable.vue'
+import { assertWithinBudget, RS_TABLE_PERF_BUDGETS } from './perf-budgets'
 
 function makeRows(count: number) {
   return Array.from({ length: count }, (_, i) => ({
@@ -50,8 +51,7 @@ describe('RsTable performance baselines', () => {
     })
     const elapsed = performance.now() - started
     expect(wrapper.find('.rs-table').exists()).toBe(true)
-    // jsdom 下偏松：主要防止回归爆炸（本机通常远低于此）
-    expect(elapsed).toBeLessThan(8000)
+    assertWithinBudget(elapsed, RS_TABLE_PERF_BUDGETS.mountReadonly3k, 'mountReadonly3k')
     wrapper.unmount()
   })
 
@@ -76,10 +76,29 @@ describe('RsTable performance baselines', () => {
       },
     })
     const editableElapsed = performance.now() - editableStart
-    // 编辑关闭时不挂编辑器，成本应接近只读（允许一定抖动）
-    expect(editableElapsed).toBeLessThan(readonlyElapsed * 3 + 2000)
+    const limit =
+      readonlyElapsed * RS_TABLE_PERF_BUDGETS.editableVsReadonlyRatio +
+      RS_TABLE_PERF_BUDGETS.editableVsReadonlySlackMs
+    assertWithinBudget(editableElapsed, limit, 'editableVsReadonly')
     expect(editableWrapper.find('.rs-table-cell-editor').exists()).toBe(false)
     editableWrapper.unmount()
+  })
+
+  it('dual tables mount within budget (isolation + ViewContext)', () => {
+    const data = makeRows(1500)
+    const started = performance.now()
+    const a = mount(RsTable, {
+      props: { columns, data, rowKey: 'id', virtual: true, height: 320, ariaLabel: 'A' },
+    })
+    const b = mount(RsTable, {
+      props: { columns, data, rowKey: 'id', virtual: true, height: 320, ariaLabel: 'B' },
+    })
+    const elapsed = performance.now() - started
+    expect(a.find('.rs-table-shell').attributes('aria-label')).toBe('A')
+    expect(b.find('.rs-table-shell').attributes('aria-label')).toBe('B')
+    assertWithinBudget(elapsed, RS_TABLE_PERF_BUDGETS.mountDual1k5, 'mountDual1k5')
+    a.unmount()
+    b.unmount()
   })
 
   it('opening one editor keeps editor count at 1', async () => {

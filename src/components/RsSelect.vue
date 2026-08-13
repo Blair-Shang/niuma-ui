@@ -8,22 +8,23 @@ import { RS_COMPONENT_SIZE_ICON_PX } from '../theme/types'
 
 import RsIcon from './RsIcon.vue'
 import { useRsFormContext, useRsFormField } from './form-utils'
+import {
+  buildLocalInputRules,
+  runFormFieldRules,
+  type RsFormRuleTrigger,
+} from './form-rules'
 import { useResolvedRsComponentSize } from './resolve-size'
 import { rsRadiusCss, useResolvedRsRadius } from './resolve-radius'
 
 import {
-
   buildOptionDisabledMap,
-
   buildOptionLabelMap,
-
   filterSelectOptions,
-
   flattenSelectOptions,
-
   flattenSelectValues,
-
+  fromComboboxValue,
   isSelectOptionGroup,
+  toComboboxValue,
   type RsSelectOptions,
 } from './select-utils'
 
@@ -92,6 +93,8 @@ const props = withDefaults(
 
     multiple?: boolean
     required?: boolean
+    /** 字段名：匹配 RsForm.rules[name] */
+    name?: string
 
     /** 显示清空按钮 */
 
@@ -220,16 +223,11 @@ const flatOptions = computed(() => flattenSelectOptions(props.options))
 
 const flatCount = computed(() => flatOptions.value.length)
 
-
-
 const useVirtual = computed(
-
   () => props.virtual || flatCount.value > props.virtualThreshold,
-
 )
 
 const useManualFilter = computed(() => props.remote || useVirtual.value)
-
 
 const displayOptions = computed(() => {
   if (props.remote) return props.options
@@ -259,27 +257,17 @@ const virtualValues = computed(() => {
   return [createValue.value, ...values.filter((v) => String(v) !== createValue.value)]
 })
 
-
-
 const selectedValues = computed<string[]>(() => {
-
   if (props.multiple) {
-
     const value = model.value
-
     if (Array.isArray(value)) return value.map(String)
-
     return value ? [String(value)] : []
-
   }
 
   const value = model.value
-
+  // '' 表示未选中
   return value !== '' && value !== undefined && value !== null ? [String(value)] : []
-
 })
-
-
 
 const hasValue = computed(() => selectedValues.value.length > 0)
 const resolvedDisabled = computed(() => props.disabled || formContext?.disabled.value || false)
@@ -290,42 +278,30 @@ const rootStyle = computed(() => ({
   '--rs-select-radius': rsRadiusCss(resolvedRadius.value),
 }))
 
-
-
 const singleDisplayLabel = computed(() => {
-
   if (props.multiple || !hasValue.value) return ''
-
   return labelMap.value.get(selectedValues.value[0]!) ?? selectedValues.value[0]!
-
 })
 
-
-
 const comboboxModel = computed<string | string[] | undefined>({
-
   get() {
-
-    if (props.multiple) return selectedValues.value
-
-    return hasValue.value ? selectedValues.value[0] : undefined
-
+    if (props.multiple) return selectedValues.value.map(toComboboxValue)
+    return hasValue.value ? toComboboxValue(selectedValues.value[0]!) : undefined
   },
-
   set(value) {
-
     if (props.multiple) {
-
-      model.value = Array.isArray(value) ? value.map(String) : []
-
-    } else {
-
-      model.value = value == null || value === '' ? '' : String(value)
-
+      model.value = Array.isArray(value)
+        ? value.map((item) => fromComboboxValue(String(item)))
+        : []
+      return
     }
-
+    // Reka 清空 / 空串哨兵 → 对外 ''
+    if (value == null || value === '') {
+      model.value = ''
+      return
+    }
+    model.value = fromComboboxValue(String(value))
   },
-
 })
 
 
@@ -367,13 +343,9 @@ function onSearchKeydown(event: KeyboardEvent): void {
 
 
 function onClear(event: MouseEvent) {
-
   event.preventDefault()
-
   event.stopPropagation()
-
   model.value = props.multiple ? [] : ''
-
 }
 
 
@@ -404,20 +376,43 @@ function setValue(value: unknown): void {
   model.value = value == null ? '' : String(value)
 }
 
+const autoMessage = ref('')
+
 function clearValidation(): void {
   searchQuery.value = ''
+  autoMessage.value = ''
+}
+
+async function runValidate(trigger: RsFormRuleTrigger = 'submit') {
+  const formRules = formContext?.getFieldRules(props.name) ?? []
+  const localRules = buildLocalInputRules({ required: props.required })
+  const rules = [...formRules, ...localRules]
+  if (!rules.length) {
+    autoMessage.value = ''
+    return { valid: true as const, name: props.name }
+  }
+  const result = await runFormFieldRules(model.value, rules, { trigger })
+  autoMessage.value = result.message ?? ''
+  return { valid: result.valid, message: result.message, name: props.name }
 }
 
 useRsFormField(() => ({
+  get name() {
+    return props.name
+  },
   getValue: () => model.value,
   setValue,
-  validate: () => ({ valid: props.multiple ? selectedValues.value.length > 0 || !props.required : Boolean(model.value) || !props.required }),
+  validate: (trigger) => runValidate(trigger ?? 'submit'),
   clearValidation,
+  setError: (message: string) => {
+    autoMessage.value = message
+  },
 }))
 
 defineExpose({
   setValue,
   clearValidation,
+  validate: runValidate,
 })
 
 </script>
@@ -613,7 +608,7 @@ defineExpose({
                 {{
                   canCreate && String(option) === createValue
                     ? createOptionLabel
-                    : (labelMap.get(String(option)) ?? option)
+                    : (labelMap.get(String(option)) ?? fromComboboxValue(String(option)))
                 }}
               </span>
               <ComboboxItemIndicator class="rs-select__item-check">
@@ -651,8 +646,8 @@ defineExpose({
 
                 <ComboboxItem
                   v-for="opt in entry.options"
-                  :key="opt.value"
-                  :value="opt.value"
+                  :key="toComboboxValue(opt.value)"
+                  :value="toComboboxValue(opt.value)"
                   :disabled="opt.disabled"
                   :text-value="opt.label"
                   class="rs-select__item"
@@ -669,8 +664,8 @@ defineExpose({
 
               <ComboboxItem
                 v-else
-                :key="entry.value"
-                :value="entry.value"
+                :key="toComboboxValue(entry.value)"
+                :value="toComboboxValue(entry.value)"
                 :disabled="entry.disabled"
                 :text-value="entry.label"
                 class="rs-select__item"
@@ -705,7 +700,11 @@ defineExpose({
 
   width: 100%;
 
-  max-width: 20rem;
+  max-width: 100%;
+
+  vertical-align: middle;
+
+  box-sizing: border-box;
 
 }
 
@@ -719,7 +718,11 @@ defineExpose({
 
   gap: var(--rs-space-sm);
 
+  box-sizing: border-box;
+
   width: 100%;
+
+  height: var(--rs-control-height-md);
 
   min-height: var(--rs-control-height-md);
 
@@ -735,7 +738,7 @@ defineExpose({
 
   font-size: var(--rs-font-size-sm);
 
-  line-height: var(--rs-line-height-normal);
+  line-height: var(--rs-line-height-tight);
 
   text-align: left;
 
@@ -769,7 +772,10 @@ defineExpose({
   display: flex;
   flex-direction: column;
   width: 100%;
+  max-width: none;
   min-width: 0;
+  align-self: stretch;
+  box-sizing: border-box;
 }
 
 .rs-select--block .rs-select__anchor,
@@ -778,6 +784,7 @@ defineExpose({
 }
 
 .rs-select--ssm .rs-select__trigger {
+  height: var(--rs-control-height-ssm);
   min-height: var(--rs-control-height-ssm);
   padding: 0 var(--rs-space-xs);
   font-size: var(--rs-font-size-xs);
@@ -788,6 +795,7 @@ defineExpose({
 }
 
 .rs-select--sm .rs-select__trigger {
+  height: var(--rs-control-height-sm);
   min-height: var(--rs-control-height-sm);
   padding: 0 var(--rs-space-sm);
   font-size: var(--rs-font-size-xs);
@@ -798,6 +806,7 @@ defineExpose({
 }
 
 .rs-select--lg .rs-select__trigger {
+  height: var(--rs-control-height-lg);
   min-height: var(--rs-control-height-lg);
   padding: 0 var(--rs-space-lg);
   font-size: var(--rs-font-size-base);

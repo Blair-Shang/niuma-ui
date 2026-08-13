@@ -33,7 +33,7 @@ export interface RsTableUndoEntry {
 
 export function useTableEdit(options: {
   enabled: () => boolean
-  undoLimit?: () => number
+  undoLimit?: () => number | undefined
 }): {
   editingCell: Ref<RsTableEditingCell | null>
   editingDraft: Ref<string>

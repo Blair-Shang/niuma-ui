@@ -63,9 +63,21 @@ function onSelect(value: AcceptableValue) {
 <template>
   <DropdownMenuRoot
     class="rs-dropdown"
-    :class="{ 'rs-dropdown--action': !showSelected }"
+    :class="{ 'rs-dropdown--action': !showSelected || Boolean($slots.trigger) }"
   >
-    <DropdownMenuTrigger class="rs-dropdown__trigger" :disabled="disabled">
+    <DropdownMenuTrigger
+      v-if="$slots.trigger"
+      class="rs-dropdown__trigger-slot"
+      :disabled="disabled"
+      as-child
+    >
+      <slot name="trigger" />
+    </DropdownMenuTrigger>
+    <DropdownMenuTrigger
+      v-else
+      class="rs-dropdown__trigger"
+      :disabled="disabled"
+    >
       <span class="rs-dropdown__value">
         <span
           class="rs-dropdown__label"
@@ -100,6 +112,25 @@ function onSelect(value: AcceptableValue) {
 
 .rs-dropdown--action {
   min-width: auto;
+}
+
+/* 自定义 #trigger：不套默认输入框铬边，由业务控制外观 */
+.rs-dropdown__trigger-slot {
+  display: inline-flex;
+  max-width: 100%;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
+.rs-dropdown__trigger-slot[data-disabled] {
+  opacity: 0.38;
+  cursor: not-allowed;
 }
 
 .rs-dropdown__trigger {
