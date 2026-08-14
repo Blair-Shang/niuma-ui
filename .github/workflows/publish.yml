@@ -5,9 +5,18 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Git tag to release (e.g. v1.1.1). Required when not pushing a tag.
+        required: false
+        type: string
+      skip_npm:
+        description: Skip npm publish; only create or update the GitHub Release notes
+        type: boolean
+        default: false
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 concurrency:
@@ -18,8 +27,26 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve tag
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            REF="${{ github.event.inputs.tag }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            REF="${{ github.ref_name }}"
+          else
+            echo "Specify a tag (workflow_dispatch input) or push a v* tag." >&2
+            exit 1
+          fi
+          echo "tag=${REF}" >> "$GITHUB_OUTPUT"
+          echo "version=${REF#v}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.meta.outputs.tag }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -38,10 +65,9 @@ jobs:
         run: pnpm test
 
       - name: Verify tag matches package.json version
-        if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
+          TAG="${{ steps.meta.outputs.version }}"
           PKG="$(node -p "require('./package.json').version")"
           if [ "$TAG" != "$PKG" ]; then
             echo "Tag version ($TAG) != package.json version ($PKG)"
@@ -49,8 +75,19 @@ jobs:
           fi
 
       - name: Publish to npm
+        if: github.event.inputs.skip_npm != 'true'
         # Requires Granular Access Token with publish + "Bypass two-factor authentication".
         # Do NOT use a one-time OTP secret: codes expire in ~30s and break automated releases.
         run: pnpm publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Extract changelog notes
+        run: node .github/scripts/changelog-notes.mjs "${{ steps.meta.outputs.version }}" release-notes.md
+
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: niuma-ui ${{ steps.meta.outputs.version }}
+          body_path: release-notes.md

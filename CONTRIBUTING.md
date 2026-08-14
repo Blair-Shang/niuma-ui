@@ -43,10 +43,20 @@ pnpm test:watch
 
 ## 发版
 
-1. 更新 `package.json` 的 `version` 与 [CHANGELOG.md](./CHANGELOG.md)。
-2. 合并到 `main` 后推送 tag：`git tag vX.Y.Z && git push origin vX.Y.Z`。
-3. GitHub Actions **Publish** 工作流会跑测试并用 `NPM_TOKEN` 执行 `pnpm publish`。
-4. 也可在 Actions 页面手动 **Run workflow**（适合补发已存在版本，例如首次配置 token 后发布 `1.0.0`）。
+1. 把变更写进 [CHANGELOG.md](./CHANGELOG.md) 的 `[Unreleased]`，再把它改成 `## [X.Y.Z] - YYYY-MM-DD`。
+2. 更新 `package.json` 的 `version`。
+3. 合并到 `main` 后打 **附注 tag**（说明会出现在 `git show vX.Y.Z`）：
+
+   ```bash
+   git tag -a vX.Y.Z -m "niuma-ui X.Y.Z
+
+   从 CHANGELOG 复制本版本的修复/新增要点。"
+   git push origin main
+   git push origin vX.Y.Z
+   ```
+
+4. GitHub Actions **Publish** 会：跑测试、`pnpm publish`，并从 CHANGELOG 该版本段落生成 **GitHub Release** 说明（npm 页面与 Releases 都能看到）。
+5. 已推过的 tag 若漏了 Release 说明：Actions → Publish → **Run workflow**，填写 `tag`（如 `v1.1.1`），勾选 `skip_npm`。
 
 仓库需配置 Secret：`NPM_TOKEN`。
 
