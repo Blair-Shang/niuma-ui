@@ -22,7 +22,7 @@ pnpm test:visual:update
 
 ## CI
 
-GitHub Actions job `visual`：`pnpm test:visual`（`CI=true`）。  
+GitHub Actions job `visual`：先 `pnpm build:playground`，再 `pnpm test:visual`（`CI=true` 时 Playwright 起 `vite preview`，避免 CI 冷启动 `pnpm dev` 超时）。
 失败产物：`test-results/`、`playwright-report/`（workflow 上传）。
 
 ## 约定

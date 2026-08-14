@@ -5,8 +5,9 @@ const baseURL = `http://127.0.0.1:${PORT}`
 
 /**
  * RsTable 等组件像素回归。
- * - 本地：pnpm test:visual
+ * - 本地：pnpm test:visual（自动 pnpm dev :5180）
  * - 更新基线：pnpm test:visual:update
+ * - CI：先 build:playground，再 preview（避免 dev 冷启动超过 webServer timeout）
  */
 export default defineConfig({
   testDir: './e2e',
@@ -40,9 +41,13 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm dev',
+    command: process.env.CI
+      ? 'pnpm preview:playground'
+      : 'pnpm dev',
     url: baseURL,
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 180_000,
+    stdout: 'pipe',
+    stderr: 'pipe',
   },
 })
