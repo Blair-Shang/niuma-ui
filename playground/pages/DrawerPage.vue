@@ -80,6 +80,14 @@ const api: DemoApiRow[] = [
   { name: 'width', type: 'number | string', description: '左右抽屉自定义宽度（px / CSS）' },
   { name: 'height', type: 'number | string', description: '上下抽屉自定义高度' },
   {
+    name: 'resizable',
+    type: 'boolean',
+    default: 'true',
+    description: '内边缘拖拽改宽/高；size=full 时无效',
+  },
+  { name: 'minSize / maxSize', type: 'number | string', description: '可拖下限 / 上限，默认 256px 与视口 90%' },
+  { name: 'resize / update:width / update:height', type: '(px: number) => void', description: '拖拽尺寸变化' },
+  {
     name: 'modal',
     type: 'boolean',
     default: '跟随 showOverlay',

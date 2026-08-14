@@ -29,6 +29,11 @@ const SIZE_INLINE: Record<Exclude<RsDrawerSize, 'full'>, string> = {
   lg: '36rem',
 }
 
+/** 左右抽屉默认可拖最小宽度 */
+export const RS_DRAWER_MIN_SIZE_PX = 256
+/** 相对视口的默认可拖上限比例 */
+export const RS_DRAWER_MAX_VIEWPORT_RATIO = 0.9
+
 /** 将 size 预设解析为 CSS 长度（full 由样式类处理） */
 export function resolveRsDrawerSizeCss(size: RsDrawerSize): string | undefined {
   if (size === 'full') return undefined
@@ -44,6 +49,37 @@ export function resolveRsDrawerDimensionCss(value: RsDrawerDimension | undefined
   }
   const trimmed = String(value).trim()
   return trimmed || undefined
+}
+
+/**
+ * 将抽屉尺寸表达式解析为像素，供拖拽缩放夹紧。
+ * 无法解析时返回 fallbackPx。
+ */
+export function resolveRsDrawerSizePx(
+  value: RsDrawerDimension | undefined,
+  fallbackPx: number,
+  rootFontPx: number,
+  viewportPx: number,
+): number {
+  if (value == null) return fallbackPx
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value > 0 ? value : fallbackPx
+  }
+  const trimmed = String(value).trim()
+  const n = Number.parseFloat(trimmed)
+  if (!Number.isFinite(n)) return fallbackPx
+  if (trimmed.endsWith('rem')) return n * rootFontPx
+  if (trimmed.endsWith('%') || trimmed.endsWith('vw') || trimmed.endsWith('vh')) {
+    return (n / 100) * viewportPx
+  }
+  return n
+}
+
+/** 将拖拽得到的尺寸夹在 min/max 之间并取整。 */
+export function clampRsDrawerSize(px: number, minPx: number, maxPx: number): number {
+  const lo = Math.min(minPx, maxPx)
+  const hi = Math.max(minPx, maxPx)
+  return Math.round(Math.min(hi, Math.max(lo, px)))
 }
 
 export function runRsDrawerBeforeClose(

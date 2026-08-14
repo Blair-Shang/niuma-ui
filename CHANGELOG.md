@@ -6,6 +6,16 @@
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-08-14
+
+### 新增
+
+- **RsDrawer 内边缘拖拽缩放**：默认 `resizable`（`size=full` 除外）。左右改宽、上下改高，可配 `minSize` / `maxSize`，支持键盘方向键。
+
+### 修复
+
+- **RsDrawer 贴边定位**：覆盖 Reka DialogContent 默认居中，避免抽屉被压成标题条。
+
 ## [1.1.2] - 2026-08-14
 
 ### 修复
@@ -112,7 +122,9 @@
 
 - 1.0 之前的私有 tag（如 `v0.1.0`）仅作历史记录；新接入请依赖 `v1.0.0` 及之后版本。
 
-[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.3...HEAD
+[1.1.3]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.3
+[1.1.2]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.2
 [1.1.1]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.1
 [1.1.0]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.0
 [1.0.2]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.0.2

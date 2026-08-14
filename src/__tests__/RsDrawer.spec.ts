@@ -235,4 +235,52 @@ describe('RsDrawer', () => {
     expect(closeBtn.querySelector('.rs-btn__tooltip')?.textContent).toContain('Close')
     wrapper.unmount()
   })
+
+  it('renders an inner-edge resize handle by default', async () => {
+    const wrapper = mount(RsDrawer, {
+      props: { open: true, title: '帮助' },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const handle = document.body.querySelector('.rs-drawer__resize') as HTMLElement | null
+    expect(handle).toBeTruthy()
+    expect(handle?.getAttribute('aria-orientation')).toBe('vertical')
+    wrapper.unmount()
+  })
+
+  it('hides the resize handle when size is full or resizable is false', async () => {
+    const full = mount(RsDrawer, {
+      props: { open: true, title: '全屏', size: 'full' },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    expect(document.body.querySelector('.rs-drawer__resize')).toBeNull()
+    full.unmount()
+
+    const locked = mount(RsDrawer, {
+      props: { open: true, title: '固定', resizable: false },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    expect(document.body.querySelector('.rs-drawer__resize')).toBeNull()
+    locked.unmount()
+  })
+
+  it('widens a right drawer with ArrowLeft on the resize handle', async () => {
+    const wrapper = mount(RsDrawer, {
+      props: { open: true, title: '缩放', width: 360 },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const content = document.body.querySelector('.rs-drawer__content') as HTMLElement
+    Object.defineProperty(content, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ width: 360, height: 800, top: 0, left: 800, right: 1160, bottom: 800, x: 800, y: 0, toJSON: () => ({}) }),
+    })
+    const handle = document.body.querySelector('.rs-drawer__resize') as HTMLElement
+    await handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
+    await flushPromises()
+    expect(content.style.width).toBe('376px')
+    wrapper.unmount()
+  })
 })

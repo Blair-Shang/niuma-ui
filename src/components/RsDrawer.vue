@@ -14,6 +14,10 @@ import {
   resolveDrawerOverlayStyle,
   resolveRsDrawerDimensionCss,
   resolveRsDrawerSizeCss,
+  resolveRsDrawerSizePx,
+  clampRsDrawerSize,
+  RS_DRAWER_MIN_SIZE_PX,
+  RS_DRAWER_MAX_VIEWPORT_RATIO,
   runRsDrawerBeforeClose,
   type RsDrawerBeforeClose,
   type RsDrawerCloseReason,
@@ -38,6 +42,15 @@ const props = withDefaults(
     width?: RsDrawerDimension
     /** 上下抽屉自定义高度（覆盖 size） */
     height?: RsDrawerDimension
+    /**
+     * 内边缘拖拽改尺寸。full 始终不可拖。
+     * 控制台 / 帮助栏等侧栏场景建议保持开启。
+     */
+    resizable?: boolean
+    /** 可拖下限（px / CSS）；默认 256px */
+    minSize?: RsDrawerDimension
+    /** 可拖上限（px / CSS）；默认视口 90% */
+    maxSize?: RsDrawerDimension
     /**
      * 是否模态：锁焦点并拦截背后交互。
      * 未显式传入时跟随 showOverlay（有遮罩=模态，无遮罩=非模态）。
@@ -78,6 +91,7 @@ const props = withDefaults(
     showClose: true,
     closeOnOverlayClick: true,
     closeOnEsc: true,
+    resizable: true,
   },
 )
 
@@ -85,6 +99,10 @@ const emit = defineEmits<{
   openChange: [open: boolean]
   afterOpen: []
   afterClose: [reason: RsDrawerCloseReason]
+  /** 拖拽过程与结束都会抛出当前像素尺寸 */
+  resize: [size: number]
+  'update:width': [value: number]
+  'update:height': [value: number]
 }>()
 
 const { t } = useRsI18n()
@@ -102,8 +120,15 @@ const overlayStyle = computed(() =>
 )
 
 const isHorizontal = computed(() => props.side === 'left' || props.side === 'right')
+const enableResizable = computed(() => props.resizable && props.size !== 'full')
+
+/** 本次打开后拖拽得到的像素尺寸；关闭时清空，回到 size/width/height */
+const liveSizePx = ref<number | undefined>(undefined)
+const resizing = ref(false)
+const contentRef = ref<{ $el?: HTMLElement } | HTMLElement | null>(null)
 
 const panelSizeCss = computed(() => {
+  if (liveSizePx.value != null) return `${liveSizePx.value}px`
   if (isHorizontal.value) {
     return (
       resolveRsDrawerDimensionCss(props.width) ??
@@ -119,9 +144,50 @@ const panelSizeCss = computed(() => {
 })
 
 const contentStyle = computed(() => {
+  const style: Record<string, string> = {}
   const size = panelSizeCss.value
-  if (!size || props.size === 'full') return undefined
-  return { '--rs-drawer-panel-size': size } as Record<string, string>
+  if (size && props.size !== 'full') {
+    style['--rs-drawer-panel-size'] = size
+  }
+  if (liveSizePx.value != null && props.size !== 'full') {
+    if (isHorizontal.value) style.width = `${liveSizePx.value}px`
+    else style.height = `${liveSizePx.value}px`
+  }
+  // Reka DialogContent 默认居中；抽屉必须钉在对应边缘，否则只剩一条标题。
+  if (props.side === 'right') {
+    style.left = 'auto'
+    style.right = '0'
+    style.top = '0'
+    style.bottom = '0'
+    style.height = '100%'
+    style.maxHeight = 'none'
+    style.transform = 'none'
+  } else if (props.side === 'left') {
+    style.left = '0'
+    style.right = 'auto'
+    style.top = '0'
+    style.bottom = '0'
+    style.height = '100%'
+    style.maxHeight = 'none'
+    style.transform = 'none'
+  } else if (props.side === 'top') {
+    style.left = '0'
+    style.right = '0'
+    style.top = '0'
+    style.bottom = 'auto'
+    style.width = '100%'
+    style.maxWidth = 'none'
+    style.transform = 'none'
+  } else if (props.side === 'bottom') {
+    style.left = '0'
+    style.right = '0'
+    style.top = 'auto'
+    style.bottom = '0'
+    style.width = '100%'
+    style.maxWidth = 'none'
+    style.transform = 'none'
+  }
+  return Object.keys(style).length ? style : undefined
 })
 
 const contentClass = computed(() => [
@@ -130,6 +196,8 @@ const contentClass = computed(() => [
   {
     'rs-drawer__content--contained': contained.value,
     'rs-drawer__content--custom-size': Boolean(panelSizeCss.value) && props.size !== 'full',
+    'rs-drawer__content--resizable': enableResizable.value,
+    'rs-drawer__content--resizing': resizing.value,
   },
 ])
 
@@ -238,6 +306,8 @@ watch(open, (isOpen, wasOpen) => {
     return
   }
   if (!isOpen && wasOpen) {
+    liveSizePx.value = undefined
+    stopResize()
     releaseOutsideSuppress()
     clearAfterOpenTimer()
     emit('openChange', false)
@@ -246,6 +316,7 @@ watch(open, (isOpen, wasOpen) => {
 })
 
 onBeforeUnmount(() => {
+  stopResize()
   releaseOutsideSuppress()
   clearAfterOpenTimer()
 })
@@ -287,7 +358,8 @@ function onEscapeKeyDown(event: Event): void {
 function shouldBlockOutsideDismiss(): boolean {
   return (
     !props.closeOnOverlayClick ||
-    suppressOutsideUntilGestureEnd.value
+    suppressOutsideUntilGestureEnd.value ||
+    resizing.value
   )
 }
 
@@ -316,6 +388,136 @@ async function onHeaderCloseClick(): Promise<void> {
   await requestClose('close')
 }
 
+function resolveContentEl(): HTMLElement | null {
+  const inst = contentRef.value
+  if (!inst) return null
+  if (inst instanceof HTMLElement) return inst
+  const el = inst.$el
+  return el instanceof HTMLElement ? el : null
+}
+
+function rootFontPx(): number {
+  const raw = getComputedStyle(document.documentElement).fontSize
+  const n = Number.parseFloat(raw)
+  return Number.isFinite(n) && n > 0 ? n : 16
+}
+
+function viewportPx(): number {
+  return isHorizontal.value ? window.innerWidth : window.innerHeight
+}
+
+function sizeBounds(): { min: number; max: number } {
+  const vp = viewportPx()
+  const root = rootFontPx()
+  const min = resolveRsDrawerSizePx(props.minSize, RS_DRAWER_MIN_SIZE_PX, root, vp)
+  const max = resolveRsDrawerSizePx(
+    props.maxSize,
+    Math.round(vp * RS_DRAWER_MAX_VIEWPORT_RATIO),
+    root,
+    vp,
+  )
+  return { min, max }
+}
+
+function applyLiveSize(px: number): number {
+  const { min, max } = sizeBounds()
+  const next = clampRsDrawerSize(px, min, max)
+  const el = resolveContentEl()
+  if (el) {
+    el.style.setProperty('--rs-drawer-panel-size', `${next}px`)
+    if (isHorizontal.value) el.style.width = `${next}px`
+    else el.style.height = `${next}px`
+  }
+  return next
+}
+
+let resizePointerId: number | null = null
+let resizeStartClient = 0
+let resizeStartSize = 0
+
+function stopResize(): void {
+  if (resizePointerId != null) {
+    window.removeEventListener('pointermove', onResizePointerMove)
+    window.removeEventListener('pointerup', onResizePointerUp)
+    window.removeEventListener('pointercancel', onResizePointerUp)
+    resizePointerId = null
+  }
+  resizing.value = false
+  document.body.style.removeProperty('cursor')
+  document.body.style.removeProperty('user-select')
+}
+
+function currentPanelPx(): number {
+  const el = resolveContentEl()
+  if (!el) return RS_DRAWER_MIN_SIZE_PX
+  const rect = el.getBoundingClientRect()
+  return isHorizontal.value ? rect.width : rect.height
+}
+
+function onResizePointerDown(event: PointerEvent): void {
+  if (!enableResizable.value || event.button !== 0) return
+  event.preventDefault()
+  event.stopPropagation()
+  resizeStartClient = isHorizontal.value ? event.clientX : event.clientY
+  resizeStartSize = currentPanelPx()
+  resizePointerId = event.pointerId
+  resizing.value = true
+  document.body.style.cursor = isHorizontal.value ? 'ew-resize' : 'ns-resize'
+  document.body.style.userSelect = 'none'
+  window.addEventListener('pointermove', onResizePointerMove)
+  window.addEventListener('pointerup', onResizePointerUp)
+  window.addEventListener('pointercancel', onResizePointerUp)
+}
+
+function deltaForPointer(event: PointerEvent): number {
+  const client = isHorizontal.value ? event.clientX : event.clientY
+  const raw = client - resizeStartClient
+  if (props.side === 'right' || props.side === 'bottom') return -raw
+  return raw
+}
+
+function onResizePointerMove(event: PointerEvent): void {
+  if (resizePointerId == null || event.pointerId !== resizePointerId) return
+  const next = applyLiveSize(resizeStartSize + deltaForPointer(event))
+  emit('resize', next)
+}
+
+function commitResize(next: number): void {
+  liveSizePx.value = next
+  emit('resize', next)
+  if (isHorizontal.value) emit('update:width', next)
+  else emit('update:height', next)
+}
+
+function onResizePointerUp(event: PointerEvent): void {
+  if (resizePointerId == null || event.pointerId !== resizePointerId) return
+  const next = applyLiveSize(resizeStartSize + deltaForPointer(event))
+  stopResize()
+  commitResize(next)
+}
+
+function onResizeKeydown(event: KeyboardEvent): void {
+  if (!enableResizable.value) return
+  const step = event.shiftKey ? 48 : 16
+  let delta = 0
+  if (props.side === 'right') {
+    if (event.key === 'ArrowLeft') delta = step
+    else if (event.key === 'ArrowRight') delta = -step
+  } else if (props.side === 'left') {
+    if (event.key === 'ArrowRight') delta = step
+    else if (event.key === 'ArrowLeft') delta = -step
+  } else if (props.side === 'top') {
+    if (event.key === 'ArrowDown') delta = step
+    else if (event.key === 'ArrowUp') delta = -step
+  } else if (props.side === 'bottom') {
+    if (event.key === 'ArrowUp') delta = step
+    else if (event.key === 'ArrowDown') delta = -step
+  }
+  if (!delta) return
+  event.preventDefault()
+  commitResize(applyLiveSize(currentPanelPx() + delta))
+}
+
 defineExpose({
   /** 请求关闭（走 beforeClose） */
   close: (reason: RsDrawerCloseReason = 'programmatic') => requestClose(reason),
@@ -339,6 +541,7 @@ defineExpose({
         :style="overlayStyle"
       />
       <DialogContent
+        ref="contentRef"
         class="rs-drawer__content rs-motion-reduce"
         :class="contentClass"
         :style="contentStyle"
@@ -347,6 +550,16 @@ defineExpose({
         @focus-outside="onFocusOutside"
         @escape-key-down="onEscapeKeyDown"
       >
+        <button
+          v-if="enableResizable"
+          type="button"
+          class="rs-drawer__resize"
+          :aria-label="t('drawer.resize')"
+          :aria-orientation="isHorizontal ? 'vertical' : 'horizontal'"
+          :aria-valuenow="liveSizePx != null ? Math.round(liveSizePx) : undefined"
+          @pointerdown="onResizePointerDown"
+          @keydown="onResizeKeydown"
+        />
         <header v-if="title || description || showClose || $slots.header" class="rs-drawer__header">
           <slot name="header">
             <div class="rs-drawer__heading">
@@ -426,6 +639,67 @@ defineExpose({
   outline: none;
   will-change: transform;
 }
+.rs-drawer__resize {
+  position: absolute;
+  z-index: 3;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  appearance: none;
+}
+.rs-drawer__resize:focus-visible {
+  outline: 2px solid var(--rs-primary);
+  outline-offset: -2px;
+}
+.rs-drawer__content--right > .rs-drawer__resize,
+.rs-drawer__content--left > .rs-drawer__resize {
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+}
+.rs-drawer__content--right > .rs-drawer__resize {
+  left: 0;
+}
+.rs-drawer__content--left > .rs-drawer__resize {
+  right: 0;
+}
+.rs-drawer__content--top > .rs-drawer__resize,
+.rs-drawer__content--bottom > .rs-drawer__resize {
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: ns-resize;
+}
+.rs-drawer__content--top > .rs-drawer__resize {
+  bottom: 0;
+}
+.rs-drawer__content--bottom > .rs-drawer__resize {
+  top: 0;
+}
+.rs-drawer__content--right > .rs-drawer__resize:hover,
+.rs-drawer__content--right > .rs-drawer__resize:focus-visible,
+.rs-drawer__content--resizing.rs-drawer__content--right > .rs-drawer__resize {
+  background: linear-gradient(to right, var(--rs-primary) 0, var(--rs-primary) 2px, transparent 2px);
+}
+.rs-drawer__content--left > .rs-drawer__resize:hover,
+.rs-drawer__content--left > .rs-drawer__resize:focus-visible,
+.rs-drawer__content--resizing.rs-drawer__content--left > .rs-drawer__resize {
+  background: linear-gradient(to left, var(--rs-primary) 0, var(--rs-primary) 2px, transparent 2px);
+}
+.rs-drawer__content--top > .rs-drawer__resize:hover,
+.rs-drawer__content--top > .rs-drawer__resize:focus-visible,
+.rs-drawer__content--resizing.rs-drawer__content--top > .rs-drawer__resize {
+  background: linear-gradient(to top, var(--rs-primary) 0, var(--rs-primary) 2px, transparent 2px);
+}
+.rs-drawer__content--bottom > .rs-drawer__resize:hover,
+.rs-drawer__content--bottom > .rs-drawer__resize:focus-visible,
+.rs-drawer__content--resizing.rs-drawer__content--bottom > .rs-drawer__resize {
+  background: linear-gradient(to bottom, var(--rs-primary) 0, var(--rs-primary) 2px, transparent 2px);
+}
+.rs-drawer__content--resizing iframe {
+  pointer-events: none;
+}
 .rs-drawer__content--contained {
   position: absolute;
 }
@@ -433,18 +707,23 @@ defineExpose({
 .rs-drawer__content--left {
   top: 0;
   bottom: 0;
+  height: 100%;
+  max-height: none;
   width: min(100vw, var(--rs-drawer-panel-size, 28rem));
+  transform: none;
 }
 .rs-drawer__content--contained:is(.rs-drawer__content--right, .rs-drawer__content--left) {
   width: min(100%, var(--rs-drawer-panel-size, 28rem));
 }
 .rs-drawer__content--right {
+  left: auto;
   right: 0;
   border-right: 0;
   border-radius: var(--rs-radius) 0 0 var(--rs-radius);
 }
 .rs-drawer__content--left {
   left: 0;
+  right: auto;
   border-left: 0;
   border-radius: 0 var(--rs-radius) var(--rs-radius) 0;
 }

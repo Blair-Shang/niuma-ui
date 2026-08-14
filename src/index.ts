@@ -103,9 +103,13 @@ export type {
   RsDrawerSize,
 } from './components/drawer-utils'
 export {
+  clampRsDrawerSize,
   resolveDrawerOverlayStyle,
   resolveRsDrawerDimensionCss,
   resolveRsDrawerSizeCss,
+  resolveRsDrawerSizePx,
+  RS_DRAWER_MAX_VIEWPORT_RATIO,
+  RS_DRAWER_MIN_SIZE_PX,
   runRsDrawerBeforeClose,
 } from './components/drawer-utils'
 export { default as RsForm } from './components/RsForm.vue'
