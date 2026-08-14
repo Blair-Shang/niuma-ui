@@ -196,7 +196,7 @@ watch(
   border-radius: var(--rs-btn-radius, var(--rs-radius-full));
   border: 1px solid transparent;
   font-size: var(--rs-font-size-sm);
-  font-weight: 500;
+  font-weight: var(--rs-font-weight-medium);
   letter-spacing: 0.01em;
   line-height: 1;
   white-space: nowrap;
@@ -329,7 +329,7 @@ watch(
   background: transparent;
   color: var(--rs-btn-tone, var(--rs-primary));
   box-shadow: none;
-  font-weight: 500;
+  font-weight: var(--rs-font-weight-medium);
 }
 .rs-btn--link:hover:not(:disabled) {
   color: var(--rs-btn-tone-hover, var(--rs-primary-hover));
@@ -346,7 +346,7 @@ watch(
   border-color: transparent;
   background: transparent;
   box-shadow: none;
-  font-weight: 400;
+  font-weight: var(--rs-font-weight-regular);
   color: var(--rs-btn-tone, var(--rs-text));
 }
 .rs-btn--text.rs-btn--ssm {
@@ -474,7 +474,7 @@ watch(
   background: var(--rs-surface-elevated);
   color: var(--rs-text);
   font-size: var(--rs-font-size-xs);
-  font-weight: 500;
+  font-weight: var(--rs-font-weight-medium);
   line-height: 1.25rem;
   white-space: nowrap;
   box-shadow: var(--rs-shadow-sm);

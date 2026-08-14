@@ -25,6 +25,7 @@ import {
   isRsDialogWidthPreset,
   resolveDialogOverlayStyle,
   resolveRsDialogCssWidth,
+  resolveRsDialogWidthPx,
   runRsDialogBeforeClose,
   type RsDialogBeforeClose,
   type RsDialogCloseReason,
@@ -43,6 +44,11 @@ const props = withDefaults(
     /** 标题文案；也可用 `#title` / `#header` 插槽。缺省时用空格满足无障碍 Title */
     title?: string
     description?: string
+    /**
+     * 宽度：`sm` / `md` / `lg`，或 number(px) / `px` / `rem` / `%`。
+     * window：打开时折成像素后居中（`%` 相对视口扣除 inset），之后可拖拽缩放。
+     * confirm：自定义宽度按 CSS 写入。
+     */
     width?: RsDialogWidth
     tone?: RsFeedbackTone
     /**
@@ -73,6 +79,9 @@ const props = withDefaults(
      * - string / HTMLElement：Teleport 到指定节点
      * - false：禁用 Teleport，就地渲染（不挂到 body / 全局挂载点）
      * - undefined：走 Reka 默认（通常为 body，或 ConfigProvider.teleportTo）
+     *
+     * 全屏时若未禁用 Teleport，会临时改挂到默认目标（通常为 body），
+     * 避免业务容器内的层叠上下文（如 isolation:isolate）低于应用顶栏。
      */
     teleportTo?: string | HTMLElement | false
     /**
@@ -150,16 +159,7 @@ const widthPreset = computed<RsDialogWidthPreset>(() =>
   isRsDialogWidthPreset(props.width) ? props.width : 'md',
 )
 
-const initialWidthPx = computed(() => {
-  if (typeof props.width === 'number' && Number.isFinite(props.width) && props.width > 0) {
-    return props.width
-  }
-  if (typeof props.width === 'string') {
-    const trimmed = props.width.trim()
-    if (/^\d+(\.\d+)?px$/i.test(trimmed)) return Number.parseFloat(trimmed)
-  }
-  return undefined
-})
+const initialWidthPx = computed(() => resolveRsDialogWidthPx(props.width))
 
 const customCssWidth = computed(() => resolveRsDialogCssWidth(props.width))
 
@@ -276,13 +276,12 @@ const contentClass = computed(() => {
 
 const contentStyle = computed(() => {
   const base = isWindowLayout.value ? dialogStyle.value : undefined
+  // window 宽度只走 bounds 像素，避免 `90%` 覆盖 CSS 后与 left/top 脱节
+  if (isWindowLayout.value) return base
   const cssW = customCssWidth.value
-  // 数值/px 已通过 initialWidth 进入 window bounds；其它自定义宽度用 CSS 覆盖
   if (!cssW) return base
-  if (isWindowLayout.value && initialWidthPx.value != null) return base
   return {
     ...(base ?? {}),
-    width: isConfirmLayout.value ? undefined : cssW,
     maxWidth: cssW,
   }
 })
@@ -373,6 +372,17 @@ const {
   boundsTransition: toRef(props, 'boundsTransition'),
 })
 
+/**
+ * 全屏时跳出业务挂载点，挂到默认 portal（通常 body），
+ * 还原后仍回到 props.teleportTo，以保留页签内浮层的生命周期绑定。
+ */
+const resolvedTeleportTo = computed(() => {
+  if (isFullscreen.value && props.teleportTo !== false) {
+    return undefined
+  }
+  return props.teleportTo
+})
+
 const contentRef = ref<{ $el?: HTMLElement } | HTMLElement | null>(null)
 
 watch(
@@ -401,8 +411,8 @@ defineExpose({
 <template>
   <DialogRoot :open="open" :modal="modal" @update:open="onUpdateOpen">
     <DialogPortal
-      :disabled="teleportTo === false"
-      :to="teleportTo === false ? undefined : teleportTo"
+      :disabled="resolvedTeleportTo === false"
+      :to="resolvedTeleportTo === false ? undefined : resolvedTeleportTo"
     >
       <DialogOverlay v-if="showOverlay" class="rs-dialog__overlay rs-motion-reduce" :style="overlayStyle" />
       <DialogContent
@@ -680,7 +690,7 @@ defineExpose({
   align-items: center;
   gap: var(--rs-space-sm);
   font-size: var(--rs-font-size-base);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
   letter-spacing: -0.015em;
   line-height: var(--rs-line-height-tight, 1.3);
   color: var(--rs-dialog-title-fg);

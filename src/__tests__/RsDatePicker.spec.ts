@@ -10,6 +10,18 @@ describe('RsDatePicker', () => {
     expect(wrapper.classes()).toContain('rs-field')
   })
 
+  it('displays iso v-model as wall-clock text', () => {
+    const wrapper = mount(RsDatePicker, {
+      props: {
+        modelValue: '2025-06-16T14:30:00+08:00',
+        withTime: true,
+        valueFormat: 'iso',
+      },
+    })
+    expect(wrapper.find('.rs-date-picker__trigger--placeholder').exists()).toBe(false)
+    expect(wrapper.find('.rs-date-picker__value').text()).toBe('2025-06-16 14:30:00')
+  })
+
   it('shows formatted value on trigger when model is set', () => {
     const wrapper = mount(RsDatePicker, {
       props: { modelValue: '2025-06-16' },
@@ -84,5 +96,14 @@ describe('RsDatePicker', () => {
       props: { modelValue: '2025-06-16', disabled: true },
     })
     expect(wrapper.find('.rs-date-picker__trigger').attributes('disabled')).toBeDefined()
+  })
+
+  it('marks invalid on the trigger instead of the field wrapper', () => {
+    const wrapper = mount(RsDatePicker, { props: { modelValue: '', invalid: true } })
+    expect(wrapper.find('.rs-date-picker__trigger').classes()).toContain(
+      'rs-date-picker__trigger--invalid',
+    )
+    expect(wrapper.find('.rs-date-picker__trigger').attributes('aria-invalid')).toBe('true')
+    expect(wrapper.attributes('aria-invalid')).toBeUndefined()
   })
 })

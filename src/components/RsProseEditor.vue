@@ -50,9 +50,9 @@ function buildExtensions() {
     EditorView.theme({
       '&': { height: '100%', backgroundColor: 'transparent' },
       '.cm-scroller': {
-        fontFamily: "'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', Georgia, serif",
-        fontSize: '1.05rem',
-        lineHeight: '1.9',
+        fontFamily: 'var(--rs-prose-font-family)',
+        fontSize: 'var(--rs-prose-font-size)',
+        lineHeight: 'var(--rs-prose-line-height)',
         letterSpacing: '0.02em',
       },
       '.cm-content': {

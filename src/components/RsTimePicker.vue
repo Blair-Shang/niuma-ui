@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, ref, useAttrs, useId, useTemplateRef, watch } from 'vue'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from './reka'
 import RsIcon from './RsIcon.vue'
 import RsTimePickerColumns from './RsTimePickerColumns.vue'
 import { useRsI18n } from '../composables/useRsI18n'
 import { RS_COMPONENT_SIZE_ICON_PX, type RsComponentSize } from '../theme/types'
 import { useResolvedRsComponentSize } from './resolve-size'
+import { isRsFormItemBoundControl, useRsFormItemContext } from './form-utils'
 import {
   EMPTY_TIME_RANGE,
   formatTimeFromParts,
@@ -21,7 +22,7 @@ import {
   type RsTimeUnit,
 } from './time-picker-utils'
 
-defineOptions({ name: 'RsTimePicker' })
+defineOptions({ name: 'RsTimePicker', inheritAttrs: false })
 
 export type { RsTimeRangeValue } from './time-picker-utils'
 export type RsTimePickerLabelPosition = 'top' | 'left'
@@ -47,6 +48,8 @@ const props = withDefaults(
     embedded?: boolean
     labelPosition?: RsTimePickerLabelPosition
     size?: RsComponentSize
+    id?: string
+    invalid?: boolean
   }>(),
   {
     disabled: false,
@@ -59,7 +62,14 @@ const props = withDefaults(
 )
 
 const fieldId = useId()
+const attrs = useAttrs()
 const { t } = useRsI18n()
+const formItem = useRsFormItemContext()
+const boundToItem = computed(() => isRsFormItemBoundControl(formItem, { id: props.id }))
+const isInvalid = computed(() =>
+  Boolean(props.invalid || (boundToItem.value && formItem?.invalid.value)),
+)
+const triggerId = computed(() => props.id || fieldId)
 const resolvedSize = useResolvedRsComponentSize(() => props.size)
 const triggerIconSize = computed(() => RS_COMPONENT_SIZE_ICON_PX[resolvedSize.value])
 const columnsRef = useTemplateRef<InstanceType<typeof RsTimePickerColumns>>('columnsRef')
@@ -294,14 +304,17 @@ watch(open, async (isOpen) => {
     <div class="rs-time-picker">
       <PopoverRoot v-model:open="open" :modal="!embedded">
         <PopoverTrigger
-          :id="embedded ? undefined : fieldId"
+          v-bind="embedded ? undefined : attrs"
+          :id="embedded ? undefined : triggerId"
           type="button"
           class="rs-time-picker__trigger"
           :class="{
             'rs-time-picker__trigger--placeholder': isEmpty,
             'rs-time-picker__trigger--embedded': embedded,
+            'rs-time-picker__trigger--invalid': !embedded && isInvalid,
           }"
           :disabled="disabled"
+          :aria-invalid="!embedded && isInvalid ? true : undefined"
         >
           <span class="rs-time-picker__leading">
             <RsIcon
@@ -421,6 +434,7 @@ watch(open, async (isOpen) => {
   line-height: var(--rs-line-height-tight);
   text-align: left;
   cursor: pointer;
+  outline: none;
   box-shadow: var(--rs-input-shadow, none);
   transition:
     border-color var(--rs-transition-fast),
@@ -471,6 +485,16 @@ watch(open, async (isOpen) => {
 }
 .rs-time-picker__trigger--placeholder .rs-time-picker__value {
   color: var(--rs-placeholder);
+}
+.rs-time-picker__trigger--invalid {
+  border-color: var(--rs-danger, var(--rs-color-danger, #dc2626));
+}
+.rs-time-picker__trigger--invalid:focus-visible {
+  border-color: var(--rs-danger, var(--rs-color-danger, #dc2626));
+  box-shadow:
+    var(--rs-input-shadow, none),
+    0 0 0 var(--rs-focus-ring-width, 2px)
+      color-mix(in srgb, var(--rs-danger, #dc2626) 14%, transparent);
 }
 .rs-time-picker__leading {
   display: inline-flex;
@@ -536,7 +560,7 @@ watch(open, async (isOpen) => {
 }
 .rs-time-picker__pane-title {
   font-size: var(--rs-font-size-xs);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
   color: var(--rs-muted);
 }
 .rs-time-picker__footer {

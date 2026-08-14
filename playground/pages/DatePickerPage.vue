@@ -15,6 +15,9 @@ const reportRange = ref<RsDateRangeValue>({ start: '2025-01-01', end: '2025-03-3
 
 const disabledSingle = ref('2025-06-16')
 const disabledRange = ref<RsDateRangeValue>({ start: '2025-06-01', end: '2025-06-07' })
+
+const isoValue = ref<string | null>('2025-06-16T00:00:00+08:00')
+const timestampValue = ref<number | null>(new Date(2025, 5, 16).getTime())
 </script>
 
 <template>
@@ -76,6 +79,19 @@ const disabledRange = ref<RsDateRangeValue>({ start: '2025-06-01', end: '2025-06
       <p class="value">
         当前值：<code>{{ presetRange.start }}</code> ~ <code>{{ presetRange.end }}</code>
       </p>
+    </DemoBlock>
+
+    <DemoBlock title="valueFormat=iso / timestamp">
+      <p class="hint">
+        展示始终为墙钟；<code>iso</code> 写入本地偏移 RFC3339（对接 Go <code>time.Time</code>），
+        <code>timestamp</code> 写入毫秒。亦可传入 dayjs 模板，对齐 Element Plus <code>value-format</code>。
+      </p>
+      <div class="stack">
+        <RsDatePicker v-model="isoValue" label="ISO 绑定" value-format="iso" />
+        <p class="value">iso：<code>{{ isoValue ?? 'null' }}</code></p>
+        <RsDatePicker v-model="timestampValue" label="时间戳绑定" value-format="timestamp" />
+        <p class="value">timestamp：<code>{{ timestampValue ?? 'null' }}</code></p>
+      </div>
     </DemoBlock>
 
     <DemoBlock title="禁用态">

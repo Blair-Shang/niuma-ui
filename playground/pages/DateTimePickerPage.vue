@@ -27,6 +27,7 @@ const disabledRange = ref<DateTimeRange>({
 const scheduleStart = ref('2025-06-20 09:00:00')
 const scheduleEnd = ref('2025-06-20 18:00:00')
 const sizeDemo = ref('2025-06-16 10:00:00')
+const isoDateTime = ref<string | null>('2025-06-16T14:30:00+08:00')
 </script>
 
 <template>
@@ -98,6 +99,14 @@ const sizeDemo = ref('2025-06-16 10:00:00')
       <p class="hint"><code>with-seconds</code> 开启秒级时间列。</p>
       <RsDateTimePicker v-model="withSeconds" label="精确到秒" with-seconds />
       <p class="value">当前值：<code>{{ withSeconds }}</code></p>
+    </DemoBlock>
+
+    <DemoBlock title="valueFormat=iso">
+      <p class="hint">
+        面板展示墙钟；<code>v-model</code> 为本地偏移 RFC3339，可直接提交给 Go <code>time.Time</code>。
+      </p>
+      <RsDateTimePicker v-model="isoDateTime" label="更新时间" value-format="iso" with-seconds />
+      <p class="value">当前值：<code>{{ isoDateTime ?? 'null' }}</code></p>
     </DemoBlock>
 
     <DemoBlock title="尺寸 size（ssm / sm / md / lg）">

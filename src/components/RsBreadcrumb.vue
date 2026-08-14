@@ -56,7 +56,7 @@ const renderItems = computed(() => buildBreadcrumbRenderItems(props.items))
 }
 .rs-breadcrumb__link--current {
   color: var(--rs-text);
-  font-weight: 500;
+  font-weight: var(--rs-font-weight-medium);
   pointer-events: none;
 }
 .rs-breadcrumb__sep {

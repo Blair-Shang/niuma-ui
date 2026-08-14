@@ -1096,8 +1096,8 @@ defineExpose({
 
 .rs-tree__toggle-caret {
   display: block;
-  font-size: 1.125rem;
-  font-weight: 500;
+  font-size: var(--rs-font-size-lg);
+  font-weight: var(--rs-font-weight-medium);
   line-height: 1;
   transform: translateY(-0.5px);
   transition: transform var(--rs-transition-fast);
@@ -1212,7 +1212,7 @@ defineExpose({
   border-radius: 2px;
   background: color-mix(in srgb, var(--rs-warning) 45%, transparent);
   color: inherit;
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
 }
 
 .rs-tree__pad {
@@ -1232,7 +1232,7 @@ defineExpose({
 }
 
 .rs-tree--ssm .rs-tree__toggle-caret {
-  font-size: 0.875rem;
+  font-size: var(--rs-font-size-sm);
 }
 
 .rs-tree--sm .rs-tree__label,
@@ -1247,7 +1247,7 @@ defineExpose({
 }
 
 .rs-tree--sm .rs-tree__toggle-caret {
-  font-size: 1rem;
+  font-size: var(--rs-font-size-base);
 }
 
 .rs-tree--lg .rs-tree__label {
@@ -1261,6 +1261,6 @@ defineExpose({
 }
 
 .rs-tree--lg .rs-tree__toggle-caret {
-  font-size: 1.25rem;
+  font-size: var(--rs-font-size-xl);
 }
 </style>

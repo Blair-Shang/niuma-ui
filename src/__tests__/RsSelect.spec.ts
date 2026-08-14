@@ -7,6 +7,12 @@ import RsSelect from '../components/RsSelect.vue'
 import {
   filterSelectOptions,
   fromComboboxValue,
+  normalizeSelectOptions,
+  optionDisplayLabel,
+  packSelectModel,
+  restoreSelectValue,
+  sortSelectOptions,
+  splitByTokenSeparators,
   toComboboxValue,
   RS_SELECT_EMPTY_VALUE,
 } from '../components/select-utils'
@@ -38,6 +44,59 @@ describe('RsSelect', () => {
       props: { options, modelValue: '' },
     })
     expect(wrapper.find('.rs-select__placeholder').text()).toBe('请选择')
+  })
+
+  it('keeps numeric option values on v-model including 0', async () => {
+    const numeric = [
+      { label: '静态配置', value: 0 },
+      { label: '服务发现', value: 1 },
+    ]
+    const wrapper = mount(RsSelect, {
+      props: { options: numeric, modelValue: 0 },
+    })
+    expect(wrapper.find('.rs-select__single-label').text()).toBe('静态配置')
+    const root = wrapper.getComponent({ name: 'ComboboxRoot' })
+    await root.vm.$emit('update:modelValue', '1')
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([1])
+  })
+
+  it('collapses overflow tags with maxTagCount', () => {
+    const wrapper = mount(RsSelect, {
+      props: {
+        options,
+        modelValue: ['gpt-4o', 'claude'],
+        multiple: true,
+        maxTagCount: 1,
+      },
+    })
+    expect(wrapper.findAll('.rs-select__tag')).toHaveLength(2)
+    expect(wrapper.find('.rs-select__tag--rest').text()).toBe('+1')
+  })
+
+  it('renders prefix and option slots', async () => {
+    const wrapper = mount(RsSelect, {
+      props: { options, modelValue: '' },
+      slots: {
+        prefix: () => h('span', { class: 'pref' }, 'P'),
+        option: ({ option }: { option: { label: string } }) =>
+          h('span', { class: 'opt' }, option.label),
+      },
+      attachTo: document.body,
+    })
+    expect(wrapper.find('.pref').text()).toBe('P')
+    await wrapper.find('.rs-select__trigger').trigger('click')
+    await flushPromises()
+    expect(document.body.querySelector('.opt')?.textContent).toContain('GPT-4o')
+    wrapper.unmount()
+  })
+
+  it('marks invalid on the trigger instead of the combobox root', () => {
+    const wrapper = mount(RsSelect, {
+      props: { options, modelValue: '', invalid: true },
+    })
+    expect(wrapper.find('.rs-select__trigger').classes()).toContain('rs-select__trigger--invalid')
+    expect(wrapper.find('.rs-select__trigger').attributes('aria-invalid')).toBe('true')
+    expect(wrapper.find('.rs-select').attributes('aria-invalid')).toBeUndefined()
   })
 
   it('uses en-US default placeholder inside RsConfigProvider', () => {
@@ -214,7 +273,7 @@ describe('RsSelect', () => {
       },
       template: `
         <RsForm ref="formRef">
-          <RsSelect v-model="role" :options="roleOptions" required />
+          <RsSelect v-model="role" name="role" :options="roleOptions" required />
         </RsForm>
       `,
     })
@@ -294,6 +353,260 @@ describe('RsSelect', () => {
     expect(matched!.classList.contains('rs-select__content--match-trigger')).toBe(true)
     wrapper.unmount()
   })
+
+  it('packs labelInValue including numeric 0', async () => {
+    const numeric = [
+      { label: '静态配置', value: 0 },
+      { label: '服务发现', value: 1 },
+    ]
+    const wrapper = mount(RsSelect, {
+      props: { options: numeric, modelValue: '', labelInValue: true },
+    })
+    expect(wrapper.find('.rs-select__placeholder').exists()).toBe(true)
+    const root = wrapper.getComponent({ name: 'ComboboxRoot' })
+    await root.vm.$emit('update:modelValue', '0')
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([
+      { label: '静态配置', value: 0 },
+    ])
+  })
+
+  it('echoes labelInValue snapshot for number 0', () => {
+    const numeric = [
+      { label: '静态配置', value: 0 },
+      { label: '服务发现', value: 1 },
+    ]
+    const wrapper = mount(RsSelect, {
+      props: {
+        options: numeric,
+        modelValue: { label: '静态配置', value: 0 },
+        labelInValue: true,
+      },
+    })
+    expect(wrapper.find('.rs-select__single-label').text()).toBe('静态配置')
+  })
+
+  it('packs labelInValue arrays in multiple mode', async () => {
+    const wrapper = mount(RsSelect, {
+      props: { options, modelValue: [], multiple: true, labelInValue: true },
+    })
+    const root = wrapper.getComponent({ name: 'ComboboxRoot' })
+    await root.vm.$emit('update:modelValue', ['gpt-4o'])
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([
+      [{ label: 'GPT-4o', value: 'gpt-4o' }],
+    ])
+  })
+
+  it('emits select, deselect and clear', async () => {
+    const wrapper = mount(RsSelect, {
+      props: { options, modelValue: '', clearable: true },
+    })
+    const root = wrapper.getComponent({ name: 'ComboboxRoot' })
+    await root.vm.$emit('update:modelValue', 'claude')
+    expect(wrapper.emitted('select')?.at(-1)?.[0]).toBe('claude')
+
+    await wrapper.setProps({ modelValue: 'claude' })
+    await root.vm.$emit('update:modelValue', 'gpt-4o')
+    expect(wrapper.emitted('deselect')?.at(-1)?.[0]).toBe('claude')
+    expect(wrapper.emitted('select')?.at(-1)?.[0]).toBe('gpt-4o')
+
+    await wrapper.setProps({ modelValue: 'gpt-4o' })
+    await wrapper.find('.rs-select__clear').trigger('click')
+    expect(wrapper.emitted('clear')).toHaveLength(1)
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([''])
+  })
+
+  it('truncates tag text with maxTagTextLength', () => {
+    const wrapper = mount(RsSelect, {
+      props: {
+        options: [{ label: 'TypeScript', value: 'ts' }],
+        modelValue: ['ts'],
+        multiple: true,
+        maxTagTextLength: 4,
+      },
+    })
+    expect(wrapper.find('.rs-select__tag-label').text()).toBe('Type…')
+  })
+
+  it('applies warning status on the trigger', () => {
+    const wrapper = mount(RsSelect, {
+      props: { options, modelValue: '', status: 'warning' },
+    })
+    expect(wrapper.find('.rs-select__trigger').classes()).toContain('rs-select__trigger--warning')
+    expect(wrapper.find('.rs-select__trigger').classes()).not.toContain(
+      'rs-select__trigger--invalid',
+    )
+  })
+
+  it('treats status error as invalid', () => {
+    const wrapper = mount(RsSelect, {
+      props: { options, modelValue: '', status: 'error' },
+    })
+    expect(wrapper.find('.rs-select__trigger').classes()).toContain('rs-select__trigger--invalid')
+    expect(wrapper.find('.rs-select__trigger').classes()).not.toContain(
+      'rs-select__trigger--warning',
+    )
+  })
+
+  it('hides arrow when showArrow is false', () => {
+    const wrapper = mount(RsSelect, {
+      props: { options, modelValue: '', showArrow: false },
+    })
+    expect(wrapper.find('.rs-select__suffix').exists()).toBe(false)
+  })
+
+  it('sorts options with filterSort', async () => {
+    const unsorted = [
+      { label: 'Zulu', value: 'z' },
+      { label: 'Alpha', value: 'a' },
+    ]
+    const wrapper = mount(RsSelect, {
+      props: {
+        options: unsorted,
+        modelValue: '',
+        filterSort: (a, b) => String(a.label).localeCompare(String(b.label)),
+      },
+      attachTo: document.body,
+    })
+    await wrapper.find('.rs-select__trigger').trigger('click')
+    await flushPromises()
+    const items = [...document.body.querySelectorAll('.rs-select__item-label')].map(
+      (el) => el.textContent?.trim(),
+    )
+    expect(items[0]).toBe('Alpha')
+    expect(items[1]).toBe('Zulu')
+    wrapper.unmount()
+  })
+
+  it('renders header and footer slots', async () => {
+    const wrapper = mount(RsSelect, {
+      props: { options, modelValue: '' },
+      slots: {
+        header: () => h('div', { class: 'sel-head' }, 'HEAD'),
+        footer: () => h('div', { class: 'sel-foot' }, 'FOOT'),
+      },
+      attachTo: document.body,
+    })
+    await wrapper.find('.rs-select__trigger').trigger('click')
+    await flushPromises()
+    expect(document.body.querySelector('.sel-head')?.textContent).toBe('HEAD')
+    expect(document.body.querySelector('.sel-foot')?.textContent).toBe('FOOT')
+    wrapper.unmount()
+  })
+
+  it('applies popupClassName and listHeight on the panel', async () => {
+    const wrapper = mount(RsSelect, {
+      props: {
+        options,
+        modelValue: '',
+        popupClassName: 'extra-popup',
+        listHeight: 120,
+      },
+      attachTo: document.body,
+    })
+    await wrapper.find('.rs-select__trigger').trigger('click')
+    await flushPromises()
+    const content = document.body.querySelector('.rs-select__content') as HTMLElement | null
+    expect(content?.classList.contains('extra-popup')).toBe(true)
+    expect(content?.style.getPropertyValue('--rs-select-list-height')).toBe('120px')
+    wrapper.unmount()
+  })
+
+  it('commits tokens when typing a separator', async () => {
+    const wrapper = mount(RsSelect, {
+      props: {
+        options,
+        modelValue: [],
+        multiple: true,
+        searchable: true,
+        tokenSeparators: [','],
+      },
+      attachTo: document.body,
+    })
+    await wrapper.find('.rs-select__trigger').trigger('click')
+    await flushPromises()
+    const input = document.querySelector('.rs-select__search') as HTMLInputElement | null
+    expect(input).toBeTruthy()
+    input!.value = 'gpt-4o,'
+    input!.dispatchEvent(new Event('input', { bubbles: true }))
+    await flushPromises()
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([['gpt-4o']])
+    wrapper.unmount()
+  })
+
+  it('maps fieldNames including numeric 0', async () => {
+    const raw = [
+      { name: '静态配置', id: 0 },
+      { name: '服务发现', id: 1 },
+    ]
+    const wrapper = mount(RsSelect, {
+      props: {
+        options: raw,
+        modelValue: 0,
+        fieldNames: { label: 'name', value: 'id' },
+      },
+    })
+    expect(wrapper.find('.rs-select__single-label').text()).toBe('静态配置')
+    const root = wrapper.getComponent({ name: 'ComboboxRoot' })
+    await root.vm.$emit('update:modelValue', '1')
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([1])
+  })
+
+  it('shows optionLabelProp on the trigger', () => {
+    const wrapper = mount(RsSelect, {
+      props: { options, modelValue: 'claude', optionLabelProp: 'value' },
+    })
+    expect(wrapper.find('.rs-select__single-label').text()).toBe('claude')
+  })
+
+  it('binds searchValue and emits updates', async () => {
+    const wrapper = mount(RsSelect, {
+      props: { options, modelValue: '', searchable: true, searchValue: 'cla' },
+      attachTo: document.body,
+    })
+    await wrapper.find('.rs-select__trigger').trigger('click')
+    await flushPromises()
+    const input = document.querySelector('.rs-select__search') as HTMLInputElement | null
+    expect(input?.value).toBe('cla')
+    input!.value = 'gpt'
+    input!.dispatchEvent(new Event('input', { bubbles: true }))
+    await flushPromises()
+    expect(wrapper.emitted('update:searchValue')?.at(-1)).toEqual(['gpt'])
+    wrapper.unmount()
+  })
+
+  it('renders dropdownRender instead of the default panel body', async () => {
+    const wrapper = mount(RsSelect, {
+      props: { options, modelValue: '' },
+      slots: {
+        dropdownRender: () => h('div', { class: 'custom-dd' }, 'CUSTOM'),
+      },
+      attachTo: document.body,
+    })
+    await wrapper.find('.rs-select__trigger').trigger('click')
+    await flushPromises()
+    expect(document.body.querySelector('.custom-dd')?.textContent).toBe('CUSTOM')
+    expect(document.body.querySelector('.rs-select__item')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('mounts the panel into getPopupContainer', async () => {
+    const host = document.createElement('div')
+    host.id = 'rs-select-portal-host'
+    document.body.appendChild(host)
+    const wrapper = mount(RsSelect, {
+      props: {
+        options,
+        modelValue: '',
+        getPopupContainer: () => host,
+      },
+      attachTo: document.body,
+    })
+    await wrapper.find('.rs-select__trigger').trigger('click')
+    await flushPromises()
+    expect(host.querySelector('.rs-select__content')).toBeTruthy()
+    wrapper.unmount()
+    host.remove()
+  })
 })
 
 describe('select-utils', () => {
@@ -303,8 +616,117 @@ describe('select-utils', () => {
   it('maps empty string to combobox sentinel and back', () => {
     expect(toComboboxValue('')).toBe(RS_SELECT_EMPTY_VALUE)
     expect(toComboboxValue('claude')).toBe('claude')
+    expect(toComboboxValue(0)).toBe('0')
     expect(fromComboboxValue(RS_SELECT_EMPTY_VALUE)).toBe('')
     expect(fromComboboxValue('claude')).toBe('claude')
+  })
+
+  it('restoreSelectValue keeps option number type', () => {
+    const numeric = [
+      { label: '静态配置', value: 0 },
+      { label: '服务发现', value: 1 },
+    ]
+    expect(restoreSelectValue('0', numeric)).toBe(0)
+    expect(restoreSelectValue('1', numeric)).toBe(1)
+    expect(restoreSelectValue('custom', numeric)).toBe('custom')
+  })
+
+  it('filterSelectOptions honors filterOption and optionFilterProp', () => {
+    const numeric = [
+      { label: '静态配置', value: 0 },
+      { label: '服务发现', value: 1 },
+    ]
+    const byValue = filterSelectOptions(numeric, '0', contains, true, 'value')
+    expect(byValue).toHaveLength(1)
+    expect(byValue[0]).toMatchObject({ value: 0 })
+
+    const custom = filterSelectOptions(numeric, '发现', contains, (q, opt) =>
+      String(opt.label).includes(q),
+    )
+    expect(custom).toHaveLength(1)
+    expect(custom[0]).toMatchObject({ value: 1 })
+
+    const unfiltered = filterSelectOptions(numeric, 'zzz', contains, false)
+    expect(unfiltered).toHaveLength(2)
+  })
+
+  it('packSelectModel keeps number 0 and labelInValue', () => {
+    const numeric = [
+      { label: '静态配置', value: 0 },
+      { label: '服务发现', value: 1 },
+    ]
+    expect(packSelectModel([0], numeric, false, false)).toBe(0)
+    expect(packSelectModel([0], numeric, false, true)).toEqual({
+      label: '静态配置',
+      value: 0,
+    })
+    expect(packSelectModel([0, 1], numeric, true, true)).toEqual([
+      { label: '静态配置', value: 0 },
+      { label: '服务发现', value: 1 },
+    ])
+    expect(packSelectModel([], numeric, false, true)).toBe('')
+  })
+
+  it('sortSelectOptions sorts flat and grouped lists', () => {
+    const flat = [
+      { label: 'Zulu', value: 'z' },
+      { label: 'Alpha', value: 'a' },
+    ]
+    const sorted = sortSelectOptions(flat, (a, b) => String(a.label).localeCompare(String(b.label)))
+    expect(sorted.map((item) => ('value' in item ? item.value : ''))).toEqual(['a', 'z'])
+
+    const grouped = [
+      {
+        label: '后端',
+        options: [
+          { label: 'Go', value: 'go' },
+          { label: 'Ada', value: 'ada' },
+        ],
+      },
+    ]
+    const groupedSorted = sortSelectOptions(grouped, (a, b) =>
+      String(a.label).localeCompare(String(b.label)),
+    )
+    expect(groupedSorted[0]).toMatchObject({ label: '后端' })
+    if ('options' in groupedSorted[0]) {
+      expect(groupedSorted[0].options.map((opt) => opt.value)).toEqual(['ada', 'go'])
+    }
+  })
+
+  it('splitByTokenSeparators splits on the first matching separator', () => {
+    expect(splitByTokenSeparators('a,b,c', [','])).toEqual(['a', 'b', 'c'])
+    expect(splitByTokenSeparators('ab', [','])).toBeNull()
+    expect(splitByTokenSeparators('a;b', [',', ';'])).toEqual(['a', 'b'])
+  })
+
+  it('normalizeSelectOptions maps fieldNames and keeps number 0', () => {
+    const raw = [
+      { name: '静态配置', id: 0 },
+      {
+        name: '后端',
+        children: [
+          { name: 'Go', id: 'go' },
+          { name: 'Ada', id: 'ada' },
+        ],
+      },
+    ]
+    const normalized = normalizeSelectOptions(raw, {
+      label: 'name',
+      value: 'id',
+      options: 'children',
+    })
+    expect(normalized[0]).toMatchObject({ label: '静态配置', value: 0 })
+    expect(normalized[1]).toMatchObject({ label: '后端' })
+    if ('options' in normalized[1]) {
+      expect(normalized[1].options.map((opt) => opt.value)).toEqual(['go', 'ada'])
+    }
+  })
+
+  it('optionDisplayLabel reads optionLabelProp', () => {
+    const option = { label: 'Claude', value: 'claude', code: 'CL' }
+    expect(optionDisplayLabel(option)).toBe('Claude')
+    expect(optionDisplayLabel(option, 'value')).toBe('claude')
+    expect(optionDisplayLabel(option, 'code')).toBe('CL')
   })
 
   it('filterSelectOptions filters flat and grouped options', () => {

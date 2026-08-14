@@ -25,8 +25,28 @@ export interface RsDateRangeValue {
   end?: string
 }
 
-/** v-model 取值格式：string 为默认字符串；timestamp 为毫秒时间戳 */
-export type RsDatePickerValueFormat = 'string' | 'timestamp'
+/** valueFormat 预设：string 墙钟、timestamp 毫秒、iso 本地偏移 RFC3339 */
+export const RS_DATE_PICKER_VALUE_FORMAT_PRESETS = ['string', 'timestamp', 'iso'] as const
+
+/**
+ * valueFormat 预设名。
+ * string 为默认墙钟字符串；timestamp 为毫秒；iso 为带本地偏移的 RFC3339。
+ */
+export type RsDatePickerValueFormatPreset = (typeof RS_DATE_PICKER_VALUE_FORMAT_PRESETS)[number]
+
+/**
+ * v-model 取值格式，对齐 Element Plus `value-format` / Ant Design Vue `valueFormat`：
+ * 展示格式与绑定格式分离。预设之外可传入任意 dayjs 模板，如 `YYYY-MM-DDTHH:mm:ssZ`。
+ */
+export type RsDatePickerValueFormat = RsDatePickerValueFormatPreset | (string & {})
+
+/**
+ * 内部墙钟字符串与对外 valueFormat 互转时的选项。
+ */
+export interface RsDatePickerValueConvertOptions {
+  valueFormat: string
+  withTime: boolean
+}
 
 /** 时间戳范围（毫秒），用于 valueFormat=timestamp 的 range 模式 */
 export type RsDatePickerTimestampRange = [number, number]
@@ -63,6 +83,97 @@ export function parseTimestampValue(value?: string): number | null {
   if (!value) return null
   const parsed = parseRsDateTimeDayjs(value) ?? parseRsDayjs(value)
   return parsed ? parsed.valueOf() : null
+}
+
+function parsePickerDayjs(value: string) {
+  return parseRsDateTimeDayjs(value) ?? parseRsDayjs(value)
+}
+
+function isTimestampFormat(valueFormat: string): boolean {
+  return valueFormat === 'timestamp'
+}
+
+function isIsoFormat(valueFormat: string): boolean {
+  return valueFormat === 'iso'
+}
+
+function isStringFormat(valueFormat: string): boolean {
+  return valueFormat === 'string' || valueFormat === ''
+}
+
+/**
+ * 将对外 v-model 规范为控件内部墙钟字符串（`YYYY-MM-DD` / `YYYY-MM-DD HH:mm:ss`）。
+ * 解析 ISO 时去掉 Z/偏移，按墙钟分量展示，不按浏览器时区换算。
+ * @param value - 对外绑定值（字符串、毫秒时间戳或空）
+ * @param options - valueFormat 与是否含时分秒
+ * @returns 内部墙钟字符串；无法解析时尽量原样返回
+ */
+export function toInternalPickerValue(
+  value: unknown,
+  options: RsDatePickerValueConvertOptions,
+): string {
+  if (value == null || value === '') return ''
+  if (typeof value === 'number') {
+    return formatTimestampValue(value, options.withTime)
+  }
+  if (typeof value !== 'string') return ''
+
+  const format = options.valueFormat || 'string'
+  if (!isStringFormat(format) && !isTimestampFormat(format) && !isIsoFormat(format)) {
+    const strict = dayjs(value, format, true)
+    if (strict.isValid()) {
+      return options.withTime ? strict.format(RS_DATETIME_FORMAT) : strict.format(RS_DATE_FORMAT)
+    }
+  }
+
+  const parsed = parsePickerDayjs(value)
+  if (!parsed) return value
+  return options.withTime ? parsed.format(RS_DATETIME_FORMAT) : parsed.format(RS_DATE_FORMAT)
+}
+
+/**
+ * 将控件内部墙钟字符串转为对外 valueFormat。
+ * iso 空值返回 null，避免 JSON `""` 无法绑定到 Go `time.Time`。
+ * @param internal - 内部墙钟字符串
+ * @param options - valueFormat 与是否含时分秒
+ * @returns 字符串、毫秒时间戳或 null
+ */
+export function fromInternalPickerValue(
+  internal: string,
+  options: RsDatePickerValueConvertOptions,
+): string | number | null {
+  const format = options.valueFormat || 'string'
+  if (!internal) {
+    return isTimestampFormat(format) || isIsoFormat(format) ? null : ''
+  }
+  if (isTimestampFormat(format)) {
+    return parseTimestampValue(internal)
+  }
+  if (isStringFormat(format)) {
+    return internal
+  }
+
+  const parsed = parsePickerDayjs(internal)
+  if (!parsed) return internal
+
+  if (isIsoFormat(format)) {
+    const body = options.withTime
+      ? parsed.format('YYYY-MM-DDTHH:mm:ss')
+      : parsed.format('YYYY-MM-DDT00:00:00')
+    return `${body}${parsed.format('Z')}`
+  }
+
+  return parsed.format(format)
+}
+
+/**
+ * 将 fromInternalPickerValue 的结果写入 range.start/end（范围端点始终为字符串）。
+ * @param value - 转换后的端点
+ * @returns 范围对象可用的字符串；空为 `''`
+ */
+export function toRangeEndpointString(value: string | number | null): string {
+  if (value == null) return ''
+  return typeof value === 'number' ? String(value) : value
 }
 
 /** 判断是否为时间戳范围元组 */

@@ -11,6 +11,7 @@ export {
 } from './components/button-utils'
 export { default as RsCheckbox } from './components/RsCheckbox.vue'
 export { default as RsSwitch } from './components/RsSwitch.vue'
+export type { RsSwitchValue } from './components/RsSwitch.vue'
 export { default as RsRadio } from './components/RsRadio.vue'
 export { default as RsRadioItem } from './components/RsRadioItem.vue'
 export type { RsRadioValue } from './components/radio-utils'
@@ -89,6 +90,7 @@ export {
   isRsDialogWidthPreset,
   resolveDialogOverlayStyle,
   resolveRsDialogCssWidth,
+  resolveRsDialogWidthPx,
   runRsConfirmBeforeClose,
   runRsDialogBeforeClose,
 } from './components/dialog-utils'
@@ -107,6 +109,8 @@ export {
   runRsDrawerBeforeClose,
 } from './components/drawer-utils'
 export { default as RsForm } from './components/RsForm.vue'
+export { default as RsFormItem } from './components/RsFormItem.vue'
+export { default as RsFormList } from './components/RsFormList.vue'
 export { default as RsToaster } from './components/RsToaster.vue'
 export { default as RsDatePicker } from './components/RsDatePicker.vue'
 export { default as RsDateTimePicker } from './components/RsDateTimePicker.vue'
@@ -205,11 +209,33 @@ export type { RsContextMenuItem } from './components/context-menu-utils'
 export type { RsDropdownItem, RsDropdownItemGroup, RsDropdownItems } from './components/dropdown-utils'
 export type { RsMenuItem, RsMenuItemGroup, RsMenuItems } from './components/menu-utils'
 export type { RsScrollbarOrientation, RsScrollbarType } from './components/scrollbar-utils'
-export type { RsSelectOption, RsSelectOptionGroup, RsSelectOptions } from './components/select-utils'
+export type {
+  RsSelectFieldNames,
+  RsSelectFilterOption,
+  RsSelectFilterSort,
+  RsSelectGetPopupContainer,
+  RsSelectLabeledValue,
+  RsSelectModelValue,
+  RsSelectOption,
+  RsSelectOptionFilterProp,
+  RsSelectOptionGroup,
+  RsSelectOptionInput,
+  RsSelectOptions,
+  RsSelectOptionsInput,
+  RsSelectPlacement,
+  RsSelectStatus,
+  RsSelectValue,
+} from './components/select-utils'
 export {
   RS_SELECT_EMPTY_VALUE,
   fromComboboxValue,
+  isSelectLabeledValue,
+  normalizeSelectOptions,
+  optionDisplayLabel,
+  packSelectModel,
+  restoreSelectValue,
   toComboboxValue,
+  unwrapSelectEntry,
 } from './components/select-utils'
 export type { RsFeedbackTone, RsToastPosition, RsToastType } from './components/overlay-utils'
 export { RS_TOAST_DEFAULT_GAP, RS_TOAST_DEFAULT_POSITION, rsToastPositions, rsFeedbackIconClass } from './components/overlay-utils'
@@ -218,27 +244,51 @@ export type {
   RsFormErrorRender,
   RsFormErrorRenderContext,
   RsFormFieldExpose,
+  RsFormItemContext,
+  RsFormListContext,
+  RsFormListField,
+  RsFormListOperations,
   RsFormFieldValidationResult,
   RsFormGap,
   RsFormLabelAlign,
   RsFormLabelPosition,
   RsFormMaxWidth,
   RsFormSize,
+  RsFormValidateStatus,
   RsFormValidationResult,
 } from './components/form-utils'
 export {
   cloneFormFieldValue,
+  isRsFormItemBoundControl,
+  provideRsFormItemContext,
+  provideRsFormListContext,
   RS_FORM_INJECTION_KEY,
+  RS_FORM_ITEM_INJECTION_KEY,
+  RS_FORM_LIST_INJECTION_KEY,
   resolveFieldRules,
   useRsFormContext,
   useRsFormField,
+  useRsFormItemContext,
+  useRsFormListContext,
 } from './components/form-utils'
+export type { RsFormNamePath } from './components/form-path'
+export {
+  concatNamePath,
+  getByNamePath,
+  hasByNamePath,
+  isIndexSegment,
+  namePathKey,
+  normalizeNamePath,
+  setByNamePath,
+} from './components/form-path'
 export type {
   RsFormRuleItem,
   RsFormRuleMessage,
   RsFormRules,
   RsFormRuleTrigger,
   RsFormRuleValidateResult,
+  RsFormValidateMessages,
+  RsFormValidatorContext,
 } from './components/form-rules'
 export {
   buildLocalInputRules,
@@ -596,7 +646,9 @@ export type {
   RsDatePickerModelValue,
   RsDatePickerShortcut,
   RsDatePickerTimestampRange,
+  RsDatePickerValueConvertOptions,
   RsDatePickerValueFormat,
+  RsDatePickerValueFormatPreset,
   RsDateRangeValue,
   RsParsedDate,
   RsParsedDateTime,
@@ -609,11 +661,15 @@ export {
   formatDateTimeDisplay,
   formatDateTimeValue,
   formatDateValue,
+  fromInternalPickerValue,
   isDateRangeEmpty,
   isDateRangeOrdered,
   isDateTimeRangeOrdered,
   parseDateTimeValue,
   parseDateValue,
+  RS_DATE_PICKER_VALUE_FORMAT_PRESETS,
+  toInternalPickerValue,
+  toRangeEndpointString,
 } from './components/date-picker-utils'
 export {
   RS_DATE_FORMAT,
@@ -723,3 +779,15 @@ export { useResolvedRsComponentSize, resolveRsComponentSize } from './components
 export { useResolvedRsRadius, rsRadiusCss } from './components/resolve-radius'
 export { themePresets } from './theme/presets'
 export { applyTheme } from './theme/apply'
+export {
+  parseCssLengthToPx,
+  readCodeFontFamily,
+  readCodeFontSizePx,
+  readCssLengthPx,
+  readCssVar,
+  readRootFontSizePx,
+  readTerminalFontFamily,
+  readTerminalFontSizePx,
+  readTerminalFontWeight,
+  readTerminalFontWeightBold,
+} from './theme/css-token'

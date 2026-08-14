@@ -45,7 +45,30 @@
     'Microsoft YaHei',
     sans-serif;
   --rs-font-mono: ui-monospace, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+  --rs-font-serif:
+    'Noto Serif SC',
+    'Source Han Serif SC',
+    'Songti SC',
+    Georgia,
+    'Times New Roman',
+    serif;
   --rs-font-rounded: ui-rounded, 'SF Pro Rounded', 'Segoe UI', system-ui, sans-serif;
+
+  /* 代码编辑器（CodeMirror / Monaco）：JS API 从这些 token 读取 */
+  --rs-code-font-family: var(--rs-font-mono);
+  --rs-code-font-size: var(--rs-font-size-sm);
+  --rs-code-line-height: var(--rs-line-height-relaxed);
+
+  /* 富文本阅读面（RsProseEditor） */
+  --rs-prose-font-family: var(--rs-font-serif);
+  --rs-prose-font-size: var(--rs-font-size-base);
+  --rs-prose-line-height: var(--rs-line-height-relaxed);
+
+  /* 终端排版（xterm 构造时读取；宿主可单独覆盖） */
+  --rs-terminal-font-family: var(--rs-font-mono);
+  --rs-terminal-font-size: var(--rs-font-size-sm);
+  --rs-terminal-font-weight: var(--rs-font-weight-regular);
+  --rs-terminal-font-weight-bold: var(--rs-font-weight-medium);
 
   --rs-control-height-ssm: 1.25rem;
   --rs-control-height-sm: 1.5rem;
@@ -115,7 +138,7 @@
   --rs-menu-item-height: var(--rs-control-height-md);
   --rs-menu-item-font-size: var(--rs-font-size-sm);
   --rs-menu-item-radius: var(--rs-radius-sm);
-  --rs-menu-item-active-weight: 500;
+  --rs-menu-item-active-weight: var(--rs-font-weight-medium);
 
   /*
    * 表单标签（RsLabel / .rs-field__label 共用）
@@ -194,7 +217,7 @@
   --rs-table-body-bg: #1f1f1f;
   --rs-table-header-bg: #1f1f1f;
   --rs-table-header-fg: #f3f3f3;
-  --rs-table-header-weight: 600;
+  --rs-table-header-weight: var(--rs-font-weight-semibold);
   --rs-table-header-size: var(--rs-table-cell-size, var(--rs-font-size-xs));
   --rs-table-cell-size: var(--rs-font-size-xs);
   --rs-table-cell-weight: 400;
@@ -320,7 +343,7 @@
   --rs-drawer-overlay-blur: var(--rs-dialog-overlay-blur);
 
   /* ── Tag / DynamicTags（可被业务覆盖）── */
-  --rs-tag-font-weight: var(--rs-font-weight-medium);
+  --rs-tag-font-weight: var(--rs-font-weight-regular);
   --rs-tag-border-alpha: 40%;
   --rs-dynamic-tags-bg: var(--rs-input-bg);
   --rs-dynamic-tags-border: var(--rs-input-border);
@@ -436,7 +459,7 @@
   --rs-table-body-bg: #ffffff;
   --rs-table-header-bg: #f8f8f8;
   --rs-table-header-fg: #1a1a1a;
-  --rs-table-header-weight: 600;
+  --rs-table-header-weight: var(--rs-font-weight-semibold);
   --rs-table-header-size: var(--rs-table-cell-size, var(--rs-font-size-xs));
   --rs-table-cell-size: var(--rs-font-size-xs);
   --rs-table-cell-weight: 400;
@@ -546,7 +569,7 @@
   --rs-drawer-overlay-blur: var(--rs-dialog-overlay-blur);
 
   /* ── Tag / DynamicTags（可被业务覆盖）── */
-  --rs-tag-font-weight: var(--rs-font-weight-medium);
+  --rs-tag-font-weight: var(--rs-font-weight-regular);
   --rs-tag-border-alpha: 40%;
   --rs-dynamic-tags-bg: var(--rs-input-bg);
   --rs-dynamic-tags-border: var(--rs-input-border);
@@ -854,9 +877,29 @@ code {
   color: var(--rs-placeholder);
 }
 
+.rs-select__panel-header,
+.rs-select__panel-footer {
+  flex-shrink: 0;
+  padding: var(--rs-space-xs) var(--rs-space-sm);
+  font-size: var(--rs-font-size-xs);
+  line-height: var(--rs-line-height-normal);
+  color: var(--rs-muted);
+}
+
+.rs-select__panel-header {
+  border-bottom: 1px solid var(--rs-border-subtle);
+}
+
+.rs-select__panel-footer {
+  border-top: 1px solid var(--rs-border-subtle);
+}
+
 .rs-select__viewport {
   overflow-y: auto;
-  max-height: inherit;
+  max-height: min(
+    var(--rs-select-list-height, 256px),
+    var(--reka-combobox-content-available-height, 256px)
+  );
   padding: 0 var(--rs-space-xs) var(--rs-space-xs);
 }
 
@@ -883,7 +926,7 @@ code {
   display: block;
   padding: var(--rs-space-xs) var(--rs-space-sm) var(--rs-space-xs);
   font-size: var(--rs-font-size-xs);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
   color: var(--rs-muted);
   letter-spacing: 0.04em;
   line-height: var(--rs-line-height-tight);
@@ -970,10 +1013,10 @@ code {
 .rs-field--label-left {
   display: grid;
   /*
-   * 左侧标签：配置宽为下限，内容更长时按 max-content 撑开，避免中文标签换行。
-   * 未设置 --rs-field-label-width 时退回 max-content。
+   * 左侧标签：有 --rs-field-label-width 时固定列宽，保证栅格内控件起点对齐。
+   * 未设置时退回 max-content（单字段表单仍可随文案伸缩）。
    */
-  grid-template-columns: minmax(var(--rs-field-label-width, max-content), max-content) minmax(0, 1fr);
+  grid-template-columns: var(--rs-field-label-width, max-content) minmax(0, 1fr);
   align-items: start;
   column-gap: var(--rs-space-md);
 }
@@ -990,10 +1033,14 @@ code {
   line-height: var(--rs-label-line-height);
 }
 
-/* 左侧标签默认单行（与常见表单库一致）；垂直布局不受影响 */
+/* 左侧标签默认单行；固定列宽时过长省略，避免撑破栅格对齐 */
 .rs-field--label-left > .rs-field__label,
 .rs-field--label-left > .rs-label {
+  min-width: 0;
+  max-width: 100%;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rs-field__required {
@@ -1007,6 +1054,15 @@ code {
 
 .rs-field--label-left .rs-field__hint {
   grid-column: 2;
+}
+
+/*
+ * Form.Item 会把 aria-invalid 注入子控件。Input 用 inheritAttrs:false 落到输入框；
+ * 若落到 .rs-field / .rs-select 外壳，UA 会再画一圈轮廓，和 trigger 边框叠成双框。
+ */
+.rs-field[aria-invalid='true'],
+.rs-select[aria-invalid='true'] {
+  outline: none;
 }
 
 .rs-field__control {
@@ -1104,7 +1160,7 @@ code {
 
 .rs-toast__title {
   font-size: var(--rs-font-size-sm);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
 }
 
 .rs-toast__description {

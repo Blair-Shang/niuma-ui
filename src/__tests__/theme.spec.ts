@@ -17,6 +17,8 @@ describe('useRsConfig / theme', () => {
     expect(en.t('select.placeholder')).toBe('Select')
     expect(zh.t('input.required')).toBe('此项为必填')
     expect(en.t('input.required')).toBe('This field is required')
+    expect(zh.t('form.validate.required', { label: '邮箱' })).toBe('请填写邮箱')
+    expect(en.t('form.validate.required', { label: 'Email' })).toBe('Please enter Email')
     expect(en.t('breadcrumb.label')).toBe('Breadcrumb')
   })
 

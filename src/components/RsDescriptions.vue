@@ -95,7 +95,7 @@ const gridStyle = computed(() => ({
 
 .rs-descriptions__header {
   font-size: var(--rs-font-size-base);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
   line-height: var(--rs-line-height-tight);
 }
 
@@ -145,7 +145,7 @@ const gridStyle = computed(() => ({
 
 .rs-descriptions__label {
   color: var(--rs-descriptions-label-fg, var(--rs-muted));
-  font-weight: 500;
+  font-weight: var(--rs-font-weight-medium);
   word-break: break-word;
 }
 

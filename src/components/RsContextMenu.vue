@@ -152,9 +152,10 @@ function onSelect(item: RsContextMenuItem) {
   align-items: center;
   gap: 0;
   padding: 0 8px 0 0;
-  height: 26px;
+  height: 24px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: var(--rs-font-size-xs);
+  font-weight: var(--rs-font-weight-regular);
   line-height: 1;
   color: var(--rs-text);
   cursor: default;
@@ -185,10 +186,11 @@ function onSelect(item: RsContextMenuItem) {
 .rs-context-menu__shortcut {
   flex-shrink: 0;
   margin-left: 16px;
-  font-size: 12px;
+  font-size: var(--rs-font-size-xs);
+  font-weight: var(--rs-font-weight-regular);
   color: var(--rs-ctx-shortcut);
   letter-spacing: 0.02em;
-  font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif;
+  font-family: var(--rs-font-sans);
 }
 
 /* 子菜单展开箭头 */

@@ -218,7 +218,7 @@ function onSelect(value: AcceptableValue) {
   display: block;
   padding: 0.375rem var(--rs-space-md) 0.125rem;
   font-size: var(--rs-font-size-xs);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
   color: var(--rs-muted);
   letter-spacing: 0.04em;
   line-height: var(--rs-line-height-tight);

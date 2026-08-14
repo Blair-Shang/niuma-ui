@@ -1,6 +1,7 @@
-import type { RsTranslateFn } from '../composables/useRsI18n'
+import { interpolateRsMessage, type RsTranslateFn } from '../locale/interpolate'
 import { createTranslator } from '../composables/useRsI18n'
 import { defaultLocale } from '../locale/types'
+import type { RsFormNamePath } from './form-path'
 import {
   getInputRuleMessage,
   validateInputRule,
@@ -9,6 +10,15 @@ import {
 
 /** 校验触发时机（对齐 Ant Design Form） */
 export type RsFormRuleTrigger = 'blur' | 'change' | 'submit'
+
+/**
+ * validator 第二参：读取整表数据，供跨字段校验（B 依赖 A）。
+ */
+export interface RsFormValidatorContext {
+  name?: string
+  getFieldValue: (name: RsFormNamePath) => unknown
+  getFieldsValue: () => Record<string, unknown>
+}
 
 /**
  * 单条表单规则（声明式 + 自定义校验）。
@@ -37,9 +47,11 @@ export interface RsFormRuleItem {
   type?: RsInputRule | 'string' | 'number' | 'array'
   /**
    * 自定义校验。返回 true 通过；false / 字符串为失败；支持 Promise。
+   * 第二参可读取其它字段（`getFieldValue` / `getFieldsValue`）。
    */
   validator?: (
     value: unknown,
+    ctx: RsFormValidatorContext,
   ) => boolean | string | void | Promise<boolean | string | void>
   trigger?: RsFormRuleTrigger | RsFormRuleTrigger[]
 }
@@ -50,6 +62,24 @@ export type RsFormRules = Record<string, RsFormRuleItem | RsFormRuleItem[]>
 export interface RsFormRuleValidateResult {
   valid: boolean
   message?: string
+}
+
+/**
+ * Form.validateMessages 模板（`{label}` 插值）。
+ * 对标 Ant Design Form.validateMessages。
+ */
+export interface RsFormValidateMessages {
+  required?: string
+}
+
+export interface RsFormFieldRulesOptions {
+  trigger?: RsFormRuleTrigger
+  t?: RsTranslateFn
+  label?: string
+  name?: string
+  validateMessages?: RsFormValidateMessages
+  getFieldValue?: (name: RsFormNamePath) => unknown
+  getFieldsValue?: () => Record<string, unknown>
 }
 
 export function normalizeFormRules(
@@ -179,13 +209,31 @@ async function checkValidatorRule(
   value: unknown,
   rule: RsFormRuleItem,
   tr: RsTranslateFn,
+  options?: RsFormFieldRulesOptions,
 ): Promise<RsFormRuleValidateResult | null> {
   if (!rule.validator) return null
 
-  const result = await rule.validator(value)
+  const ctx: RsFormValidatorContext = {
+    name: options?.name,
+    getFieldValue: options?.getFieldValue ?? (() => undefined),
+    getFieldsValue: options?.getFieldsValue ?? (() => ({})),
+  }
+  let result: unknown
+  try {
+    result = await rule.validator(value, ctx)
+  } catch (err) {
+    const message =
+      err instanceof Error && err.message
+        ? err.message
+        : formatInvalid(rule, value, tr)
+    return fail(message)
+  }
   if (result === true || result === undefined || result === null) return null
   if (result === false) return fail(formatInvalid(rule, value, tr))
   if (typeof result === 'string') return fail(result)
+  if (result instanceof Error) {
+    return fail(result.message || formatInvalid(rule, value, tr))
+  }
   return null
 }
 
@@ -197,17 +245,26 @@ async function evaluateFormRule(
   value: unknown,
   rule: RsFormRuleItem,
   tr: RsTranslateFn,
+  options?: RsFormFieldRulesOptions,
 ): Promise<RsFormRuleValidateResult | null> {
   if (rule.required && isEmptyValue(value)) {
-    return fail(resolveRuleMessage(rule, value, tr('input.required')))
+    const label = options?.label?.trim()
+    const template =
+      options?.validateMessages?.required ??
+      (label ? tr('form.validate.required') : tr('input.required'))
+    const fallback = interpolateRsMessage(template, { label: label || tr('form.field') })
+    return fail(resolveRuleMessage(rule, value, fallback))
   }
-  if (isEmptyValue(value)) return null
+  // 空值跳过格式类规则；自定义 validator 仍执行，以便 B 依赖 A（如 A=email 则 B 必填）
+  if (isEmptyValue(value)) {
+    return checkValidatorRule(value, rule, tr, options)
+  }
 
   return (
     checkTypeRule(value, rule, tr) ??
     checkPatternRule(value, rule, tr) ??
     checkLengthRule(value, rule, tr) ??
-    (await checkValidatorRule(value, rule, tr))
+    (await checkValidatorRule(value, rule, tr, options))
   )
 }
 
@@ -217,17 +274,14 @@ async function evaluateFormRule(
 export async function runFormFieldRules(
   value: unknown,
   rules: RsFormRuleItem[],
-  options?: {
-    trigger?: RsFormRuleTrigger
-    t?: RsTranslateFn
-  },
+  options?: RsFormFieldRulesOptions,
 ): Promise<RsFormRuleValidateResult> {
   const tr = options?.t ?? createTranslator(defaultLocale)
   const trigger = options?.trigger
 
   for (const rule of rules) {
     if (!matchFormRuleTrigger(rule, trigger)) continue
-    const failed = await evaluateFormRule(value, rule, tr)
+    const failed = await evaluateFormRule(value, rule, tr, options)
     if (failed) return failed
   }
 

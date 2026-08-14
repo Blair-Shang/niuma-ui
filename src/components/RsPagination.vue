@@ -213,7 +213,7 @@ function confirmJump(): void {
 }
 /* 当前页：仅主色文字高亮，无填充底（对齐部分 Ant / Element 轻量分页） */
 .rs-pagination__buttons :deep(.rs-pagination__page--active) {
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
   background: transparent !important;
   box-shadow: none;
 }

@@ -85,4 +85,13 @@ describe('RsTimePicker', () => {
     })
     expect(wrapper.find('.rs-time-picker__trigger').attributes('disabled')).toBeDefined()
   })
+
+  it('marks invalid on the trigger instead of the field wrapper', () => {
+    const wrapper = mount(RsTimePicker, { props: { modelValue: '', invalid: true } })
+    expect(wrapper.find('.rs-time-picker__trigger').classes()).toContain(
+      'rs-time-picker__trigger--invalid',
+    )
+    expect(wrapper.find('.rs-time-picker__trigger').attributes('aria-invalid')).toBe('true')
+    expect(wrapper.attributes('aria-invalid')).toBeUndefined()
+  })
 })

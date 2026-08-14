@@ -297,7 +297,7 @@ defineExpose({
   height: 2.5rem;
   flex: 0 0 auto;
   border-radius: var(--rs-radius);
-  font-weight: 700;
+  font-weight: var(--rs-font-weight-bold);
 }
 .rs-confirm-dialog__icon-glyph {
   width: 1.25rem;
@@ -328,7 +328,7 @@ defineExpose({
 .rs-confirm-dialog__title {
   margin: 0;
   font-size: var(--rs-font-size-base);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
   letter-spacing: -0.01em;
   color: var(--rs-dialog-title-fg);
 }

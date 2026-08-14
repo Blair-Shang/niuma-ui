@@ -9,6 +9,7 @@ const price = ref<number | null>(19.9)
 const age = ref<number | null>(18)
 const big = ref<string | null>('9007199254740993')
 const percent = ref<number | null>(50)
+const wheelQty = ref<number | null>(10)
 </script>
 
 <template>
@@ -28,6 +29,31 @@ const percent = ref<number | null>(50)
         />
       </div>
       <p class="meta">qty={{ qty }} · price={{ price }}</p>
+    </DemoBlock>
+
+    <DemoBlock title="滚轮改值（changeOnWheel）">
+      <p class="hint">
+        默认关闭（防误触 / 避免 Chrome non-passive wheel 告警）。开启后需先<strong>聚焦</strong>输入框，再滚动滚轮步进。
+      </p>
+      <div class="row">
+        <RsInputNumber
+          v-model="qty"
+          label="默认关滚轮"
+          :min="0"
+          :max="99"
+          hint="聚焦后滚轮不应改值"
+        />
+        <RsInputNumber
+          v-model="wheelQty"
+          label="开启 changeOnWheel"
+          change-on-wheel
+          :min="0"
+          :max="99"
+          :step="1"
+          hint="点击聚焦后滚动鼠标滚轮"
+        />
+      </div>
+      <p class="meta">qty={{ qty }} · wheelQty={{ wheelQty }}</p>
     </DemoBlock>
 
     <DemoBlock title="边界 · 步进 · 尺寸">

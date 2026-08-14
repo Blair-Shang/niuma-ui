@@ -13,7 +13,13 @@ import type {
   RsFormValidationResult,
 } from './form-utils'
 import { cloneFormFieldValue, provideRsFormContext, resolveFieldRules } from './form-utils'
-import type { RsFormRuleTrigger, RsFormRules } from './form-rules'
+import type { RsFormRuleTrigger, RsFormRules, RsFormValidateMessages } from './form-rules'
+import {
+  getByNamePath,
+  namePathKey,
+  setByNamePath,
+  type RsFormNamePath,
+} from './form-path'
 
 const props = withDefaults(
   defineProps<{
@@ -29,6 +35,13 @@ const props = withDefaults(
      * 与字段自身 required/rule/validator 合并执行。
      */
     rules?: RsFormRules
+    /**
+     * 表单数据中枢（对齐 Ant Design Form.model）。
+     * Form.Item 声明 name 后读写此对象；也可继续在控件上 v-model。
+     */
+    model?: Record<string, unknown>
+    /** 覆盖默认校验文案模板，支持 `{label}` */
+    validateMessages?: RsFormValidateMessages
     /** 原生 form 提交时自动跑一遍校验（默认 true） */
     validateOnSubmit?: boolean
     /**
@@ -62,6 +75,8 @@ const labelWidthRef = computed(() => props.labelWidth)
 const labelAlignRef = computed(() => props.labelAlign)
 const sizeRef = computed(() => props.size)
 const rulesRef = toRef(props, 'rules')
+const modelRef = toRef(props, 'model')
+const validateMessagesRef = computed(() => props.validateMessages)
 const initialValues = ref(new Map<symbol, unknown>())
 
 function registerField(id: symbol, field: RsFormFieldExpose): void {
@@ -76,6 +91,48 @@ function unregisterField(id: symbol): void {
 
 function getFieldRules(name?: string) {
   return resolveFieldRules(props.rules, name)
+}
+
+function getFieldValue(name: RsFormNamePath): unknown {
+  if (modelRef.value) return getByNamePath(modelRef.value, name)
+  const key = namePathKey(name)
+  const field = Array.from(fields.values()).find((item) => item.name === key)
+  return field?.getValue()
+}
+
+function setFieldValue(name: RsFormNamePath, value: unknown): void {
+  if (modelRef.value) {
+    setByNamePath(modelRef.value, name, value)
+    return
+  }
+  const key = namePathKey(name)
+  const field = Array.from(fields.values()).find((item) => item.name === key)
+  field?.setValue(value)
+}
+
+function getFieldsValue(): Record<string, unknown> {
+  if (modelRef.value) return { ...modelRef.value }
+  const values: Record<string, unknown> = {}
+  fields.forEach((field) => {
+    if (!field.name) return
+    values[field.name] = field.getValue()
+  })
+  return values
+}
+
+function setFieldsValue(values: Record<string, unknown>): void {
+  Object.entries(values).forEach(([name, value]) => {
+    setFieldValue(name, value)
+  })
+}
+
+function scrollToField(name: RsFormNamePath): void {
+  if (typeof document === 'undefined') return
+  const key = namePathKey(name)
+  const el = document.querySelector(`[data-rs-form-item="${CSS.escape(key)}"]`)
+  if (el instanceof HTMLElement) {
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }
 }
 
 function renderError(ctx: RsFormErrorRenderContext) {
@@ -94,6 +151,11 @@ provideRsFormContext({
   renderError,
   registerField,
   unregisterField,
+  model: modelRef,
+  validateMessages: validateMessagesRef,
+  getFieldValue,
+  setFieldValue,
+  getFieldsValue,
 })
 
 function collectResult(
@@ -169,6 +231,11 @@ defineExpose({
   validateField,
   clearValidation,
   resetFields,
+  getFieldsValue,
+  setFieldsValue,
+  getFieldValue,
+  setFieldValue,
+  scrollToField,
 })
 </script>
 

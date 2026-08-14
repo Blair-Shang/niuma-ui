@@ -97,7 +97,7 @@ function selectStep(item: RsStepItem): void {
   background: var(--rs-surface-hover);
   color: var(--rs-muted);
   font-size: var(--rs-font-size-xs);
-  font-weight: 700;
+  font-weight: var(--rs-font-weight-bold);
 }
 .rs-steps--sm .rs-steps__indicator {
   width: 1.5rem;
@@ -119,7 +119,7 @@ function selectStep(item: RsStepItem): void {
 .rs-steps__title {
   color: var(--rs-text);
   font-size: var(--rs-font-size-sm);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
 }
 .rs-steps__description {
   color: var(--rs-muted);

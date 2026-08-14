@@ -68,7 +68,7 @@ pnpm test:watch
 | 命名 | 公开组件使用 `Rs*` 前缀（如 `RsButton.vue`） |
 | 公开 API | 仅通过 `src/index.ts` 导出；稳定能力不要要求消费方深路径导入 |
 | Reka UI | 原语封装在本包内；消费方不得直接依赖 `reka-ui` |
-| Token | 视觉值走 `--rs-*` / 主题预设，避免写死品牌色 |
+| Token | 视觉值走 `--rs-*` / 主题预设，避免写死品牌色、字号 px 或 system 字体栈 |
 | 尺寸 / 圆角 | 优先 `RsComponentSize` / `RsRadius` 与对应 resolve hooks |
 | 国际化 | 用户可见文案尽量走 `useRsI18n` / locale 表 |
 | 无障碍 | 图标按钮需标签；保持键盘焦点与对话框焦点陷阱 |

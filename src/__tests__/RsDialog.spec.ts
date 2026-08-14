@@ -69,6 +69,23 @@ describe('RsDialog', () => {
     wrapper.unmount()
   })
 
+  it('centers window layout when width is a viewport percentage', async () => {
+    const wrapper = mount(RsDialog, {
+      props: { open: true, title: '百分比宽度', width: '90%' },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const content = document.body.querySelector('.rs-dialog__content') as HTMLElement
+    const width = Number.parseFloat(content.style.width)
+    const left = Number.parseFloat(content.style.left)
+    const available = window.innerWidth - 32
+    const expectedWidth = Math.min(available, Math.max(320, Math.round(available * 0.9)))
+    expect(width).toBe(expectedWidth)
+    expect(left).toBeCloseTo(16 + (available - expectedWidth) / 2, 1)
+    expect(content.style.maxWidth).toBe('')
+    wrapper.unmount()
+  })
+
   it('applies window layout with resize handles by default', async () => {
     const wrapper = mount(RsDialog, {
       props: { open: true, title: '测试', width: 'sm' },
@@ -366,6 +383,50 @@ describe('RsDialog', () => {
     await flushPromises()
     expect(target.querySelector('.rs-dialog__content')).not.toBeNull()
     wrapper.unmount()
+    target.remove()
+  })
+
+  it('re-teleports to body while fullscreen, then restores custom target', async () => {
+    const target = document.createElement('div')
+    target.id = 'rs-dialog-fullscreen-target'
+    document.body.appendChild(target)
+
+    const wrapper = mount(RsDialog, {
+      props: {
+        open: true,
+        title: '全屏挂载',
+        layout: 'window',
+        fullscreenable: true,
+        teleportTo: '#rs-dialog-fullscreen-target',
+      },
+      attachTo: document.body,
+    })
+
+    await flushPromises()
+    expect(target.querySelector('.rs-dialog__content')).not.toBeNull()
+
+    const enterFullscreenBtn = target.querySelectorAll('.rs-dialog__actions button')[0] as HTMLElement
+    await enterFullscreenBtn.click()
+    await flushPromises()
+
+    expect(target.querySelector('.rs-dialog__content')).toBeNull()
+    const bodyContent = document.body.querySelector('.rs-dialog__content') as HTMLElement
+    expect(bodyContent).not.toBeNull()
+    expect(bodyContent.classList.contains('rs-dialog__content--fullscreen')).toBe(true)
+    expect(target.contains(bodyContent)).toBe(false)
+
+    const exitFullscreenBtn = document.body.querySelectorAll(
+      '.rs-dialog__actions button',
+    )[0] as HTMLElement
+    await exitFullscreenBtn.click()
+    await flushPromises()
+    expect(target.querySelector('.rs-dialog__content')).not.toBeNull()
+    expect(
+      target.querySelector('.rs-dialog__content')?.classList.contains('rs-dialog__content--fullscreen'),
+    ).toBe(false)
+
+    wrapper.unmount()
+    target.remove()
   })
 
   it('passes modal=false to DialogRoot for non-modal usage', async () => {

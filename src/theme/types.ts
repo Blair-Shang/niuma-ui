@@ -54,6 +54,7 @@ export const RS_RADIUS_CSS: Record<RsRadius, string> = {
  * - 3xl：展示级标题
  *
  * 对应 `--rs-font-size-*`；业务侧优先用 token，勿硬编码 px。
+ * 字族走 `--rs-font-sans` / `--rs-font-mono` / `--rs-font-serif`，组件勿硬编码 system 栈。
  */
 export type RsFontSize = 'xs' | 'sm' | 'base' | 'lg' | 'xl' | '2xl' | '3xl'
 

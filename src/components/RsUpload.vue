@@ -273,7 +273,7 @@ function fileIcon(file: File): string {
 .rs-upload__label {
   color: var(--rs-text);
   font-size: var(--rs-font-size-sm);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
   line-height: var(--rs-line-height-tight);
 }
 
@@ -367,7 +367,7 @@ function fileIcon(file: File): string {
   overflow: hidden;
   color: var(--rs-text);
   font-size: var(--rs-font-size-sm);
-  font-weight: 500;
+  font-weight: var(--rs-font-weight-medium);
   line-height: var(--rs-line-height-tight);
   text-overflow: ellipsis;
   white-space: nowrap;

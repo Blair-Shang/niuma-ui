@@ -409,8 +409,8 @@ function onDragEnd(): void {
         <div
           ref="navViewportRef"
           class="rs-tabs__nav-viewport"
-          @scroll="onNavScroll"
-          @wheel="onNavWheel"
+          @scroll.passive="onNavScroll"
+          v-bind="useScrollOverflow ? { onWheel: onNavWheel } : {}"
         >
           <TabsList class="rs-tabs__list">
             <RsContextMenu
@@ -679,7 +679,7 @@ function onDragEnd(): void {
 }
 
 .rs-tabs__trigger--fixed {
-  font-weight: 500;
+  font-weight: var(--rs-font-weight-medium);
 }
 
 .rs-tabs--draggable .rs-tabs__trigger--movable {
@@ -733,7 +733,7 @@ function onDragEnd(): void {
   background: var(--rs-surface-hover);
   color: var(--rs-muted);
   font-size: var(--rs-font-size-xs);
-  font-weight: 500;
+  font-weight: var(--rs-font-weight-medium);
   font-variant-numeric: tabular-nums;
   line-height: 1.4;
 }
@@ -910,7 +910,7 @@ function onDragEnd(): void {
 
 .rs-tabs__more--active {
   color: var(--rs-primary);
-  font-weight: 500;
+  font-weight: var(--rs-font-weight-medium);
 }
 
 .rs-tabs__more-menu {
@@ -944,7 +944,7 @@ function onDragEnd(): void {
 
 .rs-tabs__more-item--active {
   color: var(--rs-primary);
-  font-weight: 500;
+  font-weight: var(--rs-font-weight-medium);
   background: color-mix(in srgb, var(--rs-primary) 12%, transparent);
 }
 
@@ -1034,7 +1034,7 @@ function onDragEnd(): void {
 
 .rs-tabs--line .rs-tabs__trigger[data-state='active'] {
   color: var(--rs-primary);
-  font-weight: 500;
+  font-weight: var(--rs-font-weight-medium);
 }
 
 .rs-tabs--line .rs-tabs__trigger[data-state='active']::after {
@@ -1113,7 +1113,7 @@ function onDragEnd(): void {
 .rs-tabs--segmented .rs-tabs__trigger[data-state='active'] {
   color: var(--rs-primary);
   background: var(--rs-surface);
-  font-weight: 500;
+  font-weight: var(--rs-font-weight-medium);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--rs-text) 8%, transparent);
 }
 
@@ -1169,7 +1169,7 @@ function onDragEnd(): void {
 
 .rs-tabs--card .rs-tabs__trigger[data-state='active'] {
   color: var(--rs-primary);
-  font-weight: 500;
+  font-weight: var(--rs-font-weight-medium);
   background: var(--rs-surface);
   border-color: var(--rs-border);
   margin-bottom: -1px;

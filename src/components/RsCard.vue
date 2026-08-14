@@ -232,7 +232,7 @@ const rootStyle = computed(() => ({
 }
 .rs-card--plain .rs-card__title {
   font-size: var(--rs-font-size-xs);
-  font-weight: 500;
+  font-weight: var(--rs-font-weight-medium);
   color: var(--rs-card-description-fg);
   letter-spacing: 0;
 }
@@ -255,7 +255,7 @@ const rootStyle = computed(() => ({
   box-shadow: none;
 }
 .rs-card--outlined .rs-card__title {
-  font-weight: 500;
+  font-weight: var(--rs-font-weight-medium);
   letter-spacing: 0;
 }
 .rs-card--outlined .rs-card__body {
@@ -277,7 +277,7 @@ const rootStyle = computed(() => ({
   box-shadow: none;
 }
 .rs-card--filled .rs-card__title {
-  font-weight: 500;
+  font-weight: var(--rs-font-weight-medium);
   letter-spacing: 0;
 }
 .rs-card--filled .rs-card__body {
@@ -385,7 +385,7 @@ const rootStyle = computed(() => ({
 .rs-card__title {
   margin: 0;
   font-size: var(--rs-card-title-size);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
   letter-spacing: -0.01em;
   color: var(--rs-card-title-fg);
 }

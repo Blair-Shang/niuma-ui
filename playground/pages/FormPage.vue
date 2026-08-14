@@ -3,6 +3,8 @@ import { computed, reactive, ref } from 'vue'
 import {
   RsButton,
   RsForm,
+  RsFormItem,
+  RsFormList,
   RsInput,
   RsLabel,
   RsSelect,
@@ -98,6 +100,37 @@ const asyncRules = computed<RsFormRules>(() => ({
     },
   ],
 }))
+
+const itemFormRef = ref<InstanceType<typeof RsForm> | null>(null)
+const itemModel = reactive({ service: '' })
+const itemResult = ref('')
+
+async function runItemValidate(): Promise<void> {
+  const result = await itemFormRef.value?.validate()
+  itemResult.value = result?.valid ? 'ok' : (result?.errors.service ?? 'invalid')
+}
+
+function pickItemService(): void {
+  itemModel.service = itemModel.service ? '' : 'svc-1'
+}
+
+const depFormRef = ref<InstanceType<typeof RsForm> | null>(null)
+const depModel = reactive({ password: '', confirm: '' })
+const depResult = ref('')
+
+async function runDepValidate(): Promise<void> {
+  const result = await depFormRef.value?.validate()
+  depResult.value = result?.valid ? 'ok' : JSON.stringify(result?.errors ?? {})
+}
+
+const listFormRef = ref<InstanceType<typeof RsForm> | null>(null)
+const listModel = reactive({ users: [] as Array<{ name: string }> })
+const listResult = ref('')
+
+async function runListValidate(): Promise<void> {
+  const result = await listFormRef.value?.validate()
+  listResult.value = result?.valid ? 'ok' : JSON.stringify(result?.errors ?? {})
+}
 
 const loginFormRef = ref<InstanceType<typeof RsForm> | null>(null)
 const loginModel = reactive({
@@ -199,7 +232,7 @@ async function runCustomRenderValidate(): Promise<void> {
 <template>
   <DemoPage
     title="RsForm"
-    description="专业表单容器：集中 rules、字段 name、validate / validateField / reset，对标 Ant Design Form。"
+    description="专业表单容器：集中 rules、字段 name、validate / validateField / reset，对标 Ant Design Form。自定义控件用 RsFormItem 包裹（对标 Form.Item）。"
     test-file="RsForm.spec.ts"
   >
     <DemoBlock title="集中 rules（推荐）">
@@ -258,6 +291,100 @@ async function runCustomRenderValidate(): Promise<void> {
           结果：<code>{{ rulesResult }}</code>
         </p>
         <pre v-if="Object.keys(rulesErrors).length" class="errors">{{ rulesErrors }}</pre>
+      </RsForm>
+    </DemoBlock>
+
+    <DemoBlock title="RsFormItem + model（推荐）">
+      <p class="hint">
+        对标 Ant Design：<code>Form.model</code> 做数据中枢，<code>Form.Item</code> 声明
+        <code>name</code> 后成为字段唯一注册点。内置 Input 放在 Item 内不必再写
+        <code>v-model</code> / <code>name</code>。有 label 时必填文案为「请填写{label}」。
+      </p>
+      <RsForm
+        ref="itemFormRef"
+        :model="itemModel"
+        max-width="md"
+        gap="md"
+      >
+        <RsFormItem name="service" label="关联服务" required extra="可从服务管理中选择">
+          <template #default="{ invalid }">
+            <button
+              type="button"
+              class="picker"
+              :class="{ 'picker--invalid': invalid }"
+              @click="pickItemService"
+            >
+              {{ itemModel.service || '点击选择' }}
+            </button>
+          </template>
+        </RsFormItem>
+        <div class="row">
+          <RsButton @click="runItemValidate">校验</RsButton>
+          <RsButton
+            variant="default"
+            @click="
+              itemFormRef?.clearValidation();
+              itemResult = ''
+            "
+          >
+            清除错误
+          </RsButton>
+          <span class="result"><code>{{ itemResult || '—' }}</code></span>
+        </div>
+      </RsForm>
+    </DemoBlock>
+
+    <DemoBlock title="dependencies 跨字段校验">
+      <p class="hint">
+        B 的 <code>validator(value, ctx)</code> 可通过 <code>ctx.getFieldValue('password')</code>
+        读取 A。<code>dependencies</code> 让 A 变化时自动重校验 B。
+      </p>
+      <RsForm ref="depFormRef" :model="depModel" max-width="md" gap="md">
+        <RsFormItem name="password" label="密码" required>
+          <RsInput type="password" placeholder="密码" />
+        </RsFormItem>
+        <RsFormItem
+          name="confirm"
+          label="确认密码"
+          required
+          :dependencies="['password']"
+          :rules="[{
+            validator(value, ctx) {
+              if (String(value) !== String(ctx.getFieldValue('password'))) return '两次密码不一致'
+              return true
+            },
+          }]"
+        >
+          <RsInput type="password" placeholder="再输入一次" />
+        </RsFormItem>
+        <div class="row">
+          <RsButton @click="runDepValidate">校验</RsButton>
+          <span class="result"><code>{{ depResult || '—' }}</code></span>
+        </div>
+      </RsForm>
+    </DemoBlock>
+
+    <DemoBlock title="RsFormList 动态列表">
+      <p class="hint">
+        对标 Ant Design <code>Form.List</code>：<code>add</code> / <code>remove</code> 维护数组，
+        子 Item 的 <code>:name="[field.name, 'name']"</code> 会拼成 <code>users.0.name</code>。
+      </p>
+      <RsForm ref="listFormRef" :model="listModel" max-width="md" gap="md">
+        <RsFormList name="users">
+          <template #default="{ fields, add, remove }">
+            <div v-for="field in fields" :key="field.key" class="row row--mb">
+              <RsFormItem :name="[field.name, 'name']" label="姓名" required>
+                <RsInput placeholder="姓名" />
+              </RsFormItem>
+              <RsButton variant="default" size="sm" @click="remove(field.index)">删除</RsButton>
+            </div>
+            <RsButton variant="default" size="sm" @click="add({ name: '' })">添加一行</RsButton>
+          </template>
+        </RsFormList>
+        <div class="row">
+          <RsButton @click="runListValidate">校验</RsButton>
+          <span class="result"><code>{{ listResult || '—' }}</code></span>
+        </div>
       </RsForm>
     </DemoBlock>
 
@@ -555,6 +682,21 @@ async function runCustomRenderValidate(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
+}
+.picker {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--rs-control-height-md);
+  padding: 0 0.75rem;
+  border: 1px dashed var(--rs-border);
+  border-radius: var(--rs-radius-sm);
+  background: var(--rs-surface);
+  color: var(--rs-text);
+  cursor: pointer;
+}
+.picker--invalid {
+  border-color: var(--rs-danger);
 }
 .row {
   display: flex;

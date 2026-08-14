@@ -213,7 +213,7 @@ function setMode(next: RsMarkdownMode): void {
 .rs-markdown__prose h3,
 .rs-markdown__prose h4 {
   margin: 1.25em 0 0.5em;
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
   line-height: 1.3;
   letter-spacing: -0.01em;
   color: var(--rs-text);
@@ -252,7 +252,7 @@ function setMode(next: RsMarkdownMode): void {
   opacity: 0.85;
 }
 .rs-markdown__prose strong {
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
 }
 .rs-markdown__prose blockquote {
   padding: 0.15em 0 0.15em 0.9em;
@@ -268,7 +268,7 @@ function setMode(next: RsMarkdownMode): void {
   padding: 0.1em 0.35em;
   border-radius: calc(var(--rs-radius) * 0.6);
   background: color-mix(in srgb, var(--rs-muted-bg, var(--rs-border)) 55%, transparent);
-  font-family: var(--rs-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-family: var(--rs-font-mono);
   font-size: 0.9em;
 }
 .rs-markdown__codeblock {
@@ -289,7 +289,7 @@ function setMode(next: RsMarkdownMode): void {
   margin: 0;
   padding: 0.75rem 0.9rem;
   overflow: auto;
-  font-family: var(--rs-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-family: var(--rs-font-mono);
   font-size: 0.85em;
   line-height: 1.55;
 }
@@ -315,7 +315,7 @@ function setMode(next: RsMarkdownMode): void {
 }
 .rs-markdown__prose th {
   background: color-mix(in srgb, var(--rs-muted-bg, var(--rs-border)) 40%, transparent);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
 }
 .rs-markdown__img {
   max-width: 100%;

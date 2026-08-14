@@ -6,6 +6,32 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-14
+
+### 新增
+
+- `RsFormItem`：对标 Ant Design Form.Item / Element `ElFormItem`。声明 `name` 后成为字段唯一注册点；内置 `RsInput` 等在 Item 内不再重复注册。支持 `help` / `extra` / `validateStatus` / `#label` / `noStyle`。
+- `RsForm.model`、NamePath（`user.email`）、`getFieldsValue` / `setFieldsValue` / `scrollToField`、`validateMessages`。
+- `RsFormList`：动态数组字段（`add` / `remove` / `move`），子 Item 相对 name 自动拼前缀。
+- `RsFormItem.dependencies`：依赖字段变化时重校验；`validator(value, { getFieldValue, getFieldsValue })` 可读整表。
+- `RsSwitch.checkedValue` / `uncheckedValue`：自定义打开/关闭写入 v-model 的值（默认 `true` / `false`，既有 boolean 用法不变）。
+- `RsDatePicker` / `RsDateTimePicker`：`valueFormat` 对齐 Element Plus / Ant Design Vue——展示仍为墙钟，绑定可选用 `string`（默认）、`timestamp`、`iso`（本地偏移 RFC3339），或任意 dayjs 模板。`iso` 空值为 `null`。
+- `RsSelect`：`option.value` / `v-model` 支持 `string | number`（数字 `0` 可回显）；`filterOption` / `optionFilterProp` / `filterSort`；多选 `maxTagCount` / `maxTagTextLength` / `multipleLimit` / `tokenSeparators`；`labelInValue`；`fieldNames` / `optionLabelProp`；`v-model:searchValue`；`listHeight` / `placement` / `popupClassName` / `status` / `showArrow` / `getPopupContainer`；事件 `select` / `deselect` / `clear`；插槽 `#prefix` `#option` `#tag` `#header` `#footer` `#dropdownRender` `#suffixIcon` `#clearIcon` `#empty` `#loading`。选择逻辑抽到 `use-rs-select.ts`。
+- `RsInput`：框内 affix 顺序固定为字数 / 清除 / 密码显隐 / 自定义 `suffix`；新增框外连体 `addonBefore` / `addonAfter`（及同名插槽）；IME `compositionstart/end` 期间不触发校验与 `pressEnter`。
+- `RsInput.addonAfterIcon` / `addonAfterIconLabel` / `addonAfterClick`：选择器等后置图标按钮走连体 `addonAfter`，由组件自绘；连体外壳统一外边框，避免 input/addon 拼缝。
+- `hasByNamePath`：判断 NamePath 是否已存在于对象树（含叶子为 null / undefined）。
+- 排版子系统 token：`--rs-font-serif`、`--rs-code-font-*`、`--rs-prose-font-*`、`--rs-terminal-font-*`。JS 导出 `readCssVar` / `readCssLengthPx` / `readCodeFontFamily` / `readTerminalFontFamily` 等，供 Monaco / xterm 读取。
+
+### 变更
+
+- Form 校验 / `resetFields` 只收集带 `name` 的字段（无 name 不进字段表，避免弹层搜索框误校验）。请给控件加 `name` 或包 `RsFormItem`。
+- 封装开源组件排版对齐 token：CodeMirror / Monaco / xterm / marked / vue-sonner 不再硬编码字体栈或 px。`RsTerminal` 未传 `fontFamily` / `fontSize` / `fontWeight` 时改为读 CSS token（默认 `--rs-font-size-sm` / regular，不再写死 13px / 300）。组件字重改为 `--rs-font-weight-*`。
+- `.rs-field--label-left`：有 `--rs-field-label-width` 时固定标签列宽（不再 `max-content` 撑开），栅格内控件起点对齐；过长标签省略。
+- `RsFormItem`：子控件已绑定 v-model 时不再覆盖（避免 switch 的 Y/N 被注入成非 boolean）。
+- `RsDatePicker` / `RsTimePicker` / `RsSelect`：校验失败时红框画在 trigger 上（与 `RsInput` 一致）。未声明的 attrs（`class` / `style` / `aria-*`）同样落到 trigger；`v-model` 与事件签名不变。
+- `RsTooltip` / `RsTooltipProvider`：默认开启 `ignoreNonKeyboardFocus`（仅 `:focus-visible` 因焦点打开 tip），避免 Dialog/Popover 关闭回焦后误开提示；悬停与键盘聚焦行为不变。
+- `RsInputNumber` / `RsTabs`：用 `v-on` 条件对象绑定 `wheel`（避免 `@wheel="cond ? fn : undefined"` 被编译成常驻包装函数仍挂非 passive 监听）；Tabs 导航 `@scroll` 改为 passive。
+
 ## [1.0.2] - 2026-08-13
 
 ### 新增
@@ -72,7 +98,8 @@
 
 - 1.0 之前的私有 tag（如 `v0.1.0`）仅作历史记录；新接入请依赖 `v1.0.0` 及之后版本。
 
-[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.0
 [1.0.2]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.0.0

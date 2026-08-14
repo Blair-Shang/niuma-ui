@@ -186,7 +186,7 @@ defineExpose({
   --rs-time-columns-list-max-height: 10rem;
   --rs-time-columns-item-padding-y: 0.375rem;
   --rs-time-columns-item-font-size: var(--rs-font-size-sm);
-  --rs-time-columns-label-font-size: 0.6875rem;
+  --rs-time-columns-label-font-size: var(--rs-font-size-xs);
 }
 .rs-time-columns--seconds {
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -195,14 +195,14 @@ defineExpose({
   --rs-time-columns-list-max-height: 7.5rem;
   --rs-time-columns-item-padding-y: 0.2rem;
   --rs-time-columns-item-font-size: var(--rs-font-size-xs);
-  --rs-time-columns-label-font-size: 0.625rem;
+  --rs-time-columns-label-font-size: var(--rs-font-size-xs);
   gap: var(--rs-space-xs);
 }
 .rs-time-columns--sm {
   --rs-time-columns-list-max-height: 8.5rem;
   --rs-time-columns-item-padding-y: 0.28rem;
   --rs-time-columns-item-font-size: var(--rs-font-size-xs);
-  --rs-time-columns-label-font-size: 0.625rem;
+  --rs-time-columns-label-font-size: var(--rs-font-size-xs);
 }
 .rs-time-columns--lg {
   --rs-time-columns-list-max-height: 12rem;
@@ -219,7 +219,7 @@ defineExpose({
 .rs-time-columns__label {
   text-align: center;
   font-size: var(--rs-time-columns-label-font-size);
-  font-weight: 500;
+  font-weight: var(--rs-font-weight-medium);
   letter-spacing: 0.02em;
   color: var(--rs-muted);
 }

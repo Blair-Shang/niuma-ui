@@ -280,4 +280,97 @@ describe('RsInput', () => {
     })
     expect((wrapper.find('input').element as HTMLInputElement).value).toBe('256')
   })
+
+  it('places clear before custom suffix inside the affix', () => {
+    const wrapper = mount(RsInput, {
+      props: { modelValue: 'hub', clearable: true },
+      slots: { suffix: () => '选' },
+    })
+    const affix = wrapper.find('.rs-input-group__affix--suffix')
+    const children = [...affix.element.children] as HTMLElement[]
+    expect(children.map((el) => el.className)).toEqual([
+      'rs-input-group__action',
+      'rs-input-group__custom-suffix',
+    ])
+  })
+
+  it('renders addonAfterIcon as an owned addon button and emits addonAfterClick', async () => {
+    const wrapper = mount(RsInput, {
+      props: {
+        modelValue: 'hub',
+        clearable: true,
+        addonAfterIcon: 'ellipsis',
+        addonAfterIconLabel: '选择',
+      },
+    })
+    expect(wrapper.find('.rs-input-shell--combined').exists()).toBe(true)
+    expect(wrapper.find('.rs-input-addon--icon').exists()).toBe(true)
+    const button = wrapper.find('button.rs-input-addon__button')
+    expect(button.attributes('aria-label')).toBe('选择')
+    await button.trigger('click')
+    expect(wrapper.emitted('addonAfterClick')).toHaveLength(1)
+  })
+
+  it('prefers addonAfter content over addonAfterIcon', () => {
+    const wrapper = mount(RsInput, {
+      props: {
+        modelValue: '',
+        addonAfter: '.com',
+        addonAfterIcon: 'ellipsis',
+      },
+    })
+    expect(wrapper.find('.rs-input-addon--after').text()).toBe('.com')
+    expect(wrapper.find('button.rs-input-addon__button').exists()).toBe(false)
+  })
+
+  it('renders addonBefore and addonAfter as a combined shell', () => {
+    const wrapper = mount(RsInput, {
+      props: { modelValue: '', addonBefore: 'https://', addonAfter: '.com' },
+    })
+    expect(wrapper.find('.rs-input-shell--combined').exists()).toBe(true)
+    expect(wrapper.find('.rs-input-addon--before').text()).toBe('https://')
+    expect(wrapper.find('.rs-input-addon--after').text()).toBe('.com')
+    expect(wrapper.find('.rs-input-group--combined-before').exists()).toBe(true)
+    expect(wrapper.find('.rs-input-group--combined-after').exists()).toBe(true)
+  })
+
+  it('renders addonAfter slot as a combined shell', () => {
+    const wrapper = mount(RsInput, {
+      props: { modelValue: '' },
+      slots: { addonAfter: () => h('span', { class: 'slot-addon' }, '选') },
+    })
+    expect(wrapper.find('.rs-input-addon--after .slot-addon').text()).toBe('选')
+    expect(wrapper.find('.rs-input-group--combined-after').exists()).toBe(true)
+  })
+
+  it('does not emit pressEnter while IME is composing', async () => {
+    const wrapper = mount(RsInput, { props: { modelValue: '' } })
+    const input = wrapper.find('input')
+    await input.trigger('compositionstart')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('pressEnter')).toBeFalsy()
+    await input.trigger('compositionend')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('pressEnter')).toHaveLength(1)
+  })
+
+  it('does not emit validate while IME is composing', async () => {
+    const wrapper = mount(RsInput, {
+      props: {
+        modelValue: '',
+        required: true,
+        validateTrigger: 'input',
+      },
+    })
+    const input = wrapper.find('input')
+    await input.trigger('blur')
+    await input.trigger('compositionstart')
+    const before = wrapper.emitted('validate')?.length ?? 0
+    await input.trigger('input')
+    await flushPromises()
+    expect(wrapper.emitted('validate')?.length ?? 0).toBe(before)
+    await input.trigger('compositionend')
+    await flushPromises()
+    expect((wrapper.emitted('validate')?.length ?? 0)).toBeGreaterThan(before)
+  })
 })

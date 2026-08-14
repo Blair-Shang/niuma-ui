@@ -13,7 +13,10 @@
  *   --rs-text-disabled / --rs-text-link（底层亦兼容 --rs-text / --rs-muted）
  * - 按钮次要态：--rs-btn-outline-border / --rs-btn-secondary-bg /
  *   --rs-btn-secondary-bg-hover / --rs-btn-secondary-bg-active
- * - 排版：--rs-font-sans / --rs-font-mono / --rs-font-size-* / --rs-font-weight-*
+ * - 排版：--rs-font-sans / --rs-font-mono / --rs-font-serif / --rs-font-size-* / --rs-font-weight-*
+ * - 代码编辑器：--rs-code-font-family / --rs-code-font-size / --rs-code-line-height
+ * - 富文本：--rs-prose-font-family / --rs-prose-font-size / --rs-prose-line-height
+ * - 终端排版：--rs-terminal-font-family / --rs-terminal-font-size / --rs-terminal-font-weight
  * - 菜单：--rs-menu-item-active-fg|bg|weight、--rs-menu-item-fg、--rs-menu-item-bg-hover
  * - 表单标签：--rs-label-font-size|font-weight|line-height|color（RsLabel / .rs-field__label）
  * - 表格专用：--rs-table-*（色值参考 VS Code Dark/Light Modern）

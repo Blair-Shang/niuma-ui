@@ -66,8 +66,8 @@ withDefaults(
 .rs-stat-card__value {
   margin-top: var(--rs-space-sm);
   color: var(--rs-text);
-  font-size: 1.75rem;
-  font-weight: 700;
+  font-size: var(--rs-font-size-3xl);
+  font-weight: var(--rs-font-weight-bold);
   line-height: 1.1;
 }
 .rs-stat-card__description {

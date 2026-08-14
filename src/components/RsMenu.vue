@@ -134,7 +134,7 @@ watch(
   display: block;
   padding: 0.5rem 0.5rem 0.25rem;
   font-size: var(--rs-font-size-xs);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
   color: var(--rs-muted);
   letter-spacing: 0.04em;
   line-height: var(--rs-line-height-tight);
@@ -215,7 +215,7 @@ watch(
   margin-bottom: 0.125rem;
   border-bottom: 1px solid var(--rs-border);
   font-size: var(--rs-font-size-xs);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
   color: var(--rs-muted);
   letter-spacing: 0.04em;
   line-height: var(--rs-line-height-tight);

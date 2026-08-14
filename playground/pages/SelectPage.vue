@@ -3,13 +3,15 @@ import { computed, onMounted, ref, watch } from 'vue'
 import {
   RsButton,
   RsForm,
+  RsIcon,
   RsLabel,
   RsSelect,
+  type RsSelectLabeledValue,
   type RsSelectOption,
   type RsSelectOptionGroup,
 } from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
-import DemoPage from '../components/DemoPage.vue'
+import DemoPage, { type DemoApiRow } from '../components/DemoPage.vue'
 
 /** 模型选择 — 基础表单 */
 const model = ref('gpt-4o')
@@ -288,16 +290,246 @@ const customEmptyOptions: RsSelectOption[] = [
 /** 组合示例：团队成员 */
 const teamRole = ref('')
 const teamSkills = ref<string[]>([])
+
+const serviceType = ref<number>(0)
+const serviceTypeOptions: RsSelectOption[] = [
+  { label: '静态配置', value: 0 },
+  { label: '服务发现', value: 1 },
+]
+
+const stackedSkills = ref<string[]>(['vue', 'ts', 'go', 'rust'])
+const stackedSkillOptions: RsSelectOption[] = [
+  { label: 'Vue', value: 'vue' },
+  { label: 'TypeScript', value: 'ts' },
+  { label: 'Go', value: 'go' },
+  { label: 'Rust', value: 'rust' },
+]
+
+const labeledType = ref<RsSelectLabeledValue | ''>('')
+const labeledLog = ref('')
+const tokenSkills = ref<string[]>([])
+const sortedCountry = ref('')
+const warningModel = ref('')
+const fieldNamedType = ref<number>(0)
+const fieldNamedOptions = [
+  { name: '静态配置', id: 0 },
+  { name: '服务发现', id: 1 },
+]
+const optionLabelModel = ref('claude')
+const controlledSearch = ref('')
+
+function onLabeledSelect(value: string | number) {
+  labeledLog.value = `select ${String(value)}`
+}
+
+function onLabeledClear() {
+  labeledLog.value = 'clear'
+}
+
+function sortByLabel(a: RsSelectOption, b: RsSelectOption) {
+  return String(a.label).localeCompare(String(b.label), 'zh')
+}
+
+const selectApi: DemoApiRow[] = [
+  { name: 'v-model', type: 'string | number | LabeledValue | Array<…>', default: "''", description: '选中值；数字 0 可回显；labelInValue 时为 { label, value }' },
+  { name: 'labelInValue', type: 'boolean', default: 'false', description: 'v-model 带 label 快照，对齐 Ant Design' },
+  { name: 'options[].value', type: 'string | number', description: '选项值，对齐 Ant Design / Element' },
+  { name: 'filterOption', type: 'boolean | (query, option) => boolean', description: '自定义过滤；false 关闭过滤' },
+  { name: 'fieldNames', type: '{ label, value, options, disabled, groupLabel }', description: '业务字段映射，对齐 Ant fieldNames' },
+  { name: 'optionLabelProp', type: 'string', default: "'label'", description: '触发器展示字段' },
+  { name: 'v-model:searchValue', type: 'string', default: "''", description: '受控搜索词' },
+  { name: 'getPopupContainer', type: '(trigger?) => HTMLElement | string', description: '下拉挂载容器' },
+  { name: 'filterSort', type: '(a, b) => number', description: '过滤后排序，对齐 Ant filterSort' },
+  { name: 'maxTagCount', type: 'number', description: '多选最多展示的 tag 数，超出折叠为 +N' },
+  { name: 'maxTagTextLength', type: 'number', description: '多选 tag 文案最大长度' },
+  { name: 'multipleLimit', type: 'number', description: '多选最多可选数量' },
+  { name: 'tokenSeparators', type: 'string[]', description: '输入分隔符即提交（多选 / creatable）' },
+  { name: 'listHeight', type: 'number', default: '256', description: '下拉列表最大高度（px）' },
+  { name: 'placement', type: "'top' | 'bottom' | 'left' | 'right'", default: "'bottom'", description: '下拉弹出方向' },
+  { name: 'popupClassName', type: 'string', description: '下拉面板 class' },
+  { name: 'status', type: "'error' | 'warning' | ''", description: '校验外观；error 同 invalid' },
+  { name: 'showArrow', type: 'boolean', default: 'true', description: '是否显示下拉箭头' },
+  { name: 'searchable / remote / virtual / creatable', type: 'boolean', description: '搜索、远程、虚拟滚动、手输创建' },
+  { name: '@select @deselect @clear @search', type: 'event', description: '选中、取消、清空、远程搜索' },
+  { name: '#prefix #option #tag #header #footer #dropdownRender #suffixIcon #clearIcon #empty #loading #maxTagPlaceholder', type: 'slot', description: '前缀、选项、标签、面板头尾、整面板、图标与空/加载态' },
+]
 </script>
 
 <template>
-  <DemoPage title="RsSelect" test-file="RsSelect.spec.ts">
+  <DemoPage title="RsSelect" test-file="RsSelect.spec.ts" :api="selectApi">
     <DemoBlock title="基础表单（Label + 占位）">
       <p class="hint">最常见的模型 / 配置选择，配合 RsLabel 与 for-id 关联无障碍。</p>
       <div class="field">
         <RsLabel for-id="pg-model">模型</RsLabel>
         <RsSelect id="pg-model" v-model="model" :options="modelOptions" placeholder="选择模型" />
         <p class="value-hint">当前值：<code>{{ model }}</code></p>
+      </div>
+    </DemoBlock>
+
+    <DemoBlock title="数字 value（枚举 0 / 1）">
+      <p class="hint">对齐 Ant / Element：<code>value: 0</code> 可回显，v-model 保持 number。</p>
+      <div class="field">
+        <RsLabel for-id="pg-service-type">服务类型</RsLabel>
+        <RsSelect
+          id="pg-service-type"
+          v-model="serviceType"
+          :options="serviceTypeOptions"
+          placeholder="请选择服务类型"
+        />
+        <p class="value-hint">
+          typeof：<code>{{ typeof serviceType }}</code> · 值：<code>{{ JSON.stringify(serviceType) }}</code>
+        </p>
+      </div>
+    </DemoBlock>
+
+    <DemoBlock title="前缀与自定义选项">
+      <div class="field">
+        <RsLabel for-id="pg-prefixed">模型</RsLabel>
+        <RsSelect id="pg-prefixed" v-model="model" :options="modelOptions" placeholder="选择模型">
+          <template #prefix>
+            <RsIcon name="cpu" :size="14" />
+          </template>
+          <template #option="{ option }">
+            <span>{{ option.label }}</span>
+            <span class="muted"> · {{ option.value }}</span>
+          </template>
+        </RsSelect>
+      </div>
+    </DemoBlock>
+
+    <DemoBlock title="多选折叠 maxTagCount">
+      <div class="field">
+        <RsLabel for-id="pg-max-tag">技能</RsLabel>
+        <RsSelect
+          id="pg-max-tag"
+          v-model="stackedSkills"
+          :options="stackedSkillOptions"
+          multiple
+          :max-tag-count="2"
+          :multiple-limit="4"
+          placeholder="选择技能"
+        />
+        <p class="value-hint">最多展示 2 个 tag，最多选 4 项</p>
+      </div>
+    </DemoBlock>
+
+    <DemoBlock title="labelInValue + 事件">
+      <p class="hint">v-model 为 <code>{ label, value }</code>；<code>@select</code> / <code>@clear</code> 便于联动。</p>
+      <div class="field">
+        <RsLabel for-id="pg-labeled">服务类型</RsLabel>
+        <RsSelect
+          id="pg-labeled"
+          v-model="labeledType"
+          :options="serviceTypeOptions"
+          label-in-value
+          clearable
+          placeholder="选择类型"
+          @select="onLabeledSelect"
+          @clear="onLabeledClear"
+        />
+        <p class="value-hint">
+          值：<code>{{ JSON.stringify(labeledType) }}</code>
+          <span v-if="labeledLog"> · {{ labeledLog }}</span>
+        </p>
+      </div>
+    </DemoBlock>
+
+    <DemoBlock title="分隔符提交 / 排序 / 截断">
+      <p class="hint">
+        多选输入逗号即提交；<code>filterSort</code> 按 label 排序；tag 超长截断。
+      </p>
+      <div class="field field--wide">
+        <RsLabel for-id="pg-token">技能（逗号提交）</RsLabel>
+        <RsSelect
+          id="pg-token"
+          v-model="tokenSkills"
+          :options="stackedSkillOptions"
+          multiple
+          searchable
+          creatable
+          :token-separators="[',']"
+          :max-tag-text-length="6"
+          placeholder="输入或选择，逗号确认"
+        />
+        <p class="value-hint">已选：<code>{{ tokenSkills.join(', ') || '（空）' }}</code></p>
+      </div>
+      <div class="field">
+        <RsLabel for-id="pg-sorted">国家（排序）</RsLabel>
+        <RsSelect
+          id="pg-sorted"
+          v-model="sortedCountry"
+          :options="countryOptions"
+          searchable
+          :filter-sort="sortByLabel"
+          :list-height="160"
+          placement="bottom"
+          placeholder="按名称排序"
+        >
+          <template #header>按名称 A–Z</template>
+          <template #footer>{{ countryOptions.length }} 项</template>
+        </RsSelect>
+      </div>
+    </DemoBlock>
+
+    <DemoBlock title="status warning / 自定义箭头">
+      <div class="field">
+        <RsLabel for-id="pg-warning">预警筛选</RsLabel>
+        <RsSelect
+          id="pg-warning"
+          v-model="warningModel"
+          :options="statusOptions"
+          status="warning"
+          clearable
+          placeholder="选择状态"
+        >
+          <template #suffixIcon>
+            <RsIcon name="triangle-alert" :size="14" />
+          </template>
+        </RsSelect>
+      </div>
+    </DemoBlock>
+
+    <DemoBlock title="fieldNames / optionLabelProp / 受控搜索">
+      <p class="hint">
+        业务字段 <code>name/id</code> 经 <code>fieldNames</code> 映射；触发器可用
+        <code>optionLabelProp</code> 显示 value；搜索词可 <code>v-model:searchValue</code>。
+      </p>
+      <div class="field">
+        <RsLabel for-id="pg-field-names">服务类型</RsLabel>
+        <RsSelect
+          id="pg-field-names"
+          v-model="fieldNamedType"
+          :options="fieldNamedOptions"
+          :field-names="{ label: 'name', value: 'id' }"
+          placeholder="name / id"
+        />
+        <p class="value-hint">
+          typeof：<code>{{ typeof fieldNamedType }}</code> ·
+          <code>{{ JSON.stringify(fieldNamedType) }}</code>
+        </p>
+      </div>
+      <div class="field">
+        <RsLabel for-id="pg-option-label">触发器显示 value</RsLabel>
+        <RsSelect
+          id="pg-option-label"
+          v-model="optionLabelModel"
+          :options="modelOptions"
+          option-label-prop="value"
+        />
+      </div>
+      <div class="field">
+        <RsLabel for-id="pg-search-value">受控搜索</RsLabel>
+        <RsSelect
+          id="pg-search-value"
+          v-model="searchableCountry"
+          v-model:search-value="controlledSearch"
+          :options="countryOptions"
+          searchable
+          placeholder="搜索国家"
+        />
+        <p class="value-hint">
+          searchValue：<code>{{ controlledSearch || '（空）' }}</code>
+        </p>
       </div>
     </DemoBlock>
 
@@ -801,8 +1033,12 @@ const teamSkills = ref<string[]>([])
 .value-hint {
   margin: 0.25rem 0 0;
   font-size: var(--rs-font-size-xs);
-  color: var(--rs-muted);
 }
+.muted {
+  color: var(--rs-muted);
+  font-size: var(--rs-font-size-xs);
+}
+ 
 .value-hint code {
   font-size: var(--rs-font-size-xs);
   color: var(--rs-primary-hover);

@@ -108,7 +108,7 @@ function onClose(event: MouseEvent): void {
 
 .rs-alert__title {
   font-size: var(--rs-font-size-sm);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
   line-height: var(--rs-line-height-tight);
   color: inherit;
 }

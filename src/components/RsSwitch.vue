@@ -4,7 +4,10 @@ import type { RsComponentSize } from '../theme/types'
 import { SwitchRoot, SwitchThumb } from './reka'
 import { useResolvedRsComponentSize } from './resolve-size'
 
-const model = defineModel<boolean>({ default: false })
+/** Switch v-model 取值：默认 boolean，也可为业务码如 'Y'/'N'、1/0 */
+export type RsSwitchValue = boolean | string | number
+
+const model = defineModel<RsSwitchValue>({ default: false })
 
 const props = withDefaults(
   defineProps<{
@@ -13,32 +16,42 @@ const props = withDefaults(
     /** 无障碍名称；有默认插槽文案时可省略 */
     ariaLabel?: string
     id?: string
+    /** 打开时写入 v-model 的值，默认 true */
+    checkedValue?: RsSwitchValue
+    /** 关闭时写入 v-model 的值，默认 false */
+    uncheckedValue?: RsSwitchValue
   }>(),
   {
     disabled: false,
+    checkedValue: true,
+    uncheckedValue: false,
   },
 )
 
 const emit = defineEmits<{
-  change: [value: boolean]
+  change: [value: RsSwitchValue]
 }>()
 
 const autoId = useId()
 const inputId = computed(() => props.id || autoId)
 const resolvedSize = useResolvedRsComponentSize(() => props.size)
+/** Reka Switch 只吃 boolean；对外 v-model 按 checkedValue / uncheckedValue 映射 */
+const isChecked = computed(() => Object.is(model.value, props.checkedValue))
 
 const rootClass = computed(() => [
   'rs-switch',
   `rs-switch--${resolvedSize.value}`,
   {
-    'rs-switch--checked': model.value,
+    'rs-switch--checked': isChecked.value,
     'rs-switch--disabled': props.disabled,
   },
 ])
 
-function onUpdate(value: boolean): void {
-  model.value = value
-  emit('change', value)
+function onUpdate(checked: boolean): void {
+  const next = checked ? props.checkedValue : props.uncheckedValue
+  if (Object.is(model.value, next)) return
+  model.value = next
+  emit('change', next)
 }
 </script>
 
@@ -47,7 +60,7 @@ function onUpdate(value: boolean): void {
     <SwitchRoot
       :id="inputId"
       class="rs-switch__root"
-      :model-value="model"
+      :model-value="isChecked"
       :disabled="disabled"
       :aria-label="ariaLabel"
       @update:model-value="onUpdate"

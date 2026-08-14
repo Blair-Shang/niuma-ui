@@ -85,14 +85,15 @@ pnpm dev
 
 - 默认主题由 `RsConfigProvider` 的 `theme`（`light` | `dark` | …）写入 `data-rs-theme`。
 - 产品品牌色可在业务 CSS 中覆盖同名 `--rs-*` 变量；参考 [`src/theme/brand.example.css`](../src/theme/brand.example.css)。
-- 表格、终端等子系统另有 `--rs-table-*`、`--rs-terminal-*` 等 token，可按需覆盖。
+- 表格、终端、代码编辑器等子系统另有 `--rs-table-*`、`--rs-terminal-*`、`--rs-code-*`、`--rs-prose-*` 等 token，可按需覆盖。
 - 排版与文字语义（对齐 Ant Design / Arco 常用档位）：
   - 字号：`--rs-font-size-xs` … `--rs-font-size-3xl`
   - 字重：`--rs-font-weight-regular|medium|semibold|bold`
-  - 字体族：`--rs-font-sans` / `--rs-font-mono` / `--rs-font-rounded`
+  - 字体族：`--rs-font-sans` / `--rs-font-mono` / `--rs-font-serif` / `--rs-font-rounded`
+  - 代码 / 终端：`--rs-code-font-family|size`、`--rs-terminal-font-family|size|weight`（Monaco / xterm 从这些 token 读取）
   - 文字色：`--rs-text-primary|secondary|tertiary|disabled|inverse|link|link-hover`
     （兼容旧名 `--rs-text` / `--rs-muted` / `--rs-placeholder`）
-  - JS 侧也可使用导出的 `RS_FONT_SIZE_CSS` / `RS_FONT_WEIGHT_CSS`
+  - JS 侧也可使用导出的 `RS_FONT_SIZE_CSS` / `RS_FONT_WEIGHT_CSS`，以及 `readCssLengthPx` / `readCodeFontFamily`
 
 ### TypeScript
 

@@ -87,7 +87,7 @@ function onEditorEnter(): void {
 .rs-table-header-filter__title {
   margin: 0 0 0.5rem;
   font-size: var(--rs-font-size-sm);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
   color: var(--rs-fg);
 }
 .rs-table-header-filter__field {

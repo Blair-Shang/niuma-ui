@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useId, watch } from 'vue'
+import { computed, ref, useAttrs, useId, watch } from 'vue'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from './reka'
 import RsCalendarGrid from './RsCalendarGrid.vue'
 import RsIcon from './RsIcon.vue'
@@ -7,7 +7,12 @@ import RsTimePicker from './RsTimePicker.vue'
 import { useRsI18n } from '../composables/useRsI18n'
 import { RS_COMPONENT_SIZE_ICON_PX, type RsComponentSize } from '../theme/types'
 import { useResolvedRsComponentSize } from './resolve-size'
-import { useRsFormContext, useRsFormField } from './form-utils'
+import {
+  isRsFormItemBoundControl,
+  useRsFormContext,
+  useRsFormField,
+  useRsFormItemContext,
+} from './form-utils'
 import {
   buildLocalInputRules,
   runFormFieldRules,
@@ -26,6 +31,7 @@ import {
   getNextMonth,
   getNowDateTime,
   formatTimestampValue,
+  fromInternalPickerValue,
   getTodayDate,
   isDateRangeEmpty,
   isDateRangeOrdered,
@@ -35,6 +41,8 @@ import {
   parseDateTimeValue,
   parseDateValue,
   parseTimestampValue,
+  toInternalPickerValue,
+  toRangeEndpointString,
   type RsDatePickerModelValue,
   type RsDatePickerShortcut,
   type RsDatePickerValueFormat,
@@ -54,6 +62,8 @@ export type RsDatePickerLabelPosition = 'top' | 'left'
 function isRangeModel(value: RsDatePickerModelValue): value is RsDateRangeValue {
   return typeof value === 'object' && value !== null && !Array.isArray(value) && ('start' in value || 'end' in value)
 }
+
+defineOptions({ inheritAttrs: false })
 
 const model = defineModel<RsDatePickerModelValue>({ default: '' })
 const open = defineModel<boolean>('open', { default: false })
@@ -75,12 +85,19 @@ const props = withDefaults(
      * 是否选择秒。未传时：withTime 为 true 则默认带秒，纯日期为 false。
      */
     withSeconds?: boolean
-    /** string：YYYY-MM-DD[/HH:mm:ss]；timestamp：毫秒时间戳 / [start, end] */
+    /**
+     * 绑定值格式（展示仍为墙钟）。
+     * string：YYYY-MM-DD[/ HH:mm:ss]；timestamp：毫秒；iso：本地偏移 RFC3339；
+     * 亦可传入 dayjs 模板（对齐 Element Plus value-format）。
+     */
     valueFormat?: RsDatePickerValueFormat
     labelPosition?: RsDatePickerLabelPosition
     /** 底部快捷选项（有值时替代「今天/现在」链接） */
     shortcuts?: RsDatePickerShortcut[]
     size?: RsComponentSize
+    id?: string
+    invalid?: boolean
+    showValidateMessage?: boolean
   }>(),
   {
     disabled: false,
@@ -89,10 +106,12 @@ const props = withDefaults(
     withTime: false,
     valueFormat: 'string',
     labelPosition: 'top',
+    showValidateMessage: true,
   },
 )
 
 const fieldId = useId()
+const attrs = useAttrs()
 const { t } = useRsI18n()
 const resolvedSize = useResolvedRsComponentSize(() => props.size)
 const triggerIconSize = computed(() => RS_COMPONENT_SIZE_ICON_PX[resolvedSize.value])
@@ -101,7 +120,22 @@ const resolvedWithSeconds = computed(() =>
   props.withSeconds !== undefined ? props.withSeconds : props.withTime,
 )
 const formContext = useRsFormContext()
+const formItem = useRsFormItemContext()
+const boundToItem = computed(() =>
+  isRsFormItemBoundControl(formItem, { id: props.id, name: props.name }),
+)
 const autoMessage = ref('')
+const isInvalid = computed(() =>
+  Boolean(
+    props.invalid ||
+      (boundToItem.value && formItem?.invalid.value) ||
+      (!boundToItem.value && autoMessage.value),
+  ),
+)
+const triggerId = computed(() => props.id || fieldId)
+const visibleMessage = computed(() =>
+  boundToItem.value || props.showValidateMessage === false ? '' : autoMessage.value,
+)
 
 const viewYear = ref(getTodayDate().year)
 const viewMonth = ref(getTodayDate().month)
@@ -117,47 +151,52 @@ const draftTime = ref('')
 const draftStartTime = ref('')
 const draftEndTime = ref('')
 
+const convertOptions = computed(() => ({
+  valueFormat: props.valueFormat ?? 'string',
+  withTime: props.withTime,
+}))
+
 const useTimestamp = computed(() => props.valueFormat === 'timestamp')
 
 const rangeModel = computed<RsDateRangeValue>({
   get() {
     if (!props.range) return { ...EMPTY_DATE_RANGE }
     const value = model.value
-    if (useTimestamp.value) {
-      if (!isTimestampRange(value)) return { ...EMPTY_DATE_RANGE }
+    const opts = convertOptions.value
+    if (isTimestampRange(value)) {
       return {
-        start: formatTimestampValue(value[0], props.withTime),
-        end: formatTimestampValue(value[1], props.withTime),
+        start: formatTimestampValue(value[0], opts.withTime),
+        end: formatTimestampValue(value[1], opts.withTime),
       }
     }
-    return isRangeModel(value) ? value : { ...EMPTY_DATE_RANGE }
+    if (!isRangeModel(value)) return { ...EMPTY_DATE_RANGE }
+    return {
+      start: toInternalPickerValue(value.start, opts) || undefined,
+      end: toInternalPickerValue(value.end, opts) || undefined,
+    }
   },
   set(value) {
+    const opts = convertOptions.value
     if (useTimestamp.value) {
       const start = parseTimestampValue(value.start)
       const end = parseTimestampValue(value.end)
       model.value = start != null && end != null ? [start, end] : null
       return
     }
-    model.value = value
+    model.value = {
+      start: toRangeEndpointString(fromInternalPickerValue(value.start || '', opts)),
+      end: toRangeEndpointString(fromInternalPickerValue(value.end || '', opts)),
+    }
   },
 })
 
 const singleModel = computed({
   get() {
     if (props.range) return ''
-    const value = model.value
-    if (useTimestamp.value) {
-      return typeof value === 'number' ? formatTimestampValue(value, props.withTime) : ''
-    }
-    return typeof value === 'string' ? value : ''
+    return toInternalPickerValue(model.value, convertOptions.value)
   },
   set(value: string) {
-    if (useTimestamp.value) {
-      model.value = value ? parseTimestampValue(value) : null
-      return
-    }
-    model.value = value
+    model.value = fromInternalPickerValue(value, convertOptions.value)
   },
 })
 
@@ -422,11 +461,7 @@ function clearSelection(): void {
     draftEnd.value = null
     if (props.withTime) resetRangeTimeDrafts()
   } else {
-    if (useTimestamp.value) {
-      model.value = null
-    } else {
-      singleModel.value = ''
-    }
+    singleModel.value = ''
     draftDate.value = null
     if (props.withTime) draftTime.value = currentTimeValue()
   }
@@ -577,15 +612,16 @@ watch(open, (isOpen) => {
     <div class="rs-date-picker" :class="`rs-date-picker--${resolvedSize}`">
       <PopoverRoot v-model:open="open">
         <PopoverTrigger
-          :id="fieldId"
+          v-bind="attrs"
+          :id="triggerId"
           type="button"
           class="rs-date-picker__trigger"
           :class="{
             'rs-date-picker__trigger--placeholder': isEmpty,
-            'rs-date-picker__trigger--invalid': !!autoMessage,
+            'rs-date-picker__trigger--invalid': isInvalid,
           }"
           :disabled="disabled"
-          :aria-invalid="autoMessage ? true : undefined"
+          :aria-invalid="isInvalid || undefined"
         >
           <span class="rs-date-picker__leading">
             <RsIcon :name="triggerIcon" :size="triggerIconSize" class="rs-date-picker__icon" />
@@ -728,8 +764,8 @@ watch(open, (isOpen) => {
       </PopoverRoot>
     </div>
 
-    <p v-if="autoMessage" class="rs-date-picker-field__error" role="alert">
-      {{ autoMessage }}
+    <p v-if="visibleMessage" class="rs-date-picker-field__error" role="alert">
+      {{ visibleMessage }}
     </p>
     <span v-if="hint" class="rs-field__hint">{{ hint }}</span>
   </div>
@@ -758,6 +794,7 @@ watch(open, (isOpen) => {
   line-height: var(--rs-line-height-tight);
   text-align: left;
   cursor: pointer;
+  outline: none;
   box-shadow: var(--rs-input-shadow, none);
   transition:
     border-color var(--rs-transition-fast),
@@ -802,6 +839,13 @@ watch(open, (isOpen) => {
 }
 .rs-date-picker__trigger--invalid {
   border-color: var(--rs-danger, var(--rs-color-danger, #dc2626));
+}
+.rs-date-picker__trigger--invalid:focus-visible {
+  border-color: var(--rs-danger, var(--rs-color-danger, #dc2626));
+  box-shadow:
+    var(--rs-input-shadow, none),
+    0 0 0 var(--rs-focus-ring-width, 2px)
+      color-mix(in srgb, var(--rs-danger, #dc2626) 14%, transparent);
 }
 .rs-date-picker-field__error {
   margin: var(--rs-space-xs) 0 0;
@@ -874,7 +918,7 @@ watch(open, (isOpen) => {
 }
 .rs-date-picker__pane-title {
   font-size: var(--rs-font-size-xs);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
   color: var(--rs-muted);
 }
 .rs-date-picker__footer {
@@ -979,7 +1023,7 @@ watch(open, (isOpen) => {
 .rs-date-picker__time-label {
   flex-shrink: 0;
   font-size: var(--rs-font-size-xs);
-  font-weight: 500;
+  font-weight: var(--rs-font-weight-medium);
   color: var(--rs-muted);
 }
 .rs-date-picker__time-picker {

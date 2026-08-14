@@ -10,6 +10,11 @@ const props = withDefaults(
     align?: 'start' | 'center' | 'end'
     sideOffset?: number
     disabled?: boolean
+    /**
+     * 仅键盘 `:focus-visible` 时因焦点打开 tip。
+     * 默认 true：避免 Dialog/Popover 关闭回焦误开（对齐 Reka 推荐与 RsButton tooltip）。
+     */
+    ignoreNonKeyboardFocus?: boolean
     /** 单行展示并按内容撑开宽度（适合集合名等标识符） */
     nowrap?: boolean
     /**
@@ -25,6 +30,7 @@ const props = withDefaults(
     align: 'center',
     sideOffset: 6,
     disabled: false,
+    ignoreNonKeyboardFocus: true,
     nowrap: false,
     icon: false,
     iconName: 'info',
@@ -37,7 +43,10 @@ const iconAriaLabel = computed(() => props.content?.trim() || 'Help')
 </script>
 
 <template>
-  <TooltipRoot :disabled="disabled">
+  <TooltipRoot
+    :disabled="disabled"
+    :ignore-non-keyboard-focus="ignoreNonKeyboardFocus"
+  >
     <template v-if="icon">
       <span class="rs-tooltip__with-icon">
         <span v-if="hasLabelSlot" class="rs-tooltip__label">

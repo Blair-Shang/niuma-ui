@@ -14,8 +14,10 @@ import {
 } from './input-rules'
 
 import {
+  isRsFormItemBoundControl,
   useRsFormContext,
   useRsFormField,
+  useRsFormItemContext,
   type RsFormLabelPosition,
 } from './form-utils'
 
@@ -100,9 +102,30 @@ const props = withDefaults(
 
     prefix?: string
 
-    /** 文本后缀（也可用 suffix 插槽） */
+    /** 文本后缀（也可用 suffix 插槽）；框内，排在清除 / 显隐之后 */
 
     suffix?: string
+
+    /**
+     * 框外前置 addon（对齐 Ant addonBefore）。
+     * 与 prefix 不同：连体在输入框外侧，用于单位、协议等。
+     */
+    addonBefore?: string
+
+    /**
+     * 框外后置 addon（对齐 Ant addonAfter）。
+     * 文本单位、协议等；也可配合 addonAfterIcon 做选择器按钮。
+     */
+    addonAfter?: string
+
+    /**
+     * 框外后置图标按钮（Lucide 名，如 ellipsis）。
+     * 由组件自绘，走连体 addonAfter；无 #addonAfter / addonAfter 文本时生效。
+     */
+    addonAfterIcon?: string
+
+    /** addonAfterIcon 的无障碍文案 / title */
+    addonAfterIconLabel?: string
 
     /** 有值时展示清除按钮（对齐 Ant allowClear / Element clearable） */
 
@@ -183,6 +206,9 @@ const emit = defineEmits<{
 
   clear: []
 
+  /** 点击 addonAfterIcon 时触发 */
+  addonAfterClick: [event: MouseEvent]
+
 }>()
 
 
@@ -192,6 +218,10 @@ const attrs = useAttrs()
 const slots = useSlots()
 
 const formContext = useRsFormContext()
+const formItem = useRsFormItemContext()
+const boundToItem = computed(() =>
+  isRsFormItemBoundControl(formItem, { id: props.id, name: props.name }),
+)
 
 const fieldId = useId()
 
@@ -205,9 +235,25 @@ const autoMessage = ref('')
 
 const passwordVisible = ref(false)
 
-
+/** 中文等 IME 合成中：仍写入 model，但不触发校验 / pressEnter */
+const composing = ref(false)
 
 const hasPrefix = computed(() => Boolean(props.prefix || slots.prefix))
+
+const hasCustomSuffix = computed(() => Boolean(props.suffix || slots.suffix))
+
+const hasAddonBefore = computed(() => Boolean(props.addonBefore || slots.addonBefore))
+
+/** 插槽或文本 addonAfter 内容（优先于图标按钮） */
+const hasAddonAfterContent = computed(
+  () => Boolean(slots.addonAfter) || (props.addonAfter != null && props.addonAfter !== ''),
+)
+
+const hasAddonAfter = computed(
+  () => hasAddonAfterContent.value || Boolean(props.addonAfterIcon),
+)
+
+const hasAddon = computed(() => hasAddonBefore.value || hasAddonAfter.value)
 
 
 
@@ -232,6 +278,7 @@ const errorId = computed(() => `${resolvedId.value}-error`)
 
 
 const displayMessage = computed(() => {
+  if (boundToItem.value) return ''
   if (props.errorMessage) return props.errorMessage
   if (props.showValidateMessage && autoInvalid.value) return autoMessage.value
   return ''
@@ -249,9 +296,15 @@ const formErrorContent = computed(() => {
   return formContext.renderError(errorSlotProps.value)
 })
 
+const isInvalid = computed(() => {
+  if (boundToItem.value) return Boolean(formItem?.invalid.value || props.invalid)
+  return props.invalid || autoInvalid.value
+})
 
-
-const isInvalid = computed(() => props.invalid || autoInvalid.value)
+const describedBy = computed(() => {
+  if (boundToItem.value) return formItem?.describedBy.value
+  return displayMessage.value ? errorId.value : undefined
+})
 
 const resolvedDisabled = computed(() => props.disabled || formContext?.disabled.value || false)
 
@@ -299,7 +352,10 @@ const showCountDisplay = computed(() => props.showCount && props.maxlength != nu
 
 const countText = computed(() => `${model.value.length} / ${props.maxlength}`)
 
-
+/** 无 addonAfter 内容时用组件自绘的后置图标按钮 */
+const showAddonAfterIcon = computed(
+  () => Boolean(props.addonAfterIcon) && !hasAddonAfterContent.value,
+)
 
 const hasSuffix = computed(
 
@@ -307,9 +363,7 @@ const hasSuffix = computed(
 
     Boolean(
 
-      props.suffix ||
-
-        slots.suffix ||
+      hasCustomSuffix.value ||
 
         showClearButton.value ||
 
@@ -320,6 +374,14 @@ const hasSuffix = computed(
     ),
 
 )
+
+/**
+ * 点击框外后置图标按钮
+ */
+function onAddonAfterIconClick(event: MouseEvent): void {
+  if (resolvedDisabled.value || resolvedReadonly.value) return
+  emit('addonAfterClick', event)
+}
 
 
 
@@ -369,6 +431,7 @@ function setError(message: string): void {
 
 
 function onInput() {
+  if (composing.value) return
   if (
     touched.value &&
     (props.validateTrigger === 'input' || props.validateTrigger === 'both')
@@ -382,6 +445,15 @@ function onNativeInput(event: Event) {
   const el = event.target as HTMLInputElement | null
   model.value = el?.value ?? ''
   onInput()
+}
+
+function onCompositionStart() {
+  composing.value = true
+}
+
+function onCompositionEnd(event: CompositionEvent) {
+  composing.value = false
+  onNativeInput(event)
 }
 
 
@@ -405,13 +477,9 @@ function onFocus(event: FocusEvent) {
 
 
 function onKeydown(event: KeyboardEvent) {
-
-  if (event.key === 'Enter') {
-
-    emit('pressEnter', event)
-
-  }
-
+  if (event.key !== 'Enter') return
+  if (composing.value || event.isComposing) return
+  emit('pressEnter', event)
 }
 
 
@@ -518,6 +586,40 @@ defineExpose({
 
       <div
 
+        class="rs-input-shell"
+
+        :class="[
+
+          `rs-input-shell--${resolvedSize}`,
+
+          {
+
+            'rs-input-shell--combined': hasAddon,
+
+            'rs-input-shell--invalid': isInvalid,
+
+            'rs-input-shell--disabled': resolvedDisabled,
+
+          },
+
+        ]"
+
+      >
+
+        <span
+
+          v-if="hasAddonBefore"
+
+          class="rs-input-addon rs-input-addon--before"
+
+        >
+
+          <slot name="addonBefore">{{ addonBefore }}</slot>
+
+        </span>
+
+      <div
+
         class="rs-input-group"
 
         :class="{
@@ -533,6 +635,10 @@ defineExpose({
           'rs-input-group--has-prefix': hasPrefix,
 
           'rs-input-group--has-suffix': hasSuffix,
+
+          'rs-input-group--combined-before': hasAddonBefore,
+
+          'rs-input-group--combined-after': hasAddonAfter,
 
         }"
 
@@ -576,9 +682,13 @@ defineExpose({
 
           :aria-invalid="isInvalid || undefined"
 
-          :aria-describedby="displayMessage ? errorId : undefined"
+          :aria-describedby="describedBy"
 
           @input="onNativeInput"
+
+          @compositionstart="onCompositionStart"
+
+          @compositionend="onCompositionEnd"
 
           @blur="onBlur"
 
@@ -595,8 +705,6 @@ defineExpose({
           class="rs-input-group__affix rs-input-group__affix--suffix"
 
         >
-
-          <slot name="suffix">{{ suffix }}</slot>
 
           <span
 
@@ -654,6 +762,54 @@ defineExpose({
 
           </button>
 
+          <span v-if="hasCustomSuffix" class="rs-input-group__custom-suffix">
+
+            <slot name="suffix">{{ suffix }}</slot>
+
+          </span>
+
+        </span>
+
+      </div>
+
+        <span
+
+          v-if="hasAddonAfter"
+
+          class="rs-input-addon rs-input-addon--after"
+
+          :class="{ 'rs-input-addon--icon': showAddonAfterIcon }"
+
+        >
+
+          <template v-if="hasAddonAfterContent">
+
+            <slot name="addonAfter">{{ addonAfter }}</slot>
+
+          </template>
+
+          <button
+
+            v-else-if="showAddonAfterIcon"
+
+            type="button"
+
+            class="rs-input-addon__button"
+
+            :aria-label="addonAfterIconLabel || undefined"
+
+            :title="addonAfterIconLabel || undefined"
+
+            :disabled="resolvedDisabled || resolvedReadonly"
+
+            @click="onAddonAfterIconClick"
+
+          >
+
+            <RsIcon :name="addonAfterIcon!" :size="14" />
+
+          </button>
+
         </span>
 
       </div>
@@ -692,6 +848,243 @@ defineExpose({
 .rs-input-field {
 
   width: 100%;
+
+}
+
+.rs-input-shell {
+
+  width: 100%;
+
+}
+
+/* 连体外壳统一外边框，避免 input/addon 各自圆角造成拼缝 */
+.rs-input-shell--combined {
+
+  display: flex;
+
+  align-items: stretch;
+
+  box-sizing: border-box;
+
+  width: 100%;
+
+  border: 1px solid var(--rs-input-border, var(--rs-border));
+
+  border-radius: var(--rs-input-radius, var(--rs-radius-sm));
+
+  background: var(--rs-input-bg);
+
+  box-shadow: var(--rs-input-shadow, none);
+
+  overflow: hidden;
+
+  transition:
+
+    border-color var(--rs-transition-fast),
+
+    box-shadow var(--rs-transition-fast),
+
+    background var(--rs-transition-fast);
+
+}
+
+.rs-input-shell--combined:hover:not(:focus-within):not(:has(.rs-input-group--disabled)):not(
+    :has(.rs-input-group--readonly)
+  ) {
+
+  border-color: var(--rs-input-border-hover, var(--rs-border));
+
+}
+
+.rs-input-shell--combined:focus-within {
+
+  border-color: var(--rs-focus-border, var(--rs-primary));
+
+  box-shadow:
+
+    var(--rs-input-shadow, none),
+
+    0 0 0 var(--rs-focus-ring-width, 2px) var(--rs-focus-ring);
+
+}
+
+.rs-input-shell--combined:has(.rs-input-group--invalid) {
+
+  border-color: var(--rs-danger);
+
+}
+
+.rs-input-shell--combined:has(.rs-input-group--invalid):focus-within {
+
+  border-color: var(--rs-danger);
+
+  box-shadow:
+
+    var(--rs-input-shadow, none),
+
+    0 0 0 var(--rs-focus-ring-width, 2px)
+
+      color-mix(in srgb, var(--rs-danger) 14%, transparent);
+
+}
+
+.rs-input-shell--combined .rs-input-group {
+
+  flex: 1;
+
+  min-width: 0;
+
+  width: auto;
+
+  border: none;
+
+  border-radius: 0;
+
+  box-shadow: none;
+
+  background: transparent;
+
+}
+
+.rs-input-shell--combined .rs-input-group:hover:not(.rs-input-group--disabled):not(
+    .rs-input-group--readonly
+  ):not(:focus-within),
+.rs-input-shell--combined .rs-input-group:focus-within,
+.rs-input-shell--combined .rs-input-group--invalid,
+.rs-input-shell--combined .rs-input-group--invalid:focus-within {
+
+  border-color: transparent;
+
+  box-shadow: none;
+
+}
+
+.rs-input-addon {
+
+  display: inline-flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  box-sizing: border-box;
+
+  flex-shrink: 0;
+
+  min-width: var(--rs-control-height-md);
+
+  padding: 0 var(--rs-space-sm);
+
+  border: none;
+
+  border-left: 1px solid var(--rs-input-border, var(--rs-border));
+
+  border-radius: 0;
+
+  background: var(--rs-surface-hover);
+
+  color: var(--rs-muted);
+
+  font-size: var(--rs-font-size-sm);
+
+  white-space: nowrap;
+
+}
+
+.rs-input-addon--before {
+
+  border-left: none;
+
+  border-right: 1px solid var(--rs-input-border, var(--rs-border));
+
+}
+
+.rs-input-shell--ssm .rs-input-addon {
+
+  min-width: var(--rs-control-height-ssm);
+
+  padding: 0 var(--rs-space-xs);
+
+}
+
+.rs-input-shell--sm .rs-input-addon {
+
+  min-width: var(--rs-control-height-sm);
+
+  padding: 0 var(--rs-space-xs);
+
+}
+
+.rs-input-shell--lg .rs-input-addon {
+
+  min-width: var(--rs-control-height-lg);
+
+  padding: 0 var(--rs-space-md);
+
+}
+
+.rs-input-addon--icon {
+  padding: 0;
+  /* 图标选择器与输入区同底，整块一致，避免灰底 + 按钮再叠一层 hover */
+  background: transparent;
+  color: var(--rs-muted);
+  transition: color var(--rs-transition-fast), background var(--rs-transition-fast);
+}
+
+.rs-input-addon--icon:hover {
+  color: var(--rs-primary);
+  background: color-mix(in srgb, var(--rs-primary) 8%, transparent);
+}
+
+.rs-input-addon__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-width: inherit;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.rs-input-addon__button:hover:not(:disabled) {
+  /* 悬浮样式交给整块 .rs-input-addon--icon，按钮不再单独变色/铺底 */
+  color: inherit;
+  background: transparent;
+}
+
+.rs-input-addon__button:focus-visible {
+  outline: none;
+  color: var(--rs-primary);
+  box-shadow: inset 0 0 0 var(--rs-focus-ring-width, 2px) var(--rs-focus-ring);
+}
+
+.rs-input-addon__button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.rs-input-shell--disabled .rs-input-addon,
+.rs-input-shell--combined:has(.rs-input-group--disabled) .rs-input-addon {
+
+  opacity: 0.38;
+
+  cursor: not-allowed;
+
+}
+
+.rs-input-group__custom-suffix {
+
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: var(--rs-space-xs);
 
 }
 

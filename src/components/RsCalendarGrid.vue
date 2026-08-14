@@ -204,7 +204,7 @@ function selectDate(cell: RsCalendarCell): void {
   flex: 1;
   text-align: center;
   font-size: var(--rs-font-size-sm);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
   color: var(--rs-text);
 }
 .rs-calendar-grid__nav {
@@ -233,8 +233,8 @@ function selectDate(cell: RsCalendarCell): void {
 .rs-calendar-grid__weekday {
   padding: 0.125rem 0;
   text-align: center;
-  font-size: 0.6875rem;
-  font-weight: 500;
+  font-size: var(--rs-font-size-xs);
+  font-weight: var(--rs-font-weight-medium);
   color: var(--rs-muted);
 }
 .rs-calendar-grid__day {

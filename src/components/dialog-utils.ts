@@ -1,14 +1,16 @@
 import type { Component } from 'vue'
 import type { RsLocale } from '../locale/types'
 import type { RsThemeMode } from '../theme/types'
+import { dialogViewportSize } from './dialog-viewport'
 import type { RsFeedbackTone } from './overlay-utils'
 
 /** 宽度预设（与历史 sm/md/lg 一致） */
 export type RsDialogWidthPreset = 'sm' | 'md' | 'lg'
 
 /**
- * 对话框宽度：预设或自定义（number 按 px；string 原样写入 CSS，如 `40rem` / `60%`）。
- * 仅传入预设时行为与旧版完全一致。
+ * 对话框宽度：预设或自定义（number 按 px；string 为 CSS 长度，如 `40rem` / `60%`）。
+ * window 布局会在打开时把 px / rem / % 折成像素再居中（% 相对视口扣除 inset）；
+ * confirm 布局仍把自定义宽度当作 CSS 写入。
  */
 export type RsDialogWidth = RsDialogWidthPreset | number | string
 
@@ -44,6 +46,39 @@ export function resolveRsDialogCssWidth(width: RsDialogWidth): string | undefine
   }
   const trimmed = String(width).trim()
   return trimmed || undefined
+}
+
+function rootFontSizePx(): number {
+  if (typeof document === 'undefined') return 16
+  return Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
+}
+
+/**
+ * 将自定义宽度折成 px，供 window 布局计算 bounds / 居中。
+ * 支持 number、`px`、`rem`、`%`（相对视口可用宽度）；预设与无法解析的单位返回 undefined。
+ */
+export function resolveRsDialogWidthPx(
+  width: RsDialogWidth,
+  viewportWidth = dialogViewportSize().width,
+): number | undefined {
+  if (isRsDialogWidthPreset(width)) return undefined
+  if (typeof width === 'number') {
+    if (!Number.isFinite(width) || width <= 0) return undefined
+    return Math.round(width)
+  }
+  const trimmed = String(width).trim()
+  if (!trimmed) return undefined
+  if (/^\d+(\.\d+)?px$/i.test(trimmed)) {
+    return Math.round(Number.parseFloat(trimmed))
+  }
+  if (/^\d+(\.\d+)?rem$/i.test(trimmed)) {
+    return Math.round(Number.parseFloat(trimmed) * rootFontSizePx())
+  }
+  if (/^\d+(\.\d+)?%$/.test(trimmed)) {
+    if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) return undefined
+    return Math.round((Number.parseFloat(trimmed) / 100) * viewportWidth)
+  }
+  return undefined
 }
 
 export async function runRsDialogBeforeClose(

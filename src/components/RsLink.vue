@@ -62,7 +62,7 @@ function onClick(event: MouseEvent) {
 .rs-link {
   color: var(--rs-primary);
   font-size: var(--rs-font-size-sm);
-  font-weight: 500;
+  font-weight: var(--rs-font-weight-medium);
   line-height: var(--rs-line-height-tight);
   text-underline-offset: 0.18em;
   text-decoration-thickness: 1px;

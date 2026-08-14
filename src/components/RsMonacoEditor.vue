@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import * as monaco from 'monaco-editor'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { readCodeFontFamily, readCodeFontSizePx, readCssVar } from '../theme/css-token'
 import { applyMonacoDebugDecorations } from '../monaco/debug-decorations'
 import type { MonacoLanguage } from '../monaco/languages'
 import {
@@ -357,6 +358,11 @@ function initEditor(): void {
     props.language === 'json' ? monaco.Uri.parse(schemaUri) : undefined,
   )
 
+  const host = editorEl.value
+  const fontSize = readCodeFontSizePx(host)
+  const lineHeightRatio =
+    Number.parseFloat(readCssVar('--rs-code-line-height', host) || readCssVar('--rs-line-height-relaxed', host)) || 1.625
+
   editor = monaco.editor.create(editorEl.value, {
     model: editorModel,
     theme: resolveTheme(),
@@ -364,9 +370,9 @@ function initEditor(): void {
     automaticLayout: true,
     minimap: { enabled: props.minimap },
     scrollBeyondLastLine: false,
-    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Courier New', monospace",
-    fontSize: 13,
-    lineHeight: 20,
+    fontFamily: readCodeFontFamily(host),
+    fontSize,
+    lineHeight: Math.round(fontSize * lineHeightRatio),
     tabSize: 2,
     wordWrap: 'on',
     bracketPairColorization: { enabled: true },

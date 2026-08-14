@@ -90,7 +90,7 @@ const ariaLabel = computed(() => props.label ?? props.alt ?? props.name ?? undef
   width: 100%;
   height: 100%;
   font-size: var(--rs-font-size-xs);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
 }
 .rs-avatar__fallback--default {
   background: var(--rs-surface-hover);

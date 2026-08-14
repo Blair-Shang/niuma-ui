@@ -53,9 +53,21 @@ function onPressEnter() {
     </DemoBlock>
 
     <DemoBlock title="前缀 / 后缀 · addon 文本">
+      <p class="hint">
+        <code>prefix</code> / <code>suffix</code> 在框内；框内顺序为字数 → 清除 → 密码显隐 → 自定义 suffix。
+        选择、查询按钮用 <code>addonAfter</code>（框外连体），不要塞进 suffix。
+      </p>
       <div class="stack">
         <RsInput v-model="amount" prefix="￥" suffix="CNY" placeholder="0.00" rule="number" />
         <RsInput v-model="domain" prefix="https://" placeholder="example.com" />
+        <RsInput v-model="domain" addon-before="https://" addon-after=".com" placeholder="api" />
+        <RsInput v-model="search" clearable placeholder="选择实例…">
+          <template #addonAfter>
+            <button type="button" aria-label="打开选择">
+              <RsIcon name="ellipsis" :size="14" />
+            </button>
+          </template>
+        </RsInput>
       </div>
     </DemoBlock>
 

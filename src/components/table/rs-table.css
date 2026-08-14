@@ -778,7 +778,7 @@
   padding: var(--rs-space-xs) var(--rs-space-md);
   color: var(--rs-table-muted-fg);
   font-size: var(--rs-font-size-xs);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
 }
 .rs-table__virtual-pad td {
   padding: 0;

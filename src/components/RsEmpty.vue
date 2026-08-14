@@ -90,7 +90,7 @@ const rootStyle = computed(() => ({
 .rs-empty__title {
   margin: 0;
   font-size: var(--rs-font-size-sm);
-  font-weight: 500;
+  font-weight: var(--rs-font-weight-medium);
   color: var(--rs-text);
 }
 

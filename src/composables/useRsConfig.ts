@@ -1,4 +1,9 @@
 import { inject, provide, ref, type InjectionKey, type Ref } from 'vue'
+import {
+  interpolateRsMessage,
+  resolveRsTranslateArgs,
+  type RsTranslateFn,
+} from '../locale/interpolate'
 import { localeMap } from '../locale/messages'
 import { defaultLocale, type RsLocale } from '../locale/types'
 import type { RsComponentSize, RsRadius, RsThemeMode } from '../theme/types'
@@ -17,7 +22,7 @@ export interface RsConfigContext {
   setLocale: (locale: RsLocale) => void
   setControlSize: (size: RsComponentSize) => void
   setControlRadius: (radius: RsRadius | undefined) => void
-  t: (key: string, fallback?: string) => string
+  t: RsTranslateFn
 }
 
 export const rsConfigKey: InjectionKey<RsConfigContext> = Symbol('rs-config')
@@ -65,8 +70,10 @@ export function createRsConfigState(
     controlRadius.value = radius
   }
 
-  function t(key: string, fallback?: string) {
-    return localeMap[locale.value][key] ?? fallback ?? key
+  const t: RsTranslateFn = (key, fallbackOrVars, vars) => {
+    const parsed = resolveRsTranslateArgs(fallbackOrVars, vars)
+    const raw = localeMap[locale.value][key] ?? parsed.fallback ?? key
+    return interpolateRsMessage(raw, parsed.vars)
   }
 
   if (typeof document !== 'undefined') {

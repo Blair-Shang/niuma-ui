@@ -663,7 +663,7 @@ defineExpose({
   align-items: center;
   gap: var(--rs-space-sm);
   font-size: var(--rs-font-size-base);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
   line-height: var(--rs-line-height-tight, 1.3);
   color: var(--rs-drawer-title-fg, var(--rs-text));
   overflow: hidden;

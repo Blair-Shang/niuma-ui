@@ -22,7 +22,7 @@ defineProps<{
   padding: var(--rs-space-xs) var(--rs-space-sm);
   color: var(--rs-muted);
   font-size: var(--rs-font-size-xs);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
   letter-spacing: 0.04em;
 }
 .rs-sidebar-group__body {

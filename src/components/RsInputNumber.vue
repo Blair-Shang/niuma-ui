@@ -13,8 +13,10 @@ import { useRsI18n } from '../composables/useRsI18n'
 import { useResolvedRsComponentSize } from './resolve-size'
 import { rsRadiusCss, useResolvedRsRadius } from './resolve-radius'
 import {
+  isRsFormItemBoundControl,
   useRsFormContext,
   useRsFormField,
+  useRsFormItemContext,
   type RsFormLabelPosition,
 } from './form-utils'
 import {
@@ -101,6 +103,10 @@ const emit = defineEmits<{
 }>()
 
 const formContext = useRsFormContext()
+const formItem = useRsFormItemContext()
+const boundToItem = computed(() =>
+  isRsFormItemBoundControl(formItem, { id: props.id, name: props.name }),
+)
 const autoId = useId()
 const resolvedId = computed(() => props.id || `rs-input-number-${autoId}`)
 const resolvedSize = useResolvedRsComponentSize(() => props.size)
@@ -131,8 +137,11 @@ const fieldStyle = computed(() => {
 })
 
 const errorId = computed(() => `${resolvedId.value}-error`)
-const isInvalid = computed(() => Boolean(props.invalid || props.errorMessage))
-const displayMessage = computed(() => props.errorMessage || '')
+const isInvalid = computed(() => {
+  if (boundToItem.value) return Boolean(formItem?.invalid.value || props.invalid)
+  return Boolean(props.invalid || props.errorMessage)
+})
+const displayMessage = computed(() => (boundToItem.value ? '' : props.errorMessage || ''))
 
 /** 输入框文本草稿（允许中间态） */
 const draft = ref('')
@@ -366,7 +375,7 @@ defineExpose({
           @focus="onFocus"
           @blur="onBlur"
           @keydown="onKeydown"
-          @wheel="onWheel"
+          v-bind="changeOnWheel ? { onWheel } : {}"
         />
 
         <div v-if="controls" class="rs-input-number__handlers" aria-hidden="true">
@@ -566,7 +575,7 @@ defineExpose({
 
 .rs-input-number-field__error {
   margin: 4px 0 0;
-  font-size: 12px;
+  font-size: var(--rs-font-size-xs);
   color: var(--rs-danger);
   line-height: 1.4;
 }

@@ -220,17 +220,17 @@ const sonnerTheme = computed<'light' | 'dark'>(() => {
 .rs-toast__title {
   margin: 0;
   color: var(--rs-text);
-  font-size: 0.875rem;
-  font-weight: 600;
-  line-height: 1.25;
+  font-size: var(--rs-font-size-sm);
+  font-weight: var(--rs-font-weight-semibold);
+  line-height: var(--rs-line-height-tight);
   letter-spacing: -0.012em;
 }
 
 .rs-toast__description {
   margin: 0;
   color: color-mix(in srgb, var(--rs-muted) 94%, var(--rs-text) 6%);
-  font-size: 0.8125rem;
-  line-height: 1.4;
+  font-size: var(--rs-font-size-xs);
+  line-height: var(--rs-line-height-normal);
 }
 
 .rs-toast [data-close-button].rs-toast__close {
@@ -301,8 +301,8 @@ const sonnerTheme = computed<'light' | 'dark'>(() => {
   border-radius: 999px;
   background: color-mix(in srgb, var(--rs-primary) 92%, white 8%);
   color: var(--rs-primary-foreground);
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: var(--rs-font-size-xs);
+  font-weight: var(--rs-font-weight-semibold);
   line-height: 1;
   letter-spacing: 0.01em;
   box-shadow:

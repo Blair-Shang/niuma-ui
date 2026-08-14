@@ -192,7 +192,7 @@ function download() {
 }
 
 .rs-code-block__lang {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--rs-code-font-family, var(--rs-font-mono));
   font-size: var(--rs-font-size-xs);
   color: var(--rs-muted);
   text-transform: lowercase;
@@ -251,9 +251,9 @@ function download() {
 }
 
 .rs-code-block__editor :deep(.cm-scroller) {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: var(--rs-font-size-sm);
-  line-height: 1.6;
+  font-family: var(--rs-code-font-family, var(--rs-font-mono));
+  font-size: var(--rs-code-font-size, var(--rs-font-size-sm));
+  line-height: var(--rs-code-line-height, var(--rs-line-height-relaxed));
 }
 
 /* 只读时隐藏光标，保持纯展示外观 */

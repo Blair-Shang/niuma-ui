@@ -84,7 +84,7 @@ function onClose(event: MouseEvent): void {
   gap: var(--rs-space-xs);
   max-width: 100%;
   border-radius: var(--rs-tag-radius, var(--rs-radius-sm));
-  font-weight: var(--rs-tag-font-weight, 500);
+  font-weight: var(--rs-tag-font-weight, 400);
   line-height: var(--rs-line-height-tight);
   box-sizing: border-box;
   vertical-align: middle;

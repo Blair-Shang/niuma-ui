@@ -22,7 +22,7 @@ withDefaults(
   padding: 0.125rem 0.625rem;
   border-radius: var(--rs-radius-full);
   font-size: var(--rs-font-size-xs);
-  font-weight: 500;
+  font-weight: var(--rs-font-weight-medium);
   line-height: var(--rs-line-height-tight);
   letter-spacing: 0.02em;
 }

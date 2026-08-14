@@ -108,6 +108,39 @@ describe('RsInputNumber', () => {
     expect(state.value).toBe(5)
   })
 
+  it('ignores wheel when changeOnWheel is off', async () => {
+    const { wrapper, state } = mountNumber({ modelValue: 5, step: 1 })
+    const input = wrapper.find('input')
+    await input.trigger('focus')
+    await input.trigger('wheel', { deltaY: -100 })
+    expect(state.value).toBe(5)
+  })
+
+  it('steps on wheel when changeOnWheel is on and focused', async () => {
+    const { wrapper, state } = mountNumber({
+      modelValue: 5,
+      step: 1,
+      changeOnWheel: true,
+    })
+    const input = wrapper.find('input')
+    await input.trigger('focus')
+    await input.trigger('wheel', { deltaY: -100 })
+    expect(state.value).toBe(6)
+    await input.trigger('wheel', { deltaY: 100 })
+    expect(state.value).toBe(5)
+  })
+
+  it('ignores wheel when changeOnWheel is on but not focused', async () => {
+    const { wrapper, state } = mountNumber({
+      modelValue: 5,
+      step: 1,
+      changeOnWheel: true,
+    })
+    const input = wrapper.find('input')
+    await input.trigger('wheel', { deltaY: -100 })
+    expect(state.value).toBe(5)
+  })
+
   it('clears to null on empty blur', async () => {
     const { wrapper, state } = mountNumber({ modelValue: 3 })
     const input = wrapper.find('input')

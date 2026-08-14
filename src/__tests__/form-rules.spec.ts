@@ -63,6 +63,11 @@ describe('form-rules', () => {
     expect(rules[1]?.type).toBe('email')
   })
 
+  it('interpolates required message with label', async () => {
+    const labeled = await runFormFieldRules('', [{ required: true }], { label: '邮箱' })
+    expect(labeled.message).toBe('请填写邮箱')
+  })
+
   it('supports message as function', async () => {
     const result = await runFormFieldRules('x', [
       {
@@ -72,5 +77,63 @@ describe('form-rules', () => {
     ])
     expect(result.valid).toBe(false)
     expect(result.message).toBe('当前「x」太短')
+  })
+
+  it('validator can read other fields via context', async () => {
+    const result = await runFormFieldRules('two', [
+      {
+        validator(value, ctx) {
+          if (String(value) !== String(ctx.getFieldValue('a'))) return '不一致'
+          return true
+        },
+      },
+    ], {
+      getFieldValue: (name) => (String(name) === 'a' ? 'one' : undefined),
+    })
+    expect(result).toEqual({ valid: false, message: '不一致' })
+
+    const ok = await runFormFieldRules('one', [
+      {
+        validator(value, ctx) {
+          if (String(value) !== String(ctx.getFieldValue('a'))) return '不一致'
+          return true
+        },
+      },
+    ], {
+      getFieldValue: (name) => (String(name) === 'a' ? 'one' : undefined),
+    })
+    expect(ok.valid).toBe(true)
+  })
+
+  it('runs custom validator on empty value for cross-field required', async () => {
+    const result = await runFormFieldRules(
+      '',
+      [
+        {
+          validator(_value, ctx) {
+            if (ctx.getFieldValue('kind') === 'email') return '邮箱必填'
+            return true
+          },
+        },
+      ],
+      { getFieldValue: (name) => (String(name) === 'kind' ? 'email' : undefined) },
+    )
+    expect(result).toEqual({ valid: false, message: '邮箱必填' })
+  })
+
+  it('treats Error return and thrown errors as failure', async () => {
+    const returned = await runFormFieldRules('x', [
+      { validator: () => new Error('返回错误') as unknown as string },
+    ])
+    expect(returned).toEqual({ valid: false, message: '返回错误' })
+
+    const thrown = await runFormFieldRules('x', [
+      {
+        validator() {
+          throw new Error('抛出错误')
+        },
+      },
+    ])
+    expect(thrown).toEqual({ valid: false, message: '抛出错误' })
   })
 })

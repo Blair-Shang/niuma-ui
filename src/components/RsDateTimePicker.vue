@@ -30,11 +30,18 @@ withDefaults(
     withSeconds?: boolean
     minDate?: string
     maxDate?: string
-    /** string：YYYY-MM-DD HH:mm:ss；timestamp：毫秒时间戳 / [start, end] */
+    /**
+     * 绑定值格式（展示仍为墙钟）。
+     * string：YYYY-MM-DD HH:mm:ss；timestamp：毫秒；iso：本地偏移 RFC3339；
+     * 亦可传入 dayjs 模板。
+     */
     valueFormat?: RsDatePickerValueFormat
     labelPosition?: RsDateTimePickerLabelPosition
     shortcuts?: RsDatePickerShortcut[]
     size?: RsComponentSize
+    id?: string
+    invalid?: boolean
+    showValidateMessage?: boolean
   }>(),
   {
     disabled: false,
@@ -43,6 +50,7 @@ withDefaults(
     withSeconds: false,
     valueFormat: 'string',
     labelPosition: 'top',
+    showValidateMessage: true,
   },
 )
 </script>

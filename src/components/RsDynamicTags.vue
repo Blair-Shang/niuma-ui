@@ -2,7 +2,12 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRsI18n } from '../composables/useRsI18n'
 import type { RsComponentSize, RsRadius } from '../theme/types'
-import { useRsFormContext, useRsFormField } from './form-utils'
+import {
+  isRsFormItemBoundControl,
+  useRsFormContext,
+  useRsFormField,
+  useRsFormItemContext,
+} from './form-utils'
 import {
   buildLocalInputRules,
   runFormFieldRules,
@@ -23,6 +28,8 @@ const props = withDefaults(
   defineProps<{
     /** 字段名：匹配 RsForm.rules[name] */
     name?: string
+    id?: string
+    invalid?: boolean
     placeholder?: string
     disabled?: boolean
     required?: boolean
@@ -63,6 +70,10 @@ const emit = defineEmits<{
 
 const { t } = useRsI18n()
 const formContext = useRsFormContext()
+const formItem = useRsFormItemContext()
+const boundToItem = computed(() =>
+  isRsFormItemBoundControl(formItem, { id: props.id, name: props.name }),
+)
 const draft = ref('')
 const editing = ref(props.inputMode === 'always')
 const composing = ref(false)
@@ -93,7 +104,10 @@ const showTrigger = computed(
     !editing.value,
 )
 
-const hasError = computed(() => Boolean(autoMessage.value))
+const hasError = computed(() =>
+  Boolean(props.invalid || (boundToItem.value && formItem?.invalid.value) || autoMessage.value),
+)
+const visibleMessage = computed(() => (boundToItem.value ? '' : autoMessage.value))
 
 const rootClass = computed(() => [
   'rs-dynamic-tags',
@@ -339,11 +353,11 @@ onBeforeUnmount(() => {
       </button>
     </div>
     <p
-      v-if="autoMessage"
+      v-if="visibleMessage"
       class="rs-dynamic-tags-field__error"
       role="alert"
     >
-      {{ autoMessage }}
+      {{ visibleMessage }}
     </p>
   </div>
 </template>

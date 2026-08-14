@@ -125,7 +125,7 @@ describe('RsForm', () => {
       },
       template: `
         <RsForm ref="formRef">
-          <RsInput v-model="email" rule="email" required />
+          <RsInput v-model="email" name="email" rule="email" required />
         </RsForm>
       `,
     })
@@ -146,7 +146,7 @@ describe('RsForm', () => {
       },
       template: `
         <RsForm ref="formRef">
-          <RsInput v-model="email" rule="email" required />
+          <RsInput v-model="email" name="email" rule="email" required />
         </RsForm>
       `,
     })
@@ -167,7 +167,7 @@ describe('RsForm', () => {
       },
       template: `
         <RsForm ref="formRef">
-          <RsInput v-model="name" />
+          <RsInput v-model="name" name="name" />
         </RsForm>
       `,
     })
@@ -191,7 +191,7 @@ describe('RsForm', () => {
       },
       template: `
         <RsForm ref="formRef">
-          <RsInput v-model="email" rule="email" required />
+          <RsInput v-model="email" name="email" rule="email" required />
         </RsForm>
       `,
     })
@@ -238,7 +238,7 @@ describe('RsForm', () => {
       },
       template: `
         <RsForm ref="formRef">
-          <RsSelect v-model="role" :options="roleOptions" required />
+          <RsSelect v-model="role" name="role" :options="roleOptions" required />
         </RsForm>
       `,
     })

@@ -6,6 +6,12 @@ import '@xterm/xterm/css/xterm.css'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRsI18n } from '../composables/useRsI18n'
 import {
+  readTerminalFontFamily,
+  readTerminalFontSizePx,
+  readTerminalFontWeight,
+  readTerminalFontWeightBold,
+} from '../theme/css-token'
+import {
   beginClipboardPrefetch,
   copyTextToClipboard,
   readClipboardText,
@@ -29,16 +35,33 @@ import {
 
 const TERMINAL_LINE_HEIGHT = 1.2
 
+type RsTerminalFontWeight =
+  | 'normal'
+  | 'bold'
+  | '100'
+  | '200'
+  | '300'
+  | '400'
+  | '500'
+  | '600'
+  | '700'
+  | '800'
+  | '900'
+
 const props = withDefaults(
   defineProps<{
     loading?: boolean
     overlay?: string
     inputEnabled?: boolean
     cursorBlink?: boolean
+    /** 缺省读取 `--rs-terminal-font-family` / `--rs-font-mono` */
     fontFamily?: string
+    /** 缺省读取 `--rs-terminal-font-size`（对齐 `--rs-font-size-sm`） */
     fontSize?: number
-    fontWeight?: 'normal' | 'bold' | '100' | '200' | '300'  | '400' | '500' | '600' | '700' | '800' | '900'
-    fontWeightBold?: 'normal' | 'bold' | '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+    /** 缺省读取 `--rs-terminal-font-weight` */
+    fontWeight?: RsTerminalFontWeight
+    /** 缺省读取 `--rs-terminal-font-weight-bold` */
+    fontWeightBold?: RsTerminalFontWeight
     allowTransparency?: boolean
     /** auto 跟随 data-rs-theme；也可强制 light / dark */
     themeMode?: RsTerminalThemeMode
@@ -68,11 +91,6 @@ const props = withDefaults(
     overlay: '',
     inputEnabled: true,
     cursorBlink: true,
-    fontFamily:
-      '"SF Mono", "Cascadia Code", "Cascadia Mono", Consolas, "Liberation Mono", Menlo, monospace',
-    fontSize: 13,
-    fontWeight: '300',
-    fontWeightBold: '400',
     allowTransparency: false,
     themeMode: 'auto',
     theme: () => ({}),
@@ -109,13 +127,34 @@ const zebraRowStepPx = ref<number | null>(null)
 
 const showLoading = computed(() => !terminalReady.value || props.loading)
 
+function asTerminalFontWeight(value: string): RsTerminalFontWeight {
+  return value as RsTerminalFontWeight
+}
+
+function resolveTerminalFontFamily(): string {
+  return props.fontFamily || readTerminalFontFamily(hostEl.value)
+}
+
+function resolveTerminalFontSize(): number {
+  return props.fontSize ?? readTerminalFontSizePx(hostEl.value)
+}
+
+function resolveTerminalFontWeight(): RsTerminalFontWeight {
+  return props.fontWeight ?? asTerminalFontWeight(readTerminalFontWeight(hostEl.value))
+}
+
+function resolveTerminalFontWeightBold(): RsTerminalFontWeight {
+  return props.fontWeightBold ?? asTerminalFontWeight(readTerminalFontWeightBold(hostEl.value))
+}
+
 const zebraStyle = computed((): Record<string, string> | undefined => {
   if (!props.zebraStripes) {
     return undefined
   }
-  const step = zebraRowStepPx.value ?? props.fontSize * TERMINAL_LINE_HEIGHT
+  const fontSize = resolveTerminalFontSize()
+  const step = zebraRowStepPx.value ?? fontSize * TERMINAL_LINE_HEIGHT
   return {
-    '--rs-terminal-font-size': `${props.fontSize}px`,
+    '--rs-terminal-font-size': `${fontSize}px`,
     '--rs-terminal-line-height': String(TERMINAL_LINE_HEIGHT),
     '--rs-terminal-zebra-step': `${step}px`,
   }
@@ -468,10 +507,10 @@ watch(
     }
     refreshResolvedTheme()
     terminal.options.cursorBlink = props.cursorBlink
-    terminal.options.fontFamily = props.fontFamily
-    terminal.options.fontSize = props.fontSize
-    terminal.options.fontWeight = props.fontWeight
-    terminal.options.fontWeightBold = props.fontWeightBold
+    terminal.options.fontFamily = resolveTerminalFontFamily()
+    terminal.options.fontSize = resolveTerminalFontSize()
+    terminal.options.fontWeight = resolveTerminalFontWeight()
+    terminal.options.fontWeightBold = resolveTerminalFontWeightBold()
     terminal.options.allowTransparency = resolveAllowTransparency()
     terminal.options.convertEol = props.convertEol
     attachWheelGuard()
@@ -487,10 +526,10 @@ onMounted(async () => {
   refreshResolvedTheme()
   terminal = new Terminal({
     cursorBlink: props.cursorBlink,
-    fontFamily: props.fontFamily,
-    fontSize: props.fontSize,
-    fontWeight: props.fontWeight,
-    fontWeightBold: props.fontWeightBold,
+    fontFamily: resolveTerminalFontFamily(),
+    fontSize: resolveTerminalFontSize(),
+    fontWeight: resolveTerminalFontWeight(),
+    fontWeightBold: resolveTerminalFontWeightBold(),
     lineHeight: TERMINAL_LINE_HEIGHT,
     allowTransparency: resolveAllowTransparency(),
     drawBoldTextInBrightColors: true,
@@ -636,7 +675,7 @@ defineExpose({
   pointer-events: none;
   font-family: var(--rs-font-mono);
   font-size: var(--rs-font-size-xs);
-  font-weight: 400;
+  font-weight: var(--rs-font-weight-regular);
   line-height: var(--rs-line-height-normal);
 }
 
@@ -658,7 +697,7 @@ defineExpose({
 }
 
 .rs-terminal--zebra :deep(.xterm) {
-  font-size: var(--rs-terminal-font-size, 13px);
+  font-size: var(--rs-terminal-font-size);
   line-height: var(--rs-terminal-line-height, 1.2);
 }
 

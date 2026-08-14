@@ -210,6 +210,10 @@ function finishDrag(index: number): void {
   setDraggingUi(false, index)
   const final = pendingDragSizes ?? sizes.value
   pendingDragSizes = null
+  // 清掉拖拽期手写的 flex-grow，交回 Vue :style，避免残留内联样式干扰后续布局
+  paneElements().forEach((el) => {
+    el.style.removeProperty('flex-grow')
+  })
   commit(final)
   emitBoundaryTransitions(dragStartSizes, final)
   emit('resize-end', final.slice())
@@ -369,12 +373,15 @@ function materializeAutoPanes(): void {
 function paneStyle(index: number): Record<string, string> {
   if (autoFlags.value[index]) {
     const pane = props.panes[index]
+    const vertical = props.orientation === 'vertical'
+    // auto 面板必须按内容撑开；不能继承基类 min-height/min-width:0，否则在
+    // 「另一侧 flex-grow 吃满」的分栏里会被算成 0 高/宽（KeepAlive 切页后常见）。
     const style: Record<string, string> = {
       flexGrow: '0',
       flexShrink: '0',
       flexBasis: 'auto',
+      [vertical ? 'minHeight' : 'minWidth']: 'min-content',
     }
-    const vertical = props.orientation === 'vertical'
     if (typeof pane?.min === 'number' && pane.min > 0) {
       style[vertical ? 'minHeight' : 'minWidth'] = `${pane.min}%`
     }
@@ -523,6 +530,20 @@ defineExpose({ collapse, expand, reset, getSizes: () => sizes.value.slice() })
 .rs-split__pane--auto {
   /* 内容撑开；超出 max 时在面板内滚动 */
   overflow: auto;
+  flex: 0 0 auto;
+}
+
+/* 覆盖基类 min-*:0，避免 auto 面板被弹性侧压成 0 */
+.rs-split--vertical > .rs-split__pane--auto {
+  min-height: min-content;
+  height: auto;
+  max-height: none;
+}
+
+.rs-split--horizontal > .rs-split__pane--auto {
+  min-width: min-content;
+  width: auto;
+  max-width: none;
 }
 
 .rs-split__pane--collapsed {

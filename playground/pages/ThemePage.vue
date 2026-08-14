@@ -71,7 +71,9 @@ function toggleBrand() {
     <DemoBlock title="排版阶梯 / 文字语义">
       <p class="text">
         字号 <code>--rs-font-size-*</code>、字重 <code>--rs-font-weight-*</code>、
+        字族 <code>--rs-font-sans|mono|serif</code>、
         文字色 <code>--rs-text-primary|secondary|tertiary|disabled|link</code>。
+        代码编辑器 / 终端另有 <code>--rs-code-*</code>、<code>--rs-terminal-font-*</code>。
       </p>
       <div class="type-scale">
         <div class="type-row type-3xl">Display 3xl · 展示标题</div>

@@ -12,10 +12,11 @@ import { RsButton, RsConfigProvider } from 'niuma-ui'
 
 1. **前缀**：公开 UI 为 `Rs*`；内部工具文件不使用此前缀（如 `table-utils.ts`）。
 2. **配置根**：应用使用 `RsConfigProvider` 包裹（`theme`、`locale`、`control-size`）。
-3. **Token**：使用 `--rs-*`（以及 `--rs-table-*`、`--rs-terminal-*` 等子系统变量）。品牌覆盖见 `src/theme/brand.example.css`。
-4. **组合**：在本仓库内封装 Reka UI 原语；浮层行为与现有 `RsDialog`、`RsPopover` 等保持一致。
-5. **公开 vs 内部**：仅 `src/index.ts` 中的符号纳入 SemVer 保证。宿主确需的表格子件等可导出，但须写进下方清单。
-6. **重型模块**：`RsMonacoEditor`、`RsTerminal`、表格富编辑会引入大体积依赖。官网 / 轻量后台建议薄封装按需引用（见 [consumers.md](./consumers.md)）。
+3. **Token**：使用 `--rs-*`（以及 `--rs-table-*`、`--rs-terminal-*`、`--rs-code-*`、`--rs-prose-*` 等子系统变量）。品牌覆盖见 `src/theme/brand.example.css`。
+4. **排版**：字号 / 字重 / 字族只走 `--rs-font-size-*`、`--rs-font-weight-*`、`--rs-font-sans|mono|serif`。CodeMirror / Monaco / xterm 等只接受数字的 API，用 `readCssLengthPx` / `readCodeFontFamily` 从 token 读取，禁止硬编码 px 或 system 字体栈。
+5. **组合**：在本仓库内封装 Reka UI 原语；浮层行为与现有 `RsDialog`、`RsPopover` 等保持一致。
+6. **公开 vs 内部**：仅 `src/index.ts` 中的符号纳入 SemVer 保证。宿主确需的表格子件等可导出，但须写进下方清单。
+7. **重型模块**：`RsMonacoEditor`、`RsTerminal`、表格富编辑会引入大体积依赖。官网 / 轻量后台建议薄封装按需引用（见 [consumers.md](./consumers.md)）。
 
 ## 组件清单
 
@@ -46,13 +47,15 @@ import { RsButton, RsConfigProvider } from 'niuma-ui'
 |------|------|
 | `RsButton` | 按钮（变体、加载、仅图标） |
 | `RsCheckbox` | 复选框 |
-| `RsSwitch` | 开关 |
+| `RsSwitch` | 开关（`checkedValue` / `uncheckedValue` 自定义选中值） |
 | `RsRadio` / `RsRadioItem` | 单选分组 |
-| `RsInput` | 文本输入与校验规则 |
+| `RsInput` | 文本输入与校验；框内 prefix/suffix（清除在自定义 suffix 前）；框外连体 `addonBefore` / `addonAfter` |
 | `RsInputNumber` | 数字输入 |
-| `RsSelect` | 选择器 / 分组选项 |
+| `RsSelect` | 选择器（`string | number` / `labelInValue` / `fieldNames`、分组、搜索、远程、虚拟滚动、多选折叠、分隔符提交、选项与面板插槽） |
 | `RsUpload` | 文件选择与校验辅助 |
-| `RsForm` | 表单布局与字段上下文 |
+| `RsForm` | 表单布局、`model` / NamePath、`validateMessages`、`getFieldsValue` |
+| `RsFormItem` | 表单项（字段唯一注册点；`dependencies` / `help` / `extra`；对标 Form.Item） |
+| `RsFormList` | 动态数组字段（`add` / `remove` / `move`，对标 Form.List） |
 | `RsDatePicker` / `RsDateTimePicker` / `RsTimePicker` | 日期时间选择 |
 | `RsCalendarGrid` | 日历网格原语 |
 | `RsTimePickerColumns` | 时间列原语 |

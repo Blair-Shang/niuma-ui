@@ -54,6 +54,49 @@ describe('RsTooltip', () => {
     wrapper.unmount()
   })
 
+  it('does not open on non-keyboard focus when ignoreNonKeyboardFocus is on', async () => {
+    const wrapper = mountTooltip(
+      '<button type="button" class="trigger">Hover</button>',
+      { content: 'Focus tip' },
+    )
+    try {
+      const trigger = wrapper.find('.trigger').element as HTMLButtonElement
+      // 模拟 Dialog 关闭回焦：有 focus 但无 :focus-visible（jsdom 对 :focus-visible 不稳定）
+      const matchesSpy = vi
+        .spyOn(trigger, 'matches')
+        .mockImplementation((selectors: string) => !selectors.includes(':focus-visible'))
+      trigger.dispatchEvent(new FocusEvent('focus', { bubbles: true }))
+      await vi.runAllTimersAsync()
+      await flushPromises()
+      expect(document.body.querySelector('.rs-tooltip__content')).toBeNull()
+      matchesSpy.mockRestore()
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('opens on keyboard-style focus-visible', async () => {
+    const wrapper = mountTooltip(
+      '<button type="button" class="trigger">Hover</button>',
+      { content: 'Keyboard tip' },
+    )
+    try {
+      const trigger = wrapper.find('.trigger').element as HTMLButtonElement
+      const matchesSpy = vi
+        .spyOn(trigger, 'matches')
+        .mockImplementation((selectors: string) => selectors.includes(':focus-visible'))
+      trigger.dispatchEvent(new FocusEvent('focus', { bubbles: true }))
+      await vi.runAllTimersAsync()
+      await flushPromises()
+      expect(document.body.querySelector('.rs-tooltip__content')).not.toBeNull()
+      expect(document.body.textContent).toContain('Keyboard tip')
+      matchesSpy.mockRestore()
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+
   it('renders custom content slot', async () => {
     const wrapper = mount(
       {

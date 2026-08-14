@@ -445,14 +445,14 @@ defineExpose({
   justify-content: space-between;
   margin-bottom: 0.5rem;
   font-size: var(--rs-font-size-xs);
-  font-weight: 600;
+  font-weight: var(--rs-font-weight-semibold);
   color: var(--rs-foreground);
 }
 .rs-code-editor__inline-edit-head kbd {
   padding: 0.1rem 0.35rem;
   border-radius: 4px;
   border: 1px solid var(--rs-border-subtle);
-  font-size: 0.7rem;
+  font-size: var(--rs-font-size-xs);
   color: var(--rs-muted);
 }
 .rs-code-editor__inline-preview {
@@ -461,8 +461,8 @@ defineExpose({
   border-radius: 4px;
   background: color-mix(in srgb, var(--rs-muted) 8%, transparent);
   color: var(--rs-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.72rem;
+  font-family: var(--rs-code-font-family, var(--rs-font-mono));
+  font-size: var(--rs-font-size-xs);
   line-height: 1.4;
   white-space: pre-wrap;
   max-height: 4.5rem;
@@ -520,9 +520,9 @@ defineExpose({
   background: var(--rs-surface-elevated) !important;
 }
 .rs-code-editor__surface :deep(.cm-scroller) {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: var(--rs-font-size-sm);
-  line-height: 1.6;
+  font-family: var(--rs-code-font-family, var(--rs-font-mono));
+  font-size: var(--rs-code-font-size, var(--rs-font-size-sm));
+  line-height: var(--rs-code-line-height, var(--rs-line-height-relaxed));
 }
 .rs-code-editor__surface :deep(.cm-gutters) {
   background: color-mix(in srgb, var(--rs-surface-elevated) 85%, var(--rs-border) 15%) !important;
@@ -571,7 +571,7 @@ defineExpose({
   border: 1px solid var(--rs-border);
   background: var(--rs-surface-elevated);
   color: var(--rs-foreground);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--rs-code-font-family, var(--rs-font-mono));
   font-size: var(--rs-font-size-xs);
   line-height: 1.45;
   white-space: pre-wrap;
