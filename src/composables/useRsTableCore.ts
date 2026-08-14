@@ -113,7 +113,9 @@ export function useRsTableCore<T extends RsTableRowData>(options: UseRsTableCore
     emit: options.emit,
   })
 
-  const resolvedSize = computed(() => resolveTableSize(options.compact(), options.size()))
+  const resolvedSize = computed(() =>
+    resolveTableSize(options.compact() ?? false, options.size() ?? 'md'),
+  )
 
   const engine = useRsTableEngine<T>({
     data: () => options.data(),

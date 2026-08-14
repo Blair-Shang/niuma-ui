@@ -6,6 +6,14 @@
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-08-14
+
+### 修复
+
+- `RsTableCellEditor`：单元格 Select 的 `update:model-value` 对齐 `RsSelectModelValue`（含 number / 多选 / labelInValue）。
+- `useRsTableCore`：`compact` / `size` 为 undefined 时回退默认值，避免宿主 `vue-tsc` 失败。
+- `useRsTableHeadless`：`rowKey` 区分无参 getter 与行访问器，避免误当成需传入 row 的函数调用。
+
 ## [1.1.0] - 2026-08-14
 
 ### 新增
@@ -98,7 +106,8 @@
 
 - 1.0 之前的私有 tag（如 `v0.1.0`）仅作历史记录；新接入请依赖 `v1.0.0` 及之后版本。
 
-[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.1
 [1.1.0]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.0
 [1.0.2]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.0.1

@@ -6,7 +6,7 @@ import RsDatePicker from '../RsDatePicker.vue'
 import RsInput from '../RsInput.vue'
 import RsInputNumber from '../RsInputNumber.vue'
 import RsSelect from '../RsSelect.vue'
-import type { RsSelectOptions } from '../select-utils'
+import type { RsSelectModelValue, RsSelectOptions } from '../select-utils'
 import type { RsTableColumnEditorOptionsResolved, RsTableCellValueType } from '../table-utils'
 import {
   applyFocusMode,
@@ -223,9 +223,17 @@ function onKeydown(event: KeyboardEvent): void {
   }
 }
 
-function onSelectUpdate(value: string | string[]): void {
+function onSelectUpdate(value: RsSelectModelValue): void {
+  const toToken = (item: RsSelectModelValue): string => {
+    if (item == null || item === '') return ''
+    if (typeof item === 'object' && !Array.isArray(item) && 'value' in item) {
+      return String(item.value)
+    }
+    return String(item)
+  }
+  const tokens = Array.isArray(value) ? value.map(toToken) : toToken(value)
   const empty =
-    value == null || value === '' || (Array.isArray(value) && value.length === 0)
+    tokens === '' || (Array.isArray(tokens) && tokens.length === 0)
   // 表格内下拉默认不可清除：仅选择；显式 clearable 时才允许清空
   if (empty) {
     if (!props.editorOptions?.clearable) return
@@ -235,12 +243,12 @@ function onSelectUpdate(value: string | string[]): void {
     return
   }
   if (isMultipleSelect.value) {
-    const list = Array.isArray(value) ? value.map(String) : [String(value)]
+    const list = Array.isArray(tokens) ? tokens : [tokens]
     model.value = joinMultiSelectDraft(list)
     // 多选不在每次勾选时提交，等下拉关闭
     return
   }
-  model.value = Array.isArray(value) ? (value[0] ?? '') : String(value ?? '')
+  model.value = Array.isArray(tokens) ? (tokens[0] ?? '') : tokens
   if (shouldCommitOnChange()) emit('commit')
 }
 

@@ -35,8 +35,16 @@ export function useRsTableHeadless<T extends RsTableRowData>(
 ) {
   const getColumns = readRefOrGetter(options.columns)
   const getData = readRefOrGetter(options.data)
-  const getRowKey = () =>
-    typeof options.rowKey === 'function' ? options.rowKey() : options.rowKey
+  const getRowKey = (): RsTableRowKey<T> | undefined => {
+    const key = options.rowKey
+    if (key == null) return undefined
+    if (typeof key === 'string') return key
+    // 无参函数视为配置 getter；带 row 参数的视为字段访问器
+    if (typeof key === 'function' && key.length === 0) {
+      return (key as () => RsTableRowKey<T> | undefined)()
+    }
+    return key as RsTableRowKey<T>
+  }
   const getFeatures = () =>
     typeof options.features === 'function' ? options.features() : options.features
 
