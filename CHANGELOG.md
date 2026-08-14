@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-08-14
+
+### 修复
+
+- **RsIcon 在 pnpm/npm 宿主中为空**：不再用 `import.meta.glob` 扫 `node_modules/@lucide/vue`（该路径在 pnpm 虚拟 store 下不存在）。改为 `import * as LucideVue from '@lucide/vue'`，走正常包解析，宿主安装 `niuma-ui` 即可使用图标。
+
 ## [1.1.1] - 2026-08-14
 
 ### 修复
