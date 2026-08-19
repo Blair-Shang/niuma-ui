@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+## [1.1.5] - 2026-08-19
+
+### 修复
+
+- 命令式 `rsConfirm` / `openRsDialog`：销毁改为幂等，并在测试收尾走正规 `unmount`（不再先拆 Teleport 节点）。避免 Vue 卸载时 `nextSibling` 未处理异常导致 CI 失败。
+
 ## [1.1.4] - 2026-08-19
 
 ### 新增
@@ -147,7 +153,8 @@
 
 - 1.0 之前的私有 tag（如 `v0.1.0`）仅作历史记录；新接入请依赖 `v1.0.0` 及之后版本。
 
-[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.4...HEAD
+[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.5...HEAD
+[1.1.5]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.5
 [1.1.4]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.4
 [1.1.3]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.3
 [1.1.2]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.2

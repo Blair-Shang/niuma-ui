@@ -80,6 +80,9 @@ function readDomLocale(): RsLocale {
   return value === 'en-US' || value === 'zh-CN' ? value : defaultLocale
 }
 
+/** 命令式实例的销毁函数；测试收尾用 destroyAllRsDialogHosts 走正规 unmount。 */
+const liveHosts = new Set<() => void>()
+
 function mountHost(
   render: () => unknown,
   config?: { theme?: RsThemeMode; locale?: RsLocale },
@@ -103,11 +106,46 @@ function mountHost(
     },
   })
   app.mount(container)
+  let destroyed = false
   const destroy = () => {
-    app.unmount()
+    if (destroyed) return
+    destroyed = true
+    liveHosts.delete(destroy)
+    try {
+      app.unmount()
+    } catch {
+      // Teleport 节点可能已被外部从 DOM 摘掉（测试误删 portal、宿主提前清理）
+    }
     container.remove()
   }
+  liveHosts.add(destroy)
   return { app, container, destroy }
+}
+
+const pendingDestroyTimers = new Set<number>()
+
+function scheduleHostDestroy(destroy: () => void): number {
+  const timer = window.setTimeout(() => {
+    pendingDestroyTimers.delete(timer)
+    destroy()
+  }, 200)
+  pendingDestroyTimers.add(timer)
+  return timer
+}
+
+function clearHostDestroyTimer(timer: number | undefined): void {
+  if (timer == null) return
+  clearTimeout(timer)
+  pendingDestroyTimers.delete(timer)
+}
+
+/** 立即销毁所有命令式对话框宿主。测试 afterEach 使用，避免拆 DOM 后再延迟 unmount。 */
+export function destroyAllRsDialogHosts(): void {
+  for (const timer of [...pendingDestroyTimers]) {
+    clearTimeout(timer)
+    pendingDestroyTimers.delete(timer)
+  }
+  for (const destroy of [...liveHosts]) destroy()
 }
 
 function normalizeConfirmInput(
@@ -131,7 +169,15 @@ function rsConfirmCore(options: RsConfirmOptions = {}): Promise<RsConfirmResult>
     const loading = ref(options.confirmLoading ?? false)
     let settled = false
     let confirmed = false
+    let closeTimer: number | undefined
     const hasAsyncConfirm = typeof options.onConfirm === 'function'
+    let unmountHost = () => {}
+
+    const destroy = () => {
+      clearHostDestroyTimer(closeTimer)
+      closeTimer = undefined
+      unmountHost()
+    }
 
     const settle = (value: boolean) => {
       if (settled) return
@@ -139,11 +185,11 @@ function rsConfirmCore(options: RsConfirmOptions = {}): Promise<RsConfirmResult>
       open.value = false
       if (!value) options.onCancel?.()
       // 等关闭帧后再销毁，避免动画被硬切
-      window.setTimeout(() => destroy(), 200)
+      closeTimer = scheduleHostDestroy(destroy)
       resolve(value)
     }
 
-    const { destroy } = mountHost(
+    unmountHost = mountHost(
       () =>
         h(
           RsConfirmDialog,
@@ -201,7 +247,7 @@ function rsConfirmCore(options: RsConfirmOptions = {}): Promise<RsConfirmResult>
             : undefined,
         ),
       { theme: options.theme, locale: options.locale },
-    )
+    ).destroy
   })
 }
 
@@ -274,6 +320,7 @@ export const rsConfirm: RsConfirmApi = Object.assign(rsConfirmCore, {
 export function openRsDialog(options: RsDialogOpenOptions = {}): RsDialogHandle {
   const open = ref(true)
   let destroyed = false
+  let closeTimer: number | undefined
   let dialogExpose: { close?: (reason?: RsDialogCloseReason) => Promise<boolean> } | null = null
   const layout = options.layout ?? 'window'
 
@@ -295,7 +342,7 @@ export function openRsDialog(options: RsDialogOpenOptions = {}): RsDialogHandle 
           'onUpdate:open': (value: boolean) => {
             open.value = value
             if (!value && !destroyed) {
-              window.setTimeout(() => destroy(), 200)
+              closeTimer = scheduleHostDestroy(destroy)
             }
           },
           title: options.title,
@@ -344,6 +391,8 @@ export function openRsDialog(options: RsDialogOpenOptions = {}): RsDialogHandle 
   function destroy(): void {
     if (destroyed) return
     destroyed = true
+    clearHostDestroyTimer(closeTimer)
+    closeTimer = undefined
     unmount()
   }
 

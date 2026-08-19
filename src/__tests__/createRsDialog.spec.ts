@@ -1,13 +1,15 @@
 import { h } from 'vue'
 import { afterEach, describe, expect, it } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
-import { openRsDialog, rsConfirm } from '../composables/createRsDialog'
+import {
+  destroyAllRsDialogHosts,
+  openRsDialog,
+  rsConfirm,
+} from '../composables/createRsDialog'
 
 describe('createRsDialog', () => {
   afterEach(() => {
-    document.body.querySelectorAll('.rs-dialog__content, .rs-confirm-dialog__content').forEach((el) => {
-      el.closest('body > div')?.remove()
-    })
+    destroyAllRsDialogHosts()
   })
 
   it('rsConfirm resolves true when confirm clicked', async () => {
@@ -81,6 +83,17 @@ describe('createRsDialog', () => {
     release()
     await flushPromises()
     await expect(promise).resolves.toBe(true)
+  })
+
+  it('destroy does not throw after portal node was removed', async () => {
+    const handle = openRsDialog({
+      title: '残留',
+      showOverlay: false,
+      body: () => 'portal',
+    })
+    await flushPromises()
+    document.body.querySelector('.rs-dialog__content')?.closest('body > div')?.remove()
+    expect(() => handle.destroy()).not.toThrow()
   })
 
   it('openRsDialog mounts builtin footer and can destroy', async () => {
