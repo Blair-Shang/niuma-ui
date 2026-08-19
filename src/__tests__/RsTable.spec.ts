@@ -372,6 +372,23 @@ describe('RsTable', () => {
     expect(cell.attributes('style')).toContain('width: 80px')
   })
 
+  it('attaches overflow tooltip on slotted ellipsis columns', () => {
+    const wrapper = mount(RsTable, {
+      props: {
+        columns: [{ key: 'name', title: '名称', ellipsis: true, width: 80 }],
+        data: [{ id: '1', name: '很长的名字' }],
+      },
+      slots: {
+        name: ({ row }: { row: { name: string } }) => row.name,
+      },
+    })
+    const tip = wrapper.find('.rs-table__cell-tip')
+    expect(tip.exists()).toBe(true)
+    expect(tip.attributes('data-rs-table-tip-mode')).toBe('overflow')
+    expect(tip.attributes('data-rs-table-tip-text')).toBe('很长的名字')
+    wrapper.unmount()
+  })
+
   it('shows shared cell tooltip on ellipsis overflow hover', async () => {
     vi.useFakeTimers()
     const wrapper = mount(RsTable, {

@@ -105,7 +105,7 @@ export function useRsTableEditLayer<T extends RsTableRowData>(
   })
 
   function cellTooltipEnabled(column: RsTableColumn<T>, _rowIndex: number): boolean {
-    return options.cellTooltip() && columnUsesSharedTooltip(column) && !options.hasColumnSlot(column.key)
+    return options.cellTooltip() && columnUsesSharedTooltip(column)
   }
 
   function cellTooltipMode(column: RsTableColumn<T>, rowIndex: number): string | undefined {

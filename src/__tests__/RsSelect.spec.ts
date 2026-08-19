@@ -296,6 +296,68 @@ describe('RsSelect', () => {
     expect(root.props('ignoreFilter')).toBe(true)
   })
 
+  it('enables manual filter when searchable so query hides non-matches', async () => {
+    const typeOptions = [
+      { label: 'INT', value: 'INT' },
+      { label: 'BIGINT', value: 'BIGINT' },
+      { label: 'NVARCHAR', value: 'NVARCHAR' },
+      { label: 'NVARCHAR(MAX)', value: 'NVARCHAR(MAX)' },
+    ]
+    const wrapper = mount(RsSelect, {
+      props: {
+        options: typeOptions,
+        modelValue: 'BIGINT',
+        searchable: true,
+        creatable: true,
+      },
+      attachTo: document.body,
+    })
+    const root = wrapper.getComponent({ name: 'ComboboxRoot' })
+    expect(root.props('ignoreFilter')).toBe(true)
+
+    await wrapper.find('.rs-select__trigger').trigger('click')
+    await flushPromises()
+    const input = document.querySelector('.rs-select__search') as HTMLInputElement | null
+    expect(input).toBeTruthy()
+    input!.value = 'NVA'
+    input!.dispatchEvent(new Event('input', { bubbles: true }))
+    await flushPromises()
+
+    const labels = [...document.querySelectorAll('.rs-select__item-label')].map(
+      (el) => el.textContent?.trim() ?? '',
+    )
+    expect(labels).toContain('NVARCHAR')
+    expect(labels).toContain('NVARCHAR(MAX)')
+    expect(labels).not.toContain('INT')
+    expect(labels).not.toContain('BIGINT')
+    expect(document.querySelector('.rs-select__item--create')?.textContent).toContain('NVA')
+    wrapper.unmount()
+  })
+
+  it('filterOption false keeps the full list while typing', async () => {
+    const wrapper = mount(RsSelect, {
+      props: {
+        options,
+        modelValue: '',
+        searchable: true,
+        filterOption: false,
+      },
+      attachTo: document.body,
+    })
+    await wrapper.find('.rs-select__trigger').trigger('click')
+    await flushPromises()
+    const input = document.querySelector('.rs-select__search') as HTMLInputElement | null
+    input!.value = 'zzz'
+    input!.dispatchEvent(new Event('input', { bubbles: true }))
+    await flushPromises()
+    const labels = [...document.querySelectorAll('.rs-select__item-label')].map(
+      (el) => el.textContent?.trim() ?? '',
+    )
+    expect(labels).toContain('GPT-4o')
+    expect(labels).toContain('Claude')
+    wrapper.unmount()
+  })
+
   it('creatable enables search and commits typed value on Enter', async () => {
     const wrapper = mount(RsSelect, {
       props: { options, modelValue: '', creatable: true },
@@ -571,6 +633,40 @@ describe('RsSelect', () => {
     input!.dispatchEvent(new Event('input', { bubbles: true }))
     await flushPromises()
     expect(wrapper.emitted('update:searchValue')?.at(-1)).toEqual(['gpt'])
+    wrapper.unmount()
+  })
+
+  it('does not fill search with the selected value when opening', async () => {
+    const wrapper = mount(RsSelect, {
+      props: { options, modelValue: 'claude', searchable: true },
+      attachTo: document.body,
+    })
+    await wrapper.find('.rs-select__trigger').trigger('click')
+    await flushPromises()
+    const input = document.querySelector('.rs-select__search') as HTMLInputElement | null
+    expect(input?.value).toBe('')
+    const labels = [...document.querySelectorAll('.rs-select__item-label')].map(
+      (el) => el.textContent?.trim() ?? '',
+    )
+    expect(labels).toContain('GPT-4o')
+    expect(labels).toContain('Claude')
+    wrapper.unmount()
+  })
+
+  it('fills search with the selected label when fillSearchWithValue', async () => {
+    const wrapper = mount(RsSelect, {
+      props: { options, modelValue: 'claude', searchable: true, fillSearchWithValue: true },
+      attachTo: document.body,
+    })
+    await wrapper.find('.rs-select__trigger').trigger('click')
+    await flushPromises()
+    const input = document.querySelector('.rs-select__search') as HTMLInputElement | null
+    expect(input?.value).toBe('Claude')
+    const labels = [...document.querySelectorAll('.rs-select__item-label')].map(
+      (el) => el.textContent?.trim() ?? '',
+    )
+    expect(labels).toContain('Claude')
+    expect(labels).not.toContain('GPT-4o')
     wrapper.unmount()
   })
 

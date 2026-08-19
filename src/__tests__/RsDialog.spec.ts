@@ -107,7 +107,20 @@ describe('RsDialog', () => {
     await flushPromises()
     const content = document.body.querySelector('.rs-dialog__content')
     expect(content?.classList.contains('rs-dialog__content--confirm')).toBe(true)
+    expect(content?.classList.contains('rs-dialog__content--form')).toBe(true)
     expect(content?.classList.contains('rs-dialog__content--sm')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('applies form layout without confirm deprecation class-only alias', async () => {
+    const wrapper = mount(RsDialog, {
+      props: { open: true, title: '表单', width: 'sm', layout: 'form', resizable: false, fullscreenable: false },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const content = document.body.querySelector('.rs-dialog__content')
+    expect(content?.classList.contains('rs-dialog__content--form')).toBe(true)
+    expect(content?.classList.contains('rs-dialog__content--confirm')).toBe(false)
     wrapper.unmount()
   })
 

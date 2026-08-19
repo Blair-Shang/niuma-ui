@@ -109,6 +109,15 @@ describe('RsIcon', () => {
     expect(isRsIconName('sqlserver')).toBe(true)
   })
 
+  it('loads custom postgres icon', () => {
+    const icon = resolveLucideIcon('postgres')
+    expect(icon).toBeTruthy()
+    const wrapper = mount(RsIcon, { props: { name: 'postgres' } })
+    expect(wrapper.find('svg.rs-icon').exists()).toBe(true)
+    expect(wrapper.find('.postgres-icon__mark').exists()).toBe(true)
+    expect(isRsIconName('postgres')).toBe(true)
+  })
+
   it('loads arbitrary lucide icon by name', () => {
     const icon = resolveLucideIcon('trash-2')
     expect(icon).toBeTruthy()
@@ -203,6 +212,11 @@ describe('RsIcon', () => {
   it('applies accent color to custom sqlserver icon', () => {
     const wrapper = mount(RsIcon, { props: { name: 'sqlserver', color: '#34C759' } })
     expect(wrapper.find('svg').attributes('style')).toContain('--rs-icon-sqlserver-accent: #34C759')
+  })
+
+  it('applies accent color to custom postgres icon', () => {
+    const wrapper = mount(RsIcon, { props: { name: 'postgres', color: '#34C759' } })
+    expect(wrapper.find('svg').attributes('style')).toContain('--rs-icon-postgres-accent: #34C759')
   })
 
   it('applies rotate transform', () => {

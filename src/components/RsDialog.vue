@@ -47,13 +47,14 @@ const props = withDefaults(
     /**
      * 宽度：`sm` / `md` / `lg`，或 number(px) / `px` / `rem` / `%`。
      * window：打开时折成像素后居中（`%` 相对视口扣除 inset），之后可拖拽缩放。
-     * confirm：自定义宽度按 CSS 写入。
+     * form / confirm：自定义宽度按 CSS 写入。
      */
     width?: RsDialogWidth
     tone?: RsFeedbackTone
     /**
-     * window：可拖拽/缩放工作窗（推荐）。
-     * confirm：历史兼容的居中轻量窗；新代码的确认/提示请用 RsConfirmDialog。
+     * window：可拖拽/缩放工作窗。
+     * form：居中轻量表单/说明窗（高度随内容，默认不可缩放）。
+     * confirm：历史别名，等同 form；确认/提示请用 RsConfirmDialog。
      */
     layout?: RsDialogLayout
     draggable?: boolean
@@ -143,8 +144,8 @@ const attrs = useAttrs()
 const slots = useSlots()
 const { t } = useRsI18n()
 
-const isWindowLayout = computed(() => props.layout === 'window')
-const isConfirmLayout = computed(() => props.layout === 'confirm')
+const isCompactLayout = computed(() => props.layout === 'form' || props.layout === 'confirm')
+const isWindowLayout = computed(() => !isCompactLayout.value)
 const enableDraggable = computed(() => props.draggable && isWindowLayout.value)
 const enableResizable = computed(() => props.resizable && isWindowLayout.value)
 const deferBodyMount = computed(() => props.deferBodyMount ?? isWindowLayout.value)
@@ -263,7 +264,8 @@ const contentClass = computed(() => {
     ? `rs-dialog__content--${props.width}`
     : 'rs-dialog__content--custom-width'
   return [
-    `rs-dialog__content--${props.layout}`,
+    isCompactLayout.value ? 'rs-dialog__content--form' : 'rs-dialog__content--window',
+    props.layout === 'confirm' ? 'rs-dialog__content--confirm' : undefined,
     presetClass,
     `rs-dialog__content--tone-${props.tone}`,
     {
@@ -368,7 +370,7 @@ const {
   initialWidth: initialWidthPx,
   draggable: enableDraggable,
   resizable: enableResizable,
-  compact: isConfirmLayout,
+  compact: isCompactLayout,
   boundsTransition: toRef(props, 'boundsTransition'),
 })
 
@@ -551,7 +553,8 @@ defineExpose({
   color: var(--rs-dialog-title-fg);
 }
 
-/* 亮色 confirm：轻微 vibrancy；window 用实底避免 CEF 下 blur 合成开销 */
+/* 亮色 form：轻微 vibrancy；window 用实底避免 CEF 下 blur 合成开销 */
+[data-rs-theme='light'] .rs-dialog__content--form,
 [data-rs-theme='light'] .rs-dialog__content--confirm {
   background: color-mix(in srgb, var(--rs-dialog-bg) 94%, transparent);
   backdrop-filter: blur(24px) saturate(180%);
@@ -560,10 +563,12 @@ defineExpose({
 [data-rs-theme='light'] .rs-dialog__content--window {
   background: var(--rs-dialog-bg);
 }
-/* confirm 布局：缩放 + 淡入（居中，含 translate）；苹果 sheet 缓动曲线 */
+/* form 布局：缩放 + 淡入（居中，含 translate）；苹果 sheet 缓动曲线 */
+.rs-dialog__content--form[data-state='open'],
 .rs-dialog__content--confirm[data-state='open'] {
   animation: rs-dialog-pop-in 240ms cubic-bezier(0.32, 0.72, 0, 1);
 }
+.rs-dialog__content--form[data-state='closed'],
 .rs-dialog__content--confirm[data-state='closed'] {
   animation: rs-dialog-pop-out 180ms ease;
 }

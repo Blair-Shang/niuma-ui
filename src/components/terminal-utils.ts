@@ -6,6 +6,28 @@ export type RsResolvedTerminalTheme = 'light' | 'dark'
 
 export type RsTerminalAction = 'copy' | 'paste' | 'selectAll' | 'clear' | 'askAi'
 
+export type RsTerminalGeometry = { cols: number; rows: number }
+
+/** `RsTerminal` 通过 `defineExpose` 公开的命令式接口。 */
+export interface RsTerminalExpose {
+  write: (data: string) => void
+  clear: () => void
+  focus: () => void
+  fit: () => Promise<void>
+  copySelection: () => Promise<void>
+  pasteFromClipboard: () => Promise<void>
+  selectAll: () => void
+  getSelection: () => string
+  hasSelection: () => boolean
+  getGeometry: () => RsTerminalGeometry | null
+  /**
+   * 逃生舱口：直接取 xterm 实例。
+   * 终端选项由组件按 props 托管，外部改写 `terminal.options` 会与之打架（尤其整体替换该对象
+   * 会逐项重设、触发全量重测）。需要什么能力优先提为 prop 或加进本接口。
+   */
+  getTerminal: () => Terminal | null
+}
+
 const TERMINAL_CSS_KEYS: Array<[keyof ITheme, string]> = [
   ['background', '--rs-terminal-bg'],
   ['foreground', '--rs-terminal-fg'],

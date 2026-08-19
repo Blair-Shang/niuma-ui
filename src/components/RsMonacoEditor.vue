@@ -10,6 +10,11 @@ import {
   MONACO_MYSQL_LANGUAGE,
   MONACO_DAMENG_LANGUAGE,
   MONACO_KINGBASE_LANGUAGE,
+  MONACO_POSTGRESQL_LANGUAGE,
+  MONACO_CLICKHOUSE_LANGUAGE,
+  MONACO_SQLITE_LSP_LANGUAGE,
+  MONACO_SQLSERVER_LANGUAGE,
+  MONACO_ORACLE_LANGUAGE,
 } from '../monaco/languages'
 /** VS Code 式调试装饰样式（断点 / 当前行）；业务组件勿再自定义 glyph CSS */
 import '../monaco/debug-decorations.css'
@@ -220,11 +225,16 @@ function completionPrefix(line: string): string {
 }
 
 function isManagedSqlDialect(language: string | undefined): boolean {
-  // mysql / dameng / kingbase：Bridge LSP 接管补全；勿再注册实例级 Provider
+  // Bridge LSP 接管补全；勿再注册实例级 Provider / wordBased
   return (
     language === MONACO_MYSQL_LANGUAGE ||
     language === MONACO_DAMENG_LANGUAGE ||
-    language === MONACO_KINGBASE_LANGUAGE
+    language === MONACO_KINGBASE_LANGUAGE ||
+    language === MONACO_POSTGRESQL_LANGUAGE ||
+    language === MONACO_CLICKHOUSE_LANGUAGE ||
+    language === MONACO_SQLITE_LSP_LANGUAGE ||
+    language === MONACO_SQLSERVER_LANGUAGE ||
+    language === MONACO_ORACLE_LANGUAGE
   )
 }
 
@@ -377,7 +387,7 @@ function initEditor(): void {
     wordWrap: 'on',
     bracketPairColorization: { enabled: true },
     padding: { top: 8, bottom: 8 },
-    renderLineHighlight: 'gutter',
+    renderLineHighlight: 'line',
     smoothScrolling: true,
     cursorSmoothCaretAnimation: 'on',
     folding: true,
@@ -388,7 +398,7 @@ function initEditor(): void {
     lineDecorationsWidth: props.glyphMargin ? 16 : 4,
     overviewRulerLanes: 0,
     hideCursorInOverviewRuler: true,
-    // Shell：业务 completionRequest；mysql/dameng/kingbase：Bridge LSP；避免 wordBased 抢补全
+    // Shell：业务 completionRequest；SQL 方言：Bridge LSP；避免 wordBased 抢补全
     quickSuggestions: props.language === MONACO_MONGODB_SHELL_LANGUAGE
       ? { other: true, comments: false, strings: true }
       : true,

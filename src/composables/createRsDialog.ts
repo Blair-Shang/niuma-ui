@@ -20,9 +20,10 @@ export interface RsDialogOpenOptions {
   tone?: RsFeedbackTone
   /**
    * 布局。默认 window（工作窗）。
-   * confirm 仅作历史兼容；新代码的确认/提示请用 rsConfirm / RsConfirmDialog。
+   * form：居中轻量表单/说明；confirm 仅作历史兼容（等同 form）。
+   * 确认/提示请用 rsConfirm / RsConfirmDialog。
    */
-  layout?: 'window' | 'confirm'
+  layout?: 'window' | 'form' | 'confirm'
   showOverlay?: boolean
   /** 遮罩不透明度 0–1 */
   overlayOpacity?: number
@@ -267,6 +268,7 @@ export const rsConfirm: RsConfirmApi = Object.assign(rsConfirmCore, {
 /**
  * 命令式打开 RsDialog；适合临时表单/说明层。
  * 确认/危险提示请用 rsConfirm，不要传 layout: 'confirm'。
+ * 轻量表单/说明请用 layout: 'form'。
  * 复杂长期状态仍建议声明式使用组件。
  */
 export function openRsDialog(options: RsDialogOpenOptions = {}): RsDialogHandle {

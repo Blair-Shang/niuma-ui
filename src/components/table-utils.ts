@@ -153,8 +153,8 @@ export interface RsTableColumn<T extends RsTableRowData = Record<string, unknown
   fixed?: RsTableColumnFixed
   ellipsis?: boolean
   /**
-   * 悬停提示文案。启用表格级共享 Tooltip（整表单浮层），适合大表场景。
-   * 与 `ellipsis` 独立：未省略时也会显示。
+   * 格子里看不到的额外提示（always）。不要重复可见文本。
+   * 可见文本被截断时的提示用 `ellipsis`：只量表格自身省略容器。
    */
   tooltip?: (row: T, index: number) => string | null | undefined
   /** 表头原生 title（宽表勿逐列挂 RsTooltip，避免成百实例） */

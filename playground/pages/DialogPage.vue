@@ -86,6 +86,7 @@ async function onBuiltinConfirm(): Promise<void> {
         <code>v-model:open</code> 控制显隐。标题栏拖拽需额外设置 <code>draggable</code>。
         确认/危险提示请用 <code>RsConfirmDialog</code> /
         <code>rsConfirm.*</code>，不要再用 <code>layout="confirm"</code>（已弃用）。
+        轻量表单/说明请用 <code>layout="form"</code>。
       </p>
       <RsButton @click="basicOpen = true">打开对话框</RsButton>
       <RsDialog v-model:open="basicOpen" title="编辑成员">
@@ -141,8 +142,8 @@ async function onBuiltinConfirm(): Promise<void> {
 
     <DemoBlock title="标题与描述">
       <p class="hint">
-        下列仍演示历史 <code>layout="confirm"</code>（开发环境会 warn）；新代码请改用 window 或
-        RsConfirmDialog。
+        下列仍演示历史 <code>layout="confirm"</code>（开发环境会 warn）；新代码请改用
+        <code>layout="form"</code>、<code>window</code> 或 RsConfirmDialog。
       </p>
       <RsButton variant="default" @click="descOpen = true">查看详情</RsButton>
       <RsDialog

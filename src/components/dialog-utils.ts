@@ -10,11 +10,12 @@ export type RsDialogWidthPreset = 'sm' | 'md' | 'lg'
 /**
  * 对话框宽度：预设或自定义（number 按 px；string 为 CSS 长度，如 `40rem` / `60%`）。
  * window 布局会在打开时把 px / rem / % 折成像素再居中（% 相对视口扣除 inset）；
- * confirm 布局仍把自定义宽度当作 CSS 写入。
+ * form / confirm 布局仍把自定义宽度当作 CSS 写入。
  */
 export type RsDialogWidth = RsDialogWidthPreset | number | string
 
-export type RsDialogLayout = 'window' | 'confirm'
+/** window：可缩放工作窗；form：居中轻量表单/说明；confirm：历史别名，等同 form */
+export type RsDialogLayout = 'window' | 'form' | 'confirm'
 
 /** 关闭来源，供 beforeClose / afterClose 区分 */
 export type RsDialogCloseReason =

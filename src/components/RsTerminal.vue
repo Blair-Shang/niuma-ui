@@ -26,14 +26,25 @@ import {
   resolveTerminalTheme,
   terminalShortcutLabel,
   type RsTerminalAction,
+  type RsTerminalExpose,
+  type RsTerminalGeometry,
   type RsTerminalThemeMode,
 } from './terminal-utils'
 import {
   attachWheelScrollGuard,
+  isAlternateTerminalBuffer,
   type RsTerminalWheelScrollModifier,
 } from './terminal-wheel'
 
+/** 单元格高度倍率（xterm options.lineHeight）。中文比 Canvas 测的西文高，1 会裁到下一行。 */
 const TERMINAL_LINE_HEIGHT = 1.2
+
+/** 令牌缺省字号；仅在挂载前（含 SSR）占位，挂载后由 syncResolvedFontSize 换成实测值。 */
+const FALLBACK_FONT_SIZE_PX = 14
+
+// class / style 需要落在 .rs-terminal 上；根节点是 RsContextMenu 的 as-child 触发器，
+// 交给自动透传会落到触发器上，消费方只能在外面再套一层控制尺寸。
+defineOptions({ inheritAttrs: false })
 
 type RsTerminalFontWeight =
   | 'normal'
@@ -81,7 +92,10 @@ const props = withDefaults(
     convertEol?: boolean
     /** 奇数行斑马纹底色，提升长日志可读性 */
     zebraStripes?: boolean
-    /** none：滚轮直接滚 scrollback；shift：仅 Shift+滚轮滚历史，普通滚轮发方向键（SSH/TUI 推荐） */
+    /**
+     * none：滚轮始终翻 scrollback。
+     * shift：普通 shell 翻 scrollback；仅 vim/top 等备用屏把滚轮转成方向键。
+     */
     wheelScrollModifier?: RsTerminalWheelScrollModifier
     /** TUI 全屏刷新时若视口不在底部，自动滚回底部（修复 top 表头丢失） */
     snapViewportOnTuiWrite?: boolean
@@ -113,6 +127,8 @@ const emit = defineEmits<{
   action: [action: RsTerminalAction]
   /** 询问 AI：携带右键菜单打开时快照的选区（避免菜单点击后选区被清空） */
   askAi: [text: string]
+  /** 选区变化，携带当前选中文本（无选区时为空串） */
+  selectionChange: [text: string]
 }>()
 
 const { t } = useRsI18n()
@@ -124,6 +140,8 @@ const menuSelectionSnapshot = ref('')
 const resolvedThemeMode = ref(resolveTerminalTheme(props.themeMode))
 /** fit 后量一次真实行高，避免亚像素漂移；非每帧更新 */
 const zebraRowStepPx = ref<number | null>(null)
+/** 令牌字号的实测缓存：读 CSS 变量是 DOM 操作，不能放进 computed */
+const resolvedFontSizePx = ref(props.fontSize ?? FALLBACK_FONT_SIZE_PX)
 
 const showLoading = computed(() => !terminalReady.value || props.loading)
 
@@ -147,11 +165,15 @@ function resolveTerminalFontWeightBold(): RsTerminalFontWeight {
   return props.fontWeightBold ?? asTerminalFontWeight(readTerminalFontWeightBold(hostEl.value))
 }
 
+function syncResolvedFontSize(): void {
+  resolvedFontSizePx.value = resolveTerminalFontSize()
+}
+
 const zebraStyle = computed((): Record<string, string> | undefined => {
   if (!props.zebraStripes) {
     return undefined
   }
-  const fontSize = resolveTerminalFontSize()
+  const fontSize = resolvedFontSizePx.value
   const step = zebraRowStepPx.value ?? fontSize * TERMINAL_LINE_HEIGHT
   return {
     '--rs-terminal-font-size': `${fontSize}px`,
@@ -212,6 +234,8 @@ let resizeObserver: ResizeObserver | null = null
 let themeObserver: MutationObserver | null = null
 let detachWheelGuard: (() => void) | null = null
 let lastGeometry = { cols: 0, rows: 0 }
+let fitRaf = 0
+let didInitialFit = false
 
 function resolveAllowTransparency(): boolean {
   return props.allowTransparency || props.zebraStripes
@@ -251,6 +275,7 @@ function attachWheelGuard(): void {
   detachWheelGuard = attachWheelScrollGuard(hostEl.value, {
     modifier: () => props.wheelScrollModifier,
     inputEnabled: () => props.inputEnabled,
+    isAlternateBuffer: () => isAlternateTerminalBuffer(terminal),
     onArrowKeys: (data) => {
       if (props.inputEnabled) {
         emit('data', data)
@@ -264,7 +289,7 @@ function refreshResolvedTheme(): void {
   applyThemeToTerminal()
 }
 
-function currentGeometry(): { cols: number; rows: number } | null {
+function currentGeometry(): RsTerminalGeometry | null {
   if (!terminal) {
     return null
   }
@@ -300,37 +325,35 @@ async function fit(): Promise<void> {
   if (clientWidth <= 0 || clientHeight <= 0) {
     return
   }
-  if (typeof document !== 'undefined' && document.fonts?.ready) {
-    await document.fonts.ready
-  }
-  if (!fitAddon || !terminal || !hostEl.value) {
-    return
-  }
-  await nextTick()
-  if (!fitAddon || !terminal) {
-    return
-  }
-  await rafTwice()
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    if (!fitAddon || !terminal) {
-      return
+  if (!didInitialFit) {
+    if (typeof document !== 'undefined' && document.fonts?.ready) {
+      await document.fonts.ready
     }
-    try {
-      fitAddon.fit()
-    } catch {
-      return
-    }
-    const dims = fitAddon.proposeDimensions()
-    if (dims && dims.cols > 0 && dims.rows > 0) {
-      break
-    }
+    await nextTick()
     await rafTwice()
   }
   if (!fitAddon || !terminal) {
     return
   }
+  try {
+    fitAddon.fit()
+  } catch {
+    return
+  }
+  didInitialFit = true
   emitResizeIfChanged()
   syncZebraRowStepFromDom()
+  syncResolvedFontSize()
+}
+
+function scheduleFit(): void {
+  if (fitRaf) {
+    return
+  }
+  fitRaf = requestAnimationFrame(() => {
+    fitRaf = 0
+    void fit()
+  })
 }
 
 function write(data: string): void {
@@ -347,20 +370,25 @@ function write(data: string): void {
 function clear(): void {
   terminal?.clear()
   terminal?.clearSelection()
-  hasSelection.value = false
+  syncSelectionState()
 }
 
 function focus(): void {
   terminal?.focus()
 }
 
+function getSelectionText(): string {
+  return String(terminal?.getSelection?.() ?? '')
+}
+
 function syncSelectionState(): void {
   hasSelection.value = Boolean(terminal?.hasSelection())
+  emit('selectionChange', getSelectionText())
 }
 
 /** 优先活选区；若被右键 word-select / 失焦冲掉，则回退菜单快照。 */
 function resolveMenuSelectionText(): string {
-  const live = String(terminal?.getSelection?.() ?? '').trim()
+  const live = getSelectionText().trim()
   const snap = menuSelectionSnapshot.value.trim()
   if (live && (!snap || live.length >= snap.length)) {
     return live
@@ -398,7 +426,7 @@ async function pasteFromClipboard(): Promise<void> {
 function onTerminalContextMenu(): void {
   void beginClipboardPrefetch()
   // capture 早于 xterm 的 rightClickSelectsWord，先保住用户拖选（vim/less 大段文本）
-  const existing = String(terminal?.getSelection?.() ?? '').trim()
+  const existing = getSelectionText().trim()
   if (existing) {
     menuSelectionSnapshot.value = existing
     hasSelection.value = true
@@ -408,7 +436,7 @@ function onTerminalContextMenu(): void {
   // xterm 在 target 阶段才 rightClickSelect，延后同步；无先验选区时采用 word-select 结果
   void nextTick(() => {
     syncSelectionState()
-    const after = String(terminal?.getSelection?.() ?? '').trim()
+    const after = getSelectionText().trim()
     // 仅在无快照，或 word-select 反而选出更长文本时更新；避免冲掉用户拖选
     if (after && (!menuSelectionSnapshot.value || after.length > menuSelectionSnapshot.value.length)) {
       menuSelectionSnapshot.value = after
@@ -458,8 +486,10 @@ function onContextMenuSelect(key: string): void {
   void runTerminalAction(key as RsTerminalAction)
 }
 
+// xterm 只有一个 handler 槽位且无法卸载，所以恒定挂载、由 handler 内部实时读 props.shortcuts，
+// 这样该 prop 关得掉也开得回来。
 function attachShortcuts(): void {
-  if (!terminal || !props.shortcuts) {
+  if (!terminal) {
     return
   }
   terminal.attachCustomKeyEventHandler((event) => {
@@ -499,25 +529,72 @@ function attachShortcuts(): void {
   })
 }
 
+// 逐项 watch：改字体会让 xterm 清空 WidthCache 并全量重测，不能被其他 prop 的变化连带触发。
 watch(
-  () => [props.cursorBlink, props.fontFamily, props.fontSize, props.fontWeight, props.fontWeightBold, props.allowTransparency, props.convertEol, props.themeMode, props.theme, props.zebraStripes, props.wheelScrollModifier] as const,
+  () => [props.fontFamily, props.fontSize, props.fontWeight, props.fontWeightBold] as const,
   () => {
     if (!terminal) {
       return
     }
-    refreshResolvedTheme()
-    terminal.options.cursorBlink = props.cursorBlink
     terminal.options.fontFamily = resolveTerminalFontFamily()
     terminal.options.fontSize = resolveTerminalFontSize()
     terminal.options.fontWeight = resolveTerminalFontWeight()
     terminal.options.fontWeightBold = resolveTerminalFontWeightBold()
-    terminal.options.allowTransparency = resolveAllowTransparency()
-    terminal.options.convertEol = props.convertEol
-    attachWheelGuard()
     void fit()
   },
-  { deep: true },
 )
+
+watch(
+  () => props.cursorBlink,
+  (value) => {
+    if (terminal) {
+      terminal.options.cursorBlink = value
+    }
+  },
+)
+
+watch(
+  () => props.convertEol,
+  (value) => {
+    if (terminal) {
+      terminal.options.convertEol = value
+    }
+  },
+)
+
+watch(
+  () => props.scrollback,
+  (value) => {
+    if (terminal) {
+      terminal.options.scrollback = value
+    }
+  },
+)
+
+watch(
+  () => props.rightClickSelectsWord,
+  (value) => {
+    if (terminal) {
+      terminal.options.rightClickSelectsWord = value
+    }
+  },
+)
+
+watch(
+  () => [props.allowTransparency, props.zebraStripes] as const,
+  () => {
+    if (!terminal) {
+      return
+    }
+    terminal.options.allowTransparency = resolveAllowTransparency()
+    void fit()
+  },
+)
+
+// deep 只用于 theme 这一个对象 prop，避免把内联字面量的重建放大成全量重设。
+watch(() => [props.themeMode, props.theme] as const, refreshResolvedTheme, { deep: true })
+
+watch(() => props.wheelScrollModifier, attachWheelGuard)
 
 onMounted(async () => {
   if (!hostEl.value) {
@@ -531,6 +608,7 @@ onMounted(async () => {
     fontWeight: resolveTerminalFontWeight(),
     fontWeightBold: resolveTerminalFontWeightBold(),
     lineHeight: TERMINAL_LINE_HEIGHT,
+    letterSpacing: 0,
     allowTransparency: resolveAllowTransparency(),
     drawBoldTextInBrightColors: true,
     scrollback: props.scrollback,
@@ -557,7 +635,7 @@ onMounted(async () => {
   emit('ready')
 
   resizeObserver = new ResizeObserver(() => {
-    void fit()
+    scheduleFit()
   })
   resizeObserver.observe(hostEl.value)
 
@@ -579,12 +657,17 @@ onBeforeUnmount(() => {
   resizeObserver = null
   detachWheelGuard?.()
   detachWheelGuard = null
+  if (fitRaf) {
+    cancelAnimationFrame(fitRaf)
+    fitRaf = 0
+  }
   terminal?.dispose()
   terminal = null
   fitAddon = null
+  didInitialFit = false
 })
 
-defineExpose({
+const exposed: RsTerminalExpose = {
   write,
   clear,
   focus,
@@ -592,8 +675,13 @@ defineExpose({
   copySelection,
   pasteFromClipboard,
   selectAll,
+  getSelection: getSelectionText,
+  hasSelection: () => hasSelection.value,
+  getGeometry: currentGeometry,
   getTerminal: () => terminal,
-})
+}
+
+defineExpose(exposed)
 </script>
 
 <template>
@@ -602,35 +690,31 @@ defineExpose({
     :items="contextMenuItems"
     @select="onContextMenuSelect"
   >
-    <div class="rs-terminal-shell">
-      <section
-        class="rs-terminal"
-        :class="{ 'rs-terminal--zebra': zebraStripes }"
-        :style="zebraStyle"
-        @click="focus"
-        @contextmenu.capture="onTerminalContextMenu"
-      >
-        <div ref="hostEl" class="rs-terminal__host" />
-        <RsLoading v-if="showLoading" class="rs-terminal__loading" />
-        <output v-if="overlay" class="rs-terminal__overlay">
-          {{ overlay }}
-        </output>
-      </section>
-    </div>
+    <section
+      v-bind="$attrs"
+      class="rs-terminal"
+      :class="{ 'rs-terminal--zebra': zebraStripes }"
+      :style="zebraStyle"
+      @click="focus"
+      @contextmenu.capture="onTerminalContextMenu"
+    >
+      <div ref="hostEl" class="rs-terminal__host" />
+      <RsLoading v-if="showLoading" class="rs-terminal__loading" />
+      <output v-if="overlay" class="rs-terminal__overlay">
+        {{ overlay }}
+      </output>
+    </section>
   </RsContextMenu>
 </template>
 
 <style scoped>
-.rs-terminal-shell {
-  display: block;
-  height: 100%;
-  min-height: 0;
-}
-
 .rs-terminal {
   position: relative;
   height: 100%;
   min-height: 0;
+  /* 作为 flex/grid 项时，xterm 行盒的固有宽度不得撑开轨道，
+     否则容器收窄后列数降不下来、行尾字符会被 overflow 裁掉。 */
+  min-width: 0;
   border: 1px solid var(--rs-terminal-border);
   border-radius: var(--rs-radius-md);
   background: var(--rs-terminal-shell-bg, var(--rs-terminal-bg));
@@ -679,38 +763,58 @@ defineExpose({
   line-height: var(--rs-line-height-normal);
 }
 
+/*
+ * letter-spacing 必须在终端内归零：宿主应用常在祖先上设负字距（NiuMa 的 .nm-app 是 -0.011em）。
+ * 它会继承进 xterm 隐藏的字宽测量元素（.xterm-helpers 下的 WidthCache），使 offsetWidth 量到的
+ * 字形比实际渲染窄；而 CharSizeService 走 canvas measureText 不受 CSS 影响、单元格宽是准的。
+ * DOM 渲染器于是按 `cellWidth - 测量值` 给每个字符补正字距，行盒却仍是 cols × cellWidth，
+ * 逐列累积后整行溢出十几到几十像素，被行盒的 overflow:hidden 切掉行尾几个字符。
+ */
 .rs-terminal :deep(.xterm) {
   width: 100%;
   height: 100%;
+  line-height: normal;
+  letter-spacing: normal;
 }
 
 /*
- * 滚动：保持 xterm 默认 overflow-y:scroll（预留槽位，Fit 更稳），
- * 仅隐藏横向条，避免右下角出现「一点」水平滚动条。
- * 不要用 width/height:!important 去撑 .xterm-screen——会和字符格几何打架。
+ * xterm 6 官方仍给空的 .xterm-viewport 写 overflow-y:scroll + 背景 #000。
+ * 真正滚动的是 .xterm-scrollable-element；空层滚动条会挡住最后一列。
  */
-.rs-terminal :deep(.xterm-viewport) {
-  overflow-x: hidden;
-  overflow-y: scroll;
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--rs-terminal-fg) 28%, transparent) transparent;
+.rs-terminal :deep(.xterm .xterm-viewport) {
+  overflow: hidden;
+  background-color: transparent;
 }
 
-.rs-terminal--zebra :deep(.xterm) {
-  font-size: var(--rs-terminal-font-size);
-  line-height: var(--rs-terminal-line-height, 1.2);
+/*
+ * xterm 兜底的滑块是占满 14px 轨道的直角块，配色取终端前景色 20% 不透明度，与 RsScrollbar
+ * 的圆角胶囊不一致。轨道宽度由 overviewRuler.width 决定，改它会给每个终端实例多建一块
+ * overview ruler 画布，因此只重绘滑块：热区仍是 14px，靠透明边框内缩出 10px 可见胶囊。
+ */
+.rs-terminal :deep(.xterm-scrollable-element > .scrollbar > .slider) {
+  box-sizing: border-box;
+  border: var(--rs-scrollbar-padding, 2px) solid transparent;
+  border-radius: var(--rs-radius-full);
+  background-color: color-mix(in srgb, var(--rs-muted) 60%, transparent);
+  background-clip: padding-box;
+  transition: background-color var(--rs-transition-fast);
+}
+
+.rs-terminal :deep(.xterm-scrollable-element > .scrollbar > .slider:hover) {
+  background-color: color-mix(in srgb, var(--rs-primary) 40%, var(--rs-muted));
+}
+
+.rs-terminal :deep(.xterm-scrollable-element > .scrollbar > .slider.active) {
+  background-color: color-mix(in srgb, var(--rs-primary) 55%, var(--rs-muted));
 }
 
 .rs-terminal--zebra :deep(.xterm-rows),
-.rs-terminal--zebra :deep(.xterm-rows > div) {
+.rs-terminal--zebra :deep(.xterm-rows > div),
+.rs-terminal--zebra :deep(.xterm-row) {
   background-color: transparent !important;
 }
 
-/*
- * 斑马纹画在 viewport + background-attachment:local：
- * 覆盖字符格取整后的右/下余量，并随 scrollback 一起滚。
- */
-.rs-terminal--zebra :deep(.xterm-viewport) {
+.rs-terminal--zebra :deep(.xterm-scrollable-element) {
   background-color: transparent !important;
   background-image: repeating-linear-gradient(
     to bottom,

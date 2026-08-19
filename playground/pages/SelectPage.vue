@@ -338,6 +338,7 @@ const selectApi: DemoApiRow[] = [
   { name: 'fieldNames', type: '{ label, value, options, disabled, groupLabel }', description: '业务字段映射，对齐 Ant fieldNames' },
   { name: 'optionLabelProp', type: 'string', default: "'label'", description: '触发器展示字段' },
   { name: 'v-model:searchValue', type: 'string', default: "''", description: '受控搜索词' },
+  { name: 'fillSearchWithValue', type: 'boolean', default: 'false', description: '打开下拉时把当前选中值写入搜索框；默认不回填' },
   { name: 'getPopupContainer', type: '(trigger?) => HTMLElement | string', description: '下拉挂载容器' },
   { name: 'filterSort', type: '(a, b) => number', description: '过滤后排序，对齐 Ant filterSort' },
   { name: 'maxTagCount', type: 'number', description: '多选最多展示的 tag 数，超出折叠为 +N' },

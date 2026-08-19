@@ -12,6 +12,7 @@ import { OracleIcon } from './custom/oracle'
 import { ClickhouseIcon } from './custom/clickhouse'
 import { KingbaseIcon } from './custom/kingbase'
 import { SqlserverIcon } from './custom/sqlserver'
+import { PostgresIcon } from './custom/postgres'
 
 export const LUCIDE_LICENSE = 'ISC'
 export const LUCIDE_ATTRIBUTION =
@@ -31,6 +32,7 @@ const customIconMap = new Map<string, Component>([
   ['clickhouse', ClickhouseIcon],
   ['kingbase', KingbaseIcon],
   ['sqlserver', SqlserverIcon],
+  ['postgres', PostgresIcon],
 ])
 
 const lucideExports = LucideVue as Record<string, unknown>

@@ -6,6 +6,31 @@
 
 ## [Unreleased]
 
+## [1.1.4] - 2026-08-19
+
+### 新增
+
+- `RsDialog`：`layout="form"` 作为居中轻量表单/说明窗的正式布局；`layout="confirm"` 仍可用，开发环境继续警告并视作 form 的历史别名。确认/提示请用 `RsConfirmDialog` / `rsConfirm`。
+- `RsSelect.fillSearchWithValue`：打开下拉时把当前选中项写入搜索框并参与过滤（默认 `false`，搜索框保持空白）。
+- **RsIcon `postgres`**：PostgreSQL 官方大象品牌图标，token `--rs-icon-postgres-accent`。
+- `MONACO_POSTGRESQL_LANGUAGE`（`postgresql`）：官方 PostgreSQL 的 Monaco languageId，走 Bridge LSP；`RsMonacoEditor` 对 postgresql / clickhouse / sqlite / sqlserver / oracle 同样不再注册实例级补全。
+- `RsTerminal`：`selectionChange` 事件；expose `getSelection` / `hasSelection` / `getGeometry` 与类型 `RsTerminalExpose` / `RsTerminalGeometry`。
+- `src/dev/vite-xterm-deps.ts`：供宿主 Vite `optimizeDeps` 预构建 xterm，避免控制台首次加载 504。
+
+### 变更
+
+- `RsSelect`：`filterOption` 默认 `true`（修复 Vue 把 boolean 联合类型当成 Boolean prop，未传入即 `false`、可搜索列表永远不过滤）。
+- `RsSelect`：`searchable` 一律走本地过滤并关掉 Reka 内置 filter，避免手输关键字时匹配项被挡住。
+- `RsTerminal`：`inheritAttrs: false`，`class` / `style` 落到 `.rs-terminal`；`wheelScrollModifier="shift"` 仅在备用屏（vim/top）把滚轮转成方向键，普通 shell 滚历史。
+- `RsTableColumn.tooltip`：只写格子里看不到的额外提示；可见文本被截断时用 `ellipsis`。
+- `RsMonacoEditor`：当前行高亮改为整行 `line`（不再只画 gutter）。
+
+### 修复
+
+- `RsTable`：自定义 slot + `ellipsis` 也能挂溢出 tooltip；slot 不再 `max-width: 100%` 导致溢出检测失效。
+- `RsTable` 共享 tooltip：z-index 改为 `--rs-z-dropdown`；`findTipHost` 兼容文本节点，避免悬停到文字时丢宿主。
+- `RsTerminal`：宿主负字距不再让 xterm 行尾被裁；xterm 6 空 viewport 滚动条不再挡住最后一列；滑块对齐 RsScrollbar；flex 项 `min-width: 0` 以便列数随容器收缩。
+
 ## [1.1.3] - 2026-08-14
 
 ### 新增
@@ -122,7 +147,8 @@
 
 - 1.0 之前的私有 tag（如 `v0.1.0`）仅作历史记录；新接入请依赖 `v1.0.0` 及之后版本。
 
-[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.3...HEAD
+[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.4...HEAD
+[1.1.4]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.4
 [1.1.3]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.3
 [1.1.2]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.2
 [1.1.1]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.1

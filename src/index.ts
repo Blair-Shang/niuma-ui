@@ -157,6 +157,7 @@ export {
   MONACO_MYSQL_LANGUAGE,
   MONACO_DAMENG_LANGUAGE,
   MONACO_KINGBASE_LANGUAGE,
+  MONACO_POSTGRESQL_LANGUAGE,
   MONACO_SQLITE_LANGUAGE,
   RS_MONACO_DEBUG,
   setupMonacoWorkers,
@@ -196,6 +197,8 @@ export {
 export type {
   RsResolvedTerminalTheme,
   RsTerminalAction,
+  RsTerminalExpose,
+  RsTerminalGeometry,
   RsTerminalThemeMode,
 } from './components/terminal-utils'
 

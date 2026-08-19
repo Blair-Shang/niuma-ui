@@ -23,10 +23,11 @@ function isHeaderTipHost(host: HTMLElement): boolean {
 }
 
 function findTipHost(target: EventTarget | null): HTMLElement | null {
-  if (!(target instanceof Element)) return null
-  const header = target.closest(`[${RS_TABLE_HEADER_TIP_ATTR}]`)
+  const el = target instanceof Element ? target : target instanceof Node ? target.parentElement : null
+  if (!el) return null
+  const header = el.closest(`[${RS_TABLE_HEADER_TIP_ATTR}]`)
   if (header instanceof HTMLElement) return header
-  const cell = target.closest(`[${RS_TABLE_TIP_ATTR}], .rs-table__cell-tip`)
+  const cell = el.closest(`[${RS_TABLE_TIP_ATTR}], .rs-table__cell-tip`)
   return cell instanceof HTMLElement ? cell : null
 }
 

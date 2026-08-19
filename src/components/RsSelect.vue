@@ -90,6 +90,9 @@ const props = withDefaults(
     block?: boolean
     invalid?: boolean
     showValidateMessage?: boolean
+    /**
+     * 自定义过滤；`false` 关闭。默认 `true`（必须显式默认，否则 Vue 会把 boolean 联合类型当成 Boolean prop，未传入即 `false`，可搜索列表永远不过滤）。
+     */
     filterOption?: RsSelectFilterOption | boolean
     optionFilterProp?: RsSelectOptionFilterProp
     maxTagCount?: number
@@ -101,6 +104,11 @@ const props = withDefaults(
     maxTagTooltip?: boolean
     tokenSeparators?: string[]
     autoClearSearchValue?: boolean
+    /**
+     * 打开下拉时把当前选中项写入搜索框并参与过滤。
+     * 默认 false：搜索框保持空白（Reka 挂载时会写选中值，需显式清掉）。
+     */
+    fillSearchWithValue?: boolean
     showArrow?: boolean
     listHeight?: number
     placement?: RsSelectPlacement
@@ -126,11 +134,13 @@ const props = withDefaults(
     loading: false,
     matchTriggerWidth: false,
     block: false,
+    filterOption: true,
     optionFilterProp: 'label',
     optionLabelProp: 'label',
     labelInValue: false,
     maxTagTooltip: true,
     autoClearSearchValue: true,
+    fillSearchWithValue: false,
     showArrow: true,
     listHeight: 256,
     placement: 'bottom',

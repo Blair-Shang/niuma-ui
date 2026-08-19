@@ -53,6 +53,8 @@ export interface RsSelectEngineProps {
   labelInValue?: boolean
   tokenSeparators?: string[]
   autoClearSearchValue?: boolean
+  /** 打开下拉时把当前选中值写入搜索框；默认不回填 */
+  fillSearchWithValue?: boolean
   searchPlaceholder?: string
   emptyText?: string
   loadingText?: string
@@ -100,10 +102,16 @@ export function useRsSelect(
     () => Boolean(props.virtual) || flatCount.value > (props.virtualThreshold ?? 50),
   )
 
+  /**
+   * 可搜索时一律走本地过滤，并关掉 Reka 内置 filter。
+   * Reka 的 filterSearch 与搜索框 searchQuery 不同步（打开时会被清空），
+   * 默认依赖内置过滤时会出现：手输「NVA」已出「使用 NVA」，但 NVARCHAR 仍被整表挡住。
+   */
   const useManualFilter = computed(
     () =>
       Boolean(props.remote) ||
       useVirtual.value ||
+      isSearchable.value ||
       typeof props.filterOption === 'function' ||
       props.filterOption === false ||
       Boolean(props.optionFilterProp && props.optionFilterProp !== 'label') ||
@@ -340,8 +348,15 @@ export function useRsSelect(
       const pending = searchQuery.value
       await nextTick()
       await nextTick()
-      // ComboboxInput 挂载时会 resetSearchTerm；受控 searchValue 需要写回
-      if (pending) searchQuery.value = pending
+      // ComboboxInput 挂载时会 resetSearchTerm，把选中值写进搜索框。
+      // 默认清空；受控 / 未清理的 searchValue 写回；fillSearchWithValue 才回填当前选中。
+      if (pending) {
+        searchQuery.value = pending
+      } else if (props.fillSearchWithValue && !props.multiple && hasValue.value) {
+        searchQuery.value = singleDisplayLabel.value
+      } else {
+        searchQuery.value = ''
+      }
       return
     }
     if (props.autoClearSearchValue) searchQuery.value = ''

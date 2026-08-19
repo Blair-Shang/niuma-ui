@@ -16,6 +16,7 @@ export type MonacoSqlLanguageId =
   | 'genericsql'
   | 'dameng'
   | 'kingbase'
+  | 'postgresql'
   | 'clickhouse'
   | 'sqlite'
   | 'sqlserver'
@@ -35,6 +36,9 @@ export const MONACO_DAMENG_LANGUAGE = 'dameng' as const
 
 /** Kingbase 在 Monaco 中的 languageId（Bridge LSP）。 */
 export const MONACO_KINGBASE_LANGUAGE = 'kingbase' as const
+
+/** 官方 PostgreSQL 在 Monaco 中的 languageId（Bridge LSP；与 dialect family 对齐）。 */
+export const MONACO_POSTGRESQL_LANGUAGE = 'postgresql' as const
 
 /** ClickHouse 在 Monaco 中的 languageId（Bridge LSP）。 */
 export const MONACO_CLICKHOUSE_LANGUAGE = 'clickhouse' as const
