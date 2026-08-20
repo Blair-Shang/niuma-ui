@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+## [1.1.6] - 2026-08-20
+
+### 变更
+
+- `package.json` 增加 `sideEffects`（仅 CSS）：宿主从入口 barrel 按需导入时，可摇掉未使用的 Monaco / Terminal / CodeMirror。按文档具名导入并引入 `niuma-ui/styles.css` 的用法不受影响。
+
 ## [1.1.5] - 2026-08-19
 
 ### 修复
@@ -153,7 +159,8 @@
 
 - 1.0 之前的私有 tag（如 `v0.1.0`）仅作历史记录；新接入请依赖 `v1.0.0` 及之后版本。
 
-[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.5...HEAD
+[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.6...HEAD
+[1.1.6]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.6
 [1.1.5]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.5
 [1.1.4]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.4
 [1.1.3]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.3
