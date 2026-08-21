@@ -61,6 +61,7 @@ function onRangeSelect(date: RsParsedDate): void {
       <p class="hint">
         通过 <code>@select</code> 接收 <code>RsParsedDate</code>，配合
         <code>v-model:view-year</code> / <code>v-model:view-month</code> 控制展示月份。
+        标题两侧双箭头切年、单箭头切月。
       </p>
       <div class="calendar-panel">
         <RsCalendarGrid

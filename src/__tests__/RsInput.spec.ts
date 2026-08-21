@@ -244,6 +244,7 @@ describe('RsInput', () => {
     expect(wrapper.find('.rs-input-group--has-suffix').exists()).toBe(true)
     const toggle = wrapper.find('button.rs-input-group__action')
     expect(toggle.exists()).toBe(true)
+    expect(toggle.attributes('tabindex')).toBe('-1')
     await toggle.trigger('click')
     expect(wrapper.find('input').attributes('type')).toBe('text')
   })

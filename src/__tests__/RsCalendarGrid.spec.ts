@@ -60,12 +60,31 @@ describe('RsCalendarGrid', () => {
     expect(disabledCount).toBeGreaterThanOrEqual(3)
   })
 
-  it('updates view month via navigation', async () => {
+  it('updates view month via month navigation', async () => {
     const wrapper = mount(RsCalendarGrid, {
       props: { viewYear: 2025, viewMonth: 6 },
     })
-    await wrapper.findAll('.rs-calendar-grid__nav')[1].trigger('click')
+    await wrapper.find('.rs-calendar-grid__nav--next-month').trigger('click')
     expect(wrapper.emitted('update:viewMonth')?.[0]).toEqual([7])
+    expect(wrapper.emitted('update:viewYear')).toBeUndefined()
+  })
+
+  it('updates view year via year navigation and keeps the month', async () => {
+    const next = mount(RsCalendarGrid, {
+      props: { viewYear: 2025, viewMonth: 6 },
+    })
+    await next.find('.rs-calendar-grid__nav--next-year').trigger('click')
+    expect(next.emitted('update:viewYear')?.[0]).toEqual([2026])
+    expect(next.emitted('update:viewMonth')).toBeUndefined()
+    next.unmount()
+
+    const prev = mount(RsCalendarGrid, {
+      props: { viewYear: 2025, viewMonth: 6 },
+    })
+    await prev.find('.rs-calendar-grid__nav--prev-year').trigger('click')
+    expect(prev.emitted('update:viewYear')?.[0]).toEqual([2024])
+    expect(prev.emitted('update:viewMonth')).toBeUndefined()
+    prev.unmount()
   })
 
   it('highlights range between start and end', () => {

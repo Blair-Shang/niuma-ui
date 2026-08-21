@@ -65,6 +65,14 @@ const weeks = computed(() => {
   return rows
 })
 
+function goPrevYear(): void {
+  viewYear.value -= 1
+}
+
+function goNextYear(): void {
+  viewYear.value += 1
+}
+
 function goPrevMonth(): void {
   if (viewMonth.value === 1) {
     viewYear.value -= 1
@@ -133,23 +141,43 @@ function selectDate(cell: RsCalendarCell): void {
 <template>
   <div class="rs-calendar-grid">
     <div class="rs-calendar-grid__header">
-      <button
-        type="button"
-        class="rs-calendar-grid__nav"
-        :aria-label="t('datePicker.prevMonth')"
-        @click="goPrevMonth"
-      >
-        <RsIcon name="chevron-left" :size="16" />
-      </button>
+      <div class="rs-calendar-grid__nav-group">
+        <button
+          type="button"
+          class="rs-calendar-grid__nav rs-calendar-grid__nav--prev-year"
+          :aria-label="t('datePicker.prevYear')"
+          @click="goPrevYear"
+        >
+          <RsIcon name="chevrons-left" :size="16" />
+        </button>
+        <button
+          type="button"
+          class="rs-calendar-grid__nav rs-calendar-grid__nav--prev-month"
+          :aria-label="t('datePicker.prevMonth')"
+          @click="goPrevMonth"
+        >
+          <RsIcon name="chevron-left" :size="16" />
+        </button>
+      </div>
       <span class="rs-calendar-grid__title">{{ monthLabel }}</span>
-      <button
-        type="button"
-        class="rs-calendar-grid__nav"
-        :aria-label="t('datePicker.nextMonth')"
-        @click="goNextMonth"
-      >
-        <RsIcon name="chevron-right" :size="16" />
-      </button>
+      <div class="rs-calendar-grid__nav-group">
+        <button
+          type="button"
+          class="rs-calendar-grid__nav rs-calendar-grid__nav--next-month"
+          :aria-label="t('datePicker.nextMonth')"
+          @click="goNextMonth"
+        >
+          <RsIcon name="chevron-right" :size="16" />
+        </button>
+        <button
+          type="button"
+          class="rs-calendar-grid__nav rs-calendar-grid__nav--next-year"
+          :aria-label="t('datePicker.nextYear')"
+          @click="goNextYear"
+        >
+          <RsIcon name="chevrons-right" :size="16" />
+        </button>
+      </div>
     </div>
 
     <table class="rs-calendar-grid__table">
@@ -200,8 +228,14 @@ function selectDate(cell: RsCalendarCell): void {
   justify-content: space-between;
   gap: var(--rs-space-sm);
 }
+.rs-calendar-grid__nav-group {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
 .rs-calendar-grid__title {
   flex: 1;
+  min-width: 0;
   text-align: center;
   font-size: var(--rs-font-size-sm);
   font-weight: var(--rs-font-weight-semibold);

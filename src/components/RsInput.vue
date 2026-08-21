@@ -728,6 +728,8 @@ defineExpose({
 
             class="rs-input-group__action"
 
+            tabindex="-1"
+
             :aria-label="t('input.clear')"
 
             @pointerdown.prevent
@@ -747,6 +749,8 @@ defineExpose({
             type="button"
 
             class="rs-input-group__action"
+
+            tabindex="-1"
 
             :aria-label="passwordVisible ? t('input.hidePassword') : t('input.showPassword')"
 

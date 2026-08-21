@@ -6,6 +6,16 @@
 
 ## [Unreleased]
 
+## [1.1.7] - 2026-08-21
+
+### 新增
+
+- `RsDatePicker` / `RsCalendarGrid`：面板标题两侧增加上一年 / 下一年双箭头，月份仍用单箭头前后切换。
+
+### 变更
+
+- `RsInput`：清除按钮与密码显隐按钮 `tabindex="-1"`，Tab 只停在输入框（对齐 `RsInputNumber` 步进按钮）；鼠标点击与 `aria-label` 不变。
+
 ## [1.1.6] - 2026-08-20
 
 ### 变更
@@ -159,7 +169,8 @@
 
 - 1.0 之前的私有 tag（如 `v0.1.0`）仅作历史记录；新接入请依赖 `v1.0.0` 及之后版本。
 
-[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.6...HEAD
+[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.7...HEAD
+[1.1.7]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.7
 [1.1.6]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.6
 [1.1.5]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.5
 [1.1.4]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.4
