@@ -6,6 +6,18 @@
 
 ## [Unreleased]
 
+## [1.1.9] - 2026-08-28
+
+### 修复
+
+- `RsTable`：子表 / 表头默认 `T = any`，避免 inject 子组件把插槽 `row` 收成 `object`。宿主 `#col="{ row }"` 即可用行字段，不必断言。公开类型仍导出 `RsTableSlots` / `RsTableColumnSlotProps`。
+- `RsSelect`：增加泛型 `Value` / `Multiple` / `LabelInValue`，默认单选 `string`。`@update:model-value` 不再是 `string | number | 数组 | labeled` 大联合。数字 value 写 `RsSelect<number>`；`labelInValue` 仍可用。
+- `RsSplitPane`：导出 `RsSplitPaneExpose` / `RsSplitPaneInstance`，模板 ref 用该类型，避免 `InstanceType<typeof RsSplitPane>` 把 vue-tsc 打爆。
+- `RsMonacoEditor`：导出 `RsMonacoEditorExpose`，模板 ref 用该类型，避免 `InstanceType<typeof RsMonacoEditor>` 把 vue-tsc 打爆。
+- `RsInput`：导出 `RsInputExpose` / `RsInputInstance`，模板 ref 用该类型，避免 `InstanceType<typeof RsInput>` 把 vue-tsc 打爆。
+
+运行时兼容 1.1.8；以上为 TypeScript 合约收口。
+
 ## [1.1.8] - 2026-08-28
 
 ### 新增
@@ -183,7 +195,8 @@
 
 - 1.0 之前的私有 tag（如 `v0.1.0`）仅作历史记录；新接入请依赖 `v1.0.0` 及之后版本。
 
-[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.8...HEAD
+[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.9...HEAD
+[1.1.9]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.9
 [1.1.8]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.8
 [1.1.7]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.7
 [1.1.6]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.6

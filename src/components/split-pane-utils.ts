@@ -27,6 +27,20 @@ export interface RsSplitPaneItem {
   resizerHandle?: boolean
 }
 
+/**
+ * RsSplitPane 模板 ref 请用此类型。
+ * 不要写 `InstanceType<typeof RsSplitPane>`：组件实例类型过深，vue-tsc 会报 Excessive stack depth。
+ */
+export interface RsSplitPaneExpose {
+  collapse: (key: string) => void
+  expand: (key: string, toSize?: number) => void
+  reset: () => void
+  getSizes: () => number[]
+}
+
+/** 模板 ref 实例：expose + 根节点 */
+export type RsSplitPaneInstance = RsSplitPaneExpose & { $el: HTMLElement }
+
 /** 由 RsSplitPaneItem 解析出的规范化约束 */
 export interface RsSplitConstraint {
   min: number

@@ -1,5 +1,5 @@
-<script setup lang="ts">
-import { computed, ref, useAttrs } from 'vue'
+<script setup lang="ts" generic="Value extends string | number = string, Multiple extends boolean = false, LabelInValue extends boolean = false">
+import { computed, ref, useAttrs, type ModelRef } from 'vue'
 
 import { useRsI18n } from '../composables/useRsI18n'
 import type { RsComponentSize, RsRadius } from '../theme/types'
@@ -31,6 +31,7 @@ import {
   type RsSelectOptionFilterProp,
   type RsSelectOptionsInput,
   type RsSelectPlacement,
+  type RsSelectResolvedModel,
   type RsSelectStatus,
   type RsSelectValue,
 } from './select-utils'
@@ -53,7 +54,9 @@ import {
 
 defineOptions({ inheritAttrs: false })
 
-const model = defineModel<RsSelectModelValue>({ default: '' })
+const model = defineModel<RsSelectResolvedModel<Value, Multiple, LabelInValue>>({
+  default: '' as never,
+})
 const open = defineModel<boolean>('open', { default: false })
 const searchQuery = defineModel<string>('searchValue', { default: '' })
 
@@ -69,7 +72,7 @@ const props = withDefaults(
      * 开启后若未显式关 searchable，将自动启用搜索框。
      */
     creatable?: boolean
-    multiple?: boolean
+    multiple?: Multiple
     required?: boolean
     name?: string
     clearable?: boolean
@@ -98,7 +101,7 @@ const props = withDefaults(
     maxTagCount?: number
     maxTagPlaceholder?: string | ((omitted: number) => string)
     multipleLimit?: number
-    labelInValue?: boolean
+    labelInValue?: LabelInValue
     filterSort?: RsSelectFilterSort
     maxTagTextLength?: number
     maxTagTooltip?: boolean
@@ -125,7 +128,6 @@ const props = withDefaults(
     disabled: false,
     searchable: false,
     creatable: false,
-    multiple: false,
     required: false,
     clearable: false,
     virtual: false,
@@ -137,7 +139,6 @@ const props = withDefaults(
     filterOption: true,
     optionFilterProp: 'label',
     optionLabelProp: 'label',
-    labelInValue: false,
     maxTagTooltip: true,
     autoClearSearchValue: true,
     fillSearchWithValue: false,
@@ -198,7 +199,7 @@ const {
   removeTag,
   setValue,
   resetSearch,
-} = useRsSelect(props, model, open, searchQuery, emit, t)
+} = useRsSelect(props, model as ModelRef<RsSelectModelValue>, open, searchQuery, emit, t)
 
 const resolvedDisabled = computed(() => props.disabled || formContext?.disabled.value || false)
 const resolvedSize = useResolvedRsComponentSize(() => props.size)

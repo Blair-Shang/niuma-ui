@@ -31,7 +31,19 @@ import RsVNodeHost from './RsVNodeHost.vue'
 
 import RsIcon from './RsIcon.vue'
 
+/**
+ * RsInput 模板 ref 请用此类型。
+ * 不要写 `InstanceType<typeof RsInput>`：组件实例类型过深，vue-tsc 会报 Excessive stack depth。
+ */
+export interface RsInputExpose {
+  validate: (trigger?: RsFormRuleTrigger) => Promise<boolean>
+  clearValidation: () => void
+  setValue: (value: unknown) => void
+  setError: (message: string) => void
+}
 
+/** 模板 ref 实例：expose + 根节点 */
+export type RsInputInstance = RsInputExpose & { $el: HTMLElement }
 
 const { t } = useRsI18n()
 
@@ -537,7 +549,7 @@ useRsFormField(() => ({
   setError,
 }))
 
-defineExpose({
+defineExpose<RsInputExpose>({
   validate: runValidate,
   clearValidation,
   setValue,

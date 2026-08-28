@@ -1,4 +1,4 @@
-<script setup lang="ts" generic="T extends import('../table-utils').RsTableRowData">
+<script setup lang="ts" generic="T extends import('../table-utils').RsTableRowData = any">
 import { computed, ref, watch } from 'vue'
 import type { RsTableColumn } from '../table-utils'
 import RsCheckbox from '../RsCheckbox.vue'

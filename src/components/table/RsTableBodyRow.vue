@@ -1,4 +1,4 @@
-<script setup lang="ts" generic="T extends import('../table-utils').RsTableRowData">
+<script setup lang="ts" generic="T extends import('../table-utils').RsTableRowData = any">
 import type { RsTableColumn, RsTableRowDropPosition, RsTableSelectionType } from '../table-utils'
 import type { RsTableCellEditTrigger } from './table-edit-utils'
 import RsTableCell from './RsTableCell.vue'

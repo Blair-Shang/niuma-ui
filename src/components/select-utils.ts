@@ -58,6 +58,27 @@ export type RsSelectModelValue =
   | ''
 
 /**
+ * 按泛型收窄后的 v-model。
+ * 默认单选、值为 string：宿主 `@update:model-value="(v: string) => void"` 可直接赋值。
+ * `multiple` / `labelInValue` 为字面量 true 时收成数组或 labeled；为 `boolean` 时保留联合。
+ */
+export type RsSelectResolvedModel<
+  Value extends RsSelectValue = string,
+  Multiple extends boolean = false,
+  LabelInValue extends boolean = false,
+> = LabelInValue extends true
+  ? Multiple extends true
+    ? RsSelectLabeledValue[]
+    : Multiple extends false
+      ? RsSelectLabeledValue | ''
+      : RsSelectLabeledValue | RsSelectLabeledValue[] | ''
+  : Multiple extends true
+    ? Value[]
+    : Multiple extends false
+      ? Value | ''
+      : Value | Value[] | ''
+
+/**
  * Reka ComboboxItem 禁止 value 为空串（空串表示未选中 / placeholder）。
  * 选项若传入 value: ''，对内映射为此哨兵，避免崩溃；对外读写仍为 ''。
  */

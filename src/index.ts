@@ -37,6 +37,7 @@ export type { RsLoadingBarApi } from './composables/useRsLoadingBar'
 export { default as RsDropdown } from './components/RsDropdown.vue'
 export { default as RsIcon } from './components/RsIcon.vue'
 export { default as RsInput } from './components/RsInput.vue'
+export type { RsInputExpose, RsInputInstance } from './components/RsInput.vue'
 export { default as RsInputNumber } from './components/RsInputNumber.vue'
 export type { RsInputNumberValue } from './components/input-number-utils'
 export {
@@ -141,6 +142,7 @@ export type {
   MonacoCompletionPrefixResolver,
   MonacoCompletionRequest,
   MonacoCompletionSnippet,
+  RsMonacoEditorExpose,
 } from './components/RsMonacoEditor.vue'
 export type {
   MonacoBuiltinLanguage,
@@ -224,6 +226,7 @@ export type {
   RsSelectGetPopupContainer,
   RsSelectLabeledValue,
   RsSelectModelValue,
+  RsSelectResolvedModel,
   RsSelectOption,
   RsSelectOptionFilterProp,
   RsSelectOptionGroup,
@@ -330,6 +333,8 @@ export { isStepSeparatorCompleted, resolveStepStatus } from './components/steps-
 export type {
   RsSplitConstraint,
   RsSplitOrientation,
+  RsSplitPaneExpose,
+  RsSplitPaneInstance,
   RsSplitPaneItem,
   RsSplitPaneSize,
 } from './components/split-pane-utils'
@@ -479,6 +484,13 @@ export {
 export type {
   RsTableProps,
   RsTableEmits,
+  RsTableColumnSlotProps,
+  RsTableEditSlotProps,
+  RsTableHeaderSlotProps,
+  RsTableExpandSlotProps,
+  RsTableGroupSlotProps,
+  RsTableSlots,
+  RsTableSlotPropsOf,
 } from './components/table/rs-table-props'
 export { RS_TABLE_PROP_DEFAULTS } from './components/table/rs-table-props'
 export { useRsTableGridKeyboard } from './composables/useRsTableGridKeyboard'

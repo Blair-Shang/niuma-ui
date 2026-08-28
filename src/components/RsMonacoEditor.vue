@@ -31,6 +31,16 @@ export interface MonacoCompletionSnippet {
   preselect?: boolean
 }
 
+/**
+ * RsMonacoEditor 模板 ref 请用此类型。
+ * 不要写 `InstanceType<typeof RsMonacoEditor>`：组件实例类型过深，vue-tsc 会报 Excessive stack depth。
+ */
+export interface RsMonacoEditorExpose {
+  format: () => void
+  getEditor: () => import('monaco-editor').editor.IStandaloneCodeEditor | null
+  revealLine: (line: number) => void
+}
+
 /** MonacoCompletionContext 描述一次补全请求的编辑器上下文。 */
 export interface MonacoCompletionContext {
   text: string
@@ -498,7 +508,7 @@ watch(() => props.completionTriggerCharacters, () => applySnippets(), { deep: tr
 watch(() => props.completionPrefixResolver, () => applySnippets())
 
 // ── Expose ────────────────────────────────────────────────────────────
-defineExpose({
+defineExpose<RsMonacoEditorExpose>({
   /** 格式化文档（等价于 Shift+Alt+F） */
   format(): void {
     editor?.getAction('editor.action.formatDocument')?.run().catch(() => undefined)

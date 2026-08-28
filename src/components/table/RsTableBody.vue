@@ -1,4 +1,4 @@
-<script setup lang="ts" generic="T extends import('../table-utils').RsTableRowData">
+<script setup lang="ts" generic="T extends import('../table-utils').RsTableRowData = any">
 /**
  * RsTable 表体视图：通过 ViewContext inject 取状态（多表互不串扰）。
  * 行级 v-memo 保留，避免抽离后丢失细粒度跳过渲染。

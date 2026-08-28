@@ -1,4 +1,4 @@
-<script setup lang="ts" generic="T extends import('./table-utils').RsTableRowData">
+<script setup lang="ts" generic="T extends import('./table-utils').RsTableRowData = any">
 import { computed, ref, useSlots } from 'vue'
 import RsContextMenu from './RsContextMenu.vue'
 import { assembleRsTableApi } from '../composables/assembleRsTableApi'

@@ -13,6 +13,7 @@ import {
   roundSize,
   splitSizesEqual,
   type RsSplitOrientation,
+  type RsSplitPaneExpose,
   type RsSplitPaneItem,
 } from './split-pane-utils'
 
@@ -440,7 +441,12 @@ function reset(): void {
   emit('resize-end', sizes.value.slice())
 }
 
-defineExpose({ collapse, expand, reset, getSizes: () => sizes.value.slice() })
+defineExpose<RsSplitPaneExpose>({
+  collapse,
+  expand,
+  reset,
+  getSizes: () => sizes.value.slice(),
+})
 </script>
 
 <template>

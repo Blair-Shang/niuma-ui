@@ -1,4 +1,4 @@
-<script setup lang="ts" generic="T extends import('../table-utils').RsTableRowData">
+<script setup lang="ts" generic="T extends import('../table-utils').RsTableRowData = any">
 import RsIcon from '../RsIcon.vue'
 import RsTableHeaderFilter from './RsTableHeaderFilter.vue'
 import { useRsTableView } from './rs-table-view-context'

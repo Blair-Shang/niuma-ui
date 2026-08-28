@@ -211,6 +211,72 @@ export type RsTableEmits<T extends RsTableRowData = RsTableRowData> = {
   rowEditRollback: [row: T, index: number]
 }
 
+/**
+ * 插槽回调按双变处理：宿主把 row 写成业务行类型时，不被逆变拒绝。
+ * 列插槽名是动态的，vue-tsc 不能从子组件 inject 推断 T，必须由 RsTable 自身 declare。
+ */
+type RsTableSlotFn<P> = {
+  bivarianceHack(props: P): unknown
+}['bivarianceHack']
+
+/** 列单元格插槽参数（`#columnKey`） */
+export interface RsTableColumnSlotProps<T extends RsTableRowData = RsTableRowData> {
+  row: T
+  column: RsTableColumn<T>
+  index: number
+}
+
+/** 自定义编辑器插槽参数（`#edit-columnKey`） */
+export interface RsTableEditSlotProps<T extends RsTableRowData = RsTableRowData>
+  extends RsTableColumnSlotProps<T> {
+  draft: string
+  error: string | null
+  update: (value: string) => void
+  commit: () => void
+  cancel: () => void
+}
+
+/** 列头插槽参数（`#header-columnKey`） */
+export interface RsTableHeaderSlotProps<T extends RsTableRowData = RsTableRowData> {
+  column: RsTableColumn<T>
+}
+
+/** 展开行插槽参数（`#expand`） */
+export interface RsTableExpandSlotProps<T extends RsTableRowData = RsTableRowData> {
+  row: T
+  index: number
+}
+
+/** 分组行插槽参数（`#group`） */
+export interface RsTableGroupSlotProps {
+  key: string
+  label: string
+}
+
+/**
+ * 按插槽名解析参数。列名是动态 key；`edit-*` / `header-*` 用模板字面量区分。
+ */
+export type RsTableSlotPropsOf<T extends RsTableRowData, K extends string> = K extends
+  | 'empty'
+  | 'summary'
+  ? Record<string, never>
+  : K extends 'group'
+    ? RsTableGroupSlotProps
+    : K extends 'expand'
+      ? RsTableExpandSlotProps<T>
+      : K extends `header-${string}`
+        ? RsTableHeaderSlotProps<T>
+        : K extends `edit-${string}`
+          ? RsTableEditSlotProps<T>
+          : RsTableColumnSlotProps<T>
+
+/**
+ * RsTable 公开插槽。用映射类型而不是 string 索引，避免 empty/group 与列插槽冲突。
+ */
+export type RsTableSlots<T extends RsTableRowData = RsTableRowData> = {
+  [K in string]?: RsTableSlotFn<RsTableSlotPropsOf<T, K>>
+}
+
 /** withDefaults 第二参（工厂默认用函数） */
 export const RS_TABLE_PROP_DEFAULTS = {
   loading: false,
