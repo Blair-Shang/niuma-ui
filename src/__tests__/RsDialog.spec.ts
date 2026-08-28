@@ -375,7 +375,7 @@ describe('RsDialog', () => {
     const wrapper = mount(Host, { attachTo: document.body })
     await flushPromises()
     const closeBtn = document.body.querySelector('.rs-dialog__actions button') as HTMLElement
-    expect(closeBtn.querySelector('.rs-btn__tooltip')?.textContent).toContain('Close')
+    expect(closeBtn?.getAttribute('aria-label')).toContain('Close')
     wrapper.unmount()
   })
 

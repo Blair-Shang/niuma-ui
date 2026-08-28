@@ -247,6 +247,10 @@ function setMode(next: RsMarkdownMode): void {
   color: var(--rs-primary);
   text-decoration: underline;
   text-underline-offset: 0.15em;
+  cursor: pointer;
+}
+.rs-markdown__prose a code {
+  color: inherit;
 }
 .rs-markdown__prose a:hover {
   opacity: 0.85;
@@ -322,8 +326,23 @@ function setMode(next: RsMarkdownMode): void {
   height: auto;
   border-radius: var(--rs-radius);
 }
-.rs-markdown__prose input[type='checkbox'] {
-  margin-right: 0.35em;
+.rs-markdown__task {
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  margin: 0 0.4em 0.05em 0;
+  border: 1px solid var(--rs-border);
+  border-radius: 0.15em;
   vertical-align: middle;
+  background: var(--rs-surface);
+}
+.rs-markdown__task--on {
+  background: var(--rs-primary);
+  border-color: var(--rs-primary);
+  box-shadow: inset 0 0 0 0.12em var(--rs-surface);
+}
+.rs-markdown__prose li:has(> .rs-markdown__task) {
+  list-style: none;
+  margin-left: -1.15em;
 }
 </style>

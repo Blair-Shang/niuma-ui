@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useSlots, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, useId, useSlots, watch } from 'vue'
 import type { RsComponentSize, RsRadius } from '../theme/types'
 import { RS_COMPONENT_SIZE_ICON_PX } from '../theme/types'
 import {
@@ -35,7 +35,10 @@ const props = withDefaults(
     iconSize?: number
     /** 仅显示图标，文字通过 tooltip / slot 悬浮展示 */
     iconOnly?: boolean
-    /** 悬浮提示文案 */
+    /**
+     * 悬浮提示。打开时 Teleport 到 `document.body`（对齐 WAI-ARIA APG Tooltip / Reka Portal）。
+     * 仅图标按钮时作可视提示；无障碍名称仍走 `aria-label`，避免与 tip 重复朗读。
+     */
     tooltip?: string
     /** icon-only 时无障碍标签（与 tooltip 二选一，避免与外部 RsTooltip 重复） */
     ariaLabel?: string
@@ -106,23 +109,119 @@ const ariaLabel = computed(() => {
   return props.ariaLabel || props.tooltip || undefined
 })
 
-/** tooltip 水平对齐方式：center / left / right */
-const tooltipAlign = ref<'center' | 'left' | 'right'>('center')
+/** 与 RsTooltipProvider 默认一致：避免路过按钮时闪一下 */
+const TOOLTIP_DELAY_MS = 300
 
-function updateTooltipAlign(): void {
+const tipId = useId()
+const tipOpen = ref(false)
+const tipStyle = ref<Record<string, string>>({})
+
+let openTimer: ReturnType<typeof setTimeout> | null = null
+let posRaf = 0
+
+/** 有可见文案时 tip 是补充说明；仅图标时名称已在 aria-label，不再 describedby（避免读两遍） */
+const tipDescribedBy = computed(() =>
+  tipOpen.value && showFloatingText.value && !props.iconOnly ? tipId : undefined,
+)
+
+function clearOpenTimer(): void {
+  if (openTimer == null) return
+  clearTimeout(openTimer)
+  openTimer = null
+}
+
+function updateTipPosition(): void {
   const el = btnRef.value
   if (!el) return
   const rect = el.getBoundingClientRect()
   const mid = rect.left + rect.width / 2
   const vw = window.innerWidth
+  const gap = 6
+  let left = mid
+  let transform = 'translateX(-50%)'
   if (mid > vw * 0.72) {
-    tooltipAlign.value = 'right'
+    left = rect.right
+    transform = 'translateX(-100%)'
   } else if (mid < vw * 0.28) {
-    tooltipAlign.value = 'left'
-  } else {
-    tooltipAlign.value = 'center'
+    left = rect.left
+    transform = 'none'
+  }
+  tipStyle.value = {
+    top: `${Math.round(rect.bottom + gap)}px`,
+    left: `${Math.round(left)}px`,
+    transform,
   }
 }
+
+function scheduleTipPosition(): void {
+  if (typeof window === 'undefined' || posRaf) return
+  posRaf = window.requestAnimationFrame(() => {
+    posRaf = 0
+    if (tipOpen.value) updateTipPosition()
+  })
+}
+
+function onDocKeydown(e: KeyboardEvent): void {
+  if (e.key !== 'Escape' || !tipOpen.value) return
+  e.preventDefault()
+  e.stopPropagation()
+  closeTip()
+}
+
+function bindTipFollow(on: boolean): void {
+  if (typeof window === 'undefined') return
+  if (on) {
+    window.addEventListener('scroll', scheduleTipPosition, true)
+    window.addEventListener('resize', scheduleTipPosition)
+    window.addEventListener('keydown', onDocKeydown, true)
+  } else {
+    window.removeEventListener('scroll', scheduleTipPosition, true)
+    window.removeEventListener('resize', scheduleTipPosition)
+    window.removeEventListener('keydown', onDocKeydown, true)
+    if (posRaf) {
+      window.cancelAnimationFrame(posRaf)
+      posRaf = 0
+    }
+  }
+}
+
+function openTipNow(): void {
+  if (!showFloatingText.value || props.disabled || props.loading) return
+  updateTipPosition()
+  if (!tipOpen.value) {
+    tipOpen.value = true
+    bindTipFollow(true)
+  }
+}
+
+function scheduleOpenTip(): void {
+  if (!showFloatingText.value || props.disabled || props.loading) return
+  clearOpenTimer()
+  openTimer = setTimeout(() => {
+    openTimer = null
+    openTipNow()
+  }, TOOLTIP_DELAY_MS)
+}
+
+function closeTip(): void {
+  clearOpenTimer()
+  if (!tipOpen.value) return
+  tipOpen.value = false
+  bindTipFollow(false)
+}
+
+function onFocus(e: FocusEvent): void {
+  const el = e.currentTarget
+  if (!(el instanceof HTMLElement)) return
+  if (el.matches(':focus-visible')) scheduleOpenTip()
+}
+
+watch(
+  () => props.disabled || props.loading,
+  (off) => {
+    if (off) closeTip()
+  },
+)
 
 watch(
   () => props.loading,
@@ -140,6 +239,10 @@ watch(
     }
   },
 )
+
+onUnmounted(() => {
+  closeTip()
+})
 </script>
 
 <template>
@@ -153,7 +256,11 @@ watch(
     :aria-busy="loading || undefined"
     :aria-disabled="disabled || loading || undefined"
     :aria-label="ariaLabel"
-    @mouseenter="updateTooltipAlign"
+    :aria-describedby="tipDescribedBy"
+    @mouseenter="scheduleOpenTip"
+    @mouseleave="closeTip"
+    @focus="onFocus"
+    @blur="closeTip"
   >
     <span v-if="loading" class="rs-btn__spinner" aria-hidden="true">
       <span class="rs-btn__spinner-ring" />
@@ -172,15 +279,18 @@ watch(
     >
       <slot />
     </span>
-    <span
-      v-if="showFloatingText"
-      class="rs-btn__tooltip"
-      :class="`rs-btn__tooltip--${tooltipAlign}`"
-      role="tooltip"
-    >
-      <template v-if="tooltip">{{ tooltip }}</template>
-      <slot v-else-if="iconOnly" />
-    </span>
+    <Teleport to="body">
+      <span
+        v-if="tipOpen"
+        :id="tipId"
+        class="rs-btn__tooltip"
+        :style="tipStyle"
+        role="tooltip"
+      >
+        <template v-if="tooltip">{{ tooltip }}</template>
+        <slot v-else-if="iconOnly" />
+      </span>
+    </Teleport>
   </button>
 </template>
 
@@ -464,10 +574,8 @@ watch(
   opacity: 1;
 }
 .rs-btn__tooltip {
-  position: absolute;
-  left: 50%;
-  top: calc(100% + 0.375rem);
-  transform: translateX(-50%) translateY(-2px);
+  position: fixed;
+  z-index: calc(var(--rs-z-modal) + 2);
   padding: 0.25rem 0.5rem;
   border-radius: var(--rs-radius-sm);
   border: 1px solid var(--rs-border);
@@ -478,36 +586,7 @@ watch(
   line-height: 1.25rem;
   white-space: nowrap;
   box-shadow: var(--rs-shadow-sm);
-  opacity: 0;
   pointer-events: none;
-  transition:
-    opacity 0.15s ease,
-    transform 0.15s ease;
-  z-index: var(--rs-z-tooltip);
-}
-/* 靠左边的按钮：tooltip 左对齐 */
-.rs-btn__tooltip--left {
-  left: 0;
-  transform: translateY(-2px);
-}
-/* 靠右边的按钮：tooltip 右对齐 */
-.rs-btn__tooltip--right {
-  left: auto;
-  right: 0;
-  transform: translateY(-2px);
-}
-.rs-btn:hover:not(:disabled) .rs-btn__tooltip,
-.rs-btn:focus-visible .rs-btn__tooltip {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-.rs-btn:hover:not(:disabled) .rs-btn__tooltip--left,
-.rs-btn:focus-visible .rs-btn__tooltip--left {
-  transform: translateY(0);
-}
-.rs-btn:hover:not(:disabled) .rs-btn__tooltip--right,
-.rs-btn:focus-visible .rs-btn__tooltip--right {
-  transform: translateY(0);
 }
 @keyframes rs-spin {
   to {

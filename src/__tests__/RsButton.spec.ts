@@ -1,6 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RsButton from '../components/RsButton.vue'
+
+async function openTooltip(wrapper: ReturnType<typeof mount>) {
+  await wrapper.trigger('mouseenter')
+  await vi.advanceTimersByTimeAsync(300)
+}
 
 describe('RsButton', () => {
   it('renders slot', () => {
@@ -92,17 +97,23 @@ describe('RsButton', () => {
       props: { icon: 'search', iconOnly: true, tooltip: '搜索' },
     })
     expect(wrapper.classes()).toContain('rs-btn--icon-only')
-    expect(wrapper.find('.rs-btn__tooltip').text()).toBe('搜索')
     expect(wrapper.attributes('aria-label')).toBe('搜索')
+    expect(document.body.querySelector('.rs-btn__tooltip')).toBeNull()
+    wrapper.unmount()
   })
 
-  it('iconOnly uses slot text in floating tooltip when tooltip omitted', () => {
+  it('iconOnly uses slot text in floating tooltip when tooltip omitted', async () => {
+    vi.useFakeTimers()
     const wrapper = mount(RsButton, {
       props: { icon: 'message-square', iconOnly: true },
       slots: { default: '消息' },
+      attachTo: document.body,
     })
     expect(wrapper.find('.rs-btn__label').exists()).toBe(false)
-    expect(wrapper.find('.rs-btn__tooltip').text()).toBe('消息')
+    await openTooltip(wrapper)
+    expect(document.body.querySelector('.rs-btn__tooltip')?.textContent).toBe('消息')
+    wrapper.unmount()
+    vi.useRealTimers()
   })
 
   it('reveal-label mode keeps label in dom with reveal class', () => {
@@ -115,12 +126,34 @@ describe('RsButton', () => {
     expect(wrapper.text()).toContain('新建对话')
   })
 
-  it('shows tooltip when tooltip prop is set with label', () => {
+  it('shows tooltip when tooltip prop is set with label', async () => {
+    vi.useFakeTimers()
     const wrapper = mount(RsButton, {
       props: { icon: 'plus', tooltip: 'Ctrl+N' },
       slots: { default: '新建' },
+      attachTo: document.body,
     })
-    expect(wrapper.find('.rs-btn__tooltip').text()).toBe('Ctrl+N')
+    await openTooltip(wrapper)
+    const tip = document.body.querySelector('.rs-btn__tooltip')
+    expect(tip?.textContent).toBe('Ctrl+N')
+    expect(wrapper.attributes('aria-describedby')).toBe(tip?.id)
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
+  it('portals tooltip to document.body so overflow parents cannot clip it', async () => {
+    vi.useFakeTimers()
+    const wrapper = mount(RsButton, {
+      props: { icon: 'plus', iconOnly: true, tooltip: '新建' },
+      attachTo: document.body,
+    })
+    await openTooltip(wrapper)
+    const tip = document.body.querySelector('.rs-btn__tooltip')
+    expect(tip).not.toBeNull()
+    expect(wrapper.element.contains(tip)).toBe(false)
+    expect(tip?.parentElement).toBe(document.body)
+    wrapper.unmount()
+    vi.useRealTimers()
   })
 
   it('loading: applies class, keeps enabled, shows inline spinner and label', async () => {

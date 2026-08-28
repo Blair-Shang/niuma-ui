@@ -6,6 +6,20 @@
 
 ## [Unreleased]
 
+## [1.1.8] - 2026-08-28
+
+### 新增
+
+- `RsCodeBlock`：`editable`（默认 `false`，只读行为不变）；可写时 `update:code` 同步正文；expose `getSelection` 返回选区文本与起止行号。可写态显示光标。`showBar`（默认 `true`）为 `false` 时隐藏语言条与复制/下载。
+- `RsTree`：`node-contextmenu`（`node, key, event`）；行节点带 `data-tree-key`，便于宿主挂右键菜单。
+- `RsPopover.popupClassName`：附加到弹出层 class，对齐 `RsSelect`。
+- `renderMarkdownInline`：行内 Markdown（不包 `<p>`），并从包入口导出。
+
+### 修复
+
+- `RsButton`：内置 `tooltip` 打开时 Teleport 到 `document.body`（`position: fixed`），避免侧栏 / Dialog 等 overflow 父级裁切。关闭即卸载；延迟 300ms、Escape 关闭；有可见文案时用 `aria-describedby`，仅图标走 `aria-label` 不重复朗读。
+- `RsMarkdown`：GFM 表格对齐 `align`；裸 URL 与行内代码中的 `http(s)` 可点击；任务列表改为 span 标记并禁止消毒后的 `<input>`。
+
 ## [1.1.7] - 2026-08-21
 
 ### 新增
@@ -169,7 +183,8 @@
 
 - 1.0 之前的私有 tag（如 `v0.1.0`）仅作历史记录；新接入请依赖 `v1.0.0` 及之后版本。
 
-[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.7...HEAD
+[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.8...HEAD
+[1.1.8]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.8
 [1.1.7]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.7
 [1.1.6]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.6
 [1.1.5]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.5

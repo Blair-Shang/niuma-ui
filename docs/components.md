@@ -94,7 +94,7 @@ import { RsButton, RsConfigProvider } from 'niuma-ui'
 | `RsTableCellEditor` | 单元格编辑器 |
 | `RsTableHeader` / `RsTableBody` / `RsTableColGroup` | 表格视图子件（ViewContext inject） |
 | `RsTree` | 树（勾选、拖拽、虚拟） |
-| `RsCodeBlock` | 只读代码块 |
+| `RsCodeBlock` | 代码块（默认只读；`editable` 可改正文；`showBar` 可隐藏工具条） |
 | `RsMarkdown` | Markdown 渲染 |
 | `RsProseEditor` | 富文本编辑表面 |
 

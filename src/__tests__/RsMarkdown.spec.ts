@@ -41,11 +41,48 @@ describe('markdown-utils', () => {
     expect(html).not.toContain('javascript:')
   })
 
+  it('keeps GFM table alignment attributes', () => {
+    const html = renderMarkdown('| a | b |\n| ---: | :---: |\n| 1 | 2 |')
+    expect(html).toContain('align="right"')
+    expect(html).toContain('align="center"')
+  })
+
   it('opens http links in a new tab with noopener', () => {
     const html = renderMarkdown('[docs](https://example.com)')
     expect(html).toContain('href="https://example.com"')
     expect(html).toContain('target="_blank"')
     expect(html).toContain('rel="noopener noreferrer"')
+  })
+
+  it('autolinks bare http addresses', () => {
+    const html = renderMarkdown('然后打开 http://127.0.0.1:3000')
+    expect(html).toContain('href="http://127.0.0.1:3000"')
+    expect(html).toContain('target="_blank"')
+  })
+
+  it('turns inline-code http addresses into links', () => {
+    const html = renderMarkdown('然后打开 `http://127.0.0.1:3000`')
+    expect(html).toContain('<code>http://127.0.0.1:3000</code>')
+    expect(html).toContain('href="http://127.0.0.1:3000"')
+    expect(html).toContain('target="_blank"')
+  })
+
+  it('does not linkify inline code that is not a URL', () => {
+    const html = renderMarkdown('run `npm start`')
+    expect(html).toContain('<code>npm start</code>')
+    expect(html).not.toContain('href=')
+  })
+
+  it('renders GFM task lists without input tags', () => {
+    const html = renderMarkdown('- [ ] todo\n- [x] done')
+    expect(html).toContain('rs-markdown__task')
+    expect(html).toContain('rs-markdown__task--on')
+    expect(html.toLowerCase()).not.toContain('<input')
+  })
+
+  it('strips raw HTML input tags', () => {
+    const html = renderMarkdown('Hello <input type="text" name="x">')
+    expect(html.toLowerCase()).not.toContain('<input')
   })
 
   it('sanitizes raw HTML injection', () => {

@@ -50,6 +50,20 @@ describe('RsPopover', () => {
     wrapper.unmount()
   })
 
+  it('applies popupClassName on content', async () => {
+    const wrapper = mount(RsPopover, {
+      props: { open: true, popupClassName: 'custom-pop' },
+      slots: {
+        default: '<button type="button" class="trigger">Open</button>',
+        content: '<p>Custom chrome</p>',
+      },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    expect(document.body.querySelector('.rs-popover__content.custom-pop')).not.toBeNull()
+    wrapper.unmount()
+  })
+
   it('lazy-mounts content when closed by default', async () => {
     const wrapper = mount(RsPopover, {
       slots: {

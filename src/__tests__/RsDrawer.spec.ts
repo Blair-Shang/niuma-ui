@@ -232,7 +232,13 @@ describe('RsDrawer', () => {
     const wrapper = mount(Host, { attachTo: document.body })
     await flushPromises()
     const closeBtn = document.body.querySelector('.rs-drawer__header button') as HTMLElement
-    expect(closeBtn.querySelector('.rs-btn__tooltip')?.textContent).toContain('Close')
+    expect(closeBtn).not.toBeNull()
+    vi.useFakeTimers()
+    closeBtn.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }))
+    await vi.advanceTimersByTimeAsync(300)
+    await flushPromises()
+    expect(document.body.querySelector('.rs-btn__tooltip')?.textContent).toContain('Close')
+    vi.useRealTimers()
     wrapper.unmount()
   })
 

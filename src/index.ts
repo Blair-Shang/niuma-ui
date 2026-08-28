@@ -171,6 +171,7 @@ export {
   isSafeHref,
   isSafeImageSrc,
   renderMarkdown,
+  renderMarkdownInline,
   resolveMarkdownHeight,
   resolveMarkdownMode,
 } from './components/markdown-utils'

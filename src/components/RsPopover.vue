@@ -14,6 +14,8 @@ const props = withDefaults(
     width?: RsPopoverWidth
     lazyMount?: boolean
     forceMount?: boolean
+    /** 附加到弹出层，对齐 RsSelect popupClassName */
+    popupClassName?: string
   }>(),
   {
     side: 'bottom',
@@ -38,7 +40,7 @@ const portalMounted = computed(() => props.forceMount || !props.lazyMount || ope
     <PopoverPortal v-if="portalMounted">
       <PopoverContent
         class="rs-popover__content"
-        :class="`rs-popover__content--${width}`"
+        :class="[`rs-popover__content--${width}`, popupClassName]"
         :side="side"
         :align="align"
         :side-offset="sideOffset"

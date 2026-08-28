@@ -116,6 +116,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   'node-click': [node: RsTreeNode, key: string]
   'node-dblclick': [node: RsTreeNode, key: string]
+  'node-contextmenu': [node: RsTreeNode, key: string, event: MouseEvent]
   expand: [key: string, expanded: boolean]
   check: [keys: string[], halfCheckedKeys: string[], node: RsTreeNode, key: string]
   'node-drop': [dragKey: string, dropKey: string, position: RsTreeDropPosition]
@@ -742,7 +743,9 @@ defineExpose({
               'rs-tree__row--drop-after': dropTargetKey === entry.key && dropPosition === 'after',
               'rs-tree__row--last': showLine && entry.isLast,
             }"
+            :data-tree-key="entry.key"
             :style="[rowIndentStyle(entry.depth), { minHeight: `${rowHeight}px` }]"
+            @contextmenu="emit('node-contextmenu', entry.node, entry.key, $event)"
             @keydown="handleKeydown"
             @dragstart="onDragStart(entry.key, $event)"
             @dragover="onDragOver(entry.key, $event)"

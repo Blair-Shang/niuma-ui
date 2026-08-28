@@ -19,9 +19,17 @@ const props = withDefaults(
     downloadFilename?: string
     /** 覆盖内置"下载"文案 */
     downloadLabel?: string
+    /** 为 true 时允许改正文，并向外同步 */
+    editable?: boolean
+    /** 为 false 时隐藏语言条与复制/下载（嵌入编辑器用） */
+    showBar?: boolean
   }>(),
-  { lang: 'text' },
+  { lang: 'text', editable: false, showBar: true },
 )
+
+const emit = defineEmits<{
+  'update:code': [value: string]
+}>()
 
 const { t } = useRsI18n()
 
@@ -62,10 +70,15 @@ async function initEditor() {
     doc: props.code,
     extensions: [
       basicSetup,
-      EditorView.editable.of(false),
+      EditorView.editable.of(props.editable),
       EditorView.lineWrapping,
       ...langExts,
       ...(isLight() ? [] : [oneDark]),
+      EditorView.updateListener.of((u) => {
+        if (props.editable && u.docChanged) {
+          emit('update:code', u.state.doc.toString())
+        }
+      }),
     ],
   })
 
@@ -98,8 +111,29 @@ onUnmounted(() => {
   }
 })
 
-// lang 变化时重新初始化（切换语言高亮）
-watch(() => props.lang, () => { void initEditor() })
+watch(() => [props.lang, props.editable] as const, () => { void initEditor() })
+
+function getSelection(): { text: string; startLine: number; endLine: number } | null {
+  const ed = view.value
+  if (!ed) {
+    return null
+  }
+  const range = ed.state.selection.main
+  if (range.empty) {
+    return null
+  }
+  const text = ed.state.sliceDoc(range.from, range.to)
+  if (!text.trim()) {
+    return null
+  }
+  return {
+    text,
+    startLine: ed.state.doc.lineAt(range.from).number,
+    endLine: ed.state.doc.lineAt(range.to).number,
+  }
+}
+
+defineExpose({ getSelection })
 
 // 代码内容更新时同步文档（不需要重建整个编辑器）
 watch(
@@ -151,8 +185,14 @@ function download() {
 </script>
 
 <template>
-  <figure class="rs-code-block">
-    <figcaption class="rs-code-block__bar">
+  <figure
+    class="rs-code-block"
+    :class="{
+      'rs-code-block--editable': editable,
+      'rs-code-block--plain': !showBar,
+    }"
+  >
+    <figcaption v-if="showBar" class="rs-code-block__bar">
       <span class="rs-code-block__lang">{{ lang }}</span>
       <div class="rs-code-block__actions">
         <button
@@ -180,6 +220,15 @@ function download() {
   overflow: hidden;
   background: var(--rs-surface-elevated);
   font-size: var(--rs-font-size-sm);
+}
+
+.rs-code-block--plain {
+  border: 0;
+  border-radius: 0;
+}
+
+.rs-code-block--plain .rs-code-block__editor :deep(.cm-editor) {
+  max-height: none;
 }
 
 .rs-code-block__bar {
@@ -257,7 +306,7 @@ function download() {
 }
 
 /* 只读时隐藏光标，保持纯展示外观 */
-.rs-code-block__editor :deep(.cm-cursor) {
+.rs-code-block:not(.rs-code-block--editable) :deep(.cm-cursor) {
   display: none;
 }
 

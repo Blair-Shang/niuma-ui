@@ -29,6 +29,21 @@ export function isSafeHref(href: string): boolean {
   return /^(https?:|mailto:)/i.test(value)
 }
 
+/** 行内代码整段就是 http(s) 地址时，转成可点击链接（模型常用反引号包 URL）。 */
+function isStandaloneHttpUrl(text: string): boolean {
+  const value = text.trim()
+  if (!value || /\s/.test(value)) return false
+  if (!/^https?:\/\//i.test(value)) return false
+  return isSafeHref(value)
+}
+
+function renderSafeLink(href: string, innerHtml: string, title?: string): string {
+  const url = href.trim()
+  if (!isSafeHref(url)) return innerHtml
+  const titleAttr = title ? ` title="${escapeHtml(title)}"` : ''
+  return `<a href="${escapeHtml(url)}"${titleAttr} target="_blank" rel="noopener noreferrer">${innerHtml}</a>`
+}
+
 export function isSafeImageSrc(src: string): boolean {
   const value = src.trim()
   if (!value) return false
@@ -60,11 +75,19 @@ function wrapTables(html: string): string {
   })
 }
 
+function renderTaskMarker(checked: boolean): string {
+  const on = checked ? ' rs-markdown__task--on' : ''
+  return `<span class="rs-markdown__task${on}" aria-hidden="true"></span> `
+}
+
 function createMarked(breaks: boolean): Marked {
   return new Marked({
     gfm: true,
     breaks,
     renderer: {
+      checkbox({ checked }) {
+        return renderTaskMarker(Boolean(checked))
+      },
       code({ text, lang }) {
         return renderCodeBlock(text, lang)
       },
@@ -73,10 +96,12 @@ function createMarked(breaks: boolean): Marked {
         token: Tokens.Link,
       ) {
         const text = this.parser.parseInline(token.tokens)
-        const href = token.href?.trim() ?? ''
-        if (!isSafeHref(href)) return text
-        const title = token.title ? ` title="${escapeHtml(token.title)}"` : ''
-        return `<a href="${escapeHtml(href)}"${title} target="_blank" rel="noopener noreferrer">${text}</a>`
+        return renderSafeLink(token.href ?? '', text, token.title ?? undefined)
+      },
+      codespan({ text }) {
+        const inner = `<code>${escapeHtml(text)}</code>`
+        if (!isStandaloneHttpUrl(text)) return inner
+        return renderSafeLink(text.trim(), inner)
       },
       image({ href, title, text }) {
         const src = href?.trim() ?? ''
@@ -106,9 +131,32 @@ export function renderMarkdown(source = '', options?: RsMarkdownRenderOptions): 
   if (!source.trim()) return ''
   const breaks = options?.breaks !== false
   const dirty = wrapTables(getMarked(breaks).parse(source, { async: false }) as string)
+  return sanitizeMarkdownHtml(dirty)
+}
+
+/** 行内 Markdown（不包 <p>），供对话里夹杂公式的片段使用。 */
+export function renderMarkdownInline(source = ''): string {
+  if (!source) return ''
+  const dirty = getMarked(true).parseInline(source, { async: false }) as string
+  return sanitizeMarkdownHtml(dirty)
+}
+
+function sanitizeMarkdownHtml(dirty: string): string {
   return DOMPurify.sanitize(dirty, {
     USE_PROFILES: { html: true },
-    ADD_ATTR: ['class', 'target', 'rel', 'loading', 'decoding', 'alt', 'src', 'data-rs-md-lang'],
+    FORBID_TAGS: ['input', 'form', 'textarea', 'select', 'option', 'button'],
+    ADD_ATTR: [
+      'class',
+      'target',
+      'rel',
+      'loading',
+      'decoding',
+      'alt',
+      'src',
+      'data-rs-md-lang',
+      'align',
+      'start',
+    ],
   })
 }
 
