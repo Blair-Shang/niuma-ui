@@ -706,7 +706,9 @@ defineExpose({
       v-else
       ref="viewportRef"
       class="rs-tree__viewport"
-      :class="{ 'rs-tree__viewport--scroll': useVirtualScroll || height !== undefined }"
+      :class="{
+        'rs-tree__viewport--scroll rs-native-scrollbar': useVirtualScroll || height !== undefined,
+      }"
       :style="viewportStyle"
       @scroll="onViewportScroll"
     >

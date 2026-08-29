@@ -6,6 +6,13 @@
 
 ## [Unreleased]
 
+## [1.1.10] - 2026-08-29
+
+### 修复
+
+- `RsTree`：虚拟 / 限高视口套上 `rs-native-scrollbar`，滚动条颜色随 `--rs-*` 主题变化。
+- `RsContextMenu`：菜单改为实色底，不再依赖 `backdrop-filter`。CEF 等环境 GPU 崩溃后右键菜单不再透出下层。
+
 ## [1.1.9] - 2026-08-28
 
 ### 修复
@@ -195,7 +202,8 @@
 
 - 1.0 之前的私有 tag（如 `v0.1.0`）仅作历史记录；新接入请依赖 `v1.0.0` 及之后版本。
 
-[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.9...HEAD
+[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.10...HEAD
+[1.1.10]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.10
 [1.1.9]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.9
 [1.1.8]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.8
 [1.1.7]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.7

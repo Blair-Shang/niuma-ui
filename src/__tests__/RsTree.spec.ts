@@ -367,6 +367,7 @@ describe('RsTree', () => {
       props: { nodes: largeNodes, height: 200 },
     })
     expect(wrapper.classes()).toContain('rs-tree--virtual')
+    expect(wrapper.find('.rs-tree__viewport').classes()).toContain('rs-native-scrollbar')
     expect(wrapper.findAll('.rs-tree__item').length).toBeLessThan(largeNodes.length)
   })
 

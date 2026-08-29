@@ -104,9 +104,8 @@ function onSelect(item: RsContextMenuItem) {
   padding: 5px;
   border-radius: 10px;
   border: 0.5px solid var(--rs-ctx-border);
+  /* 实底。半透明 + backdrop-filter 在 CEF GPU 崩溃后会被丢掉，菜单会透出下层。 */
   background: var(--rs-ctx-bg);
-  backdrop-filter: blur(40px) saturate(180%);
-  -webkit-backdrop-filter: blur(40px) saturate(180%);
   box-shadow: var(--rs-ctx-shadow);
   outline: none;
   overflow-x: hidden;
@@ -252,7 +251,7 @@ function onSelect(item: RsContextMenuItem) {
 /* ── 主题变量：深色 ── */
 :root,
 [data-rs-theme='dark'] {
-  --rs-ctx-bg: rgba(40, 40, 42, 0.85);
+  --rs-ctx-bg: #2c2c2e;
   --rs-ctx-border: rgba(255, 255, 255, 0.13);
   --rs-ctx-shadow:
     0 0 0 0.5px rgba(255, 255, 255, 0.08),
@@ -265,7 +264,7 @@ function onSelect(item: RsContextMenuItem) {
 
 /* ── 主题变量：亮色 ── */
 [data-rs-theme='light'] {
-  --rs-ctx-bg: rgba(255, 255, 255, 0.88);
+  --rs-ctx-bg: #f5f5f7;
   --rs-ctx-border: rgba(0, 0, 0, 0.1);
   --rs-ctx-shadow:
     0 0 0 0.5px rgba(0, 0, 0, 0.06),
