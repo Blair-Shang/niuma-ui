@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+## [1.1.11] - 2026-08-29
+
+### 优化
+
+- `RsTree`：`nodes` 变更不再 `deep` 监听，避免万级节点每次替换都整树深遍历；仍会清空拖拽态。
+
 ## [1.1.10] - 2026-08-29
 
 ### 修复
@@ -202,7 +208,8 @@
 
 - 1.0 之前的私有 tag（如 `v0.1.0`）仅作历史记录；新接入请依赖 `v1.0.0` 及之后版本。
 
-[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.10...HEAD
+[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.11...HEAD
+[1.1.11]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.11
 [1.1.10]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.10
 [1.1.9]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.9
 [1.1.8]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.8

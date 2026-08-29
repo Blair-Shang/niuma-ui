@@ -376,7 +376,6 @@ watch(
     dragKey.value = null
     dropTargetKey.value = null
   },
-  { deep: true },
 )
 
 function setRowRef(key: string, element: Element | null): void {
