@@ -34,12 +34,16 @@ Vue 3 设计系统与组件库。提供一致的 `Rs*` 组件、`--rs-*` 设计 
 
 ```bash
 pnpm add niuma-ui
+# 业务流水线跟最新正式版（npm dist-tag latest，无 GitHub 标签 latest）
+pnpm add niuma-ui@latest
 ```
 
-在发布到 npm 之前，可使用 GitHub tag：
+钉死某一版：
 
 ```bash
-pnpm add git+https://github.com/Blair-Shang/niuma-ui.git#v1.0.0
+pnpm add niuma-ui@1.1.11
+# 或
+pnpm add git+https://github.com/Blair-Shang/niuma-ui.git#v1.1.11
 ```
 
 本地 link、Vite 配置、包体积建议见 **[消费方指南](./docs/consumers.md)**。
@@ -131,7 +135,7 @@ git push origin v1.0.1
 
 也可在 Actions 里手动运行 **Publish** 工作流。
 
-消费方应锁定 **tag**（或 npm 精确版本），避免长期跟踪 `main`。
+正式版会更新 npm dist-tag **`latest`**（`niuma-ui@latest`），不维护 GitHub 标签 `latest`。可复现发版请钉 SemVer tag；预发布走 npm tag `next`。
 
 详见 [CHANGELOG.md](./CHANGELOG.md)。
 

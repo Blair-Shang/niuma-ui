@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+## [1.1.12] - 2026-08-30
+
+### 说明
+
+- 正式版 `pnpm publish` 打 npm dist-tag `latest`；预发布打 `next`。不维护 GitHub 标签 `latest`。niuma-cloud / NiuMa 流水线从 npm 装 `@latest`（可用 `NIUMA_UI_VERSION` 钉死）。
+
 ## [1.1.11] - 2026-08-29
 
 ### 优化
@@ -208,7 +214,8 @@
 
 - 1.0 之前的私有 tag（如 `v0.1.0`）仅作历史记录；新接入请依赖 `v1.0.0` 及之后版本。
 
-[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.11...HEAD
+[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.12...HEAD
+[1.1.12]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.12
 [1.1.11]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.11
 [1.1.10]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.10
 [1.1.9]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.9

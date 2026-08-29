@@ -92,7 +92,7 @@ pnpm test
 
 ## Versioning
 
-Semantic Versioning. Pin git **tags** (or exact npm versions). See [CHANGELOG.md](./CHANGELOG.md).
+Semantic Versioning. Stable publishes set the npm dist-tag **`latest`** (prereleases use `next`). There is no GitHub tag named `latest`. Pin a SemVer tag for reproducible releases. See [CHANGELOG.md](./CHANGELOG.md).
 
 ## License
 

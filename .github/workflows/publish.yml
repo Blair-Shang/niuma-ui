@@ -78,7 +78,16 @@ jobs:
         if: github.event.inputs.skip_npm != 'true'
         # Requires Granular Access Token with publish + "Bypass two-factor authentication".
         # Do NOT use a one-time OTP secret: codes expire in ~30s and break automated releases.
-        run: pnpm publish --access public --no-git-checks
+        # 正式版打 dist-tag latest；带连字符的预发布打 next，避免业务流水线误跟。
+        shell: bash
+        run: |
+          set -euo pipefail
+          VER="${{ steps.meta.outputs.version }}"
+          if [[ "$VER" == *-* ]]; then
+            pnpm publish --access public --no-git-checks --tag next
+          else
+            pnpm publish --access public --no-git-checks --tag latest
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
