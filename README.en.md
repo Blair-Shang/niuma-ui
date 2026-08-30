@@ -7,11 +7,11 @@
 
 English | [简体中文](./README.md)
 
-Vue 3 design system and component library. Ships consistent `Rs*` components, `--rs-*` design tokens, and optional desktop-tooling editors / terminal wrappers.
+Vue 3 **workbench** design system: `Rs*` components, `--rs-*` tokens, and optional editor / terminal wrappers.
 
-Use it for ops consoles, database workbenches, internal admin UIs, and product sites that need one visual and interaction language.
+Built for ops consoles, database workbenches, and internal admin UIs. Marketing sites can use named imports, but this is not a lightweight Ant Design-style kit — `npm install` pulls Monaco, CodeMirror, and xterm.
 
-**Status:** open source from **v1.0.0** under [Apache License 2.0](./LICENSE).
+**Status:** open source from **v1.0.0** under [Apache License 2.0](./LICENSE). From **v1.2.0** the npm package is compiled ESM (`install` then import by package name).
 
 ## Features
 
@@ -19,27 +19,29 @@ Use it for ops consoles, database workbenches, internal admin UIs, and product s
 - **Rs\* components** — Button, Form, Dialog, Table, Tree, Tabs, and more
 - **Tooling-oriented** — Monaco, CodeMirror, xterm wrappers (import carefully in light apps)
 - **Accessible primitives** — built on [Reka UI](https://reka-ui.com/); apps only consume `niuma-ui`
-- **Vite-friendly** — source-linked HMR; optional host Vite plugins
+- **Vite-friendly** — optional compiled host Vite plugins; local link still HMR-s from source
 
 ## Requirements
 
 | Item | Version |
 |------|---------|
 | Node.js | ≥ 20 |
-| Package manager | pnpm ≥ 9 (recommended) |
+| Package manager | npm / pnpm / yarn (this repo develops with pnpm) |
 | Vue | ^3.5 (`peerDependency`) |
-| Bundler | Vite 5+ / 8 (recommended) |
+| Bundler | Vite 5+ recommended; `RsMonacoEditor` needs Vite `?worker` |
+| Styles | `import 'niuma-ui/styles.css'` is standalone — **no** host Tailwind required |
 
 ## Install
 
 ```bash
 pnpm add niuma-ui
+# or: npm install niuma-ui / yarn add niuma-ui
 ```
 
-Until published to npm, install from a GitHub tag:
+Pin a version:
 
 ```bash
-pnpm add git+https://github.com/Blair-Shang/niuma-ui.git#v1.0.0
+pnpm add niuma-ui@1.2.0
 ```
 
 Local link and Vite details: **[Consumer guide](./docs/consumers.md)** (Chinese).
@@ -72,7 +74,7 @@ import { RsConfigProvider, RsButton } from 'niuma-ui'
 1. Apps import only from `niuma-ui` — **do not** depend on `reka-ui` directly.
 2. Styles: `import 'niuma-ui/styles.css'`.
 3. Wrap the app with `RsConfigProvider`.
-4. Light apps should avoid pulling Monaco / Terminal / heavy table editors via the main barrel.
+4. Light apps should named-import and wrap what they need — do not `import *`. Install still includes editor dependencies; tree-shaking only affects the bundle.
 
 Component catalog: **[docs/components.md](./docs/components.md)**.
 
@@ -86,6 +88,7 @@ Component catalog: **[docs/components.md](./docs/components.md)**.
 ```bash
 pnpm install
 pnpm dev
+pnpm build               # library → dist/ (npm publish)
 pnpm build:playground
 pnpm test
 ```

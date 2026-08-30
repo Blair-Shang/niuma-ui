@@ -6,6 +6,23 @@
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-08-30
+
+### 变更
+
+- npm 包改为发布编译后的 ESM + `.d.ts` + 独立 CSS（`dist/`），不再把 Vue/TS 源码当作入口。`npm` / `pnpm` / `yarn` 安装后按包名导入即可，不必 `shamefully-hoist`。
+- `niuma-ui/styles.css` 为独立样式（token + vue-sonner），**不再** `@import 'tailwindcss'`。`package.json` 增加 `style` 字段。
+- Vite 插件改为发布 JS + `.d.ts`（`niuma-ui/vite-plugins/*`）。
+- 类型声明指向 `.js`，不再把 `.vue` 当作模块说明符。
+- `engines` 只约束 Node ≥ 20；`vue` peer 放宽为 `^3.5.0`；`vite` 为 optional peer（仅插件 / Monaco Worker 需要）。
+- 正式发布带 npm provenance（`publishConfig.provenance` + CI `--provenance`）。
+- 新增 `pnpm build`（`prepublishOnly` 发版前自动执行）。本机 `link` 联调仍可用源码 HMR。
+- 新增子路径 `niuma-ui/vite-prebundle/codemirror` 与 `niuma-ui/vite-prebundle/xterm`，供宿主 Vite `optimizeDeps`。
+
+### 说明
+
+- 本包面向运维控制台 / 数据库工作台。安装会带上 Monaco、CodeMirror、xterm；官网等轻量场景请具名导入并自建薄封装。后续若提供 `lite` 入口将是加法，不改主包合约。
+
 ## [1.1.12] - 2026-08-30
 
 ### 说明
@@ -213,21 +230,3 @@
 ### 说明
 
 - 1.0 之前的私有 tag（如 `v0.1.0`）仅作历史记录；新接入请依赖 `v1.0.0` 及之后版本。
-
-[Unreleased]: https://github.com/Blair-Shang/niuma-ui/compare/v1.1.12...HEAD
-[1.1.12]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.12
-[1.1.11]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.11
-[1.1.10]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.10
-[1.1.9]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.9
-[1.1.8]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.8
-[1.1.7]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.7
-[1.1.6]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.6
-[1.1.5]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.5
-[1.1.4]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.4
-[1.1.3]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.3
-[1.1.2]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.2
-[1.1.1]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.1
-[1.1.0]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.1.0
-[1.0.2]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.0.2
-[1.0.1]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.0.1
-[1.0.0]: https://github.com/Blair-Shang/niuma-ui/releases/tag/v1.0.0

@@ -79,14 +79,15 @@ jobs:
         # Requires Granular Access Token with publish + "Bypass two-factor authentication".
         # Do NOT use a one-time OTP secret: codes expire in ~30s and break automated releases.
         # 正式版打 dist-tag latest；带连字符的预发布打 next，避免业务流水线误跟。
+        # --provenance 依赖 permissions.id-token，在 npm 生成签名证明。
         shell: bash
         run: |
           set -euo pipefail
           VER="${{ steps.meta.outputs.version }}"
           if [[ "$VER" == *-* ]]; then
-            pnpm publish --access public --no-git-checks --tag next
+            pnpm publish --access public --no-git-checks --tag next --provenance
           else
-            pnpm publish --access public --no-git-checks --tag latest
+            pnpm publish --access public --no-git-checks --tag latest --provenance
           fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

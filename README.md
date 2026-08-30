@@ -7,11 +7,11 @@
 
 [English](./README.en.md) | 简体中文
 
-Vue 3 设计系统与组件库。提供一致的 `Rs*` 组件、`--rs-*` 设计 token，以及面向桌面工具场景的编辑器 / 终端能力。
+Vue 3 **工作台**设计系统：一致的 `Rs*` 组件、`--rs-*` token，以及面向桌面工具的编辑器 / 终端封装。
 
-适用于运维控制台、数据库工作台、内部后台与产品官网等需要统一视觉与交互语言的 Vue 应用。
+适用于运维控制台、数据库工作台、内部后台。营销站 / 落地页也可以用，但请具名导入；本包不是 Ant Design 那种轻量通用库，`npm install` 会带上 Monaco、CodeMirror、xterm。
 
-**状态：** 自 **v1.0.0** 起按 [Apache License 2.0](./LICENSE) 开源。
+**状态：** 自 **v1.0.0** 起按 [Apache License 2.0](./LICENSE) 开源。自 **v1.2.0** 起 npm 发布编译后的 ESM（`install` 后按包名导入即可）。
 
 ## 特性
 
@@ -19,21 +19,23 @@ Vue 3 设计系统与组件库。提供一致的 `Rs*` 组件、`--rs-*` 设计 
 - **Rs\* 组件**：Button、Form、Dialog、Table、Tree、Tabs 等完整交互控件
 - **专业工具向**：Monaco、CodeMirror、xterm 等编辑器 / 终端封装（按需引入）
 - **无障碍与焦点**：底层基于 [Reka UI](https://reka-ui.com/)，业务层只消费 `niuma-ui`
-- **Vite 友好**：源码直连联调；可选导出消费方 Vite 插件
+- **Vite 友好**：本机可 link 源码 HMR；可选导出编译后的宿主 Vite 插件
 
 ## 要求
 
 | 项 | 版本 |
 |----|------|
 | Node.js | ≥ 20 |
-| 包管理器 | pnpm ≥ 9（推荐） |
-| Vue | ^3.5（peerDependency） |
-| 构建 | Vite 5+ / 8（推荐） |
+| 包管理器 | npm / pnpm / yarn（本仓库开发用 pnpm） |
+| Vue | ^3.5.0（peerDependency） |
+| 打包器 | Vite 5+ 推荐；使用 `RsMonacoEditor` 时需要 Vite 处理 `?worker` |
+| 样式 | `import 'niuma-ui/styles.css'` 为独立 CSS，**不要求**宿主安装 Tailwind |
 
 ## 安装
 
 ```bash
 pnpm add niuma-ui
+# 或 npm install niuma-ui / yarn add niuma-ui
 # 业务流水线跟最新正式版（npm dist-tag latest，无 GitHub 标签 latest）
 pnpm add niuma-ui@latest
 ```
@@ -41,9 +43,9 @@ pnpm add niuma-ui@latest
 钉死某一版：
 
 ```bash
-pnpm add niuma-ui@1.1.11
+pnpm add niuma-ui@1.2.0
 # 或
-pnpm add git+https://github.com/Blair-Shang/niuma-ui.git#v1.1.11
+pnpm add git+https://github.com/Blair-Shang/niuma-ui.git#v1.2.0
 ```
 
 本地 link、Vite 配置、包体积建议见 **[消费方指南](./docs/consumers.md)**。
@@ -76,7 +78,7 @@ import { RsConfigProvider, RsButton } from 'niuma-ui'
 1. 应用与业务模块只允许 `import { … } from 'niuma-ui'`，**禁止**直接依赖 `reka-ui`。
 2. 样式入口：`import 'niuma-ui/styles.css'`（须在业务品牌 CSS 之前或按文档顺序加载）。
 3. 根节点使用 `RsConfigProvider` 提供主题、语言与默认控件尺寸。
-4. 营销站 / 轻量应用避免从主入口导入 Monaco、Terminal、重型 Table 编辑能力；按文件路径或自建薄封装按需引用（见消费方指南）。
+4. 营销站 / 轻量应用请具名导入并自建薄封装（见消费方指南），不要 `import *`。安装体积仍含编辑器依赖；摇树只影响打包结果。
 
 组件清单与新增组件规范见 **[组件说明](./docs/components.md)**。
 
@@ -91,6 +93,7 @@ import { RsConfigProvider, RsButton } from 'niuma-ui'
 ```bash
 pnpm install
 pnpm dev                 # 组件演示，默认 http://localhost:5180
+pnpm build               # 库产物 → dist/（npm 发布）
 pnpm build:playground    # 构建演示站静态资源 → playground-dist/
 pnpm test                # Vitest
 pnpm test:watch

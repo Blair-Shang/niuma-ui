@@ -11,11 +11,12 @@ English note: component and install docs are maintained in Chinese first; PRs ma
 ```bash
 pnpm install
 pnpm dev          # Playground：http://localhost:5180
+pnpm build        # 库产物 → dist/（npm 发布用；本机 link 的类型检查也依赖它）
 pnpm test         # Vitest 单次
 pnpm test:watch
 ```
 
-要求：Node.js ≥ 20，pnpm ≥ 9，Vue ^3.5。
+要求：Node.js ≥ 20，本仓库开发用 pnpm ≥ 9，Vue ^3.5。发布包不强制消费方使用 pnpm。
 
 ## Pull Request 流程
 
@@ -55,7 +56,7 @@ pnpm test:watch
    git push origin vX.Y.Z
    ```
 
-4. GitHub Actions **Publish** 会：跑测试、`pnpm publish`，并从 CHANGELOG 该版本段落生成 **GitHub Release** 说明（npm 页面与 Releases 都能看到）。
+4. GitHub Actions **Publish** 会：跑测试、`prepublishOnly` 构建 `dist/`、`pnpm publish`，并从 CHANGELOG 该版本段落生成 **GitHub Release** 说明（npm 页面与 Releases 都能看到）。
 5. 已推过的 tag 若漏了 Release 说明：Actions → Publish → **Run workflow**，填写 `tag`（如 `v1.1.1`），勾选 `skip_npm`。
 
 仓库需配置 Secret：`NPM_TOKEN`。
