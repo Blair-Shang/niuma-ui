@@ -15,7 +15,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const distDir = resolve(root, 'dist')
@@ -289,16 +289,50 @@ function assertPublishedSurface() {
     console.error('[build-lib] RsTable.js must import table/rs-table.css')
     process.exit(1)
   }
+
+  const indexJs = readFileSync(resolve(distDir, 'index.js'), utf8)
+  if (!indexJs.includes("export { default as RsButton } from")) {
+    console.error('[build-lib] dist/index.js must live-reexport RsButton with from')
+    process.exit(1)
+  }
+  if (indexJs.includes('RsButton_default') || /^import /m.test(indexJs)) {
+    console.error('[build-lib] dist/index.js must not be an import-all facade')
+    process.exit(1)
+  }
 }
 
-run('pnpm', ['exec', 'vite', 'build', '--config', 'vite.config.lib.ts'])
-linkExtractedCss(distDir)
-flattenVueArtifacts(distDir)
-restoreSideEffectCss()
-writeStandaloneCss()
-run('pnpm', ['exec', 'vue-tsc', '-p', 'tsconfig.build.json'])
-rewriteDts(distDir)
-run('pnpm', ['exec', 'tsc', '-p', 'tsconfig.plugins.json'])
-assertPublishedSurface()
+/**
+ * RewriteLiveReexportIndex 把 Rolldown 门面桶收成带 from 的真实 re-export。
+ */
+async function rewriteLiveReexportIndex() {
+  const indexPath = resolve(distDir, 'index.js')
+  const pluginUrl = pathToFileURL(resolve(distDir, 'vite-plugins/niuma-ui-host.js')).href
+  const { parseRuntimeBindings, emitLiveReexportIndex } = await import(pluginUrl)
+  const map = parseRuntimeBindings(readFileSync(indexPath, utf8))
+  if (map.size === 0) {
+    console.error('[build-lib] dist/index.js has no runtime bindings')
+    process.exit(1)
+  }
+  writeFileSync(indexPath, emitLiveReexportIndex(map), utf8)
+}
 
-console.log('[build-lib] dist ESM + d.ts + standalone CSS + vite-plugins ready')
+async function main() {
+  run('pnpm', ['exec', 'vite', 'build', '--config', 'vite.config.lib.ts'])
+  linkExtractedCss(distDir)
+  flattenVueArtifacts(distDir)
+  restoreSideEffectCss()
+  writeStandaloneCss()
+  run('pnpm', ['exec', 'tsc', '-p', 'tsconfig.plugins.json'])
+  await rewriteLiveReexportIndex()
+  run('pnpm', ['exec', 'vue-tsc', '-p', 'tsconfig.build.json'])
+  rewriteDts(distDir)
+  assertPublishedSurface()
+  console.log('[build-lib] dist ESM + d.ts + standalone CSS + vite-plugins ready')
+}
+
+try {
+  await main()
+} catch (err) {
+  console.error(err)
+  process.exit(1)
+}

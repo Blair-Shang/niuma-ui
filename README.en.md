@@ -19,7 +19,7 @@ Built for ops consoles, database workbenches, and internal admin UIs. Marketing 
 - **Rs\* components** — Button, Form, Dialog, Table, Tree, Tabs, and more
 - **Tooling-oriented** — Monaco, CodeMirror, xterm wrappers (import carefully in light apps)
 - **Accessible primitives** — built on [Reka UI](https://reka-ui.com/); apps only consume `niuma-ui`
-- **Vite-friendly** — optional compiled host Vite plugins; local link still HMR-s from source
+- **Vite-friendly** — `import { RsButton } from 'niuma-ui'` is the public API; `niumaUiHost` is serve-only HMR
 
 ## Requirements
 

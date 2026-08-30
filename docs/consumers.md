@@ -6,18 +6,19 @@
 
 **定位：** 工作台设计系统，不是轻量通用 UI 套件。自 **1.2.0** 起 npm 包为编译 ESM。安装会带上 Monaco / CodeMirror / xterm；打包体积靠具名导入 + 下面的入口约定摇树。
 
-**契约：业务 `pnpm dev` 联调源码，流水线 / `vite build` 用 npm `dist`，两边模块图和样式一致。** 不要在单个产品里补 Tailwind 或改栏宽。
+**契约：公共 API 是主入口具名导入。`vite build` / CI 走包主入口，不依赖改写插件。`niumaUiHost` 只服务本机 `pnpm dev`。** 不要在单个产品里补 Tailwind 或改栏宽。
 
 1. `styles.css` 源码与发布包同一份，**透传** `@import 'tailwindcss'`。宿主入口只 `import 'niuma-ui/styles.css'`，用 `@tailwindcss/vite` 处理这一行；不要在业务 CSS 里再写一遍 `@import 'tailwindcss'`，也不要剥掉发布包里的这一行。
 2. 宿主启用 `niumaUiHost()`（`niuma-ui/vite-plugins/niuma-ui-host`）：
    - `pnpm dev` + `link:`：具名导入改到 `src/**/*.vue`，`styles.css` 指到源码，组件可 HMR。
-   - `vite build` / CI 装 npm：同一批具名导入改到 `dist/**/*.js`。
+   - `vite build` / CI：不改写，解析 `dist/index.js` 的真实 re-export。
 3. **禁止**把 `@niuma/ui` 别名到 `src/index.ts`。评估整桶会灌入未使用组件 CSS，和打包摇树对不齐。
-4. 一律从主入口具名导入。官网等轻量宿主在自己的 `src/ui.ts` 里只 re-export 用到的符号。不要 `import *`。
+4. 一律从主入口具名导入。官网等轻量宿主在自己的 `src/ui.ts` 里只 re-export 用到的符号（产品层减体积，不是绕过打包器）。不要 `import *`。
+5. 子路径（`vite-plugins/*`、`styles.css`、`vite-prebundle/*`）给工具链用，不是业务组件的常规写法。
 
 ## 1. 选择依赖方式
 
-npm 包名是 **`niuma-ui`**。正式版 `pnpm publish` 会更新 dist-tag **`latest`**（当前 1.2.0）；预发布打 **`next`**。不维护 GitHub 标签 `latest`。
+npm 包名是 **`niuma-ui`**。正式版 `pnpm publish` 会更新 dist-tag **`latest`**（当前 1.2.5）；预发布打 **`next`**。不维护 GitHub 标签 `latest`。
 
 | 场景 | 推荐写法 | 说明 |
 |------|----------|------|
@@ -170,7 +171,7 @@ export default defineConfig({
 
 | 插件 | 用途 |
 |------|------|
-| `niumaUiHost` | 第一方宿主必开。dev 联调源码，build 走 dist 子路径。旧路径 `vite-plugins/rewrite-named-imports` 仍 re-export，勿再新写。 |
+| `niumaUiHost` | 第一方宿主建议开。只服务 `pnpm dev`（源码 HMR、styles alias、Tailwind `@source`）。`vite build` 走包主入口。旧路径 `vite-plugins/rewrite-named-imports` 仍 re-export，勿再新写。 |
 | `monacoZhNlsPlugin` | Monaco 右键菜单等 UI 中文 NLS |
 | `silenceAntlrParseConsole` | 抑制 SQL 语言服务半成品 parse 的 console 噪音 |
 
@@ -200,7 +201,7 @@ export default defineConfig({
 
 `niuma-ui` 主入口聚合了面向 IDE / 运维工作台的完整能力。
 
-- 一律 `import { RsButton } from 'niuma-ui'`，加 `niumaUiHost`。官网在宿主 `src/ui.ts` 里只 re-export 用到的符号。
+- 一律 `import { RsButton } from 'niuma-ui'`。官网在宿主 `src/ui.ts` 里只 re-export 用到的符号。`niumaUiHost` 只为 `pnpm dev` 联调。
 - 不要 `import * as UI from 'niuma-ui'`。
 - 样式一律 `niuma-ui/styles.css`。
 
@@ -233,7 +234,7 @@ A: 锁文件 + `--frozen-lockfile` 不会漂。第一方 workflow 须 `pkg set` 
 A: 不要。当前 npm 包是编译产物，pnpm 隔离目录即可解析 `reka-ui` 等依赖。那是源码发布时期的权宜之计。
 
 **Q: 本机好看、流水线构建像缺样式 / 栏宽对不齐？**  
-A: 不是 CodeMirror / 终端没打进包。核对：`styles.css` 是否还带着 `@import 'tailwindcss'`、宿主是否开了 `niumaUiHost` 和 `@tailwindcss/vite`、是否把主入口别名到了整桶 `index.ts`。不要在单个产品里再引一遍 Tailwind 或改栏宽来「对齐」。
+A: 不是 CodeMirror / 终端没打进包。核对：`styles.css` 是否还带着 `@import 'tailwindcss'`、宿主是否开了 `@tailwindcss/vite`、是否把主入口别名到了整桶 `index.ts`。`niumaUiHost` 只影响 `pnpm dev`。不要在单个产品里再引一遍 Tailwind 或改栏宽来「对齐」。
 
 **Q: 必须用 pnpm / Tailwind / Vite 吗？**  
 A: 安装用 npm / pnpm / yarn 均可。`styles.css` 透传 Tailwind，Vite 宿主需要 `@tailwindcss/vite`。普通组件不绑死 Vite；`RsMonacoEditor` 与官方 `vite-plugins/*` 需要 Vite 5+（Worker / 插件 API）。

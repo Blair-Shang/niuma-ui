@@ -19,7 +19,7 @@ Vue 3 **工作台**设计系统：一致的 `Rs*` 组件、`--rs-*` token，以�
 - **Rs\* 组件**：Button、Form、Dialog、Table、Tree、Tabs 等完整交互控件
 - **专业工具向**：Monaco、CodeMirror、xterm 等编辑器 / 终端封装（按需引入）
 - **无障碍与焦点**：底层基于 [Reka UI](https://reka-ui.com/)，业务层只消费 `niuma-ui`
-- **Vite 友好**：宿主开 `niumaUiHost`——`pnpm dev` 联调源码，打包走 npm `dist`
+- **Vite 友好**：`import { RsButton } from 'niuma-ui'` 即可打包；`niumaUiHost` 只服务本机 `pnpm dev` 联调源码
 
 ## 要求
 

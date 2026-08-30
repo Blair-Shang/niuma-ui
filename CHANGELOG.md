@@ -6,6 +6,18 @@
 
 ## [Unreleased]
 
+## [1.2.5] - 2026-08-30
+
+### 变更
+
+- 发布桶 `dist/index.js` 改为带 `from` 的真实 re-export，与 `.d.ts` 同形。宿主 `import { RsButton } from 'niuma-ui'` / `export { RsButton } from '@niuma/ui'` 在 `vite build` 下走包主入口，不再依赖改写插件。
+- `niumaUiHost` 改写只服务 `pnpm dev`（源码 HMR）。`vite build` / CI 不改写导入。
+- `exports` 增加 `"./*": "./dist/*"`，不再手补 `lib` / `icons` 等子目录。
+
+### 修复
+
+- `niumaUiHost` 改写宿主 `.vue` 时只解析 `<script>`。此前把整份 SFC 交给 `es-module-lexer`，Vite 8 / Rolldown 在 `</script>` 处 `Parse error`。
+
 ## [1.2.4] - 2026-08-30
 
 ### 变更

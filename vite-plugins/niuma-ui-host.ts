@@ -1,10 +1,10 @@
 /**
- * 第一方宿主插件：`pnpm dev` 联调用到的源码，`vite build` / npm 走发布子路径。
+ * 第一方宿主插件：只服务 pnpm dev（源码 HMR、styles alias、Tailwind @source）。
+ * vite build / CI 走包主入口，不改写导入。
  * 禁止把 @niuma/ui 别名到 src/index.ts（评估整桶会灌入未使用组件 CSS）。
  *
  * 写法对齐 Vite / unplugin 惯例：工厂 + options、createFilter、
- * es-module-lexer 定位静态 import/export、magic-string 保留 sourcemap、
- * apply / configResolved 区分 serve 与 build。
+ * es-module-lexer 定位静态 import/export、magic-string 保留 sourcemap。
  */
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
@@ -27,6 +27,8 @@ export type NiumaUiHostOptions = {
 export type NiumaUiBinding = {
   from: string
   kind: 'default' | 'named'
+  /** named 时源模块里的导出名；缺省等于对外名。 */
+  sourceName?: string
 }
 
 type HostContext = {
@@ -39,7 +41,8 @@ type HostContext = {
 }
 
 /**
- * NiumaUiHost 返回一组插件（Vite 会摊平）。serve 做 styles alias，两侧都改写具名导入。
+ * NiumaUiHost 返回一组插件（Vite 会摊平）。
+ * serve 改写具名导入到源码并 alias styles；build 只补 Tailwind @source。
  */
 export function niumaUiHost(options: NiumaUiHostOptions = {}): Plugin[] {
   const root = options.root ?? resolvePkgRoot()
@@ -48,7 +51,7 @@ export function niumaUiHost(options: NiumaUiHostOptions = {}): Plugin[] {
     viteRoot: process.cwd(),
     hasSrc: existsSync(join(root, 'src/index.ts')),
     useSource: false,
-    map: loadRuntimeBindings(root),
+    map: loadRuntimeBindings(root, existsSync(join(root, 'src/index.ts'))),
     filter: createFilter(
       options.include ?? [/\.([cm]?[jt]sx?|vue)(?:$|\?)/],
       options.exclude ?? [/\/node_modules\//],
@@ -85,41 +88,24 @@ function niumaUiHostAlias(ctx: HostContext): Plugin {
 }
 
 /**
- * NiumaUiHostRewrite 把静态具名导入改到源码文件或 dist 子路径。
+ * NiumaUiHostRewrite 仅在 serve 把静态具名导入改到源码文件，供 HMR。
  */
 function niumaUiHostRewrite(ctx: HostContext): Plugin {
   return {
     name: 'niuma-ui-host:rewrite',
+    apply: 'serve',
     enforce: 'pre',
     configResolved(config) {
-      ctx.useSource = config.command === 'serve' && ctx.hasSrc
+      ctx.useSource = ctx.hasSrc
       ctx.viteRoot = config.root
+      ctx.map = loadRuntimeBindings(ctx.root, ctx.useSource)
     },
     async transform(code, id) {
       if (!ctx.filter(id)) return null
       if (!code.includes('@niuma/ui') && !code.includes('niuma-ui')) return null
-      await init
-      const [imports] = parse(code)
-      const s = new MagicString(code)
-      let changed = false
-      for (const im of imports) {
-        if (im.d !== -1) continue
-        const spec = im.n
-        if (!spec || !SPECIFIERS.has(spec)) continue
-        const stmt = code.slice(im.ss, im.se)
-        const next = rewriteHostStatement(stmt, spec, ctx.map, (from) =>
-          resolveTarget(from, spec, ctx.root, ctx.useSource),
-        )
-        if (next && next !== stmt) {
-          s.overwrite(im.ss, im.se, next)
-          changed = true
-        }
-      }
-      if (!changed) return null
-      return {
-        code: s.toString(),
-        map: s.generateMap({ hires: 'boundary', source: id }),
-      }
+      return rewriteHostModule(code, id, ctx.map, (from, spec) =>
+        resolveTarget(from, spec, ctx.root, ctx.useSource),
+      )
     },
   }
 }
@@ -174,6 +160,77 @@ export function toSourceRel(fromDir: string, targetDir: string): string {
   if (rel === '') return '.'
   if (!rel.startsWith('.')) rel = `./${rel}`
   return rel
+}
+
+const VUE_SCRIPT_RE = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi
+
+/**
+ * ScriptBlock 是一段可交给 es-module-lexer 的 ESM，start 为在原文件中的字节偏移。
+ */
+export type ScriptBlock = {
+  start: number
+  code: string
+}
+
+/**
+ * ScriptBlocks 取出可交给 es-module-lexer 的 ESM 片段。
+ * 裸 .vue 是 SFC，必须先拆 script；?vue&type=script 已是脚本。
+ */
+export function scriptBlocks(code: string, id: string): ScriptBlock[] {
+  const qIdx = id.indexOf('?')
+  const file = (qIdx === -1 ? id : id.slice(0, qIdx)).replace(/\\/g, '/')
+  const query = qIdx === -1 ? '' : id.slice(qIdx + 1)
+  if (!file.endsWith('.vue')) {
+    return [{ start: 0, code }]
+  }
+  if (query) {
+    return /(?:^|&)type=script(?:&|$)/.test(query) ? [{ start: 0, code }] : []
+  }
+  const out: ScriptBlock[] = []
+  VUE_SCRIPT_RE.lastIndex = 0
+  let match: RegExpExecArray | null
+  while ((match = VUE_SCRIPT_RE.exec(code)) !== null) {
+    if (/\bsrc\s*=/.test(match[1] ?? '')) continue
+    const inner = match[2] ?? ''
+    if (!inner) continue
+    const start = match.index + match[0].length - inner.length - '</script>'.length
+    out.push({ start, code: inner })
+  }
+  return out
+}
+
+/**
+ * RewriteHostModule 改写模块里对主入口的静态具名导入。
+ * Vue SFC 只处理 script 块，避免 lexer 在 template 处 Parse error。
+ */
+export async function rewriteHostModule(
+  code: string,
+  id: string,
+  map: Map<string, NiumaUiBinding>,
+  targetOf: (from: string, spec: string) => string,
+): Promise<{ code: string; map: ReturnType<MagicString['generateMap']> } | null> {
+  await init
+  const s = new MagicString(code)
+  let changed = false
+  for (const block of scriptBlocks(code, id)) {
+    const [imports] = parse(block.code)
+    for (const im of imports) {
+      if (im.d !== -1) continue
+      const spec = im.n
+      if (!spec || !SPECIFIERS.has(spec)) continue
+      const stmt = block.code.slice(im.ss, im.se)
+      const next = rewriteHostStatement(stmt, spec, map, (from) => targetOf(from, spec))
+      if (next && next !== stmt) {
+        s.overwrite(block.start + im.ss, block.start + im.se, next)
+        changed = true
+      }
+    }
+  }
+  if (!changed) return null
+  return {
+    code: s.toString(),
+    map: s.generateMap({ hires: 'boundary', source: id }),
+  }
 }
 
 /**
@@ -295,9 +352,29 @@ type Specifier = {
 }
 
 /**
+ * EmitLiveReexportIndex 把绑定表收成带 from 的真实 re-export，与 index.d.ts 同形。
+ * 禁止输出全量 import + 本地 alias 门面。
+ */
+export function emitLiveReexportIndex(map: Map<string, NiumaUiBinding>): string {
+  const lines: string[] = []
+  for (const [name, binding] of map) {
+    let from = binding.from.replace(/\\/g, '/')
+    if (!from.startsWith('.')) from = `./${from}`
+    if (binding.kind === 'default') {
+      lines.push(`export { default as ${name} } from '${from}'`)
+      continue
+    }
+    const sourceName = binding.sourceName && binding.sourceName !== name ? binding.sourceName : name
+    const inner = sourceName === name ? name : `${sourceName} as ${name}`
+    lines.push(`export { ${inner} } from '${from}'`)
+  }
+  return `${lines.join('\n')}\n`
+}
+
+/**
  * ParseRuntimeBindings 从主入口抽出运行时导出名到文件的映射。
- * 同时认源码 `export { default as RsX } from './...'` 和发布桶
- * `import RsX_default from './...'` + `export { RsX_default as RsX }`。
+ * 认源码 / 发布桶 `export { default as RsX } from './...'`，以及 Rolldown
+ * 门面 `import RsX_default from './...'` + `export { RsX_default as RsX }`。
  */
 export function parseRuntimeBindings(source: string): Map<string, NiumaUiBinding> {
   const map = new Map<string, NiumaUiBinding>()
@@ -307,7 +384,11 @@ export function parseRuntimeBindings(source: string): Map<string, NiumaUiBinding
     const from = match[2] ?? ''
     if (!from) continue
     for (const spec of parseSpecifierList(match[1] ?? '')) {
-      map.set(spec.right, { from, kind: spec.isDefault ? 'default' : 'named' })
+      map.set(spec.right, {
+        from,
+        kind: spec.isDefault ? 'default' : 'named',
+        sourceName: spec.isDefault ? undefined : spec.left,
+      })
     }
   }
 
@@ -372,14 +453,15 @@ function recordImportLocals(
   if (namedEnd <= namedStart) return
   for (const spec of parseSpecifierList(trimmed.slice(namedStart + 1, namedEnd))) {
     if (spec.isDefault) continue
-    locals.set(spec.right, { from, kind: 'named' })
+    locals.set(spec.right, { from, kind: 'named', sourceName: spec.left })
   }
 }
 
-function loadRuntimeBindings(root: string): Map<string, NiumaUiBinding> {
+function loadRuntimeBindings(root: string, useSource: boolean): Map<string, NiumaUiBinding> {
   const srcIndex = join(root, 'src/index.ts')
   const distIndex = join(root, 'dist/index.js')
-  const indexPath = existsSync(srcIndex) ? srcIndex : distIndex
+  const indexPath =
+    useSource && existsSync(srcIndex) ? srcIndex : existsSync(distIndex) ? distIndex : srcIndex
   if (!existsSync(indexPath)) {
     throw new Error(`niumaUiHost: 未找到 ${srcIndex} 或 ${distIndex}`)
   }
