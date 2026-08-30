@@ -140,11 +140,9 @@ export function rewriteHostStatement(
   if (parsed.defaultName) {
     const binding = map.get(parsed.defaultName)
     if (!binding) {
-      lines.push(`${keyword} ${parsed.defaultName} from '${spec}'`)
-    } else {
-      const target = targetOf(binding.from)
-      lines.push(emitBinding(keyword, binding.kind, parsed.defaultName, parsed.defaultName, target))
+      throw new Error(`niumaUiHost: 未找到运行时导出 ${parsed.defaultName}，无法改写到发布子路径`)
     }
+    lines.push(emitBinding(keyword, binding.kind, parsed.defaultName, parsed.defaultName, targetOf(binding.from)))
   }
 
   for (const part of parsed.named) {
@@ -154,11 +152,9 @@ export function rewriteHostStatement(
     }
     const binding = map.get(part.imported)
     if (!binding) {
-      types.push(part.clause)
-      continue
+      throw new Error(`niumaUiHost: 未找到运行时导出 ${part.imported}，无法改写到发布子路径`)
     }
-    const target = targetOf(binding.from)
-    lines.push(emitBinding(keyword, binding.kind, part.imported, part.local, target))
+    lines.push(emitBinding(keyword, binding.kind, part.imported, part.local, targetOf(binding.from)))
   }
 
   if (types.length > 0) {
@@ -237,34 +233,106 @@ function resolvePkgRoot(): string {
   }
 }
 
-function loadRuntimeBindings(root: string): Map<string, NiumaUiBinding> {
-  const indexPath = existsSync(join(root, 'src/index.ts'))
-    ? join(root, 'src/index.ts')
-    : join(root, 'dist/index.js')
-  const source = readFileSync(indexPath, 'utf8')
+type Specifier = {
+  left: string
+  right: string
+  isDefault: boolean
+}
+
+/**
+ * ParseRuntimeBindings 从主入口抽出运行时导出名到文件的映射。
+ * 同时认源码 `export { default as RsX } from './...'` 和发布桶
+ * `import RsX_default from './...'` + `export { RsX_default as RsX }`。
+ */
+export function parseRuntimeBindings(source: string): Map<string, NiumaUiBinding> {
   const map = new Map<string, NiumaUiBinding>()
-  const re = /export\s*\{([^}]+)\}\s*from\s*['"](\.[^'"]+)['"]/g
+  const reexport = /^[ \t]*export\s+(?!type\b)\{([^}]+)\}\s+from\s*['"](\.[^'"]+)['"]/gm
   let match: RegExpExecArray | null
-  while ((match = re.exec(source)) !== null) {
+  while ((match = reexport.exec(source)) !== null) {
     const from = match[2] ?? ''
     if (!from) continue
-    for (const raw of (match[1] ?? '').split(',')) {
-      const part = raw.trim()
-      if (!part || part.startsWith('type ')) continue
-      const def = part.match(/^default\s+as\s+(\w+)$/)
-      if (def?.[1]) {
-        map.set(def[1], { from, kind: 'default' })
-        continue
-      }
-      const aliased = part.match(/^(\w+)\s+as\s+(\w+)$/)
-      if (aliased?.[2]) {
-        map.set(aliased[2], { from, kind: 'named' })
-        continue
-      }
-      if (/^\w+$/.test(part)) {
-        map.set(part, { from, kind: 'named' })
-      }
+    for (const spec of parseSpecifierList(match[1] ?? '')) {
+      map.set(spec.right, { from, kind: spec.isDefault ? 'default' : 'named' })
     }
+  }
+
+  const locals = new Map<string, NiumaUiBinding>()
+  const imports = /^[ \t]*import\s+(?!type\b)([\s\S]+?)\s+from\s*['"](\.[^'"]+)['"]/gm
+  while ((match = imports.exec(source)) !== null) {
+    const from = match[2] ?? ''
+    if (!from) continue
+    recordImportLocals(match[1] ?? '', from, locals)
+  }
+
+  const barrel = /^[ \t]*export\s+(?!type\b)\{([^}]+)\}(?!\s*from)/gm
+  while ((match = barrel.exec(source)) !== null) {
+    for (const spec of parseSpecifierList(match[1] ?? '')) {
+      if (map.has(spec.right)) continue
+      const binding = locals.get(spec.left)
+      if (binding) map.set(spec.right, binding)
+    }
+  }
+  return map
+}
+
+function parseSpecifierList(inner: string): Specifier[] {
+  const out: Specifier[] = []
+  for (const raw of inner.split(',')) {
+    const part = raw.trim()
+    if (!part || part.startsWith('type ')) continue
+    const def = part.match(/^default\s+as\s+(\w+)$/)
+    if (def?.[1]) {
+      out.push({ left: 'default', right: def[1], isDefault: true })
+      continue
+    }
+    const aliased = part.match(/^(\w+)\s+as\s+(\w+)$/)
+    if (aliased?.[1] && aliased[2]) {
+      out.push({ left: aliased[1], right: aliased[2], isDefault: false })
+      continue
+    }
+    if (/^\w+$/.test(part)) {
+      out.push({ left: part, right: part, isDefault: false })
+    }
+  }
+  return out
+}
+
+function recordImportLocals(
+  clause: string,
+  from: string,
+  locals: Map<string, NiumaUiBinding>,
+): void {
+  const trimmed = clause.trim()
+  if (!trimmed || trimmed.startsWith('*')) return
+  const namedStart = trimmed.indexOf('{')
+  if (namedStart === -1) {
+    if (/^\w+$/.test(trimmed)) locals.set(trimmed, { from, kind: 'default' })
+    return
+  }
+  const before = trimmed.slice(0, namedStart).replace(/,\s*$/, '').trim()
+  if (before && /^\w+$/.test(before)) {
+    locals.set(before, { from, kind: 'default' })
+  }
+  const namedEnd = trimmed.lastIndexOf('}')
+  if (namedEnd <= namedStart) return
+  for (const spec of parseSpecifierList(trimmed.slice(namedStart + 1, namedEnd))) {
+    if (spec.isDefault) continue
+    locals.set(spec.right, { from, kind: 'named' })
+  }
+}
+
+function loadRuntimeBindings(root: string): Map<string, NiumaUiBinding> {
+  const srcIndex = join(root, 'src/index.ts')
+  const distIndex = join(root, 'dist/index.js')
+  const indexPath = existsSync(srcIndex) ? srcIndex : distIndex
+  if (!existsSync(indexPath)) {
+    throw new Error(`niumaUiHost: 未找到 ${srcIndex} 或 ${distIndex}`)
+  }
+  const map = parseRuntimeBindings(readFileSync(indexPath, 'utf8'))
+  if (map.size === 0) {
+    throw new Error(
+      `niumaUiHost: ${indexPath} 没有解析到运行时导出（需要 src re-export 或 dist 桶 import/export）`,
+    )
   }
   return map
 }

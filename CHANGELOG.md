@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-08-30
+
+### 修复
+
+- `niumaUiHost` 能解析 npm `dist/index.js` 桶（`import X_default` + `export { X_default as RsX }`）。此前只认源码 `export { default as RsX } from './...'`，宿主 `vite build` 会把具名 re-export 收成 `export type`，官网等产品打包报 `MISSING_EXPORT`。解析不到运行时导出时直接失败，不再静默改成 type-only。
+
 ## [1.2.1] - 2026-08-30
 
 ### 变更
