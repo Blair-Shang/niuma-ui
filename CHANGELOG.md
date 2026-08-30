@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+## [1.2.4] - 2026-08-30
+
+### 变更
+
+- `styles.css` 自己收口盒模型：`html { box-sizing: border-box }`，其余 `inherit`。Rs* 宽高不再赌宿主 Tailwind Preflight。
+
 ## [1.2.3] - 2026-08-30
 
 ### 修复

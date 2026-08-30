@@ -3,6 +3,20 @@
 @source './composables';
 @import 'vue-sonner/style.css';
 
+/*
+ * 盒模型由本包收口，不依赖宿主 Tailwind Preflight 有没有进 @layer。
+ * 对齐 Ant Design reset / Arco：html 定 border-box，其余 inherit（弹出层挂 body 也一致）。
+ */
+html {
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
 /* ── 静态 token（不随明暗变化） ── */
 :root {
   --rs-radius-xs: 0.25rem;
