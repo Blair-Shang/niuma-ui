@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+@source './components';
+@source './composables';
 @import 'vue-sonner/style.css';
 
 /* ── 静态 token（不随明暗变化） ── */

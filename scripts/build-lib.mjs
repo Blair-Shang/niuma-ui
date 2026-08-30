@@ -101,6 +101,74 @@ function linkExtractedCss(dir) {
 }
 
 /**
+ * RestoreSideEffectCss 把脚本里 `import './x.css'` 写回包装入口。
+ * Vite lib 会把旁路 CSS 收成 empty css 注释，SFC style 的 linkExtractedCss 补不到。
+ */
+function restoreSideEffectCss() {
+  const srcDir = resolve(root, 'src')
+  const re = /import\s+['"](\.[^'"]+\.css)['"]/g
+  for (const file of walkFiles(srcDir)) {
+    if (!/\.(?:vue|ts|js)$/.test(file)) continue
+    const source = readFileSync(file, utf8)
+    /** @type {string[]} */
+    const specs = []
+    let match
+    while ((match = re.exec(source)) !== null) {
+      if (match[1]) specs.push(match[1])
+    }
+    if (specs.length === 0) continue
+
+    const srcRel = relative(srcDir, file).replace(/\\/g, '/')
+    const targetJs = resolveDistJsForSource(srcRel)
+    if (!targetJs) {
+      console.warn(`[build-lib] no dist js for side-effect css in ${srcRel}`)
+      continue
+    }
+
+    const jsDir = dirname(targetJs)
+    const srcFileDir = dirname(file)
+    /** @type {string[]} */
+    const lines = []
+    for (const spec of specs) {
+      const cssDist = resolve(distDir, relative(srcDir, resolve(srcFileDir, spec)))
+      if (!existsSync(cssDist)) {
+        console.warn(`[build-lib] missing ${relative(root, cssDist)}`)
+        continue
+      }
+      let rel = relative(jsDir, cssDist).replace(/\\/g, '/')
+      if (!rel.startsWith('.')) rel = `./${rel}`
+      lines.push(`import '${rel}'`)
+    }
+    if (lines.length === 0) continue
+
+    let code = readFileSync(targetJs, utf8)
+    const missing = lines.filter((line) => !code.includes(line))
+    code = code.replace(/\/\* empty css[\s\S]*?\*\//g, '')
+    if (missing.length > 0) code = `${missing.join('\n')}\n${code}`
+    writeFileSync(targetJs, code, utf8)
+  }
+}
+
+/**
+ * ResolveDistJsForSource 按源码相对路径找到 dist 包装入口或带 region 注释的 js。
+ * @param {string} srcRel
+ * @returns {string | null}
+ */
+function resolveDistJsForSource(srcRel) {
+  const withoutExt = srcRel.replace(/\.(?:vue|tsx?|jsx?)$/, '')
+  const wrapper = resolve(distDir, `${withoutExt}.js`)
+  if (existsSync(wrapper)) return wrapper
+  const impl = resolve(distDir, `${withoutExt}.impl.js`)
+  if (existsSync(impl)) return impl
+  const region = `src/${srcRel}`
+  for (const file of walkFiles(distDir)) {
+    if (!file.endsWith('.js')) continue
+    if (readFileSync(file, utf8).includes(region)) return file
+  }
+  return null
+}
+
+/**
  * FlattenVueArtifacts 把 Vite 的长文件名收成 Component.impl.js / Component.css。
  * @param {string} dir
  */
@@ -215,11 +283,18 @@ function assertPublishedSurface() {
     console.error('[build-lib] dist/index.d.ts still references .vue modules')
     process.exit(1)
   }
+
+  const tableEntry = readFileSync(resolve(distDir, 'components/RsTable.js'), utf8)
+  if (!tableEntry.includes('rs-table.css')) {
+    console.error('[build-lib] RsTable.js must import table/rs-table.css')
+    process.exit(1)
+  }
 }
 
 run('pnpm', ['exec', 'vite', 'build', '--config', 'vite.config.lib.ts'])
 linkExtractedCss(distDir)
 flattenVueArtifacts(distDir)
+restoreSideEffectCss()
 writeStandaloneCss()
 run('pnpm', ['exec', 'vue-tsc', '-p', 'tsconfig.build.json'])
 rewriteDts(distDir)

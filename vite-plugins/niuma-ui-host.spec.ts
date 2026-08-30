@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import {
   parseRuntimeBindings,
   rewriteHostStatement,
+  toSourceRel,
   type NiumaUiBinding,
 } from './niuma-ui-host'
 
@@ -68,6 +69,15 @@ describe('parseRuntimeBindings', () => {
       from: './composables/useRsToast.js',
       kind: 'named',
     })
+  })
+})
+
+describe('toSourceRel', () => {
+  it('returns a relative @source path', () => {
+    expect(toSourceRel(join('repo', 'niuma-ui', 'dist'), join('repo', 'niuma-site'))).toBe(
+      '../../niuma-site',
+    )
+    expect(toSourceRel(join('repo', 'app'), join('repo', 'app'))).toBe('.')
   })
 })
 

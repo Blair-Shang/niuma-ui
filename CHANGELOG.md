@@ -6,6 +6,13 @@
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-08-30
+
+### 修复
+
+- 库打包把脚本里的 `import './x.css'` 写回入口。此前 Vite 收成 empty css 注释，`RsTable` 的 `rs-table.css`、Monaco 调试装饰等旁路样式进不了 npm，Ops 等宿主生产表格 / 编辑器与 `pnpm dev` 对不齐。
+- `niumaUiHost` 给 `styles.css` 补 Tailwind `@source`（宿主根 + 包内 components/composables）。CI 只处理 `node_modules` 里的 CSS 时，扫描范围与本机联调源码一致。
+
 ## [1.2.2] - 2026-08-30
 
 ### 修复

@@ -7,7 +7,7 @@
  * apply / configResolved 区分 serve 与 build。
  */
 import { existsSync, readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative } from 'node:path'
 import { createRequire } from 'node:module'
 import { createFilter, type FilterPattern } from '@rollup/pluginutils'
 import { init, parse } from 'es-module-lexer'
@@ -31,6 +31,7 @@ export type NiumaUiBinding = {
 
 type HostContext = {
   root: string
+  viteRoot: string
   hasSrc: boolean
   useSource: boolean
   map: Map<string, NiumaUiBinding>
@@ -44,6 +45,7 @@ export function niumaUiHost(options: NiumaUiHostOptions = {}): Plugin[] {
   const root = options.root ?? resolvePkgRoot()
   const ctx: HostContext = {
     root,
+    viteRoot: process.cwd(),
     hasSrc: existsSync(join(root, 'src/index.ts')),
     useSource: false,
     map: loadRuntimeBindings(root),
@@ -52,7 +54,7 @@ export function niumaUiHost(options: NiumaUiHostOptions = {}): Plugin[] {
       options.exclude ?? [/\/node_modules\//],
     ),
   }
-  return [niumaUiHostAlias(ctx), niumaUiHostRewrite(ctx)]
+  return [niumaUiHostAlias(ctx), niumaUiHostRewrite(ctx), niumaUiHostTailwindSource(ctx)]
 }
 
 /**
@@ -91,6 +93,7 @@ function niumaUiHostRewrite(ctx: HostContext): Plugin {
     enforce: 'pre',
     configResolved(config) {
       ctx.useSource = config.command === 'serve' && ctx.hasSrc
+      ctx.viteRoot = config.root
     },
     async transform(code, id) {
       if (!ctx.filter(id)) return null
@@ -119,6 +122,58 @@ function niumaUiHostRewrite(ctx: HostContext): Plugin {
       }
     },
   }
+}
+
+const NIUMA_UI_STYLES = /niuma-ui[\\/](?:src|dist)[\\/]styles\.css$/
+
+/**
+ * NiumaUiHostTailwindSource 给 niuma-ui/styles.css 补上宿主根与包内扫描目录。
+ * CI 只看 node_modules 里的 styles.css 时，Tailwind 否则扫不到官网 / Ops 源码。
+ */
+function niumaUiHostTailwindSource(ctx: HostContext): Plugin {
+  return {
+    name: 'niuma-ui-host:tailwind-source',
+    enforce: 'pre',
+    configResolved(config) {
+      ctx.viteRoot = config.root
+    },
+    transform(code, id) {
+      const file = id.split('?')[0] ?? id
+      if (!NIUMA_UI_STYLES.test(file.replace(/\\/g, '/'))) return null
+      if (!code.includes('tailwindcss')) return null
+      const cssDir = dirname(file)
+      const pkgScan =
+        ctx.useSource && existsSync(join(ctx.root, 'src'))
+          ? join(ctx.root, 'src')
+          : existsSync(join(ctx.root, 'dist'))
+            ? join(ctx.root, 'dist')
+            : ctx.root
+      const specs = [ctx.viteRoot, pkgScan]
+        .map((dir) => toSourceRel(cssDir, dir))
+        .filter((spec, i, all) => all.indexOf(spec) === i)
+      const inject = specs
+        .filter((spec) => !code.includes(`@source '${spec}'`) && !code.includes(`@source "${spec}"`))
+        .map((spec) => `@source '${spec}';`)
+        .join('\n')
+      if (!inject) return null
+      const next = code.replace(
+        /@import\s+['"]tailwindcss['"]\s*;/,
+        `@import 'tailwindcss';\n${inject}`,
+      )
+      if (next === code) return null
+      return { code: next, map: null }
+    },
+  }
+}
+
+/**
+ * ToSourceRel 把目录收成 Tailwind @source 可用的相对路径。
+ */
+export function toSourceRel(fromDir: string, targetDir: string): string {
+  let rel = relative(fromDir, targetDir).replace(/\\/g, '/')
+  if (rel === '') return '.'
+  if (!rel.startsWith('.')) rel = `./${rel}`
+  return rel
 }
 
 /**
