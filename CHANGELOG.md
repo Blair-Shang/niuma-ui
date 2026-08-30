@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### 说明
+
+- 消费方文档：本机 `pnpm dev` 与 npm 包观感不一致时，只处理 Tailwind Preflight；不要把 `styles.css` 别名到源码。CodeMirror / xterm / Monaco 不是这条问题。
+
 ## [1.2.0] - 2026-08-30
 
 ### 变更

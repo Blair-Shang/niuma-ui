@@ -94,6 +94,14 @@ pnpm add niuma-ui@1.2.0    # 钉死
 
    宿主自己的 Tailwind / 其他 CSS 框架可并行；不要再 `@import 'niuma-ui/src/styles.css'`。
 
+   **本机和流水线观感不一致时，只处理 Tailwind，不要动 CodeMirror / xterm / Monaco。**
+   Playground 源码 `src/styles.css` 含 `@import 'tailwindcss'`（Preflight：`box-sizing`、标题 inherit、按钮重置）。npm 的 `styles.css` **没有** 这一行。本机 Vite 若把 `@niuma/ui/styles.css` 指到源码，`pnpm dev` 会带上 Preflight，CI 用发布包则没有，官网这类轻量站会像「样式缺了」。
+
+   - 工作台（niuma-cloud Admin、桌面 `web/`）已在自己的 CSS 里 `@import 'tailwindcss'`，流水线也有 Preflight，**不必再补**。
+   - 官网 / 落地页若不用 Tailwind：自己加 Preflight，或加等价 reset（至少 `box-sizing: border-box`）。
+   - Vite 联调只别名组件入口做 HMR，**不要** 把 `styles.css` 指到 `src/styles.css`。
+   - CodeMirror 6 主题在 JS 里；xterm / Monaco 的 CSS 跟组件 `import`，由宿主打包器打进用到它们的 chunk。`vite-prebundle/*` 只给本机 `optimizeDeps`，与生产样式无关。
+
 3. 根组件包裹 `RsConfigProvider`：
 
    ```vue
@@ -218,6 +226,9 @@ A: 锁文件 + `--frozen-lockfile` 不会漂。第一方 workflow 须 `pkg set` 
 
 **Q: 还要 `shamefully-hoist=true` 吗？**  
 A: 不要。当前 npm 包是编译产物，pnpm 隔离目录即可解析 `reka-ui` 等依赖。那是源码发布时期的权宜之计。
+
+**Q: 本机好看、流水线构建像缺样式？是 CodeMirror / 终端没打进包吗？**  
+A: 不是。差的是 Tailwind Preflight（见 §2）。发布包组件样式在 SFC / 显式 CSS；xterm、Monaco 装饰样式跟组件走。先看宿主有没有自己引入 Tailwind（或等价 reset），以及有没有把 `styles.css` 别名到源码。
 
 **Q: 必须用 pnpm / Tailwind / Vite 吗？**  
 A: 安装用 npm / pnpm / yarn 均可。样式不依赖 Tailwind。普通组件不绑死 Vite；`RsMonacoEditor` 与官方 `vite-plugins/*` 需要 Vite 5+（Worker / 插件 API）。
