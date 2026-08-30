@@ -10,6 +10,10 @@
 
 ### 变更
 
+- Vite 插件按库级惯例收口：`niumaUiHost` 走 `es-module-lexer` + `magic-string` + `createFilter`，导出改为 `niuma-ui/vite-plugins/niuma-ui-host`；`monaco-zh-nls` 统一 `node:`；`silence-antlr-parse-console` 带 options 与 sourcemap。
+
+### 变更
+
 - `styles.css` 源码与 `dist` 都透传 `@import 'tailwindcss'`，打包不再剥掉。宿主只处理这一份，业务 CSS 不要再写一遍。
 - 宿主插件 `niumaUiHost`：业务 `pnpm dev` 联调用到的源码（HMR），`vite build` / npm 走同一批组件的 `dist` 子路径。不要把主入口别名到 `src/index.ts`。轻量宿主在自己的 `ui.ts` 里具名 re-export，不在本包维护第二入口。
 

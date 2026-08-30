@@ -1,18 +1,19 @@
 /**
- * Vite 插件：将 Monaco Editor 0.55 内置的官方中文 NLS 消息注入到
- * `nls.messages.js` 模块，使编辑器右键菜单、命令面板等 UI 显示中文。
+ * Vite 插件：将 Monaco Editor 0.55 内置的官方中文 NLS 注入 `nls.messages.js`。
  *
- * Monaco 0.55 ESM 编译产物中 localize() 使用数字索引，需要设置
- * globalThis._VSCODE_NLS_MESSAGES 数组才能生效。
- * Monaco 自带 min/vs/nls.messages.zh-cn.js.js，提供完整的官方中文翻译。
+ * localize() 使用数字索引，需设置 globalThis._VSCODE_NLS_MESSAGES。
+ * 官方文件：monaco-editor/min/vs/nls.messages.zh-cn.js.js。
  *
- * 两阶段拦截：
- *  1. config hook + rolldown plugin → 覆盖 Vite 8 optimizeDeps 预构建阶段
- *  2. Rollup load hook              → 覆盖生产构建 / 非预构建 dev 场景
+ * 两阶段 load：
+ *  1. config + rolldown plugin → Vite 8 optimizeDeps
+ *  2. Rollup load → 生产构建 / 未预构建的 dev
  */
-import { readFileSync } from 'fs'
-import { createRequire } from 'module'
+import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import type { Plugin } from 'vite'
+
+/** MonacoZhNlsOptions 预留扩展（例如后续 locale）。 */
+export type MonacoZhNlsOptions = object
 
 function extractZhCnMessages(): string {
   try {
@@ -43,7 +44,10 @@ function extractZhCnMessages(): string {
   }
 }
 
-export function monacoZhNlsPlugin(): Plugin {
+/**
+ * MonacoZhNlsPlugin 用官方中文 NLS 替换 monaco-editor 的 nls.messages.js。
+ */
+export function monacoZhNlsPlugin(_options: MonacoZhNlsOptions = {}): Plugin {
   const messagesCode = extractZhCnMessages()
 
   if (!messagesCode) {
@@ -61,13 +65,10 @@ export function getNLSLanguage() { return globalThis._VSCODE_NLS_LANGUAGE; }
 
   const nlsFileFilter = /monaco-editor[/\\]esm[/\\]vs[/\\]nls\.messages\.js$/
 
-  /** rolldown plugin —— 用于 Vite 8 optimizeDeps 预构建阶段 */
   const rolldownPlugin = {
     name: 'monaco-zh-nls-rolldown',
     load(id: string) {
-      if (nlsFileFilter.test(id)) {
-        return nlsModuleCode
-      }
+      if (nlsFileFilter.test(id)) return nlsModuleCode
       return undefined
     },
   }
@@ -75,12 +76,6 @@ export function getNLSLanguage() { return globalThis._VSCODE_NLS_LANGUAGE; }
   return {
     name: 'monaco-zh-nls',
     enforce: 'pre',
-
-    /**
-     * 将 rolldown plugin 注入到 optimizeDeps，覆盖 Vite 8 开发模式预构建阶段。
-     * Monaco 没有 "type":"module"，Vite 会用 rolldown 预构建它，
-     * 此时需要通过 rolldownOptions.plugins 拦截。
-     */
     config() {
       return {
         optimizeDeps: {
@@ -90,12 +85,8 @@ export function getNLSLanguage() { return globalThis._VSCODE_NLS_LANGUAGE; }
         },
       }
     },
-
-    /** Rollup load hook —— 用于生产构建 / SSR / 非预构建 dev 场景 */
     load(id: string) {
-      if (nlsFileFilter.test(id)) {
-        return nlsModuleCode
-      }
+      if (nlsFileFilter.test(id)) return nlsModuleCode
     },
   }
 }

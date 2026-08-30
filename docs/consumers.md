@@ -9,7 +9,7 @@
 **契约：业务 `pnpm dev` 联调源码，流水线 / `vite build` 用 npm `dist`，两边模块图和样式一致。** 不要在单个产品里补 Tailwind 或改栏宽。
 
 1. `styles.css` 源码与发布包同一份，**透传** `@import 'tailwindcss'`。宿主入口只 `import 'niuma-ui/styles.css'`，用 `@tailwindcss/vite` 处理这一行；不要在业务 CSS 里再写一遍 `@import 'tailwindcss'`，也不要剥掉发布包里的这一行。
-2. 宿主启用 `niumaUiHost()`（`niuma-ui/vite-plugins/rewrite-named-imports`）：
+2. 宿主启用 `niumaUiHost()`（`niuma-ui/vite-plugins/niuma-ui-host`）：
    - `pnpm dev` + `link:`：具名导入改到 `src/**/*.vue`，`styles.css` 指到源码，组件可 HMR。
    - `vite build` / CI 装 npm：同一批具名导入改到 `dist/**/*.js`。
 3. **禁止**把 `@niuma/ui` 别名到 `src/index.ts`。评估整桶会灌入未使用组件 CSS，和打包摇树对不齐。
@@ -159,18 +159,18 @@ export default defineConfig({
 ### 3.2 官方 Vite 插件
 
 ```ts
-import { niumaUiHost } from 'niuma-ui/vite-plugins/rewrite-named-imports'
+import { niumaUiHost } from 'niuma-ui/vite-plugins/niuma-ui-host'
 import { monacoZhNlsPlugin } from 'niuma-ui/vite-plugins/monaco-zh-nls'
 import { silenceAntlrParseConsole } from 'niuma-ui/vite-plugins/silence-antlr-parse-console'
 
 export default defineConfig({
-  plugins: [niumaUiHost()],
+  plugins: [...niumaUiHost()],
 })
 ```
 
 | 插件 | 用途 |
 |------|------|
-| `niumaUiHost` | 第一方宿主必开。dev 联调源码，build 走 dist 子路径。`rewriteNiumaUiNamedImports` 是同名别名。 |
+| `niumaUiHost` | 第一方宿主必开。dev 联调源码，build 走 dist 子路径。旧路径 `vite-plugins/rewrite-named-imports` 仍 re-export，勿再新写。 |
 | `monacoZhNlsPlugin` | Monaco 右键菜单等 UI 中文 NLS |
 | `silenceAntlrParseConsole` | 抑制 SQL 语言服务半成品 parse 的 console 噪音 |
 

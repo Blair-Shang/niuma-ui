@@ -12,7 +12,7 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    include: ['src/**/*.spec.ts'],
+    include: ['src/**/*.spec.ts', 'vite-plugins/**/*.spec.ts'],
     setupFiles: ['src/__tests__/setup.ts'],
     testTimeout: 15_000,
   },

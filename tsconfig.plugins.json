@@ -11,5 +11,6 @@
     "strict": true,
     "types": ["node"]
   },
-  "include": ["vite-plugins/**/*.ts"]
+  "include": ["vite-plugins/**/*.ts"],
+  "exclude": ["vite-plugins/**/*.spec.ts"]
 }
