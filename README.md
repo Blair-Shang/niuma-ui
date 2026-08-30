@@ -19,7 +19,7 @@ Vue 3 **工作台**设计系统：一致的 `Rs*` 组件、`--rs-*` token，以�
 - **Rs\* 组件**：Button、Form、Dialog、Table、Tree、Tabs 等完整交互控件
 - **专业工具向**：Monaco、CodeMirror、xterm 等编辑器 / 终端封装（按需引入）
 - **无障碍与焦点**：底层基于 [Reka UI](https://reka-ui.com/)，业务层只消费 `niuma-ui`
-- **Vite 友好**：本机可 link 源码 HMR；可选导出编译后的宿主 Vite 插件
+- **Vite 友好**：宿主开 `niumaUiHost`——`pnpm dev` 联调源码，打包走 npm `dist`
 
 ## 要求
 
@@ -29,7 +29,7 @@ Vue 3 **工作台**设计系统：一致的 `Rs*` 组件、`--rs-*` token，以�
 | 包管理器 | npm / pnpm / yarn（本仓库开发用 pnpm） |
 | Vue | ^3.5.0（peerDependency） |
 | 打包器 | Vite 5+ 推荐；使用 `RsMonacoEditor` 时需要 Vite 处理 `?worker` |
-| 样式 | `import 'niuma-ui/styles.css'` 为独立 CSS，**不要求**宿主安装 Tailwind |
+| 样式 | `import 'niuma-ui/styles.css'`（透传 `@import 'tailwindcss'`）；Vite 宿主用 `@tailwindcss/vite` 处理 |
 
 ## 安装
 
@@ -78,7 +78,7 @@ import { RsConfigProvider, RsButton } from 'niuma-ui'
 1. 应用与业务模块只允许 `import { … } from 'niuma-ui'`，**禁止**直接依赖 `reka-ui`。
 2. 样式入口：`import 'niuma-ui/styles.css'`（须在业务品牌 CSS 之前或按文档顺序加载）。
 3. 根节点使用 `RsConfigProvider` 提供主题、语言与默认控件尺寸。
-4. 营销站 / 轻量应用请具名导入并自建薄封装（见消费方指南），不要 `import *`。安装体积仍含编辑器依赖；摇树只影响打包结果。
+4. 从主入口具名导入；轻量宿主在自己的 `ui.ts` 里再导出。启用 `niumaUiHost`，不要 `import *`，也不要把主入口别名到 `src/index.ts`。
 
 组件清单与新增组件规范见 **[组件说明](./docs/components.md)**。
 

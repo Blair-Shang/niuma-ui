@@ -29,7 +29,7 @@ Built for ops consoles, database workbenches, and internal admin UIs. Marketing 
 | Package manager | npm / pnpm / yarn (this repo develops with pnpm) |
 | Vue | ^3.5 (`peerDependency`) |
 | Bundler | Vite 5+ recommended; `RsMonacoEditor` needs Vite `?worker` |
-| Styles | `import 'niuma-ui/styles.css'` is standalone — **no** host Tailwind required |
+| Styles | `import 'niuma-ui/styles.css'` passes through `@import 'tailwindcss'`; Vite hosts need `@tailwindcss/vite` |
 
 ## Install
 

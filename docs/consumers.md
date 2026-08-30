@@ -4,7 +4,16 @@
 
 在线组件演示：[https://blair-shang.github.io/niuma-ui/](https://blair-shang.github.io/niuma-ui/)。
 
-**定位：** 工作台设计系统，不是轻量通用 UI 套件。自 **1.2.0** 起 npm 包为编译 ESM；`install` 后按包名导入即可。安装会带上 Monaco / CodeMirror / xterm（供应链与磁盘占用），打包体积靠具名导入摇树。官网请自建薄封装。日后若提供 `niuma-ui/lite` 将是加法，不改主入口。
+**定位：** 工作台设计系统，不是轻量通用 UI 套件。自 **1.2.0** 起 npm 包为编译 ESM。安装会带上 Monaco / CodeMirror / xterm；打包体积靠具名导入 + 下面的入口约定摇树。
+
+**契约：业务 `pnpm dev` 联调源码，流水线 / `vite build` 用 npm `dist`，两边模块图和样式一致。** 不要在单个产品里补 Tailwind 或改栏宽。
+
+1. `styles.css` 源码与发布包同一份，**透传** `@import 'tailwindcss'`。宿主入口只 `import 'niuma-ui/styles.css'`，用 `@tailwindcss/vite` 处理这一行；不要在业务 CSS 里再写一遍 `@import 'tailwindcss'`，也不要剥掉发布包里的这一行。
+2. 宿主启用 `niumaUiHost()`（`niuma-ui/vite-plugins/rewrite-named-imports`）：
+   - `pnpm dev` + `link:`：具名导入改到 `src/**/*.vue`，`styles.css` 指到源码，组件可 HMR。
+   - `vite build` / CI 装 npm：同一批具名导入改到 `dist/**/*.js`。
+3. **禁止**把 `@niuma/ui` 别名到 `src/index.ts`。评估整桶会灌入未使用组件 CSS，和打包摇树对不齐。
+4. 一律从主入口具名导入。官网等轻量宿主在自己的 `src/ui.ts` 里只 re-export 用到的符号。不要 `import *`。
 
 ## 1. 选择依赖方式
 
@@ -51,7 +60,7 @@ pnpm install
 pnpm dev
 ```
 
-使用 Vite 且指向源码时，修改 `niuma-ui/src/**/*.vue` 一般可即时 HMR，无需先发版。
+`link:` 之后直接 `pnpm dev`。`niumaUiHost` 会把用到的组件指到兄弟仓 `src/`，改 `.vue` 即可 HMR。打包 / CI 仍解析 npm `dist`，不必为本机联调先 `pnpm build` niuma-ui（改宿主 Vite 插件本身除外）。
 
 ### 1.2 第一方流水线（niuma-cloud / NiuMa）
 
@@ -70,7 +79,7 @@ pnpm --filter @niuma/web add "@niuma/ui@npm:niuma-ui@${NIUMA_UI_VERSION:-latest}
 - 默认 `latest`：niuma-ui 发正式版后，下次跑 cloud / 桌面打包即用新包。
 - 钉死：仓库变量 `NIUMA_UI_VERSION=1.2.0`，或 workflow 输入 `niuma_ui_version`。
 - `--frozen-lockfile` 会钉住锁文件里的旧解析，跟 `latest` 冲突，流水线必须用 `--no-frozen-lockfile`（或先改依赖再装）。
-- Vite 用 `require.resolve('@niuma/ui/package.json')`（或 `niuma-ui`）定位包根；本机有同级源码目录时可优先走源码，见 cloud `admin/vite.config.ts`。
+- Vite 用 `require.resolve('@niuma/ui/package.json')` 定位包根，给 `server.fs.allow`。启用 `niumaUiHost()`，不要把主入口别名到 `src/index.ts`。
 
 `niuma-site` 若仍 `link:` + checkout 兄弟仓，与上述无关；要对齐时用同一套 npm 改写。
 
@@ -86,21 +95,15 @@ pnpm add niuma-ui@1.2.0    # 钉死
 ## 2. 最小集成清单
 
 1. 安装 `vue`（满足 peer）与 `niuma-ui`。
-2. 在应用入口引入样式（独立 CSS，内含 token 与 vue-sonner；**不要求** Tailwind）：
+2. 在应用入口引入样式（含 token、vue-sonner，以及透传的 `@import 'tailwindcss'`）：
 
    ```ts
    import 'niuma-ui/styles.css'
    ```
 
-   宿主自己的 Tailwind / 其他 CSS 框架可并行；不要再 `@import 'niuma-ui/src/styles.css'`。
+   Vite 宿主加上 `@tailwindcss/vite`，让这一行在 dev 和 build 都被展开。不要手写 `@import 'niuma-ui/src/styles.css'`，也不要在业务 CSS 里再 `@import 'tailwindcss'`。
 
-   **本机和流水线观感不一致时，只处理 Tailwind，不要动 CodeMirror / xterm / Monaco。**
-   Playground 源码 `src/styles.css` 含 `@import 'tailwindcss'`（Preflight：`box-sizing`、标题 inherit、按钮重置）。npm 的 `styles.css` **没有** 这一行。本机 Vite 若把 `@niuma/ui/styles.css` 指到源码，`pnpm dev` 会带上 Preflight，CI 用发布包则没有，官网这类轻量站会像「样式缺了」。
-
-   - 工作台（niuma-cloud Admin、桌面 `web/`）已在自己的 CSS 里 `@import 'tailwindcss'`，流水线也有 Preflight，**不必再补**。
-   - 官网 / 落地页若不用 Tailwind：自己加 Preflight，或加等价 reset（至少 `box-sizing: border-box`）。
-   - Vite 联调只别名组件入口做 HMR，**不要** 把 `styles.css` 指到 `src/styles.css`。
-   - CodeMirror 6 主题在 JS 里；xterm / Monaco 的 CSS 跟组件 `import`，由宿主打包器打进用到它们的 chunk。`vite-prebundle/*` 只给本机 `optimizeDeps`，与生产样式无关。
+   - CodeMirror 6 主题在 JS 里；xterm / Monaco 的 CSS 跟组件 `import`。`vite-prebundle/*` 只给本机 `optimizeDeps`。
 
 3. 根组件包裹 `RsConfigProvider`：
 
@@ -130,7 +133,7 @@ pnpm add niuma-ui@1.2.0    # 钉死
 
 npm 包入口是编译后的 ESM + `.d.ts`（类型指向 `.js`，不再暴露 `.vue`）。宿主 `tsconfig` 使用 `"moduleResolution": "bundler"` / `node16` / `nodenext` 即可，不必把路径指到本包的 `src/`，也不需要 `shamefully-hoist`。
 
-本机 `link:` 联调：先在 niuma-ui 仓执行一次 `pnpm build`。`pnpm dev` 时第一方可把 `@niuma/ui` / `niuma-ui` 别名到兄弟仓 `src/` 做 HMR。
+类型始终走包入口 `.d.ts`。`pnpm dev` 运行时由 `niumaUiHost` 指到源码，不必为了看效果先 build。
 
 ## 3. Vite 配置要点
 
@@ -153,21 +156,25 @@ export default defineConfig({
 })
 ```
 
-### 3.2 官方 Vite 插件（可选）
-
-包导出：
+### 3.2 官方 Vite 插件
 
 ```ts
+import { niumaUiHost } from 'niuma-ui/vite-plugins/rewrite-named-imports'
 import { monacoZhNlsPlugin } from 'niuma-ui/vite-plugins/monaco-zh-nls'
 import { silenceAntlrParseConsole } from 'niuma-ui/vite-plugins/silence-antlr-parse-console'
+
+export default defineConfig({
+  plugins: [niumaUiHost()],
+})
 ```
 
 | 插件 | 用途 |
 |------|------|
+| `niumaUiHost` | 第一方宿主必开。dev 联调源码，build 走 dist 子路径。`rewriteNiumaUiNamedImports` 是同名别名。 |
 | `monacoZhNlsPlugin` | Monaco 右键菜单等 UI 中文 NLS |
 | `silenceAntlrParseConsole` | 抑制 SQL 语言服务半成品 parse 的 console 噪音 |
 
-仅在使用 `RsMonacoEditor` / SQL 语言能力的宿主中启用即可。
+后两个仅在使用 `RsMonacoEditor` / SQL 语言能力的宿主中启用即可。
 
 ### 3.3 optimizeDeps（桌面重型编辑器场景）
 
@@ -191,13 +198,11 @@ export default defineConfig({
 
 ## 4. 包体积与按需引入
 
-`niuma-ui` 主入口聚合了面向 IDE / 运维工作台的完整能力。若宿主是**官网、落地页、轻量后台**：
+`niuma-ui` 主入口聚合了面向 IDE / 运维工作台的完整能力。
 
-- **不要** `import * as UI from 'niuma-ui'`；请具名导入。包为 `preserveModules` + `sideEffects` 仅 CSS，未用到的 Monaco / xterm 可被摇掉。
-- **推荐**：在宿主内维护薄封装（例如 `src/ui.ts`），只 re-export 所需符号：`export { RsButton, RsCard } from 'niuma-ui'`。
-- 样式仍使用 `niuma-ui/styles.css`（独立、无 Tailwind）。
-
-桌面端 / 完整控制台可直接使用主入口。
+- 一律 `import { RsButton } from 'niuma-ui'`，加 `niumaUiHost`。官网在宿主 `src/ui.ts` 里只 re-export 用到的符号。
+- 不要 `import * as UI from 'niuma-ui'`。
+- 样式一律 `niuma-ui/styles.css`。
 
 ## 5. RsTable SSR / 图表
 
@@ -227,11 +232,11 @@ A: 锁文件 + `--frozen-lockfile` 不会漂。第一方 workflow 须 `pkg set` 
 **Q: 还要 `shamefully-hoist=true` 吗？**  
 A: 不要。当前 npm 包是编译产物，pnpm 隔离目录即可解析 `reka-ui` 等依赖。那是源码发布时期的权宜之计。
 
-**Q: 本机好看、流水线构建像缺样式？是 CodeMirror / 终端没打进包吗？**  
-A: 不是。差的是 Tailwind Preflight（见 §2）。发布包组件样式在 SFC / 显式 CSS；xterm、Monaco 装饰样式跟组件走。先看宿主有没有自己引入 Tailwind（或等价 reset），以及有没有把 `styles.css` 别名到源码。
+**Q: 本机好看、流水线构建像缺样式 / 栏宽对不齐？**  
+A: 不是 CodeMirror / 终端没打进包。核对：`styles.css` 是否还带着 `@import 'tailwindcss'`、宿主是否开了 `niumaUiHost` 和 `@tailwindcss/vite`、是否把主入口别名到了整桶 `index.ts`。不要在单个产品里再引一遍 Tailwind 或改栏宽来「对齐」。
 
 **Q: 必须用 pnpm / Tailwind / Vite 吗？**  
-A: 安装用 npm / pnpm / yarn 均可。样式不依赖 Tailwind。普通组件不绑死 Vite；`RsMonacoEditor` 与官方 `vite-plugins/*` 需要 Vite 5+（Worker / 插件 API）。
+A: 安装用 npm / pnpm / yarn 均可。`styles.css` 透传 Tailwind，Vite 宿主需要 `@tailwindcss/vite`。普通组件不绑死 Vite；`RsMonacoEditor` 与官方 `vite-plugins/*` 需要 Vite 5+（Worker / 插件 API）。
 
 **Q: 能否与 Element Plus / Ant Design Vue 混用？**  
 A: 技术上可以，但视觉与焦点层易冲突。新界面请统一 `Rs*`；存量迁移可分区推进。

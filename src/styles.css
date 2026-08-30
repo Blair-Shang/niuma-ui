@@ -1,5 +1,5 @@
-@import 'vue-sonner/style.css';
 @import 'tailwindcss';
+@import 'vue-sonner/style.css';
 
 /* ── 静态 token（不随明暗变化） ── */
 :root {

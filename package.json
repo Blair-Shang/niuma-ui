@@ -1,6 +1,6 @@
 {
   "name": "niuma-ui",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "license": "Apache-2.0",
   "type": "module",
   "description": "Vue 3 工作台设计系统（Rs* 组件、--rs-* token；含可选编辑器 / 终端）",
@@ -37,6 +37,12 @@
       "default": "./dist/index.js"
     },
     "./styles.css": "./dist/styles.css",
+    "./components/*": "./dist/components/*",
+    "./composables/*": "./dist/composables/*",
+    "./theme/*": "./dist/theme/*",
+    "./monaco/*": "./dist/monaco/*",
+    "./utils/*": "./dist/utils/*",
+    "./locale/*": "./dist/locale/*",
     "./theme/brand.example.css": "./dist/theme/brand.example.css",
     "./vite-plugins/monaco-zh-nls": {
       "types": "./dist/vite-plugins/monaco-zh-nls.d.ts",
@@ -47,6 +53,11 @@
       "types": "./dist/vite-plugins/silence-antlr-parse-console.d.ts",
       "import": "./dist/vite-plugins/silence-antlr-parse-console.js",
       "default": "./dist/vite-plugins/silence-antlr-parse-console.js"
+    },
+    "./vite-plugins/rewrite-named-imports": {
+      "types": "./dist/vite-plugins/rewrite-named-imports.d.ts",
+      "import": "./dist/vite-plugins/rewrite-named-imports.js",
+      "default": "./dist/vite-plugins/rewrite-named-imports.js"
     },
     "./vite-prebundle/codemirror": "./dist/dev/vite-codemirror-deps.js",
     "./vite-prebundle/xterm": "./dist/dev/vite-xterm-deps.js",
@@ -118,6 +129,7 @@
     "monaco-editor": "^0.55.1",
     "monaco-sql-languages": "^1.2.0",
     "reka-ui": "^2.9.10",
+    "tailwindcss": "^4.3.2",
     "vue-sonner": "^2.0.9"
   },
   "devDependencies": {
@@ -128,7 +140,6 @@
     "@vue/server-renderer": "^3.5.39",
     "@vue/test-utils": "^2.4.11",
     "jsdom": "^29.1.1",
-    "tailwindcss": "^4.3.2",
     "typescript": "^5.9.3",
     "vite": "^8.1.3",
     "vitest": "^4.1.9",
