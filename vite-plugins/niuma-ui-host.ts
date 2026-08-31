@@ -79,6 +79,8 @@ function niumaUiHostAlias(ctx: HostContext): Plugin {
         : []
       return {
         resolve: alias.length > 0 ? { alias } : {},
+        // 不要把 reka-ui / @lucide/vue / vue-sonner 写进 include：
+        // 它们装在 niuma-ui 下，pnpm 宿主（cloud / site）resolve 不到，Vite 会报 Failed to resolve dependency。
         optimizeDeps: {
           exclude: ['@niuma/ui', 'niuma-ui'],
         },

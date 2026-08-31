@@ -418,7 +418,9 @@ function collapse(key: string): void {
   const index = indexOfKey(key)
   if (index < 0) return
   const before = sizes.value.slice()
-  commit(collapseSplitPane(sizes.value, constraints.value, index))
+  const next = collapseSplitPane(sizes.value, constraints.value, index)
+  if (splitSizesEqual(before, next)) return
+  commit(next)
   emitBoundaryTransitions(before, sizes.value)
   emit('resize-end', sizes.value.slice())
 }
@@ -427,9 +429,14 @@ function expand(key: string, toSize?: number): void {
   const index = indexOfKey(key)
   if (index < 0) return
   const before = sizes.value.slice()
-  commit(
-    expandSplitPane(sizes.value, constraints.value, index, resolveExpandSize(key, index, toSize)),
+  const next = expandSplitPane(
+    sizes.value,
+    constraints.value,
+    index,
+    resolveExpandSize(key, index, toSize),
   )
+  if (splitSizesEqual(before, next)) return
+  commit(next)
   emitBoundaryTransitions(before, sizes.value)
   emit('resize-end', sizes.value.slice())
 }

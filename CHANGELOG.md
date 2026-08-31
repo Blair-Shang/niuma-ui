@@ -6,6 +6,17 @@
 
 ## [Unreleased]
 
+## [1.2.6] - 2026-09-01
+
+### 修复
+
+- `niumaUiHost` 不再把 `reka-ui` / `@lucide/vue` / `vue-sonner` 写进宿主 `optimizeDeps.include`。这些包在 pnpm 下只装在 niuma-ui 里，cloud / site 解析不到会告警。
+- `RsSplitPane` 的 `collapse` / `expand` 在尺寸已到位时不再提交新数组、不再重复发事件。
+
+### 变更
+
+- `exports` 一律指向 `dist`（含 vite-plugins）。开发仓 `pnpm install` 时若还没有 dist，`prepare` 会编一次；npm 包没有 src，不会重编。`pnpm dev` 联调源码仍由 `niumaUiHost` 改写。
+
 ## [1.2.5] - 2026-08-30
 
 ### 变更

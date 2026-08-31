@@ -17,6 +17,21 @@ function mountSplit(props: Record<string, unknown> = {}) {
 }
 
 describe('RsSplitPane', () => {
+  it('passes size and collapsed to named slots', () => {
+    const received: { size?: number; collapsed?: boolean }[] = []
+    mount(RsSplitPane, {
+      props: { panes: twoPanes },
+      slots: {
+        a: (slotProps: { size?: number; collapsed?: boolean }) => {
+          received.push(slotProps)
+          return 'A'
+        },
+      },
+    })
+    expect(received.at(-1)?.size).toBe(50)
+    expect(received.at(-1)?.collapsed).toBe(false)
+  })
+
   it('renders one pane per item plus n-1 resizers', () => {
     const wrapper = mountSplit()
     expect(wrapper.findAll('.rs-split__pane')).toHaveLength(2)
@@ -121,6 +136,38 @@ describe('RsSplitPane', () => {
     vm.reset()
     await wrapper.vm.$nextTick()
     expect(vm.getSizes()).toEqual([40, 60])
+  })
+
+  it('does not emit when collapse / expand is already at the target', async () => {
+    const wrapper = mount(RsSplitPane, {
+      props: {
+        panes: [
+          { key: 'a', size: 40, min: 20, collapsible: true, collapsedSize: 0 },
+          { key: 'b', size: 60 },
+        ] satisfies RsSplitPaneItem[],
+      },
+      slots: { a: 'A', b: 'B' },
+    })
+    const vm = wrapper.vm as unknown as {
+      collapse: (key: string) => void
+      expand: (key: string, size?: number) => void
+    }
+
+    vm.collapse('a')
+    await wrapper.vm.$nextTick()
+    const collapses = wrapper.emitted('collapse')?.length ?? 0
+    const resizeEnds = wrapper.emitted('resize-end')?.length ?? 0
+    vm.collapse('a')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.emitted('collapse')?.length ?? 0).toBe(collapses)
+    expect(wrapper.emitted('resize-end')?.length ?? 0).toBe(resizeEnds)
+
+    vm.expand('a', 30)
+    await wrapper.vm.$nextTick()
+    const expands = wrapper.emitted('expand')?.length ?? 0
+    vm.expand('a', 30)
+    await wrapper.vm.$nextTick()
+    expect(wrapper.emitted('expand')?.length ?? 0).toBe(expands)
   })
 
   it('toggles collapse via keyboard on the separator', async () => {

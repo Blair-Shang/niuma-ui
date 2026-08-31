@@ -57,11 +57,13 @@ workspace/
 ```
 
 ```bash
-pnpm install
+# 先在 niuma-ui 仓安装一次：prepare 会在缺少 dist 时自动 build
+cd ../niuma-ui && pnpm install
+cd ../your-app && pnpm install
 pnpm dev
 ```
 
-`link:` 之后直接 `pnpm dev`。`niumaUiHost` 会把用到的组件指到兄弟仓 `src/`，改 `.vue` 即可 HMR。打包 / CI 仍解析 npm `dist`，不必为本机联调先 `pnpm build` niuma-ui（改宿主 Vite 插件本身除外）。
+`exports` 只认 `dist`（和 Vue / Vite 一样）。clone 后没有 dist 时，在 **niuma-ui** 里 `pnpm install` 会走 `prepare` 编出插件和桶。之后宿主 `link:` + `pnpm dev`：`niumaUiHost` 把用到的组件指到兄弟仓 `src/`，改 `.vue` 即可 HMR。打包 / CI 仍解析 npm `dist`。改 Vite 插件源码后需再 `pnpm build`（或删掉 dist 再 install）一次。
 
 ### 1.2 第一方流水线（niuma-cloud / NiuMa）
 
@@ -220,6 +222,9 @@ export default defineConfig({
 本地 `link` 开发不必先发 npm；合并 / 打包前用流水线的 npm `latest`（或钉死版本）再验一遍。
 
 ## 7. 常见问题
+
+**Q: link 后报找不到 `dist/vite-plugins/niuma-ui-host.js`？**  
+A: 仓库不提交 dist。到 niuma-ui 根目录执行 `pnpm install`（缺 dist 时 `prepare` 会 build），或手动 `pnpm build`。不要把 `exports` 指到源码 `.ts`。
 
 **Q: link 后解析到错误路径？**  
 A: `link:` 相对路径相对的是**声明依赖的 package.json 所在目录**，不是仓库根。`web/package.json` 通常要用 `../../niuma-ui`。
