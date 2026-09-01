@@ -350,8 +350,11 @@ const selectApi: DemoApiRow[] = [
   { name: 'popupClassName', type: 'string', description: '下拉面板 class' },
   { name: 'status', type: "'error' | 'warning' | ''", description: '校验外观；error 同 invalid' },
   { name: 'showArrow', type: 'boolean', default: 'true', description: '是否显示下拉箭头' },
-  { name: 'searchable / remote / virtual / creatable', type: 'boolean', description: '搜索、远程、虚拟滚动、手输创建' },
-  { name: '@select @deselect @clear @search', type: 'event', description: '选中、取消、清空、远程搜索' },
+  { name: 'searchable / remote / virtual / creatable', type: 'boolean', description: '面板内搜索、远程、虚拟滚动、手输创建（有意不做成触发器内打字）' },
+  { name: 'debounce', type: 'number', default: '0', description: '远程 @search 防抖毫秒' },
+  { name: 'variant', type: "'outlined' | 'filled' | 'borderless'", default: "'outlined'", description: '对齐 Ant 5 外观' },
+  { name: 'maxTagCount', type: "number | 'responsive'", description: '多选折叠；responsive 按触发器宽度' },
+  { name: '@select @deselect @clear @search @focus @blur @dropdownVisibleChange @popupScroll', type: 'event', description: '选中、取消、清空、远程搜索、焦点与滚动' },
   { name: '#prefix #option #tag #header #footer #dropdownRender #suffixIcon #clearIcon #empty #loading #maxTagPlaceholder', type: 'slot', description: '前缀、选项、标签、面板头尾、整面板、图标与空/加载态' },
 ]
 </script>

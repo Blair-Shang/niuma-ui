@@ -6,11 +6,21 @@
 
 ## [Unreleased]
 
+## [1.2.8] - 2026-09-01
+
+### 新增
+
+- 选择器家族：`RsAutoComplete`、`RsCascader`、`RsTreeSelect`、`RsMentions`。
+- `RsMentions` 按 [WAI-ARIA APG Combobox](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/)：浮层贴插入符、Teleport 到 `body`、视口翻转夹边、方向键 / Home / End / Enter / Tab / Esc；测量节点复用，滚动用 rAF。不跟 Ant Mentions 的触发器内输入模型。
+- `RsAutoComplete` 同样按 APG Combobox：建议列表贴输入框、Teleport、`placeAnchoredPopup` 视口翻转夹边并与框等宽。不再走 Reka 未开 popper 的错误落点。输入框与面板跟 `RsSelect` 同一套 token（elevated 表面、大阴影、焦点环、选项 hover）；匹配高亮用 span，避免 `<mark>` 被文档样式染成链接色。
+- `RsSelect` 对齐 Ant / Element 的远程 `debounce`、匹配高亮、`variant`、`autoFocus`、`maxTagCount="responsive"`，以及 `focus` / `blur` / `dropdownVisibleChange` / `popupScroll`。面板内搜索与创建保持原交互。
+
 ## [1.2.7] - 2026-09-01
 
 ### 修复
 
 - `RsSelect` 的 `multiple` 不再用泛型 boolean 声明（否则 `:multiple="true"` 可能进 attrs，Combobox 仍按单选）。触发器标签改看 `isMultiple`，空串 / 裸属性也会累加。
+- `RsSelect` 的 v-model 按运行时收 `RsSelectModelValue`（string / number / 数组 / labeled），模板不必再写泛型。
 
 ## [1.2.6] - 2026-09-01
 

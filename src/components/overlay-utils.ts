@@ -48,3 +48,65 @@ export const rsToastPositions = [
 export function rsFeedbackIconClass(tone: RsFeedbackTone): string {
   return `rs-feedback-icon rs-feedback-icon--${tone}`
 }
+
+/** 视口内锚点矩形（输入框、插入符等）。 */
+export interface RsOverlayAnchorBox {
+  top: number
+  left: number
+  height: number
+  width?: number
+}
+
+export interface RsOverlayPopupSize {
+  width: number
+  height: number
+}
+
+export interface RsOverlayViewport {
+  width: number
+  height: number
+}
+
+/** 锚点浮层最终盒子。placement 供翻转后的样式钩子使用。 */
+export interface RsOverlayBox {
+  top: number
+  left: number
+  width: number
+  placement: 'top' | 'bottom'
+}
+
+/**
+ * 把浮层贴到锚点：优先下方，视口不够则翻到上方，左右夹进窗口。
+ * 对齐 WAI-ARIA APG 浮层惯例与 CSS overflow 避让，不跟某一家组件库的 API。
+ */
+export function placeAnchoredPopup(
+  anchor: RsOverlayAnchorBox,
+  popup: RsOverlayPopupSize,
+  viewport: RsOverlayViewport,
+  gap = 4,
+): RsOverlayBox {
+  const below = anchor.top + anchor.height + gap
+  const above = anchor.top - popup.height - gap
+  const placement: 'top' | 'bottom' =
+    below + popup.height <= viewport.height || above < gap ? 'bottom' : 'top'
+  const top = placement === 'bottom' ? below : Math.max(gap, above)
+  const width = Math.min(popup.width, Math.max(0, viewport.width - gap * 2))
+  const maxLeft = Math.max(gap, viewport.width - width - gap)
+  const left = Math.min(Math.max(gap, anchor.left), maxLeft)
+  return { top, left, width, placement }
+}
+
+/** 在可选项里按方向跳过 disabled，供 combobox / listbox 方向键与 Home / End。 */
+export function stepEnabledIndex<T extends { disabled?: boolean }>(
+  options: readonly T[],
+  current: number,
+  delta: 1 | -1,
+): number {
+  if (!options.length) return 0
+  let index = current
+  for (let n = 0; n < options.length; n += 1) {
+    index = (index + delta + options.length) % options.length
+    if (!options[index]?.disabled) return index
+  }
+  return Math.max(0, current)
+}

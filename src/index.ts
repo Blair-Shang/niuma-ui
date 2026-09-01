@@ -56,6 +56,10 @@ export { default as RsLabel } from './components/RsLabel.vue'
 export { default as RsLink } from './components/RsLink.vue'
 export { default as RsMenu } from './components/RsMenu.vue'
 export { default as RsSelect } from './components/RsSelect.vue'
+export { default as RsAutoComplete } from './components/RsAutoComplete.vue'
+export { default as RsCascader } from './components/RsCascader.vue'
+export { default as RsTreeSelect } from './components/RsTreeSelect.vue'
+export { default as RsMentions } from './components/RsMentions.vue'
 export { default as RsScrollbar } from './components/RsScrollbar.vue'
 export { default as RsAvatar } from './components/RsAvatar.vue'
 export { default as RsCard } from './components/RsCard.vue'
@@ -235,8 +239,21 @@ export type {
   RsSelectOptionsInput,
   RsSelectPlacement,
   RsSelectStatus,
+  RsSelectMaxTagCount,
+  RsSelectVariant,
   RsSelectValue,
 } from './components/select-utils'
+export type {
+  RsCascaderExpandTrigger,
+  RsCascaderOption,
+  RsCascaderPath,
+} from './components/cascader-utils'
+export type {
+  RsMentionActive,
+  RsMentionCaretBox,
+  RsMentionOption,
+  RsMentionPopupBox,
+} from './components/mentions-utils'
 export {
   RS_SELECT_EMPTY_VALUE,
   fromComboboxValue,
@@ -248,8 +265,8 @@ export {
   toComboboxValue,
   unwrapSelectEntry,
 } from './components/select-utils'
-export type { RsFeedbackTone, RsToastPosition, RsToastType } from './components/overlay-utils'
-export { RS_TOAST_DEFAULT_GAP, RS_TOAST_DEFAULT_POSITION, rsToastPositions, rsFeedbackIconClass } from './components/overlay-utils'
+export type { RsFeedbackTone, RsToastPosition, RsToastType, RsOverlayAnchorBox, RsOverlayBox } from './components/overlay-utils'
+export { RS_TOAST_DEFAULT_GAP, RS_TOAST_DEFAULT_POSITION, rsToastPositions, rsFeedbackIconClass, placeAnchoredPopup, stepEnabledIndex } from './components/overlay-utils'
 export type {
   RsFormContext,
   RsFormErrorRender,

@@ -1,4 +1,4 @@
-import { computed, nextTick, watch, type ModelRef } from 'vue'
+import { computed, nextTick, onUnmounted, watch, type ModelRef } from 'vue'
 import type { RsTranslateFn } from '../composables/useRsI18n'
 import { useFilter } from './reka'
 import {
@@ -46,7 +46,9 @@ export interface RsSelectEngineProps {
   remote?: boolean
   virtual?: boolean
   virtualThreshold?: number
-  maxTagCount?: number
+  maxTagCount?: number | 'responsive'
+  /** 远程 @search 防抖毫秒；0 立即发 */
+  debounce?: number
   maxTagPlaceholder?: string | ((omitted: number) => string)
   maxTagTooltip?: boolean
   maxTagTextLength?: number
@@ -73,9 +75,9 @@ export type RsSelectEngineEmit = {
  * Select 过滤、选中、多选 tag、creatable / 分隔符提交。
  * 组件模板只消费返回值；表单校验仍留在 SFC。
  */
-export function useRsSelect(
+export function useRsSelect<T extends RsSelectModelValue = RsSelectModelValue>(
   props: RsSelectEngineProps,
-  model: ModelRef<RsSelectModelValue>,
+  model: ModelRef<T>,
   open: ModelRef<boolean>,
   searchQuery: ModelRef<string>,
   emit: RsSelectEngineEmit,
@@ -165,9 +167,10 @@ export function useRsSelect(
 
   const visibleTagTokens = computed(() => {
     const all = selectedValues.value
-    if (!isMultiple.value || props.maxTagCount == null || all.length <= props.maxTagCount) {
+    if (!isMultiple.value || props.maxTagCount == null || props.maxTagCount === 'responsive') {
       return all
     }
+    if (all.length <= props.maxTagCount) return all
     return all.slice(0, Math.max(0, props.maxTagCount))
   })
 
@@ -247,7 +250,7 @@ export function useRsSelect(
       normalizedOptions.value,
       isMultiple.value,
       Boolean(props.labelInValue),
-    )
+    ) as T
   }
 
   function emitSelectionDiff(prev: string[], next: string[]): void {
@@ -297,7 +300,7 @@ export function useRsSelect(
         true,
         Boolean(props.labelInValue),
       )
-      model.value = packed
+      model.value = packed as T
       emitSelectionDiff(prev, toSelectedTokens(packed, true))
     } else {
       const prev = selectedValues.value
@@ -306,7 +309,7 @@ export function useRsSelect(
         normalizedOptions.value,
         false,
         Boolean(props.labelInValue),
-      )
+      ) as T
       emitSelectionDiff(prev, toSelectedTokens(model.value, false))
       open.value = false
     }
@@ -340,9 +343,18 @@ export function useRsSelect(
     if (rest !== raw) searchQuery.value = rest
   }
 
+  let searchTimer: ReturnType<typeof setTimeout> | undefined
   watch(searchQuery, (query) => {
-    if (props.remote) emit('search', query)
+    if (props.remote) {
+      const wait = props.debounce ?? 0
+      if (searchTimer) clearTimeout(searchTimer)
+      if (wait <= 0) emit('search', query)
+      else searchTimer = setTimeout(() => emit('search', query), wait)
+    }
     if (props.tokenSeparators?.length) consumeTokenSeparators(query)
+  })
+  onUnmounted(() => {
+    if (searchTimer) clearTimeout(searchTimer)
   })
 
   watch(open, async (isOpen) => {
@@ -377,7 +389,7 @@ export function useRsSelect(
     event.stopPropagation()
     emitSelectionDiff(selectedValues.value, [])
     emit('clear')
-    model.value = isMultiple.value ? [] : ''
+    model.value = (isMultiple.value ? [] : '') as T
   }
 
   function removeTag(value: string, event: MouseEvent): void {

@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="Value extends string | number = string, Multiple extends boolean = false, LabelInValue extends boolean = false">
-import { computed, ref, useAttrs, type ModelRef } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, useAttrs, watch } from 'vue'
 
 import { useRsI18n } from '../composables/useRsI18n'
 import type { RsComponentSize, RsRadius } from '../theme/types'
@@ -26,13 +26,15 @@ import {
   type RsSelectFilterOption,
   type RsSelectFilterSort,
   type RsSelectGetPopupContainer,
+  type RsSelectMaxTagCount,
   type RsSelectModelValue,
   type RsSelectOption,
   type RsSelectOptionFilterProp,
   type RsSelectOptionsInput,
   type RsSelectPlacement,
-  type RsSelectResolvedModel,
   type RsSelectStatus,
+  type RsSelectVariant,
+  splitSelectLabelHighlight,
   type RsSelectValue,
 } from './select-utils'
 import { useRsSelect } from './use-rs-select'
@@ -54,8 +56,12 @@ import {
 
 defineOptions({ inheritAttrs: false })
 
-const model = defineModel<RsSelectResolvedModel<Value, Multiple, LabelInValue>>({
-  default: '' as never,
+/**
+ * multiple / labelInValue 是运行时 boolean，不能从 prop 推断字面量。
+ * v-model 收完整联合，模板传入 string / number / 数组 / labeled 即可。
+ */
+const model = defineModel<RsSelectModelValue>({
+  default: '',
 })
 const open = defineModel<boolean>('open', { default: false })
 const searchQuery = defineModel<string>('searchValue', { default: '' })
@@ -99,7 +105,14 @@ const props = withDefaults(
      */
     filterOption?: RsSelectFilterOption | boolean
     optionFilterProp?: RsSelectOptionFilterProp
-    maxTagCount?: number
+    maxTagCount?: RsSelectMaxTagCount
+    /** 远程 @search 防抖毫秒 */
+    debounce?: number
+    /** 对齐 Ant 5；不影响面板内搜索 / 创建 */
+    variant?: RsSelectVariant
+    autoFocus?: boolean
+    dropdownStyle?: Record<string, string>
+    classNames?: { popup?: string; trigger?: string }
     maxTagPlaceholder?: string | ((omitted: number) => string)
     multipleLimit?: number
     /** 与 multiple 相同：不能写成泛型 LabelInValue，否则 withDefaults 的 false 过不了 InferDefault。 */
@@ -150,6 +163,9 @@ const props = withDefaults(
     listHeight: 256,
     placement: 'bottom',
     status: '',
+    debounce: 0,
+    variant: 'outlined',
+    autoFocus: false,
   },
 )
 
@@ -158,6 +174,10 @@ const emit = defineEmits<{
   select: [value: RsSelectValue, option?: RsSelectOption]
   deselect: [value: RsSelectValue, option?: RsSelectOption]
   clear: []
+  focus: [event: FocusEvent]
+  blur: [event: FocusEvent]
+  dropdownVisibleChange: [open: boolean]
+  popupScroll: [event: Event]
 }>()
 
 const { t } = useRsI18n()
@@ -204,7 +224,7 @@ const {
   removeTag,
   setValue,
   resetSearch,
-} = useRsSelect(props, model as ModelRef<RsSelectModelValue>, open, searchQuery, emit, t)
+} = useRsSelect(props, model, open, searchQuery, emit, t)
 
 const resolvedDisabled = computed(() => props.disabled || formContext?.disabled.value || false)
 const resolvedSize = useResolvedRsComponentSize(() => props.size)
@@ -269,6 +289,85 @@ defineExpose({
   clearValidation,
   validate: runValidate,
 })
+
+watch(open, (isOpen) => {
+  emit('dropdownVisibleChange', isOpen)
+})
+
+onMounted(() => {
+  if (!props.autoFocus) return
+  const el = anchorRef.value
+  const node = el instanceof HTMLElement ? el : el?.$el
+  const trigger = (node instanceof HTMLElement ? node : undefined)?.querySelector?.(
+    '.rs-select__trigger',
+  ) as HTMLElement | null
+  trigger?.focus()
+})
+
+const responsiveTagCap = ref<number | null>(null)
+let tagResize: ResizeObserver | undefined
+
+function measureResponsiveTags(): void {
+  if (props.maxTagCount !== 'responsive' || !isMultiple.value) {
+    responsiveTagCap.value = null
+    return
+  }
+  const el = anchorRef.value
+  const node = el instanceof HTMLElement ? el : el?.$el
+  const trigger = (node instanceof HTMLElement ? node : undefined)?.querySelector?.(
+    '.rs-select__value--multiple',
+  ) as HTMLElement | null
+  if (!trigger) return
+  const budget = trigger.clientWidth - 48
+  if (budget <= 0) return
+  const tags = Array.from(trigger.querySelectorAll<HTMLElement>('.rs-select__tag'))
+  if (!tags.length) {
+    responsiveTagCap.value = selectedValues.value.length
+    return
+  }
+  let used = 0
+  let fit = 0
+  for (const tag of tags) {
+    if (tag.classList.contains('rs-select__tag--rest')) continue
+    const next = used + tag.offsetWidth + 4
+    if (next > budget && fit > 0) break
+    used = next
+    fit += 1
+  }
+  responsiveTagCap.value = Math.max(1, fit)
+}
+
+onMounted(() => {
+  if (typeof ResizeObserver === 'undefined') return
+  tagResize = new ResizeObserver(() => measureResponsiveTags())
+  void nextTick(() => {
+    const el = anchorRef.value
+    const node = el instanceof HTMLElement ? el : el?.$el
+    if (node instanceof HTMLElement) tagResize?.observe(node)
+    measureResponsiveTags()
+  })
+})
+onUnmounted(() => tagResize?.disconnect())
+watch(
+  () => [selectedValues.value.join('\0'), props.maxTagCount, isMultiple.value] as const,
+  () => void nextTick(measureResponsiveTags),
+)
+
+const shownTagTokens = computed(() => {
+  if (props.maxTagCount !== 'responsive' || responsiveTagCap.value == null) {
+    return visibleTagTokens.value
+  }
+  return selectedValues.value.slice(0, responsiveTagCap.value)
+})
+const shownOmittedCount = computed(() =>
+  props.maxTagCount === 'responsive'
+    ? Math.max(0, selectedValues.value.length - shownTagTokens.value.length)
+    : omittedTagCount.value,
+)
+
+function highlightParts(label: string) {
+  return splitSelectLabelHighlight(label, isSearchable.value ? searchQuery.value : '')
+}
 </script>
 
 <template>
@@ -282,6 +381,7 @@ defineExpose({
       'rs-select--creatable': creatable,
       'rs-select--block': block,
       [`rs-select--${resolvedSize}`]: true,
+      [`rs-select--${variant}`]: true,
     }"
     :style="rootStyle"
     :multiple="isMultiple"
@@ -295,11 +395,16 @@ defineExpose({
         v-bind="attrs"
         :id="id"
         class="rs-select__trigger"
-        :class="{
-          'rs-select__trigger--invalid': isInvalid,
-          'rs-select__trigger--warning': isWarning,
-        }"
+        :class="[
+          classNames?.trigger,
+          {
+            'rs-select__trigger--invalid': isInvalid,
+            'rs-select__trigger--warning': isWarning,
+          },
+        ]"
         :aria-invalid="isInvalid || undefined"
+        @focus="emit('focus', $event)"
+        @blur="emit('blur', $event)"
       >
         <span v-if="$slots.prefix" class="rs-select__prefix">
           <slot name="prefix" />
@@ -308,7 +413,7 @@ defineExpose({
         <span v-if="isMultiple" class="rs-select__value rs-select__value--multiple">
           <template v-if="hasValue">
             <span
-              v-for="value in visibleTagTokens"
+              v-for="value in shownTagTokens"
               :key="value"
               class="rs-select__tag"
             >
@@ -331,12 +436,16 @@ defineExpose({
               </slot>
             </span>
             <span
-              v-if="omittedTagCount > 0"
+              v-if="shownOmittedCount > 0"
               class="rs-select__tag rs-select__tag--rest"
               :title="omittedTagTitle"
             >
-              <slot name="maxTagPlaceholder" :omitted="omittedTagCount">
-                {{ omittedTagLabel }}
+              <slot name="maxTagPlaceholder" :omitted="shownOmittedCount">
+                {{
+                  typeof maxTagPlaceholder === 'function'
+                    ? maxTagPlaceholder(shownOmittedCount)
+                    : omittedTagLabel
+                }}
               </slot>
             </span>
           </template>
@@ -375,9 +484,10 @@ defineExpose({
         class="rs-select__content"
         :class="[
           popupClassName,
+          classNames?.popup,
           { 'rs-select__content--match-trigger': matchTriggerWidth },
         ]"
-        :style="{ '--rs-select-list-height': `${listHeight}px` }"
+        :style="{ '--rs-select-list-height': `${listHeight}px`, ...dropdownStyle }"
         align="start"
         :side="placement"
         :side-offset="4"
@@ -409,7 +519,7 @@ defineExpose({
             <slot name="empty">{{ resolvedEmptyText }}</slot>
           </ComboboxEmpty>
 
-          <ComboboxViewport class="rs-select__viewport">
+          <ComboboxViewport class="rs-select__viewport" @scroll="emit('popupScroll', $event)">
             <ComboboxVirtualizer
               v-if="useVirtual"
               v-slot="{ option }"
@@ -431,11 +541,17 @@ defineExpose({
                     :option="optionOrCreate(String(option))"
                     :selected="selectedValues.includes(String(option))"
                   >
-                    {{
-                      canCreate && String(option) === createValue
-                        ? createOptionLabel
-                        : (labelMap.get(String(option)) ?? String(option))
-                    }}
+                    <template
+                      v-for="(part, i) in highlightParts(
+                        canCreate && String(option) === createValue
+                          ? createOptionLabel
+                          : (labelMap.get(String(option)) ?? String(option)),
+                      )"
+                      :key="i"
+                    >
+                      <mark v-if="part.highlight" class="rs-select__mark">{{ part.text }}</mark>
+                      <template v-else>{{ part.text }}</template>
+                    </template>
                   </slot>
                 </span>
                 <ComboboxItemIndicator class="rs-select__item-check">
@@ -477,7 +593,10 @@ defineExpose({
                         :option="opt"
                         :selected="selectedValues.includes(toComboboxValue(opt.value))"
                       >
-                        {{ opt.label }}
+                        <template v-for="(part, i) in highlightParts(opt.label)" :key="i">
+                          <mark v-if="part.highlight" class="rs-select__mark">{{ part.text }}</mark>
+                          <template v-else>{{ part.text }}</template>
+                        </template>
                       </slot>
                     </span>
                     <ComboboxItemIndicator class="rs-select__item-check">
@@ -501,7 +620,10 @@ defineExpose({
                       :option="entry"
                       :selected="selectedValues.includes(toComboboxValue(entry.value))"
                     >
-                      {{ entry.label }}
+                      <template v-for="(part, i) in highlightParts(entry.label)" :key="i">
+                        <mark v-if="part.highlight" class="rs-select__mark">{{ part.text }}</mark>
+                        <template v-else>{{ part.text }}</template>
+                      </template>
                     </slot>
                   </span>
                   <ComboboxItemIndicator class="rs-select__item-check">
@@ -609,6 +731,24 @@ defineExpose({
 
 .rs-select--lg.rs-select--multiple .rs-select__trigger {
   min-height: var(--rs-control-height-lg);
+}
+
+.rs-select--filled .rs-select__trigger {
+  border-color: transparent;
+  background: var(--rs-surface-hover);
+}
+
+.rs-select--borderless .rs-select__trigger {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.rs-select__mark {
+  padding: 0;
+  background: color-mix(in srgb, var(--rs-primary) 22%, transparent);
+  color: inherit;
+  font-weight: var(--rs-font-weight-medium);
 }
 
 .rs-select__trigger:hover:not([data-disabled]) {

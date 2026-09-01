@@ -51,7 +51,11 @@ import { RsButton, RsConfigProvider } from 'niuma-ui'
 | `RsRadio` / `RsRadioItem` | 单选分组 |
 | `RsInput` | 文本输入与校验；框内 prefix/suffix（清除在自定义 suffix 前）；框外连体 `addonBefore` / `addonAfter` |
 | `RsInputNumber` | 数字输入 |
-| `RsSelect` | 选择器（`string | number` / `labelInValue` / `fieldNames`、分组、搜索、远程、虚拟滚动、多选折叠、分隔符提交、选项与面板插槽） |
+| `RsSelect` | 选择器（面板内搜索 / 创建、远程防抖、匹配高亮、`variant`、`maxTagCount="responsive"`） |
+| `RsAutoComplete` | 自动完成：在输入框内打字出建议；列表贴输入框并视口避让（APG Combobox） |
+| `RsCascader` | 级联选择（多列、`changeOnSelect` / `expandTrigger`） |
+| `RsTreeSelect` | 树选择（面板内搜索，复用 `RsTree`） |
+| `RsMentions` | 提及输入（`@` 前缀） |
 | `RsUpload` | 文件选择与校验辅助 |
 | `RsForm` | 表单布局、`model` / NamePath、`validateMessages`、`getFieldsValue` |
 | `RsFormItem` | 表单项（字段唯一注册点；`dependencies` / `help` / `extra`；对标 Form.Item） |

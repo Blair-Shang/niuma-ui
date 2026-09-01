@@ -6,7 +6,7 @@ import RsDatePicker from '../RsDatePicker.vue'
 import RsInput from '../RsInput.vue'
 import RsInputNumber from '../RsInputNumber.vue'
 import RsSelect from '../RsSelect.vue'
-import type { RsSelectOptions } from '../select-utils'
+import { unwrapSelectEntry, type RsSelectModelValue, type RsSelectOptions } from '../select-utils'
 import type { RsTableColumnEditorOptionsResolved, RsTableCellValueType } from '../table-utils'
 import {
   applyFocusMode,
@@ -223,8 +223,19 @@ function onKeydown(event: KeyboardEvent): void {
   }
 }
 
-function onSelectUpdate(value: string | string[]): void {
-  const tokens = Array.isArray(value) ? value.map(String) : String(value)
+function selectDraftTokens(value: RsSelectModelValue): string | string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => unwrapSelectEntry(item))
+      .filter((item): item is string | number => item !== null)
+      .map(String)
+  }
+  const raw = unwrapSelectEntry(value)
+  return raw == null ? '' : String(raw)
+}
+
+function onSelectUpdate(value: RsSelectModelValue): void {
+  const tokens = selectDraftTokens(value)
   const empty =
     tokens === '' || (Array.isArray(tokens) && tokens.length === 0)
   // 表格内下拉默认不可清除：仅选择；显式 clearable 时才允许清空

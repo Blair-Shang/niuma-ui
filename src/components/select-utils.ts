@@ -7,6 +7,31 @@ export type RsSelectPlacement = 'top' | 'bottom' | 'left' | 'right'
 
 export type RsSelectStatus = 'error' | 'warning' | ''
 
+/** 对齐 Ant Design 5 Select variant；搜索仍在面板内，不改触发器打字。 */
+export type RsSelectVariant = 'outlined' | 'filled' | 'borderless'
+
+/** 多选折叠：数字为上限；responsive 按触发器宽度收。 */
+export type RsSelectMaxTagCount = number | 'responsive'
+
+export function splitSelectLabelHighlight(
+  label: string,
+  keyword: string,
+): Array<{ text: string; highlight: boolean }> {
+  const query = keyword.trim()
+  if (!query) return [{ text: label, highlight: false }]
+  const lowerLabel = label.toLowerCase()
+  const lowerQuery = query.toLowerCase()
+  const index = lowerLabel.indexOf(lowerQuery)
+  if (index < 0) return [{ text: label, highlight: false }]
+  const parts: Array<{ text: string; highlight: boolean }> = []
+  if (index > 0) parts.push({ text: label.slice(0, index), highlight: false })
+  parts.push({ text: label.slice(index, index + query.length), highlight: true })
+  if (index + query.length < label.length) {
+    parts.push({ text: label.slice(index + query.length), highlight: false })
+  }
+  return parts
+}
+
 /** 自定义过滤（对齐 Ant Design filterOption）。返回 false 则隐藏该项。 */
 export type RsSelectFilterOption = (query: string, option: RsSelectOption) => boolean
 
@@ -61,6 +86,7 @@ export type RsSelectModelValue =
  * 按泛型收窄后的 v-model。
  * 默认单选、值为 string：宿主 `@update:model-value="(v: string) => void"` 可直接赋值。
  * `multiple` / `labelInValue` 为字面量 true 时收成数组或 labeled；为 `boolean` 时保留联合。
+ * 组件本体的 defineModel 用 RsSelectModelValue（multiple / labelInValue 是运行时 boolean）。
  */
 export type RsSelectResolvedModel<
   Value extends RsSelectValue = string,
