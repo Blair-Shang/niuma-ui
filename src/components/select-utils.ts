@@ -84,6 +84,15 @@ export type RsSelectResolvedModel<
  */
 export const RS_SELECT_EMPTY_VALUE = '__rs_select_empty__'
 
+/**
+ * Vue 对泛型 boolean prop 不会按 Boolean 收口。
+ * 模板写 `multiple` 时运行时可能是 ''；个别版本还会落到 attrs 变成 'true' / 'multiple'。
+ * Boolean('') 为 false，会把多选打成单选。
+ */
+export function isSelectMultiple(value: unknown): boolean {
+  return value === true || value === '' || value === 'true' || value === 'multiple'
+}
+
 /** 业务 value → ComboboxItem token（空串走哨兵；数字转为十进制字符串） */
 export function toComboboxValue(value: RsSelectValue): string {
   return value === '' ? RS_SELECT_EMPTY_VALUE : String(value)

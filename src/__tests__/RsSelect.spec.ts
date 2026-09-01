@@ -125,6 +125,47 @@ describe('RsSelect', () => {
     expect(wrapper.find('.rs-select__single-label').text()).toBe('Claude')
   })
 
+  it('treats empty-string multiple as multi-select', () => {
+    const wrapper = mount(RsSelect, {
+      props: { options, modelValue: ['gpt-4o'], multiple: '' as unknown as boolean },
+    })
+    expect(wrapper.find('.rs-select').classes()).toContain('rs-select--multiple')
+    expect(wrapper.find('.rs-select__tag').text()).toContain('GPT-4o')
+    expect(wrapper.getComponent({ name: 'ComboboxRoot' }).props('multiple')).toBe(true)
+  })
+
+  it('accumulates values when parent template binds :multiple="true"', async () => {
+    const models = ref(['gpt-4o'])
+    const Parent = defineComponent({
+      components: { RsSelect },
+      setup: () => ({ models, options }),
+      template: '<RsSelect v-model="models" :multiple="true" :options="options" />',
+    })
+    const wrapper = mount(Parent)
+    expect(wrapper.find('.rs-select').classes()).toContain('rs-select--multiple')
+    expect(wrapper.find('.rs-select__tag').text()).toContain('GPT-4o')
+    const root = wrapper.getComponent({ name: 'ComboboxRoot' })
+    expect(root.props('multiple')).toBe(true)
+    await root.vm.$emit('update:modelValue', ['gpt-4o', 'claude'])
+    expect(models.value).toEqual(['gpt-4o', 'claude'])
+  })
+
+  it('accumulates values when parent template uses a bare multiple attribute', async () => {
+    const models = ref(['gpt-4o'])
+    const Parent = defineComponent({
+      components: { RsSelect },
+      setup: () => ({ models, options }),
+      template: '<RsSelect v-model="models" multiple :options="options" />',
+    })
+    const wrapper = mount(Parent)
+    expect(wrapper.find('.rs-select').classes()).toContain('rs-select--multiple')
+    expect(wrapper.find('.rs-select__tag').text()).toContain('GPT-4o')
+    const root = wrapper.getComponent({ name: 'ComboboxRoot' })
+    expect(root.props('multiple')).toBe(true)
+    await root.vm.$emit('update:modelValue', ['gpt-4o', 'claude'])
+    expect(models.value).toEqual(['gpt-4o', 'claude'])
+  })
+
   it('applies modifier classes for multiple and searchable', () => {
     const wrapper = mount(RsSelect, {
       props: { options, modelValue: [], multiple: true, searchable: true },

@@ -72,7 +72,8 @@ const props = withDefaults(
      * 开启后若未显式关 searchable，将自动启用搜索框。
      */
     creatable?: boolean
-    multiple?: Multiple
+    /** 运行时必须是 boolean；写成泛型 Multiple 时 :multiple="true" 可能进 attrs，Combobox 会按单选。 */
+    multiple?: boolean
     required?: boolean
     name?: string
     clearable?: boolean
@@ -101,7 +102,8 @@ const props = withDefaults(
     maxTagCount?: number
     maxTagPlaceholder?: string | ((omitted: number) => string)
     multipleLimit?: number
-    labelInValue?: LabelInValue
+    /** 与 multiple 相同：不能写成泛型 LabelInValue，否则 withDefaults 的 false 过不了 InferDefault。 */
+    labelInValue?: boolean
     filterSort?: RsSelectFilterSort
     maxTagTextLength?: number
     maxTagTooltip?: boolean
@@ -136,6 +138,8 @@ const props = withDefaults(
     loading: false,
     matchTriggerWidth: false,
     block: false,
+    multiple: false,
+    labelInValue: false,
     filterOption: true,
     optionFilterProp: 'label',
     optionLabelProp: 'label',
@@ -170,6 +174,7 @@ const {
   resolvedSearchPlaceholder,
   resolvedEmptyText,
   resolvedLoadingText,
+  isMultiple,
   isSearchable,
   labelMap,
   useVirtual,
@@ -272,14 +277,14 @@ defineExpose({
     v-model:open="open"
     class="rs-select"
     :class="{
-      'rs-select--multiple': multiple,
+      'rs-select--multiple': isMultiple,
       'rs-select--searchable': isSearchable,
       'rs-select--creatable': creatable,
       'rs-select--block': block,
       [`rs-select--${resolvedSize}`]: true,
     }"
     :style="rootStyle"
-    :multiple="multiple"
+    :multiple="isMultiple"
     :disabled="resolvedDisabled"
     :ignore-filter="useManualFilter"
     :reset-search-term-on-select="autoClearSearchValue"
@@ -300,7 +305,7 @@ defineExpose({
           <slot name="prefix" />
         </span>
 
-        <span v-if="multiple" class="rs-select__value rs-select__value--multiple">
+        <span v-if="isMultiple" class="rs-select__value rs-select__value--multiple">
           <template v-if="hasValue">
             <span
               v-for="value in visibleTagTokens"

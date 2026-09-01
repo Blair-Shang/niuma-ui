@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+## [1.2.7] - 2026-09-01
+
+### 修复
+
+- `RsSelect` 的 `multiple` 不再用泛型 boolean 声明（否则 `:multiple="true"` 可能进 attrs，Combobox 仍按单选）。触发器标签改看 `isMultiple`，空串 / 裸属性也会累加。
+
 ## [1.2.6] - 2026-09-01
 
 ### 修复

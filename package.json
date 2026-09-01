@@ -1,6 +1,6 @@
 {
   "name": "niuma-ui",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "license": "Apache-2.0",
   "type": "module",
   "description": "Vue 3 工作台设计系统（Rs* 组件、--rs-* token；含可选编辑器 / 终端）",

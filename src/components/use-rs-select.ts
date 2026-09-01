@@ -20,6 +20,7 @@ import {
   sortSelectOptions,
   splitByTokenSeparators,
   toComboboxValue,
+  isSelectMultiple,
   toSelectedTokens,
   type RsSelectFieldNames,
   type RsSelectFilterOption,
@@ -81,6 +82,7 @@ export function useRsSelect(
   t: RsTranslateFn,
 ) {
   const { contains } = useFilter({ sensitivity: 'base' })
+  const isMultiple = computed(() => isSelectMultiple(props.multiple))
 
   const normalizedOptions = computed(() =>
     normalizeSelectOptions(props.options, props.fieldNames),
@@ -158,12 +160,12 @@ export function useRsSelect(
     return [createValue.value, ...values.filter((item) => String(item) !== createValue.value)]
   })
 
-  const selectedValues = computed(() => toSelectedTokens(model.value, Boolean(props.multiple)))
+  const selectedValues = computed(() => toSelectedTokens(model.value, isMultiple.value))
   const hasValue = computed(() => selectedValues.value.length > 0)
 
   const visibleTagTokens = computed(() => {
     const all = selectedValues.value
-    if (!props.multiple || props.maxTagCount == null || all.length <= props.maxTagCount) {
+    if (!isMultiple.value || props.maxTagCount == null || all.length <= props.maxTagCount) {
       return all
     }
     return all.slice(0, Math.max(0, props.maxTagCount))
@@ -216,7 +218,7 @@ export function useRsSelect(
 
   const atMultipleLimit = computed(
     () =>
-      Boolean(props.multiple) &&
+      isMultiple.value &&
       props.multipleLimit != null &&
       props.multipleLimit > 0 &&
       selectedValues.value.length >= props.multipleLimit,
@@ -234,7 +236,7 @@ export function useRsSelect(
   }
 
   const singleDisplayLabel = computed(() => {
-    if (props.multiple || !hasValue.value) return ''
+    if (isMultiple.value || !hasValue.value) return ''
     return tokenLabel(selectedValues.value[0]!)
   })
 
@@ -243,7 +245,7 @@ export function useRsSelect(
     model.value = packSelectModel(
       values,
       normalizedOptions.value,
-      Boolean(props.multiple),
+      isMultiple.value,
       Boolean(props.labelInValue),
     )
   }
@@ -265,12 +267,12 @@ export function useRsSelect(
 
   const comboboxModel = computed<string | string[] | undefined>({
     get() {
-      if (props.multiple) return selectedValues.value.map((token) => token)
+      if (isMultiple.value) return selectedValues.value
       return hasValue.value ? selectedValues.value[0] : undefined
     },
     set(value) {
       const prev = selectedValues.value
-      const tokens = comboboxBindingToTokens(value, Boolean(props.multiple))
+      const tokens = comboboxBindingToTokens(value, isMultiple.value)
       emitSelectionDiff(prev, tokens)
       writeTokens(tokens)
       if (props.autoClearSearchValue) searchQuery.value = ''
@@ -286,7 +288,7 @@ export function useRsSelect(
     if (!next) return
     const values = currentValues()
     if (values.some((item) => String(item) === next)) return
-    if (props.multiple) {
+    if (isMultiple.value) {
       if (atMultipleLimit.value) return
       const prev = selectedValues.value
       const packed = packSelectModel(
@@ -312,7 +314,7 @@ export function useRsSelect(
   }
 
   function consumeTokenSeparators(raw: string): void {
-    if (!props.multiple && !props.creatable) return
+    if (!isMultiple.value && !props.creatable) return
     const parts = splitByTokenSeparators(raw, props.tokenSeparators ?? [])
     if (!parts) return
     const rest = parts.pop() ?? ''
@@ -326,11 +328,11 @@ export function useRsSelect(
         const prev = selectedValues.value
         const key = toComboboxValue(matched.value)
         if (prev.includes(key)) continue
-        if (props.multiple && atMultipleLimit.value) continue
-        const nextTokens = props.multiple ? [...prev, key] : [key]
+        if (isMultiple.value && atMultipleLimit.value) continue
+        const nextTokens = isMultiple.value ? [...prev, key] : [key]
         emitSelectionDiff(prev, nextTokens)
         writeTokens(nextTokens)
-        if (!props.multiple) open.value = false
+        if (!isMultiple.value) open.value = false
       } else if (props.creatable) {
         commitCreatedValue(token)
       }
@@ -352,7 +354,7 @@ export function useRsSelect(
       // 默认清空；受控 / 未清理的 searchValue 写回；fillSearchWithValue 才回填当前选中。
       if (pending) {
         searchQuery.value = pending
-      } else if (props.fillSearchWithValue && !props.multiple && hasValue.value) {
+      } else if (props.fillSearchWithValue && !isMultiple.value && hasValue.value) {
         searchQuery.value = singleDisplayLabel.value
       } else {
         searchQuery.value = ''
@@ -375,13 +377,13 @@ export function useRsSelect(
     event.stopPropagation()
     emitSelectionDiff(selectedValues.value, [])
     emit('clear')
-    model.value = props.multiple ? [] : ''
+    model.value = isMultiple.value ? [] : ''
   }
 
   function removeTag(value: string, event: MouseEvent): void {
     event.preventDefault()
     event.stopPropagation()
-    if (!props.multiple) return
+    if (!isMultiple.value) return
     const prev = selectedValues.value
     const tokens = prev.filter((item) => item !== value)
     emitSelectionDiff(prev, tokens)
@@ -389,7 +391,7 @@ export function useRsSelect(
   }
 
   function setValue(value: unknown): void {
-    if (props.multiple) {
+    if (isMultiple.value) {
       const list = Array.isArray(value) ? value : value !== '' && value != null ? [value] : []
       writeTokens(toSelectedTokens(list, true))
       return
@@ -416,6 +418,7 @@ export function useRsSelect(
     resolvedSearchPlaceholder,
     resolvedEmptyText,
     resolvedLoadingText,
+    isMultiple,
     isSearchable,
     labelMap,
     useVirtual,
