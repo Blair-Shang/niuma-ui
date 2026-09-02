@@ -12,6 +12,7 @@ import type {
 } from './code-editor-utils'
 import {
   codeEditorLanguageLabel,
+  readDocumentTheme,
   resolveCodeEditorLanguage,
   resolveCodeEditorSize,
   resolveCodeEditorTheme,
@@ -106,11 +107,15 @@ const rootStyle = computed(() => {
 
 const resolvedLanguage = computed(() => resolveCodeEditorLanguage(props.language))
 const resolvedLanguageLabel = computed(() => codeEditorLanguageLabel(props.language))
-const resolvedTheme = computed(() => resolveCodeEditorTheme(props.theme))
+const documentTheme = ref(readDocumentTheme())
+const resolvedTheme = computed(() =>
+  props.theme === 'auto' ? documentTheme.value : resolveCodeEditorTheme(props.theme),
+)
 
 const editorEl = ref<HTMLElement | null>(null)
 const view = shallowRef<EditorView | null>(null)
 const editableCompartment = new Compartment()
+const themeCompartment = new Compartment()
 let themeObserver: MutationObserver | null = null
 let unmounted = false
 let syncingFromModel = false
@@ -183,6 +188,19 @@ function cancelGhostCompletionSchedule() {
   }
 }
 
+function codeMirrorThemeExts() {
+  return isCodeMirrorLightTheme() ? [] : [oneDark]
+}
+
+function applyDocumentTheme() {
+  documentTheme.value = readDocumentTheme()
+  if (!view.value) return
+  view.value.dispatch({
+    effects: themeCompartment.reconfigure(codeMirrorThemeExts()),
+  })
+  view.value.requestMeasure()
+}
+
 async function initEditor() {
   if (!editorEl.value || unmounted) return
   const seq = ++initSeq
@@ -225,7 +243,7 @@ async function initEditor() {
       ...(props.inlineEditRequest
         ? [codeMirrorInlineEditExtension(onInlineEditTrigger)]
         : []),
-      ...(isCodeMirrorLightTheme() ? [] : [oneDark]),
+      themeCompartment.of(codeMirrorThemeExts()),
       EditorView.updateListener.of((update) => {
         if (!update.docChanged || syncingFromModel) return
         const next = update.state.doc.toString()
@@ -242,7 +260,7 @@ async function initEditor() {
 onMounted(() => {
   unmounted = false
   void initEditor()
-  themeObserver = new MutationObserver(() => { void initEditor() })
+  themeObserver = new MutationObserver(() => { applyDocumentTheme() })
   themeObserver.observe(document.documentElement, {
     attributes: true,
     attributeFilter: ['data-rs-theme'],

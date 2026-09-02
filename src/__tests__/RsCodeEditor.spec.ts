@@ -32,6 +32,21 @@ describe('RsCodeEditor', () => {
     expect(wrapper.classes()).toContain('rs-code-editor--dark')
   })
 
+  it('keeps document when data-rs-theme changes', async () => {
+    document.documentElement.dataset.rsTheme = 'dark'
+    const wrapper = mount(RsCodeEditor, {
+      props: { modelValue: 'keep-me', theme: 'auto', showToolbar: false },
+      attachTo: document.body,
+    })
+    await new Promise((r) => setTimeout(r, 80))
+    expect(wrapper.find('.cm-content').text()).toContain('keep-me')
+    document.documentElement.dataset.rsTheme = 'light'
+    await new Promise((r) => setTimeout(r, 80))
+    expect(wrapper.find('.cm-content').text()).toContain('keep-me')
+    expect(wrapper.classes()).toContain('rs-code-editor--light')
+    wrapper.unmount()
+  })
+
   it('sets height from number prop', () => {
     const wrapper = mount(RsCodeEditor, {
       props: { height: 200 },
