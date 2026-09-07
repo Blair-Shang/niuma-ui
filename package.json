@@ -1,6 +1,6 @@
 {
   "name": "niuma-ui",
-  "version": "1.2.9",
+  "version": "1.3.0",
   "license": "Apache-2.0",
   "type": "module",
   "description": "Vue 3 工作台设计系统（Rs* 组件、--rs-* token；含可选编辑器 / 终端）",
@@ -121,6 +121,7 @@
     "@codemirror/view": "^6.43.1",
     "@lucide/vue": "^1.31.0",
     "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-search": "^0.16.0",
     "@xterm/xterm": "^6.0.0",
     "codemirror": "^6.0.2",
     "dayjs": "^1.11.21",

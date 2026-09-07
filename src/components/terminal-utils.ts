@@ -4,7 +4,7 @@ import { readDocumentTheme } from './code-editor-utils'
 export type RsTerminalThemeMode = 'auto' | 'light' | 'dark'
 export type RsResolvedTerminalTheme = 'light' | 'dark'
 
-export type RsTerminalAction = 'copy' | 'paste' | 'selectAll' | 'clear' | 'askAi'
+export type RsTerminalAction = 'copy' | 'paste' | 'selectAll' | 'clear' | 'askAi' | 'search'
 
 export type RsTerminalGeometry = { cols: number; rows: number }
 

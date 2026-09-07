@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { FitAddon } from '@xterm/addon-fit'
+import { SearchAddon } from '@xterm/addon-search'
 import type { ITheme } from '@xterm/xterm'
 import { Terminal } from '@xterm/xterm'
 import '@xterm/xterm/css/xterm.css'
@@ -99,6 +100,10 @@ const props = withDefaults(
     wheelScrollModifier?: RsTerminalWheelScrollModifier
     /** TUI 全屏刷新时若视口不在底部，自动滚回底部（修复 top 表头丢失） */
     snapViewportOnTuiWrite?: boolean
+    /** 鼠标松开时若有选区则复制（接近原生终端 copy-on-select） */
+    copyOnSelect?: boolean
+    /** 启用 Ctrl/⌘+F 终端内搜索 */
+    searchEnabled?: boolean
   }>(),
   {
     loading: false,
@@ -117,6 +122,8 @@ const props = withDefaults(
     zebraStripes: true,
     wheelScrollModifier: 'none',
     snapViewportOnTuiWrite: true,
+    copyOnSelect: false,
+    searchEnabled: false,
   },
 )
 
@@ -204,6 +211,14 @@ const contextMenuItems = computed<RsContextMenuItem[]>(() => {
       shortcut: terminalShortcutLabel('A'),
     },
   ]
+  if (props.searchEnabled) {
+    items.push({
+      key: 'search',
+      label: t('terminal.search', 'Search'),
+      icon: 'search',
+      shortcut: terminalShortcutLabel('F'),
+    })
+  }
   if (props.showAskAi) {
     items.push(
       { key: 'sep-ai', label: '', separator: true },
@@ -228,8 +243,13 @@ const contextMenuItems = computed<RsContextMenuItem[]>(() => {
   return items
 })
 
+const searchOpen = ref(false)
+const searchQuery = ref('')
+const searchInputEl = ref<HTMLInputElement | null>(null)
+
 let terminal: Terminal | null = null
 let fitAddon: FitAddon | null = null
+let searchAddon: SearchAddon | null = null
 let resizeObserver: ResizeObserver | null = null
 let themeObserver: MutationObserver | null = null
 let detachWheelGuard: (() => void) | null = null
@@ -396,6 +416,54 @@ function resolveMenuSelectionText(): string {
   return snap
 }
 
+function openSearch(): void {
+  if (!props.searchEnabled) {
+    return
+  }
+  searchOpen.value = true
+  void nextTick(() => {
+    searchInputEl.value?.focus()
+    searchInputEl.value?.select()
+  })
+}
+
+function closeSearch(): void {
+  searchOpen.value = false
+  searchAddon?.clearDecorations()
+  terminal?.focus()
+}
+
+function runSearch(direction: 'next' | 'prev'): void {
+  const query = searchQuery.value
+  if (!query || !searchAddon) {
+    return
+  }
+  if (direction === 'prev') {
+    searchAddon.findPrevious(query)
+    return
+  }
+  searchAddon.findNext(query)
+}
+
+function onSearchKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeSearch()
+    return
+  }
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    runSearch(event.shiftKey ? 'prev' : 'next')
+  }
+}
+
+function onHostMouseUp(): void {
+  if (!props.copyOnSelect || !terminal?.hasSelection()) {
+    return
+  }
+  void copySelection()
+}
+
 async function copySelection(): Promise<void> {
   const text = resolveMenuSelectionText()
   if (!text) {
@@ -475,6 +543,11 @@ async function runTerminalAction(action: RsTerminalAction): Promise<void> {
     clearTerminal()
     return
   }
+  if (action === 'search') {
+    openSearch()
+    emit('action', 'search')
+    return
+  }
   if (action === 'askAi') {
     const text = resolveMenuSelectionText()
     emit('askAi', text)
@@ -523,6 +596,12 @@ function attachShortcuts(): void {
       event.preventDefault()
       event.stopPropagation()
       clearTerminal()
+      return false
+    }
+    if (key === 'f' && props.searchEnabled) {
+      event.preventDefault()
+      event.stopPropagation()
+      openSearch()
       return false
     }
     return true
@@ -618,6 +697,8 @@ onMounted(async () => {
   })
   fitAddon = new FitAddon()
   terminal.loadAddon(fitAddon)
+  searchAddon = new SearchAddon()
+  terminal.loadAddon(searchAddon)
   terminal.open(hostEl.value)
   terminal.onData((data: string) => {
     if (props.inputEnabled) {
@@ -664,6 +745,7 @@ onBeforeUnmount(() => {
   terminal?.dispose()
   terminal = null
   fitAddon = null
+  searchAddon = null
   didInitialFit = false
 })
 
@@ -698,10 +780,41 @@ defineExpose(exposed)
       @click="focus"
       @contextmenu.capture="onTerminalContextMenu"
     >
-      <div ref="hostEl" class="rs-terminal__host" />
+      <div
+        v-if="searchEnabled && searchOpen"
+        class="rs-terminal__search"
+        @click.stop
+      >
+        <input
+          ref="searchInputEl"
+          v-model="searchQuery"
+          class="rs-terminal__search-input"
+          type="search"
+          :placeholder="t('terminal.searchPlaceholder', 'Find in terminal')"
+          :aria-label="t('terminal.search', 'Search')"
+          @keydown="onSearchKeydown"
+        >
+        <button type="button" class="rs-terminal__search-btn" @click="runSearch('prev')">
+          {{ t('terminal.searchPrev', 'Previous') }}
+        </button>
+        <button type="button" class="rs-terminal__search-btn" @click="runSearch('next')">
+          {{ t('terminal.searchNext', 'Next') }}
+        </button>
+        <button type="button" class="rs-terminal__search-btn" @click="closeSearch">
+          {{ t('terminal.searchClose', 'Close search') }}
+        </button>
+      </div>
+      <div ref="hostEl" class="rs-terminal__host" @mouseup="onHostMouseUp" />
       <RsLoading v-if="showLoading" class="rs-terminal__loading" />
-      <output v-if="overlay" class="rs-terminal__overlay">
-        {{ overlay }}
+      <output
+        v-if="overlay || $slots.overlayAction"
+        class="rs-terminal__overlay"
+        :class="{ 'rs-terminal__overlay--interactive': Boolean($slots.overlayAction) }"
+      >
+        <span v-if="overlay">{{ overlay }}</span>
+        <div v-if="$slots.overlayAction" class="rs-terminal__overlay-action">
+          <slot name="overlayAction" />
+        </div>
       </output>
     </section>
   </RsContextMenu>
@@ -752,6 +865,8 @@ defineExpose(exposed)
 }
 
 .rs-terminal__overlay {
+  flex-direction: column;
+  gap: var(--rs-space-sm);
   padding: var(--rs-space-lg);
   color: color-mix(in srgb, var(--rs-terminal-fg) 92%, #fff 8%);
   background: color-mix(in srgb, var(--rs-terminal-bg) 84%, transparent);
@@ -761,6 +876,50 @@ defineExpose(exposed)
   font-size: var(--rs-font-size-xs);
   font-weight: var(--rs-font-weight-regular);
   line-height: var(--rs-line-height-normal);
+}
+
+.rs-terminal__overlay--interactive {
+  pointer-events: auto;
+}
+
+.rs-terminal__overlay-action {
+  pointer-events: auto;
+}
+
+.rs-terminal__search {
+  position: absolute;
+  top: var(--rs-space-xs);
+  right: var(--rs-space-xs);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--rs-space-xs);
+  padding: var(--rs-space-xs);
+  border: 1px solid var(--rs-terminal-border);
+  border-radius: var(--rs-radius-sm);
+  background: color-mix(in srgb, var(--rs-terminal-bg) 92%, transparent);
+}
+
+.rs-terminal__search-input {
+  width: 12rem;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--rs-terminal-border);
+  border-radius: var(--rs-radius-sm);
+  background: var(--rs-terminal-bg);
+  color: var(--rs-terminal-fg);
+  font-family: var(--rs-font-mono);
+  font-size: var(--rs-font-size-xs);
+  outline: none;
+}
+
+.rs-terminal__search-btn {
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--rs-terminal-border);
+  border-radius: var(--rs-radius-sm);
+  background: transparent;
+  color: var(--rs-terminal-fg);
+  font-size: var(--rs-font-size-xs);
+  cursor: pointer;
 }
 
 /*

@@ -6,6 +6,15 @@
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-07
+
+### 新增
+
+- `RsTerminal`：`searchEnabled`（默认 `false`）打开终端内查找。`Ctrl/⌘+F`、右键「搜索」调出浮层；Enter / Shift+Enter 下一个 / 上一个，Esc 关闭。依赖 `@xterm/addon-search`，已列入 `niuma-ui/vite-prebundle/xterm`。
+- `RsTerminal`：`copyOnSelect`（默认 `false`）在鼠标松开且有选区时复制，接近原生终端 copy-on-select。
+- `RsTerminal`：`#overlayAction` 插槽。有插槽时遮罩可点，便于宿主放「重连」等操作；仅 `overlay` 文案时仍拦截点击。
+- `RsTerminalAction` 增加 `search`。中英 locale：`terminal.search` / `searchPlaceholder` / `searchNext` / `searchPrev` / `searchClose`。
+
 ## [1.2.9] - 2026-09-01
 
 ### 修复

@@ -4,5 +4,6 @@
  * CSS 一并扫描，防止 JS 预构建后样式副作用丢失。
  */
 import '@xterm/addon-fit'
+import '@xterm/addon-search'
 import '@xterm/xterm'
 import '@xterm/xterm/css/xterm.css'
