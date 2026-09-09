@@ -1,6 +1,6 @@
 /**
  * DOM 结构基线（轻量「视觉回归」）：锁定关键 a11y/壳层骨架，不引 Playwright。
- * 只采集 tag + role + 结构类（rs-table / rs-table__*），忽略 --size/--theme 修饰，降低抖动。
+ * 只采集 tag + role + 结构类（rs-table / rs-table__*），忽略 --size/--theme/--cell-focus 修饰，降低抖动。
  */
 
 import { mount } from '@vue/test-utils'
@@ -11,9 +11,11 @@ function structuralClass(el: Element): string {
   return [...el.classList]
     .filter(
       (c) =>
-        c === 'rs-table-shell' ||
-        c === 'rs-table' ||
-        c.startsWith('rs-table__'),
+        (c === 'rs-table-shell' ||
+          c === 'rs-table' ||
+          c.startsWith('rs-table__')) &&
+        // 视觉修饰（size / theme / cellFocus）不进骨架，避免默认值抖动
+        !/--(?:size|theme|cell-focus)-/.test(c),
     )
     .sort()
     .join('.')
