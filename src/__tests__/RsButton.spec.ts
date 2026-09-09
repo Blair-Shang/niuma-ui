@@ -65,13 +65,30 @@ describe('RsButton', () => {
     expect(wrapper.classes()).not.toContain('rs-btn--danger')
   })
 
-  it('filled primary ignores tone class', () => {
+  it('primary + tone composes solid semantic color', () => {
     const wrapper = mount(RsButton, {
-      props: { variant: 'primary', tone: 'danger' },
-      slots: { default: '保存' },
+      props: { variant: 'primary', tone: 'warning' },
+      slots: { default: '发布' },
     })
     expect(wrapper.classes()).toContain('rs-btn--primary')
-    expect(wrapper.classes()).not.toContain('rs-btn--tone-danger')
+    expect(wrapper.classes()).toContain('rs-btn--tone-warning')
+  })
+
+  it('default + tone composes outlined semantic color', () => {
+    const wrapper = mount(RsButton, {
+      props: { variant: 'default', tone: 'warning' },
+      slots: { default: '推送' },
+    })
+    expect(wrapper.classes()).toContain('rs-btn--default')
+    expect(wrapper.classes()).toContain('rs-btn--tone-warning')
+  })
+
+  it('default without tone stays neutral', () => {
+    const wrapper = mount(RsButton, {
+      props: { variant: 'default' },
+      slots: { default: '取消' },
+    })
+    expect(wrapper.classes()).toContain('rs-btn--tone-neutral')
   })
 
   it('link defaults to primary tone', () => {

@@ -29,6 +29,8 @@ export function useRsDialogWindow(options: {
   widthPreset: Ref<RsDialogWidthPreset>
   /** 自定义初始宽度（px）；有值时优先于预设/比例 */
   initialWidth?: Ref<number | undefined>
+  /** 自定义初始高度（px）；有值时优先于默认 75% 视口高 */
+  initialHeight?: Ref<number | undefined>
   draggable: Ref<boolean>
   resizable: Ref<boolean>
   compact?: Ref<boolean>
@@ -84,14 +86,16 @@ export function useRsDialogWindow(options: {
   function defaultWindowSize(): Pick<RsDialogBounds, 'width' | 'height'> {
     const { width: maxW, height: maxH } = dialogViewportSize()
     const customW = options.initialWidth?.value
+    const customH = options.initialHeight?.value
     const width =
       customW != null && Number.isFinite(customW) && customW > 0
         ? Math.min(maxW, Math.max(minWidth, Math.round(customW)))
         : Math.min(maxW, Math.max(minWidth, Math.round(maxW * defaultWidthRatio)))
-    return {
-      width,
-      height: Math.min(maxH, Math.max(minHeight, Math.round(maxH * defaultHeightRatio))),
-    }
+    const height =
+      customH != null && Number.isFinite(customH) && customH > 0
+        ? Math.min(maxH, Math.max(minHeight, Math.round(customH)))
+        : Math.min(maxH, Math.max(minHeight, Math.round(maxH * defaultHeightRatio)))
+    return { width, height }
   }
 
   function refreshCachedInsets(): void {

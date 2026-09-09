@@ -677,6 +677,7 @@ defineExpose(tableApi)
     <table
       ref="tableRef"
       class="rs-table__table"
+      :class="`rs-table__table--cell-focus-${cellFocus}`"
       :style="tableInlineStyle"
       v-bind="tableA11y"
       @keydown="onShellKeydown"

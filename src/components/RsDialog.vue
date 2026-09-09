@@ -33,6 +33,7 @@ import {
   type RsDialogWidth,
   type RsDialogWidthPreset,
 } from './dialog-utils'
+import { dialogViewportSize } from './dialog-viewport'
 import { useRsDialogWindow } from './dialog-window'
 
 defineOptions({ inheritAttrs: false })
@@ -50,6 +51,11 @@ const props = withDefaults(
      * form / confirm：自定义宽度按 CSS 写入。
      */
     width?: RsDialogWidth
+    /**
+     * 高度：与 width 相同单位。仅 window 在打开时折成像素作为初始高度
+     *（`%` 相对视口扣除 inset）；form / confirm 忽略。
+     */
+    height?: RsDialogWidth
     tone?: RsFeedbackTone
     /**
      * window：可拖拽/缩放工作窗。
@@ -161,6 +167,11 @@ const widthPreset = computed<RsDialogWidthPreset>(() =>
 )
 
 const initialWidthPx = computed(() => resolveRsDialogWidthPx(props.width))
+const initialHeightPx = computed(() =>
+  props.height == null || props.height === ''
+    ? undefined
+    : resolveRsDialogWidthPx(props.height, dialogViewportSize().height),
+)
 
 const customCssWidth = computed(() => resolveRsDialogCssWidth(props.width))
 
@@ -368,6 +379,7 @@ const {
   open,
   widthPreset,
   initialWidth: initialWidthPx,
+  initialHeight: initialHeightPx,
   draggable: enableDraggable,
   resizable: enableResizable,
   compact: isCompactLayout,
@@ -548,6 +560,7 @@ defineExpose({
   border-radius: var(--rs-radius-lg);
   border: 1px solid var(--rs-dialog-border);
   background: var(--rs-dialog-bg);
+  --rs-fieldset-legend-bg: var(--rs-dialog-bg);
   box-shadow: var(--rs-dialog-shadow);
   outline: none;
   color: var(--rs-dialog-title-fg);

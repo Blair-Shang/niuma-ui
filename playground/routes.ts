@@ -124,6 +124,14 @@ export const playgroundRoutes: PlaygroundRoute[] = [
     featured: true,
   },
   {
+    path: '/textarea',
+    name: 'textarea',
+    title: 'RsTextarea',
+    group: 'form',
+    description: '多行文本。autosize、字数统计、清除、校验与 RsInput 同一套 token。',
+    testFile: 'RsTextarea.spec.ts',
+  },
+  {
     path: '/input-number',
     name: 'input-number',
     title: 'RsInputNumber',
@@ -219,6 +227,14 @@ export const playgroundRoutes: PlaygroundRoute[] = [
     description: '专业表单：rules / name、validateField、异步校验、登录场景。',
     testFile: 'RsForm.spec.ts',
     featured: true,
+  },
+  {
+    path: '/fieldset',
+    name: 'fieldset',
+    title: 'RsFieldset',
+    group: 'form',
+    description: '表单分区：legend 组名、tooltip 说明、虚线/虚化边框与标题清晰度。',
+    testFile: 'RsFieldset.spec.ts',
   },
   {
     path: '/breadcrumb',
@@ -324,6 +340,14 @@ export const playgroundRoutes: PlaygroundRoute[] = [
     group: 'editor',
     description: '基于 xterm 的终端面板。',
     testFile: 'RsTerminal.spec.ts',
+  },
+  {
+    path: '/log',
+    name: 'log',
+    title: 'RsLog',
+    group: 'editor',
+    description: '作业 / 发版日志：虚拟滚动、级别（含 syslog / OTel）、搜索过滤、键盘漫游。不是终端。',
+    testFile: 'RsLog.spec.ts / RsLog.a11y.spec.ts',
   },
   {
     path: '/pagination',

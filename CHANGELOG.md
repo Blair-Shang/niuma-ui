@@ -6,6 +6,25 @@
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-09-09
+
+### 修复
+
+- `RsLog` 工具栏复制改为复制全文（有选区仍只复制选区），不再只拷当前行或搜索匹配行。
+- `RsInput`：`type="search"` 且 `clearable` 时隐藏浏览器自带取消钮，避免和组件清除 x 叠成两个（`RsLog` 过滤框同此）。
+- `inferLogLevel`：只认方括号级别、行首级别词，以及 `BUILD SUCCESS` / `BUILD FAILURE` / `Exception in thread` / `panic:`。不再用正文里的「失败 / 成功 / error」上色；摘要句写 `RsLogLine.level`。
+
+### 新增
+
+- `RsFieldset`：表单分区。原生 `fieldset` / `legend`（WHATWG / WCAG 组名）。说明走标题旁 `tooltip`（locale `fieldset.help`）；`borderStyle` / `borderTone`（含 faded 虚化）；`titleWeight` / `titleTone` / `titleSize` 调标题清晰度。`description` 仍映射到 tip。Playground `/fieldset`。
+- `RsButton`：`tone` 与 `variant` 正交（对齐 Ant `color` / Element `type`）。`variant="default" tone="warning"` 为描边 + 浅底语义色；`variant="primary" tone="success"` 为实心语义色。`variant="danger"` 仍保留。
+- `RsTable`：`cellFocus`（`fill` / `outline` / `none`）。只读表可关掉焦点格内部底色，避免自定义插槽再套一块高亮；键盘漫游不受影响。
+- `RsTextarea`：多行输入，边框 / 焦点 / 校验与 `RsInput` 同一套 token，可放在 `RsFormItem` 里。对齐 Ant `Input.TextArea` / Element textarea：`autosize`、`showCount`（无 `maxlength` 也可）、`clearable`、`pressEnter`、`focus()` / `blur()`。Playground `/textarea` 作为官方用法与参数说明。
+- `RsFormItem`：`tooltip` 在标签同行显示帮助图标（对齐 Ant Design Form.Item），不再把说明单独占一行。
+- `RsDialog`：window 布局支持 `height`（与 `width` 相同单位，`%` 相对视口扣除 inset），打开时作为初始高度。
+- `RsLog`：只读日志查看器。按行虚拟滚动；级别对齐 RFC 5424 / OpenTelemetry（另保留 UI `success`）；默认带搜索与复制（选区 > 当前行 > 可见/匹配行，Ctrl/⌘+F / Ctrl/⌘+C）；过滤 / 行插槽；键盘漫游；级别不只靠颜色（色条 + 读屏名称）；`live` 默认 `off` 以免虚拟回收刷读屏。折行默认关闭虚拟（无变高虚拟）。作业与发版日志用这个，PTY 仍走 `RsTerminal`。Playground `/log`。
+- `RsLog` / `inferLogLevel`：`inferMarkers` 供调用方传入成功 / 失败等标识（字符串按拉丁词边界，中日韩按子串；或 RegExp）。内置仍只扫 `[ERROR]`、行首级别词、工具链行首；多条标识同时命中取更严重档。行上已有 `level` 时不扫描。
+
 ## [1.3.0] - 2026-09-07
 
 ### 新增

@@ -213,6 +213,15 @@ describe('RsInput', () => {
     expect(wrapper.find('.rs-input-field__error').text()).toContain('email')
   })
 
+  it('search + clearable uses a single library clear button', () => {
+    const wrapper = mount(RsInput, {
+      props: { modelValue: 'query', type: 'search', clearable: true },
+    })
+    expect(wrapper.findAll('.rs-input-group__action')).toHaveLength(1)
+    expect(wrapper.find('input').attributes('type')).toBe('search')
+    wrapper.unmount()
+  })
+
   it('clears value when clearable button is clicked', async () => {
     const wrapper = mount(RsInput, {
       props: { modelValue: 'hello', clearable: true },

@@ -7,6 +7,8 @@ export { default as RsButton } from './components/RsButton.vue'
 export type { RsButtonTone, RsButtonVariant } from './components/button-utils'
 export {
   isRsButtonFilledVariant,
+  resolveRsButtonTone,
+  resolveRsButtonVariant,
   supportsRsButtonTone,
 } from './components/button-utils'
 export { default as RsCheckbox } from './components/RsCheckbox.vue'
@@ -38,6 +40,13 @@ export { default as RsDropdown } from './components/RsDropdown.vue'
 export { default as RsIcon } from './components/RsIcon.vue'
 export { default as RsInput } from './components/RsInput.vue'
 export type { RsInputExpose, RsInputInstance } from './components/RsInput.vue'
+export { default as RsTextarea } from './components/RsTextarea.vue'
+export type {
+  RsTextareaAutosize,
+  RsTextareaExpose,
+  RsTextareaInstance,
+  RsTextareaResize,
+} from './components/RsTextarea.vue'
 export { default as RsInputNumber } from './components/RsInputNumber.vue'
 export type { RsInputNumberValue } from './components/input-number-utils'
 export {
@@ -120,6 +129,14 @@ export {
 export { default as RsForm } from './components/RsForm.vue'
 export { default as RsFormItem } from './components/RsFormItem.vue'
 export { default as RsFormList } from './components/RsFormList.vue'
+export { default as RsFieldset } from './components/RsFieldset.vue'
+export type {
+  RsFieldsetBorderStyle,
+  RsFieldsetBorderTone,
+  RsFieldsetSize,
+  RsFieldsetTitleSize,
+  RsFieldsetTitleTone,
+} from './components/fieldset-utils'
 export { default as RsToaster } from './components/RsToaster.vue'
 export { default as RsDatePicker } from './components/RsDatePicker.vue'
 export { default as RsDateTimePicker } from './components/RsDateTimePicker.vue'
@@ -183,6 +200,41 @@ export {
 } from './components/markdown-utils'
 export { default as RsProseEditor } from './components/RsProseEditor.vue'
 export { default as RsTerminal } from './components/RsTerminal.vue'
+export { default as RsLog } from './components/RsLog.vue'
+export type { RsLogExpose, RsLogLive } from './components/RsLog.vue'
+export type {
+  InferLogLevelOptions,
+  RsLogCopySource,
+  RsLogHighlightPart,
+  RsLogInferMarkers,
+  RsLogLevel,
+  RsLogLine,
+  RsLogLineInput,
+  RsLogMarker,
+  RsLogSeverityScale,
+  RsNormalizedLogLine,
+} from './components/log-utils'
+export {
+  RS_LOG_FILTER_LEVELS,
+  RS_LOG_LEVELS,
+  asLogLineInputs,
+  clampLogCount,
+  countDroppedLines,
+  filterLogLines,
+  formatLogTime,
+  inferLogLevel,
+  isRsLogLevel,
+  joinLogLines,
+  normalizeLogLines,
+  otelSeverityOf,
+  parseRsLogLevel,
+  resolveLogCopyText,
+  resolveLogLive,
+  splitLogHighlight,
+  splitLogText,
+  syslogSeverityOf,
+  toLogLineInput,
+} from './components/log-utils'
 export {
   beginClipboardPrefetch,
   copyTextToClipboard,
@@ -501,6 +553,7 @@ export {
 export type {
   RsTableProps,
   RsTableEmits,
+  RsTableCellFocus,
   RsTableColumnSlotProps,
   RsTableEditSlotProps,
   RsTableHeaderSlotProps,

@@ -3,7 +3,8 @@ import { computed, nextTick, onUnmounted, ref, useId, useSlots, watch } from 'vu
 import type { RsComponentSize, RsRadius } from '../theme/types'
 import { RS_COMPONENT_SIZE_ICON_PX } from '../theme/types'
 import {
-  supportsRsButtonTone,
+  resolveRsButtonTone,
+  resolveRsButtonVariant,
   type RsButtonTone,
   type RsButtonVariant,
 } from './button-utils'
@@ -17,9 +18,9 @@ const props = withDefaults(
   defineProps<{
     variant?: RsButtonVariant
     /**
-     * 语义色调：配合 text / ghost / link 使用。
-     * 例：variant="text" tone="primary" → 紫色文字按钮（工具栏 quaternary）。
-     * @default 'neutral'（text/ghost）；link 未传 tone 时保持主色链接观感
+     * 语义色，与 variant 正交（Ant color / Element type）。
+     * 例：variant="default" tone="warning" → 描边 + 浅底警告色。
+     * 未传时：primary/link 为 primary，danger 变体为 danger，其余 neutral。
      */
     tone?: RsButtonTone
     size?: RsComponentSize
@@ -68,9 +69,7 @@ const rootStyle = computed(() => ({
 
 const hasLabel = computed(() => Boolean(slots.default))
 
-const resolvedVariant = computed(() =>
-  props.variant === 'secondary' ? ('default' as const) : (props.variant ?? 'primary'),
-)
+const resolvedVariant = computed(() => resolveRsButtonVariant(props.variant ?? 'primary'))
 
 /** text 默认无边框；其它变体默认有边框（可由 bordered 覆盖） */
 const resolvedBordered = computed(() => {
@@ -78,16 +77,8 @@ const resolvedBordered = computed(() => {
   return resolvedVariant.value !== 'text' && resolvedVariant.value !== 'link'
 })
 
-/**
- * 可着色变体上的 tone。
- * link 未显式传 tone 时视为 primary，保持历史链接主色。
- */
-const resolvedTone = computed<RsButtonTone | null>(() => {
-  if (!supportsRsButtonTone(resolvedVariant.value)) return null
-  if (props.tone) return props.tone
-  if (resolvedVariant.value === 'link') return 'primary'
-  return 'neutral'
-})
+/** 形态 × 色相：所有变体都带 tone class，由 CSS 决定如何上色。 */
+const resolvedTone = computed(() => resolveRsButtonTone(props.variant ?? 'primary', props.tone))
 
 const rootClass = computed(() => ({
   [`rs-btn--${resolvedVariant.value}`]: true,
@@ -355,6 +346,11 @@ onUnmounted(() => {
   border-color: var(--rs-border);
   background: var(--rs-surface);
 }
+.rs-btn--loading.rs-btn--default:not(.rs-btn--tone-neutral) {
+  color: var(--rs-btn-tone-on-container);
+  border-color: color-mix(in srgb, var(--rs-btn-tone) 42%, var(--rs-border));
+  background: var(--rs-btn-tone-container);
+}
 .rs-btn--loading.rs-btn--ghost,
 .rs-btn--loading.rs-btn--text {
   color: var(--rs-btn-tone, var(--rs-text));
@@ -477,30 +473,83 @@ onUnmounted(() => {
   background: color-mix(in srgb, var(--rs-btn-tone, var(--rs-text)) 12%, transparent);
 }
 
-/* tone：写入 CSS 变量，供 text / ghost / link 消费 */
+/* tone：色相 token，供所有变体消费（形态 × 色相） */
 .rs-btn--tone-neutral {
   --rs-btn-tone: var(--rs-text);
   --rs-btn-tone-hover: var(--rs-text);
+  --rs-btn-tone-fg: var(--rs-text);
+  --rs-btn-tone-container: var(--rs-btn-secondary-bg, var(--rs-surface-hover));
+  --rs-btn-tone-on-container: var(--rs-text);
 }
 .rs-btn--tone-primary {
   --rs-btn-tone: var(--rs-primary);
   --rs-btn-tone-hover: var(--rs-primary-hover);
+  --rs-btn-tone-fg: var(--rs-primary-foreground);
+  --rs-btn-tone-container: var(--rs-primary-container);
+  --rs-btn-tone-on-container: var(--rs-on-primary-container);
 }
 .rs-btn--tone-danger {
   --rs-btn-tone: var(--rs-danger);
   --rs-btn-tone-hover: var(--rs-danger);
+  --rs-btn-tone-fg: #fff;
+  --rs-btn-tone-container: var(--rs-danger-container);
+  --rs-btn-tone-on-container: var(--rs-on-danger-container);
 }
 .rs-btn--tone-success {
   --rs-btn-tone: var(--rs-success, #18a058);
   --rs-btn-tone-hover: var(--rs-success, #18a058);
+  --rs-btn-tone-fg: #fff;
+  --rs-btn-tone-container: var(--rs-success-container, color-mix(in srgb, var(--rs-success, #18a058) 14%, var(--rs-surface)));
+  --rs-btn-tone-on-container: var(--rs-on-success-container, var(--rs-success, #18a058));
 }
 .rs-btn--tone-warning {
   --rs-btn-tone: var(--rs-warning, #f0a020);
   --rs-btn-tone-hover: var(--rs-warning, #f0a020);
+  --rs-btn-tone-fg: #fff;
+  --rs-btn-tone-container: var(--rs-warning-container, color-mix(in srgb, var(--rs-warning, #f0a020) 14%, var(--rs-surface)));
+  --rs-btn-tone-on-container: var(--rs-on-warning-container, var(--rs-warning, #f0a020));
 }
 .rs-btn--tone-info {
   --rs-btn-tone: var(--rs-info, #2080f0);
   --rs-btn-tone-hover: var(--rs-info, #2080f0);
+  --rs-btn-tone-fg: #fff;
+  --rs-btn-tone-container: var(--rs-info-container, color-mix(in srgb, var(--rs-info, #2080f0) 14%, var(--rs-surface)));
+  --rs-btn-tone-on-container: var(--rs-on-info-container, var(--rs-info, #2080f0));
+}
+
+/* default + 语义色：轮廓 + 浅底（Ant outlined / Element plain） */
+.rs-btn--default:not(.rs-btn--tone-neutral) {
+  color: var(--rs-btn-tone-on-container);
+  border-color: color-mix(in srgb, var(--rs-btn-tone) 42%, var(--rs-border));
+  background: var(--rs-btn-tone-container);
+}
+.rs-btn--default:not(.rs-btn--tone-neutral):hover:not(:disabled) {
+  color: var(--rs-btn-tone);
+  border-color: var(--rs-btn-tone);
+  background: color-mix(in srgb, var(--rs-btn-tone) 14%, var(--rs-btn-tone-container));
+}
+.rs-btn--default:not(.rs-btn--tone-neutral):active:not(:disabled) {
+  color: var(--rs-btn-tone-hover);
+  border-color: var(--rs-btn-tone-hover);
+  background: color-mix(in srgb, var(--rs-btn-tone) 20%, var(--rs-btn-tone-container));
+}
+
+/* primary + 非主色：实心语义色 */
+.rs-btn--primary:not(.rs-btn--tone-primary) {
+  background: var(--rs-btn-tone);
+  color: var(--rs-btn-tone-fg);
+  border-color: transparent;
+}
+.rs-btn--primary:not(.rs-btn--tone-primary):hover:not(:disabled) {
+  background: var(--rs-btn-tone-hover);
+}
+
+/* ghost + 语义色：描边跟色相 */
+.rs-btn--ghost:not(.rs-btn--tone-neutral) {
+  border-color: color-mix(in srgb, var(--rs-btn-tone) 45%, var(--rs-border));
+}
+.rs-btn--ghost:not(.rs-btn--tone-neutral):hover:not(:disabled) {
+  border-color: var(--rs-btn-tone);
 }
 
 .rs-btn__spinner {
@@ -524,8 +573,8 @@ onUnmounted(() => {
 }
 .rs-btn--default .rs-btn__spinner-ring,
 .rs-btn--ghost .rs-btn__spinner-ring {
-  border-color: color-mix(in srgb, var(--rs-primary) 28%, transparent);
-  border-top-color: var(--rs-primary);
+  border-color: color-mix(in srgb, var(--rs-btn-tone, var(--rs-primary)) 28%, transparent);
+  border-top-color: var(--rs-btn-tone, var(--rs-primary));
 }
 .rs-btn--text .rs-btn__spinner-ring,
 .rs-btn--link .rs-btn__spinner-ring {

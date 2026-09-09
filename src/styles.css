@@ -448,6 +448,23 @@ html {
   --rs-terminal-ansi-bright-cyan: #8ad4d4;
   --rs-terminal-ansi-bright-white: #ffffff;
 
+  /* Log：级别色走 on-container，对照 WCAG AA（相对 --rs-log-bg） */
+  --rs-log-bg: var(--rs-terminal-bg);
+  --rs-log-fg: var(--rs-terminal-fg);
+  --rs-log-border: var(--rs-terminal-border);
+  --rs-log-stripe: var(--rs-terminal-row-stripe);
+  --rs-log-muted: var(--rs-text-secondary);
+  --rs-log-trace: var(--rs-text-tertiary);
+  --rs-log-debug: var(--rs-text-secondary);
+  --rs-log-info: var(--rs-on-info-container);
+  --rs-log-notice: var(--rs-info);
+  --rs-log-success: var(--rs-on-success-container);
+  --rs-log-warn: var(--rs-on-warning-container);
+  --rs-log-error: var(--rs-on-danger-container);
+  --rs-log-fatal: var(--rs-danger);
+  --rs-log-hit-bg: color-mix(in srgb, var(--rs-warning) 38%, var(--rs-log-bg));
+  --rs-log-hit-fg: var(--rs-log-fg);
+
   --rs-shadow-sm: 0 1px 3px rgb(0 0 0 / 0.4);
   --rs-shadow: 0 4px 16px rgb(0 0 0 / 0.45), 0 0 0 0.5px rgb(255 255 255 / 0.08);
   --rs-shadow-lg: 0 12px 32px rgb(0 0 0 / 0.5), 0 0 0 0.5px rgb(255 255 255 / 0.1);
@@ -672,6 +689,22 @@ html {
   --rs-terminal-ansi-bright-magenta: #b030b5;
   --rs-terminal-ansi-bright-cyan: #0d7f8a;
   --rs-terminal-ansi-bright-white: #1d1d1f;
+
+  --rs-log-bg: var(--rs-terminal-bg);
+  --rs-log-fg: var(--rs-terminal-fg);
+  --rs-log-border: var(--rs-terminal-border);
+  --rs-log-stripe: var(--rs-terminal-row-stripe);
+  --rs-log-muted: var(--rs-text-secondary);
+  --rs-log-trace: var(--rs-text-tertiary);
+  --rs-log-debug: var(--rs-text-secondary);
+  --rs-log-info: var(--rs-on-info-container);
+  --rs-log-notice: var(--rs-info);
+  --rs-log-success: var(--rs-on-success-container);
+  --rs-log-warn: var(--rs-on-warning-container);
+  --rs-log-error: var(--rs-on-danger-container);
+  --rs-log-fatal: var(--rs-danger);
+  --rs-log-hit-bg: color-mix(in srgb, var(--rs-warning) 32%, var(--rs-log-bg));
+  --rs-log-hit-fg: var(--rs-log-fg);
 
   --rs-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.04), 0 0 0 0.5px rgb(0 0 0 / 0.04);
   --rs-shadow: 0 4px 16px rgb(0 0 0 / 0.08), 0 0 0 0.5px rgb(0 0 0 / 0.06);
@@ -1208,6 +1241,10 @@ code {
 }
 
 .rs-field__label {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.25rem;
   color: var(--rs-label-color);
   font-size: var(--rs-label-font-size);
   font-weight: var(--rs-label-font-weight);

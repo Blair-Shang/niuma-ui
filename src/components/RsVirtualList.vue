@@ -130,19 +130,26 @@ const visibleItems = computed(() =>
 const totalHeight = computed(() => props.items.length * fixedItemSize.value)
 const offsetY = computed(() => startIndex.value * fixedItemSize.value)
 
-function scrollToIndex(index: number) {
+function scrollToIndex(index: number, align: 'nearest' | 'center' | 'start' | 'end' = 'center') {
   const el = rootRef.value
   if (!el || index < 0 || index >= props.items.length) return
   const itemTop = index * fixedItemSize.value
   const itemBottom = itemTop + fixedItemSize.value
   const viewTop = el.scrollTop
   const viewBottom = viewTop + el.clientHeight
-  if (itemTop >= viewTop && itemBottom <= viewBottom) {
+  if (align === 'nearest' && itemTop >= viewTop && itemBottom <= viewBottom) {
     return
   }
   const maxScroll = Math.max(0, totalHeight.value - el.clientHeight)
-  const centered = itemTop - (el.clientHeight - fixedItemSize.value) / 2
-  el.scrollTop = Math.min(maxScroll, Math.max(0, centered))
+  let next = itemTop - (el.clientHeight - fixedItemSize.value) / 2
+  if (align === 'start') next = itemTop
+  if (align === 'end') next = itemBottom - el.clientHeight
+  if (align === 'nearest') {
+    if (itemTop < viewTop) next = itemTop
+    else if (itemBottom > viewBottom) next = itemBottom - el.clientHeight
+    else return
+  }
+  el.scrollTop = Math.min(maxScroll, Math.max(0, next))
   scrollTop.value = el.scrollTop
 }
 

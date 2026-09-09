@@ -894,6 +894,13 @@
 .rs-table__cell-body--focused {
   background: color-mix(in srgb, var(--rs-primary) 6%, transparent);
 }
+.rs-table__table--cell-focus-outline .rs-table__cell-body--focused,
+.rs-table__table--cell-focus-none .rs-table__cell-body--focused {
+  background: transparent;
+}
+.rs-table__table--cell-focus-none .rs-table__td--focused:not(.rs-table__td--editing) {
+  outline: none;
+}
 .rs-table-cell-editor {
   display: block;
   width: 100%;

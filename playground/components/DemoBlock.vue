@@ -74,10 +74,12 @@ const codeLang = computed(() => props.lang || 'vue')
   border: 1px solid var(--rs-border-subtle);
   border-radius: var(--rs-radius);
   background: var(--rs-surface);
+  --rs-fieldset-legend-bg: var(--rs-surface);
 }
 
 :global([data-rs-theme='dark']) .demo-block__panel {
   background: var(--rs-surface-elevated);
+  --rs-fieldset-legend-bg: var(--rs-surface-elevated);
   border-color: var(--rs-border-subtle);
 }
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, useSlots } from 'vue'
+import { useRsI18n } from '../composables/useRsI18n'
 import { TooltipContent, TooltipPortal, TooltipRoot, TooltipTrigger } from './reka'
 import RsIcon from './RsIcon.vue'
 
@@ -24,6 +25,8 @@ const props = withDefaults(
     icon?: boolean
     /** 后缀图标名，默认 info（问号/说明圆标；对齐表单帮助惯用） */
     iconName?: string
+    /** 帮助图标的无障碍名称；缺省用 content，再回退 locale `tooltip.help` */
+    ariaLabel?: string
   }>(),
   {
     side: 'top',
@@ -38,8 +41,11 @@ const props = withDefaults(
 )
 
 const slots = useSlots()
+const { t } = useRsI18n()
 const hasLabelSlot = computed(() => Boolean(slots.default))
-const iconAriaLabel = computed(() => props.content?.trim() || 'Help')
+const iconAriaLabel = computed(
+  () => props.ariaLabel?.trim() || props.content?.trim() || t('tooltip.help', 'Help'),
+)
 </script>
 
 <template>
@@ -86,16 +92,17 @@ const iconAriaLabel = computed(() => props.content?.trim() || 'Help')
 <style>
 .rs-tooltip__with-icon {
   display: inline-flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.25rem;
+  width: max-content;
   max-width: 100%;
-  vertical-align: baseline;
+  vertical-align: middle;
 }
 
 .rs-tooltip__label {
-  display: inline-flex;
+  display: inline;
   min-width: 0;
-  max-width: 100%;
 }
 
 .rs-tooltip__icon-trigger {

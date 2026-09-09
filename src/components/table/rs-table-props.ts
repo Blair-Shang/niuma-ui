@@ -16,6 +16,9 @@ import type {
 } from '../table-utils'
 import type { RsTableRowDragTrigger, RsTableRowDropMode } from '../table-drag'
 import type { RsTableCellEditFocusMode } from './table-edit-utils'
+
+/** 单元格焦点视觉：fill 轮廓+内底；outline 仅轮廓；none 不画焦点块 */
+export type RsTableCellFocus = 'fill' | 'outline' | 'none'
 import type { RsTableFeature } from './table-features'
 import type { RsTableSummaryData, RsTableSummaryMode } from './table-summary-utils'
 
@@ -106,6 +109,11 @@ export interface RsTableProps<T extends RsTableRowData = RsTableRowData> {
   cellTooltip?: boolean
   cellTooltipDelay?: number
   headerTooltip?: boolean
+  /**
+   * 焦点格视觉。只读展示表用 `outline` / `none`，避免自定义插槽再套一块内底。
+   * 键盘漫游仍维护 focusCell。
+   */
+  cellFocus?: RsTableCellFocus
   editable?: boolean
   editTrigger?: 'click' | 'dblclick'
   editGutter?: boolean
@@ -318,6 +326,7 @@ export const RS_TABLE_PROP_DEFAULTS = {
   cellTooltip: true,
   cellTooltipDelay: 300,
   headerTooltip: true,
+  cellFocus: 'fill' as const,
   editable: false,
   editTrigger: 'dblclick' as const,
   editGutter: true,

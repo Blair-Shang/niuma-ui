@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import {
+  RsAvatar,
   RsBadge,
   RsButton,
   RsEmpty,
@@ -38,6 +39,14 @@ const statusVariants: Record<TaskRow['status'], 'success' | 'default' | 'warning
   running: 'success',
   stopped: 'default',
   pending: 'warning',
+}
+
+function statusLabel(status: TaskRow['status']): string {
+  return statusLabels[status]
+}
+
+function statusVariant(status: TaskRow['status']): 'success' | 'default' | 'warning' {
+  return statusVariants[status]
 }
 
 const basicColumns: RsTableColumn<TaskRow>[] = [
@@ -89,7 +98,7 @@ const customColumns: RsTableColumn<TaskRow>[] = [
   {
     key: 'status',
     title: '状态',
-    render: (row) => statusLabels[row.status],
+    render: (row) => statusLabel(row.status),
   },
   { key: 'count', title: '数量', align: 'right' },
 ]
@@ -98,10 +107,10 @@ const loading = ref(false)
 const emptyDemoHasData = ref(false)
 const clickedRow = ref<string | null>(null)
 
-const allUsers = Array.from({ length: 47 }, (_, index) => ({
+const allUsers: TaskRow[] = Array.from({ length: 47 }, (_, index) => ({
   id: String(index + 1),
   name: `用户 ${String(index + 1).padStart(2, '0')}`,
-  status: (['running', 'stopped', 'pending'] as const)[index % 3],
+  status: (['running', 'stopped', 'pending'] as const)[index % 3] as TaskRow['status'],
   count: (index + 1) * 3,
   updatedAt: `2026-06-${String((index % 28) + 1).padStart(2, '0')}`,
 }))
@@ -179,7 +188,7 @@ const ellipsisColumns: RsTableColumn<TaskRow>[] = [
     key: 'status',
     title: '状态',
     width: 88,
-    tooltip: (row) => `当前状态：${statusLabels[row.status]}（count=${row.count}）`,
+    tooltip: (row) => `当前状态：${statusLabel(row.status)}（count=${row.count}）`,
   },
   { key: 'updatedAt', title: '更新日期', ellipsis: true, width: 100 },
 ]
@@ -491,7 +500,7 @@ function onIntoRowDrop(
         row-key="id"
       >
         <template #status="{ row }">
-          <RsBadge :variant="statusVariants[row.status]">{{ statusLabels[row.status] }}</RsBadge>
+          <RsBadge :variant="statusVariant(row.status)">{{ statusLabel(row.status) }}</RsBadge>
         </template>
       </RsTable>
       <p class="meta">
@@ -524,7 +533,7 @@ function onIntoRowDrop(
         row-key="id"
       >
         <template #status="{ row }">
-          <RsBadge :variant="statusVariants[row.status]">{{ statusLabels[row.status] }}</RsBadge>
+          <RsBadge :variant="statusVariant(row.status)">{{ statusLabel(row.status) }}</RsBadge>
         </template>
       </RsTable>
       <p class="meta">
@@ -557,11 +566,11 @@ function onIntoRowDrop(
         :columns="sortColumns"
         :data="allUsers.slice(0, 18)"
         group-by="status"
-        :group-label="(key) => `状态 · ${statusLabels[key as TaskRow['status']] ?? key}`"
+        :group-label="(key) => `状态 · ${statusLabel(key as TaskRow['status'])}`"
         row-key="id"
       >
         <template #status="{ row }">
-          <RsBadge :variant="statusVariants[row.status]">{{ statusLabels[row.status] }}</RsBadge>
+          <RsBadge :variant="statusVariant(row.status)">{{ statusLabel(row.status) }}</RsBadge>
         </template>
       </RsTable>
     </DemoBlock>
@@ -1012,11 +1021,80 @@ function onIntoRowDrop(
       </p>
       <RsTable :columns="customColumns" :data="basicRows" row-key="id">
         <template #status="{ row }">
-          <RsBadge :variant="statusVariants[row.status]">
-            {{ statusLabels[row.status] }}
+          <RsBadge :variant="statusVariant(row.status)">
+            {{ statusLabel(row.status) }}
           </RsBadge>
         </template>
       </RsTable>
+    </DemoBlock>
+
+    <DemoBlock title="焦点格视觉 cellFocus">
+      <p class="hint">
+        加性属性，默认 <code>fill</code>（不传与原先一致：轮廓 + 内底）。
+        <code>outline</code> 只留轮廓；<code>none</code> 轮廓和内底都不画。
+        只改 CSS，键盘漫游仍维护 <code>focusCell</code>。点名称列对比自定义插槽。
+      </p>
+      <div class="stack">
+        <div>
+          <p class="panel-label">fill · 默认 · 轮廓 + 内底</p>
+          <RsTable
+            :columns="basicColumns"
+            :data="basicRows"
+            row-key="id"
+            :context-menu="false"
+          >
+            <template #name="{ row }">
+              <div class="focus-id">
+                <RsAvatar size="sm" :name="row.name" />
+                <div class="focus-id__meta">
+                  <span class="focus-id__name">{{ row.name }}</span>
+                  <span class="focus-id__sub">{{ row.id }}</span>
+                </div>
+              </div>
+            </template>
+          </RsTable>
+        </div>
+        <div>
+          <p class="panel-label">outline · 仅轮廓</p>
+          <RsTable
+            :columns="basicColumns"
+            :data="basicRows"
+            row-key="id"
+            cell-focus="outline"
+            :context-menu="false"
+          >
+            <template #name="{ row }">
+              <div class="focus-id">
+                <RsAvatar size="sm" :name="row.name" />
+                <div class="focus-id__meta">
+                  <span class="focus-id__name">{{ row.name }}</span>
+                  <span class="focus-id__sub">{{ row.id }}</span>
+                </div>
+              </div>
+            </template>
+          </RsTable>
+        </div>
+        <div>
+          <p class="panel-label">none · 不画焦点块</p>
+          <RsTable
+            :columns="basicColumns"
+            :data="basicRows"
+            row-key="id"
+            cell-focus="none"
+            :context-menu="false"
+          >
+            <template #name="{ row }">
+              <div class="focus-id">
+                <RsAvatar size="sm" :name="row.name" />
+                <div class="focus-id__meta">
+                  <span class="focus-id__name">{{ row.name }}</span>
+                  <span class="focus-id__sub">{{ row.id }}</span>
+                </div>
+              </div>
+            </template>
+          </RsTable>
+        </div>
+      </div>
     </DemoBlock>
 
     <DemoBlock title="自定义表头">
@@ -1192,6 +1270,25 @@ function onIntoRowDrop(
   margin: 0 0 0.5rem;
   font-size: var(--rs-font-size-xs);
   font-weight: 500;
+  color: var(--rs-muted);
+}
+.focus-id {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.focus-id__meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+.focus-id__name {
+  font-weight: 500;
+}
+.focus-id__sub {
+  font-size: var(--rs-font-size-xs);
   color: var(--rs-muted);
 }
 .header-accent {

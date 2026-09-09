@@ -69,6 +69,20 @@ describe('RsDialog', () => {
     wrapper.unmount()
   })
 
+  it('opens window layout at a viewport percentage height', async () => {
+    const wrapper = mount(RsDialog, {
+      props: { open: true, title: '百分比高度', width: '80%', height: '70%' },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const content = document.body.querySelector('.rs-dialog__content') as HTMLElement
+    const height = Number.parseFloat(content.style.height)
+    const available = window.innerHeight - 32
+    const expectedHeight = Math.min(available, Math.max(240, Math.round(available * 0.7)))
+    expect(height).toBe(expectedHeight)
+    wrapper.unmount()
+  })
+
   it('centers window layout when width is a viewport percentage', async () => {
     const wrapper = mount(RsDialog, {
       props: { open: true, title: '百分比宽度', width: '90%' },

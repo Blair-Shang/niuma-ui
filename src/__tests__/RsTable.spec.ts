@@ -1,6 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
-import { h } from 'vue'
+import { h, nextTick } from 'vue'
 import RsTable from '../components/RsTable.vue'
 
 vi.mock('../utils/rs-clipboard', () => ({
@@ -20,6 +20,39 @@ describe('RsTable', () => {
     { id: '2', name: 'A', count: 10, status: 'stopped' },
     { id: '3', name: 'C', count: 5, status: 'running' },
   ]
+
+  it('cellFocus 默认 fill，不传不影响原视觉 class', () => {
+    const fill = mount(RsTable, { props: { columns, data } })
+    expect(fill.find('table.rs-table__table--cell-focus-fill').exists()).toBe(true)
+    fill.unmount()
+
+    const outline = mount(RsTable, { props: { columns, data, cellFocus: 'outline' } })
+    expect(outline.find('table.rs-table__table--cell-focus-outline').exists()).toBe(true)
+    outline.unmount()
+
+    const none = mount(RsTable, { props: { columns, data, cellFocus: 'none' } })
+    expect(none.find('table.rs-table__table--cell-focus-none').exists()).toBe(true)
+    none.unmount()
+  })
+
+  it('cellFocus=none 仍维护 focusCell（键盘漫游 class 仍在）', async () => {
+    const wrapper = mount(RsTable, {
+      props: {
+        columns,
+        data,
+        rowKey: 'id',
+        cellFocus: 'none',
+      },
+      attachTo: document.body,
+    })
+    const table = wrapper.find('table.rs-table__table')
+    await table.trigger('keydown', { key: 'ArrowDown' })
+    await nextTick()
+    expect(wrapper.find('.rs-table__td--focused').exists()).toBe(true)
+    expect(wrapper.find('.rs-table__td--focused').attributes('data-col-key')).toBe('name')
+    expect(wrapper.find('.rs-table__cell-body--focused').exists()).toBe(true)
+    wrapper.unmount()
+  })
 
   it('renders column headers and cell values', () => {
     const wrapper = mount(RsTable, {

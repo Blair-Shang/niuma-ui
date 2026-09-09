@@ -3,6 +3,7 @@ import { computed, ref, useId, useSlots, watch } from 'vue'
 import { useRsI18n } from '../composables/useRsI18n'
 import RsVNodeHost from './RsVNodeHost.vue'
 import RsFormItemControl from './RsFormItemControl.vue'
+import RsTooltip from './RsTooltip.vue'
 import {
   provideRsFormItemContext,
   useRsFormContext,
@@ -45,6 +46,8 @@ const props = withDefaults(
     errorMessage?: string
     showMessage?: boolean
     hint?: string
+    /** 标签旁帮助图标，悬停出提示（对齐 Ant Design Form.Item tooltip，不另起一行） */
+    tooltip?: string
     /** 始终展示的辅助说明（错误出现时仍保留） */
     extra?: string
     /** 无错误时的说明；出错时被错误文案替换 */
@@ -318,6 +321,7 @@ defineExpose({
       <slot name="label">
         <label :for="fieldId">{{ label }}</label>
       </slot>
+      <RsTooltip v-if="tooltip" icon :content="tooltip" />
       <span v-if="showRequiredMark" class="rs-field__required" aria-hidden="true">*</span>
     </span>
 

@@ -634,6 +634,7 @@ defineExpose({
   box-sizing: border-box;
   border: 1px solid var(--rs-drawer-border, var(--rs-border));
   background: var(--rs-drawer-body-bg, var(--rs-surface-elevated));
+  --rs-fieldset-legend-bg: var(--rs-drawer-body-bg, var(--rs-surface-elevated));
   color: var(--rs-text);
   box-shadow: var(--rs-shadow-lg);
   outline: none;

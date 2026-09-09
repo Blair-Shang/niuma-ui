@@ -1416,6 +1416,15 @@ defineExpose<RsInputExpose>({
 
 }
 
+/* type=search 自带取消钮，与 clearable 的 x 叠成两个 */
+.rs-input-group__control[type='search']::-webkit-search-decoration,
+.rs-input-group__control[type='search']::-webkit-search-cancel-button,
+.rs-input-group__control[type='search']::-webkit-search-results-button,
+.rs-input-group__control[type='search']::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 .rs-input-group__control--ssm {
 
   padding: 0 var(--rs-space-xs);

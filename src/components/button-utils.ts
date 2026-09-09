@@ -1,8 +1,11 @@
 /**
- * RsButton 外观变体
- * - primary / default / ghost / danger：常规控件按钮
- * - link：行内链接态（可带下划线）
- * - text：工具栏/表格操作等 quaternary 文字按钮（无底无边，靠 tone 着色）
+ * RsButton 外观变体（形态，与 tone 正交）
+ * - primary：实心
+ * - default / secondary：轮廓 + 浅底（secondary 等价 default）
+ * - ghost：透明底 + 描边
+ * - text：无底无边
+ * - link：行内链接
+ * - danger：兼容别名，等价 primary + tone="danger" 的历史实心底（保留独立样式）
  */
 export type RsButtonVariant =
   | 'primary'
@@ -14,9 +17,9 @@ export type RsButtonVariant =
   | 'text'
 
 /**
- * RsButton 语义色调
- * 主要用于 text / ghost / link：只改文字与图标色，不改变填充形态。
- * 对 primary / default / danger 等填充变体将被忽略。
+ * RsButton 语义色（色相，与 variant 正交）
+ * 对齐 Ant Design color / Element Plus type / Naive UI type：
+ * `variant="default" tone="warning"` → 描边 + 浅底 + 警告色。
  */
 export type RsButtonTone =
   | 'neutral'
@@ -26,14 +29,31 @@ export type RsButtonTone =
   | 'warning'
   | 'info'
 
-/** 填充类变体：已自带语义色，不再叠加 tone */
+/** 规范化变体：未传为 primary；secondary 视为 default。 */
+export function resolveRsButtonVariant(variant?: RsButtonVariant): Exclude<RsButtonVariant, 'secondary'> {
+  if (variant === 'secondary') return 'default'
+  if (!variant) return 'primary'
+  return variant
+}
+
+/**
+ * 解析语义色。未传 tone 时：primary/link 用 primary，danger 变体用 danger，其余 neutral。
+ */
+export function resolveRsButtonTone(variant?: RsButtonVariant, tone?: RsButtonTone): RsButtonTone {
+  if (tone) return tone
+  const resolved = resolveRsButtonVariant(variant)
+  if (resolved === 'danger') return 'danger'
+  if (resolved === 'primary' || resolved === 'link') return 'primary'
+  return 'neutral'
+}
+
+/** 实心/轮廓填充类变体（相对 text / ghost / link）。 */
 export function isRsButtonFilledVariant(variant: RsButtonVariant): boolean {
-  const resolved = variant === 'secondary' ? 'default' : variant
+  const resolved = resolveRsButtonVariant(variant)
   return resolved === 'primary' || resolved === 'default' || resolved === 'danger'
 }
 
-/** text / ghost / link 可叠加 tone */
-export function supportsRsButtonTone(variant: RsButtonVariant): boolean {
-  const resolved = variant === 'secondary' ? 'default' : variant
-  return resolved === 'text' || resolved === 'ghost' || resolved === 'link'
+/** 所有变体都可叠加 tone（形态 × 色相）。 */
+export function supportsRsButtonTone(_variant?: RsButtonVariant): boolean {
+  return true
 }

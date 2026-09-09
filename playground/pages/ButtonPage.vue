@@ -9,7 +9,13 @@ const buttonApi: DemoApiRow[] = [
     name: 'variant',
     type: "'primary' | 'secondary' | 'default' | 'ghost' | 'danger' | 'link' | 'text'",
     default: "'primary'",
-    description: '视觉变体；secondary 等价 default（轮廓次要按钮）',
+    description: '形态：实心 / 轮廓浅底 / 幽灵 / 文字 / 链接。secondary 等价 default。与 tone 正交。',
+  },
+  {
+    name: 'tone',
+    type: "'neutral' | 'primary' | 'success' | 'warning' | 'danger' | 'info'",
+    default: 'primary/link 为 primary，danger 变体为 danger，其余 neutral',
+    description: '语义色。例：variant="default" tone="warning" → 描边 + 浅底警告色（对齐 Ant color / Element type）。',
   },
   { name: 'size', type: "'ssm' | 'sm' | 'md' | 'lg'", default: "'md'", description: '控件尺寸' },
   {
@@ -30,6 +36,11 @@ const variantsCode = `<RsButton>主要</RsButton>
 <RsButton variant="secondary">次要</RsButton>
 <RsButton variant="default">默认（同 secondary）</RsButton>
 <RsButton variant="ghost">幽灵</RsButton>`
+
+const tonesCode = `<RsButton variant="default" tone="primary">刷新</RsButton>
+<RsButton variant="default" tone="warning">远程推送</RsButton>
+<RsButton variant="default" tone="success">通过</RsButton>
+<RsButton variant="primary" tone="danger">删除</RsButton>`
 
 const formActionsCode = `<RsButton variant="primary">保存</RsButton>
 <RsButton variant="secondary">重置</RsButton>`
@@ -110,6 +121,26 @@ function runLongLoad() {
         <RsButton variant="text">text</RsButton>
         <RsButton variant="link">link</RsButton>
         <RsButton disabled>禁用</RsButton>
+      </div>
+    </DemoBlock>
+
+    <DemoBlock title="语义色（形态 × 色相）" :code="tonesCode">
+      <p class="hint">
+        <code>tone</code> 只改色相，<code>variant</code> 只管形态。轮廓按钮用
+        <code>variant="default"</code> 即可同时有描边和浅底，不必再写业务 CSS。
+      </p>
+      <div class="row">
+        <RsButton variant="default" tone="primary" size="sm">primary</RsButton>
+        <RsButton variant="default" tone="success" size="sm">success</RsButton>
+        <RsButton variant="default" tone="warning" size="sm">warning</RsButton>
+        <RsButton variant="default" tone="danger" size="sm">danger</RsButton>
+        <RsButton variant="default" tone="info" size="sm">info</RsButton>
+      </div>
+      <div class="row" style="margin-top: 0.65rem">
+        <RsButton variant="primary" tone="success" size="sm">实心 success</RsButton>
+        <RsButton variant="primary" tone="warning" size="sm">实心 warning</RsButton>
+        <RsButton variant="ghost" tone="danger" size="sm">幽灵 danger</RsButton>
+        <RsButton variant="text" tone="info" size="sm">文字 info</RsButton>
       </div>
     </DemoBlock>
 

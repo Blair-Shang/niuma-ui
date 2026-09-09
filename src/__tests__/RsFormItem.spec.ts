@@ -9,6 +9,7 @@ import RsInput from '../components/RsInput.vue'
 import RsSelect from '../components/RsSelect.vue'
 import RsSwitch from '../components/RsSwitch.vue'
 import RsTimePicker from '../components/RsTimePicker.vue'
+import RsTooltipProvider from '../components/RsTooltipProvider.vue'
 
 describe('RsFormItem', () => {
   afterEach(() => {
@@ -473,6 +474,28 @@ describe('RsFormItem', () => {
     expect(trigger.classes()).toContain('rs-select__trigger--invalid')
     expect(trigger.attributes('aria-invalid')).toBe('true')
     expect(wrapper.find('.rs-select').attributes('aria-invalid')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('keeps the help tooltip icon on the label row', () => {
+    const Host = defineComponent({
+      components: { RsForm, RsFormItem, RsTooltipProvider },
+      template: `
+        <RsTooltipProvider>
+          <RsForm>
+            <RsFormItem label="工程名" tooltip="只能含字母、数字、下划线或连字符" required>
+              <button type="button">ok</button>
+            </RsFormItem>
+          </RsForm>
+        </RsTooltipProvider>
+      `,
+    })
+    const wrapper = mount(Host)
+    const label = wrapper.find('.rs-field__label')
+    expect(label.exists()).toBe(true)
+    expect(label.find('.rs-tooltip__icon-trigger').exists()).toBe(true)
+    expect(label.find('.rs-field__required').exists()).toBe(true)
+    expect(label.text()).toContain('工程名')
     wrapper.unmount()
   })
 })
