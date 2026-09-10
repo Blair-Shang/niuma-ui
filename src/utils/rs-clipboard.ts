@@ -235,9 +235,16 @@ export function copyTextWithExecCommand(text: string): boolean {
     const textarea = document.createElement('textarea')
     textarea.value = text
     textarea.setAttribute('readonly', '')
-    textarea.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0'
+    textarea.style.cssText =
+      'position:fixed;left:0;top:0;width:1px;height:1px;padding:0;border:0;opacity:0.01'
     document.body.appendChild(textarea)
+    if (typeof textarea.focus === 'function') {
+      textarea.focus()
+    }
     textarea.select()
+    if (typeof textarea.setSelectionRange === 'function') {
+      textarea.setSelectionRange(0, text.length)
+    }
     const ok = document.execCommand('copy')
     textarea.remove()
     return ok
@@ -246,10 +253,21 @@ export function copyTextWithExecCommand(text: string): boolean {
   }
 }
 
-/** 写入系统剪贴板（API 优先，execCommand 兜底） */
+/** HTTP / 非安全上下文没有 Clipboard API，writeText 会 SecurityError。 */
+export function isInsecureClipboardContext(): boolean {
+  return typeof globalThis !== 'undefined' && globalThis.isSecureContext === false
+}
+
+/** 写入系统剪贴板。HTTP 先同步 execCommand，避免 await 丢掉用户手势。 */
 export async function copyTextToClipboard(text: string): Promise<boolean> {
   if (!text) {
     return false
+  }
+  if (isInsecureClipboardContext()) {
+    if (copyTextWithExecCommand(text)) {
+      return true
+    }
+    return writeClipboardViaShell(text)
   }
   await syncClipboardPermissionState()
   if (!writeApiBlocked && (await writeClipboardText(text))) {

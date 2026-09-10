@@ -4,6 +4,7 @@ import {
   beginClipboardPrefetch,
   copyTextToClipboard,
   copyTextWithExecCommand,
+  isInsecureClipboardContext,
   readClipboardText,
   writeClipboardText,
 } from '../utils/rs-clipboard'
@@ -58,6 +59,31 @@ describe('rs-clipboard', () => {
     vi.stubGlobal('navigator', { clipboard: { readText: vi.fn(), writeText } })
     await expect(writeClipboardText('hello')).resolves.toBe(true)
     expect(writeText).toHaveBeenCalledWith('hello')
+  })
+
+  it('skips Clipboard API on HTTP and uses execCommand first', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    const execCommand = vi.fn().mockReturnValue(true)
+    Object.defineProperty(window, 'isSecureContext', { configurable: true, value: false })
+    vi.stubGlobal('navigator', { clipboard: { readText: vi.fn(), writeText } })
+    vi.stubGlobal('document', {
+      body: { appendChild: vi.fn(), removeChild: vi.fn() },
+      createElement: () => ({
+        value: '',
+        style: {},
+        setAttribute: vi.fn(),
+        focus: vi.fn(),
+        select: vi.fn(),
+        setSelectionRange: vi.fn(),
+        remove: vi.fn(),
+      }),
+      execCommand,
+    })
+    expect(isInsecureClipboardContext()).toBe(true)
+    await expect(copyTextToClipboard('http://nexus.example/maven-metadata.xml')).resolves.toBe(true)
+    expect(writeText).not.toHaveBeenCalled()
+    expect(execCommand).toHaveBeenCalledWith('copy')
+    Object.defineProperty(window, 'isSecureContext', { configurable: true, value: true })
   })
 
   it('falls back to execCommand when writeText fails', async () => {

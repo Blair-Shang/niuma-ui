@@ -173,8 +173,10 @@ const regionLabel = computed(() => props.ariaLabel || t('log.label', 'Log'))
 const hasChrome = computed(
   () => props.showSearch || props.showCopy || props.showFilter || Boolean(slots.toolbar),
 )
+const copyFailed = ref(false)
 const copyTip = computed(() => {
   if (copied.value) return t('log.copied', 'Copied')
+  if (copyFailed.value) return t('log.copyFailed', 'Copy failed')
   return t('log.copy', 'Copy')
 })
 
@@ -267,11 +269,22 @@ function readDomSelection(): string {
 
 function markCopied(): void {
   copied.value = true
+  copyFailed.value = false
   if (copiedTimer) window.clearTimeout(copiedTimer)
   copiedTimer = window.setTimeout(() => {
     copied.value = false
     copiedTimer = 0
   }, 1500)
+}
+
+function markCopyFailed(): void {
+  copyFailed.value = true
+  copied.value = false
+  if (copiedTimer) window.clearTimeout(copiedTimer)
+  copiedTimer = window.setTimeout(() => {
+    copyFailed.value = false
+    copiedTimer = 0
+  }, 2500)
 }
 
 async function writeCopy(text: string, source: RsLogCopySource): Promise<boolean> {
@@ -280,6 +293,8 @@ async function writeCopy(text: string, source: RsLogCopySource): Promise<boolean
   if (ok) {
     markCopied()
     emit('copy', { text, source })
+  } else {
+    markCopyFailed()
   }
   return ok
 }
@@ -734,6 +749,7 @@ defineExpose<RsLogExpose>({
   margin-block: 0.2rem;
   border-radius: 99px;
   background: currentColor;
+  user-select: none;
 }
 .rs-log__no,
 .rs-log__time {
@@ -741,6 +757,7 @@ defineExpose<RsLogExpose>({
   color: var(--rs-log-muted, var(--rs-text-muted));
   font-variant-numeric: tabular-nums;
   unicode-bidi: isolate;
+  user-select: none;
 }
 .rs-log__level {
   flex-shrink: 0;
@@ -748,6 +765,7 @@ defineExpose<RsLogExpose>({
   font-weight: var(--rs-font-weight-semibold);
   letter-spacing: 0.02em;
   unicode-bidi: isolate;
+  user-select: none;
 }
 .rs-log__text {
   min-width: 0;
