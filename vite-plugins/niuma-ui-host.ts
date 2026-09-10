@@ -61,7 +61,38 @@ export function niumaUiHost(options: NiumaUiHostOptions = {}): Plugin[] {
 }
 
 /**
- * NiumaUiHostAlias 仅在 serve 且存在 src 时把 styles.css 指到源码，并排除整桶预构建。
+ * DayjsServeAliases 把 CJS 插件指到 ESM 构建。
+ * 发布桶 / 源码被 exclude 后，Vite 否则会按 ESM 加载 UMD，报没有 default。
+ */
+export function dayjsServeAliases(root: string): { find: RegExp; replacement: string }[] {
+  let req: ReturnType<typeof createRequire>
+  try {
+    req = createRequire(join(root, 'package.json'))
+  } catch {
+    return []
+  }
+  const aliases: { find: RegExp; replacement: string }[] = []
+  try {
+    aliases.push({
+      find: /^dayjs\/plugin\/customParseFormat(?:\.js)?$/,
+      replacement: req.resolve('dayjs/esm/plugin/customParseFormat'),
+    })
+  } catch {
+    // dayjs 未装在包旁时跳过
+  }
+  try {
+    aliases.push({
+      find: /^dayjs$/,
+      replacement: req.resolve('dayjs/esm'),
+    })
+  } catch {
+    // dayjs 未装在包旁时跳过
+  }
+  return aliases
+}
+
+/**
+ * NiumaUiHostAlias 仅在 serve 时补 dayjs ESM 别名；有 src 时再改 styles 并排除整桶预构建。
  */
 function niumaUiHostAlias(ctx: HostContext): Plugin {
   return {
@@ -69,14 +100,20 @@ function niumaUiHostAlias(ctx: HostContext): Plugin {
     apply: 'serve',
     enforce: 'pre',
     config() {
-      if (!ctx.hasSrc) return {}
+      const dayjsAlias = dayjsServeAliases(ctx.root)
+      if (!ctx.hasSrc) {
+        return dayjsAlias.length > 0 ? { resolve: { alias: dayjsAlias } } : {}
+      }
       const styles = join(ctx.root, 'src/styles.css')
-      const alias = existsSync(styles)
-        ? [
-            { find: '@niuma/ui/styles.css', replacement: styles },
-            { find: 'niuma-ui/styles.css', replacement: styles },
-          ]
-        : []
+      const alias = [
+        ...(existsSync(styles)
+          ? [
+              { find: '@niuma/ui/styles.css', replacement: styles },
+              { find: 'niuma-ui/styles.css', replacement: styles },
+            ]
+          : []),
+        ...dayjsAlias,
+      ]
       return {
         resolve: alias.length > 0 ? { alias } : {},
         // 不要把 reka-ui / @lucide/vue / vue-sonner 写进 include：

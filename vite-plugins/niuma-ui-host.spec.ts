@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
+  dayjsServeAliases,
   emitLiveReexportIndex,
   parseRuntimeBindings,
   rewriteHostModule,
@@ -235,5 +236,20 @@ describe('rewriteHostStatement', () => {
     expect(() =>
       rewriteHostStatement(`export { RsMissing } from '@niuma/ui'`, '@niuma/ui', map, published),
     ).toThrow(/RsMissing/)
+  })
+})
+
+describe('dayjsServeAliases', () => {
+  it('points the CJS plugin specifier at the ESM build', () => {
+    const aliases = dayjsServeAliases(pkgRoot)
+    expect(aliases.length).toBeGreaterThanOrEqual(1)
+    const plugin = aliases.find((item) => item.find.test('dayjs/plugin/customParseFormat'))
+    expect(plugin).toBeTruthy()
+    expect(plugin?.find.test('dayjs/plugin/customParseFormat.js')).toBe(true)
+    expect(plugin?.replacement.replace(/\\/g, '/')).toMatch(
+      /dayjs\/esm\/plugin\/customParseFormat/,
+    )
+    const core = aliases.find((item) => item.find.test('dayjs') && !item.find.test('dayjs/plugin'))
+    expect(core?.replacement.replace(/\\/g, '/')).toMatch(/dayjs\/esm/)
   })
 })

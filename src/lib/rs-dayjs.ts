@@ -1,5 +1,6 @@
 import dayjs, { type Dayjs } from 'dayjs'
-import customParseFormat from 'dayjs/plugin/customParseFormat'
+// CJS UMD 插件没有 ESM `default`。宿主 exclude `@niuma/ui` 后 Vite 会直接 serve 该文件。
+import customParseFormat from 'dayjs/esm/plugin/customParseFormat'
 
 dayjs.extend(customParseFormat)
 

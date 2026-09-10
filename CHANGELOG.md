@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-09-09
+
+### 修复
+
+- `rs-dayjs`：插件改从 `dayjs/esm` 引入。宿主 `optimizeDeps.exclude` `@niuma/ui` 时，Vite 不再把 CJS UMD 插件当成缺少 `default` 的 ESM。
+
 ## [1.3.1] - 2026-09-09
 
 ### 修复
