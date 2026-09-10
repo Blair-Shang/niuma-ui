@@ -41,6 +41,15 @@ const filterLevels = ref<RsLogLevel[]>([])
 let timer = 0
 let tick = 0
 
+const wrapFillLines = `[2026/9/10 17:02:58] 预同步 Git（2/43）：flux-collaboration-adapterexpress  pull origin release/V9.0.0-P08-03 --ff-only
+[INFO] clone https://git.example.com/group/very-long-repo-name-flux-collaboration-adapterexpress.git into /data/autopack/workspaces/ws-001/src/flux-collaboration-adapterexpress
+[INFO] checkout release/V9.0.0-P08-03 @ 8f3a1c2
+done.`
+
+const wrapFillCode = `<div class="log-col">
+  <RsLog v-model:lines="text" wrap height="100%" />
+</div>`
+
 const largeLines = ref(
   Array.from({ length: 8000 }, (_, index) => {
     const level: RsLogLevel =
@@ -211,6 +220,23 @@ onUnmounted(stopLive)
       <p class="meta">当前 {{ liveLines.length }} 行，可见 {{ liveRef?.getVisibleLines().length ?? liveLines.length }} 行</p>
     </DemoBlock>
 
+    <DemoBlock title="折行（撑满栏，对齐作业/发版日志）" :code="wrapFillCode">
+      <p class="hint">
+        自动构建 / 发版右侧日志是 <code>wrap</code> + <code>height="100%"</code>。
+        折行行高必须跟正文走，不能 <code>min-height: 100%</code>，否则会出现整栏空白、字挤在底部。
+        几何回归：Playground <code>/#/visual/rs-log</code>（不进侧栏），<code>pnpm test:visual</code>。
+      </p>
+      <div class="wrap-fill">
+        <RsLog
+          :lines="wrapFillLines"
+          wrap
+          height="100%"
+          :show-search="false"
+          aria-label="折行撑满示例"
+        />
+      </div>
+    </DemoBlock>
+
     <DemoBlock title="大数据虚拟滚动" :code="largeCode">
       <p class="hint">8000 行只渲染可视区 + <code>overscan</code>。不要用 <code>RsTextarea</code> 或整段 <code>pre</code>。</p>
       <RsLog :lines="largeLines" :height="320" :item-size="24" show-time />
@@ -248,6 +274,16 @@ onUnmounted(stopLive)
   font-size: 0.86rem;
   line-height: 1.55;
   color: var(--rs-text-muted, #64748b);
+}
+.wrap-fill {
+  width: min(100%, 22rem);
+  height: 22rem;
+  display: flex;
+  flex-direction: column;
+}
+.wrap-fill :deep(.rs-log) {
+  flex: 1;
+  min-height: 0;
 }
 .actions {
   display: flex;

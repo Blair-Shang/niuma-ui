@@ -346,7 +346,7 @@ export const playgroundRoutes: PlaygroundRoute[] = [
     name: 'log',
     title: 'RsLog',
     group: 'editor',
-    description: '作业 / 发版日志：虚拟滚动、级别（含 syslog / OTel）、搜索过滤、键盘漫游。不是终端。',
+    description: '作业 / 发版日志：虚拟滚动、折行撑满、级别（含 syslog / OTel）、搜索过滤、键盘漫游。不是终端。',
     testFile: 'RsLog.spec.ts / RsLog.a11y.spec.ts',
   },
   {

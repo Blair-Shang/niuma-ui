@@ -76,6 +76,10 @@ const router = createRouter({
       path: '/visual/rs-table',
       component: () => import('./pages/visual/RsTableVisualPage.vue'),
     },
+    {
+      path: '/visual/rs-log',
+      component: () => import('./pages/visual/RsLogVisualPage.vue'),
+    },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })

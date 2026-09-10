@@ -700,14 +700,23 @@ defineExpose<RsLogExpose>({
   align-items: flex-start;
   gap: 0.55rem;
   box-sizing: border-box;
-  min-height: 100%;
   padding: 0 0.7rem;
   white-space: nowrap;
   color: var(--rs-log-row-fg, var(--rs-log-fg));
 }
+.rs-log:not(.rs-log--wrap) .rs-log__list .rs-log__row {
+  min-height: 100%;
+}
+.rs-log--wrap .rs-log__plain {
+  display: block;
+}
 .rs-log--wrap .rs-log__row {
+  height: auto;
+  max-height: none;
+  min-height: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  word-break: break-word;
   padding-block: 0.25rem;
 }
 .rs-log--zebra .rs-log__row--odd {
@@ -748,7 +757,9 @@ defineExpose<RsLogExpose>({
   user-select: text;
 }
 .rs-log--wrap .rs-log__text {
-  overflow: hidden;
+  overflow: visible;
+  height: auto;
+  min-height: 0;
 }
 .rs-log:not(.rs-log--wrap) .rs-log__text {
   overflow: hidden;

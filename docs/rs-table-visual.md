@@ -19,6 +19,7 @@ pnpm test:visual:update
 
 - 路由：`/#/visual/rs-table`（不进侧栏）
 - 固定英文/浅色/固定行列与宽度，降低抖动
+- `RsLog` 折行：`/#/visual/rs-log`，用行高/贴顶几何断言（不是截图），防止 `wrap` + `height: 100%` 再把每行撑满栏
 
 ## CI
 

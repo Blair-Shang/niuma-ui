@@ -220,6 +220,38 @@ describe('RsLog', () => {
     wrapper.unmount()
   })
 
+  it('wrap uses a plain list so rows can grow with the text', () => {
+    const wrapper = mount(RsLog, {
+      props: {
+        lines: '[2026/9/10 17:02:58] 预同步 Git（2/43）：flux-collaboration-adapterexpress',
+        wrap: true,
+        height: 160,
+      },
+    })
+    expect(wrapper.find('.rs-log--wrap').exists()).toBe(true)
+    expect(wrapper.find('.rs-log__plain').exists()).toBe(true)
+    expect(wrapper.find('.rs-log__list').exists()).toBe(false)
+    expect(wrapper.findAll('.rs-log__row')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('wrap fill-height still renders one row per line', () => {
+    const wrapper = mount(RsLog, {
+      props: {
+        lines: 'alpha\nbeta\ngamma',
+        wrap: true,
+        height: '100%',
+        follow: true,
+        showSearch: false,
+        showCopy: false,
+      },
+    })
+    expect(wrapper.find('.rs-log--wrap').exists()).toBe(true)
+    expect(wrapper.findAll('.rs-log__row')).toHaveLength(3)
+    expect(wrapper.find('.rs-virtual-list').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('emits overflow when maxLines drops old rows', async () => {
     const wrapper = mount(RsLog, {
       props: {
