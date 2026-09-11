@@ -6,6 +6,13 @@
 
 ## [Unreleased]
 
+## [1.3.5] - 2026-09-12
+
+### 修复
+
+- `RsTerminal`：默认 `minimumContrastRatio=4.5`。浅色主题下 `ls --color` 软链接（黑底叠深色字）不再看不清；传 `1` 可关闭。
+- `RsTerminal`：`fit` 按宿主 `clientWidth/Height` 纠正行列，避免 FitAddon 把 `height: 100%` 算成内容高、PTY 停在默认 80×24。画布仍高出一行再减行。全屏清屏 / 进备用屏才回视口底部。
+
 ## [1.3.4] - 2026-09-11
 
 ### 修复

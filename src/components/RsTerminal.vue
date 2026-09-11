@@ -21,8 +21,10 @@ import RsContextMenu from './RsContextMenu.vue'
 import type { RsContextMenuItem } from './context-menu-utils'
 import RsLoading from './RsLoading.vue'
 import {
-  containsTuiRefreshSequence,
+  proposeTerminalGeometry,
+  readXtermCssCellSize,
   mergeTerminalTheme,
+  needsPtyWriteViewportPrep,
   prepareTerminalForPtyWrite,
   resolveTerminalTheme,
   terminalShortcutLabel,
@@ -104,6 +106,12 @@ const props = withDefaults(
     copyOnSelect?: boolean
     /** 启用 Ctrl/⌘+F 终端内搜索 */
     searchEnabled?: boolean
+    /**
+     * 单元格前景相对背景的最低对比度（xterm `minimumContrastRatio`）。
+     * `ls --color` 软链接常用黑底；浅色主题把青/蓝调深后会看不清，4.5 对齐 WCAG AA。
+     * 传 1 关闭。
+     */
+    minimumContrastRatio?: number
   }>(),
   {
     loading: false,
@@ -124,6 +132,7 @@ const props = withDefaults(
     snapViewportOnTuiWrite: true,
     copyOnSelect: false,
     searchEnabled: false,
+    minimumContrastRatio: 4.5,
   },
 )
 
@@ -358,12 +367,60 @@ async function fit(): Promise<void> {
   try {
     fitAddon.fit()
   } catch {
-    return
+    // 仍用宿主 client 盒补算，避免停在 80×24
   }
   didInitialFit = true
-  emitResizeIfChanged()
+  applyHostBoxGeometry()
+  trimOverflowRow()
   syncZebraRowStepFromDom()
+  emitResizeIfChanged()
   syncResolvedFontSize()
+}
+
+/** 以 host client 盒为准，纠正 FitAddon 把 100% 高度 parseInt 成内容高（默认 24 行）的情况。 */
+function applyHostBoxGeometry(): void {
+  if (!terminal || !hostEl.value) {
+    return
+  }
+  const cell = readXtermCssCellSize(terminal)
+  if (!cell) {
+    return
+  }
+  const proposed = proposeTerminalGeometry(
+    hostEl.value.clientWidth,
+    hostEl.value.clientHeight,
+    cell.width,
+    cell.height,
+  )
+  if (!proposed) {
+    return
+  }
+  const cols = Math.max(proposed.cols, 20)
+  const rows = Math.max(proposed.rows, 5)
+  if (cols !== terminal.cols || rows !== terminal.rows) {
+    terminal.resize(cols, rows)
+  }
+}
+
+/** 画布比宿主高出超过一行时再减行，避免裁掉最后一行。 */
+function trimOverflowRow(): void {
+  if (!terminal || !hostEl.value) {
+    return
+  }
+  const screen = hostEl.value.querySelector<HTMLElement>('.xterm-screen')
+  if (!screen) {
+    return
+  }
+  const overflow = screen.offsetHeight - hostEl.value.clientHeight
+  if (overflow <= 1) {
+    return
+  }
+  const cell = readXtermCssCellSize(terminal)
+  const cut = cell ? Math.max(1, Math.ceil(overflow / cell.height)) : 1
+  const nextRows = Math.max(5, terminal.rows - cut)
+  if (nextRows < terminal.rows) {
+    terminal.resize(terminal.cols, nextRows)
+  }
 }
 
 function scheduleFit(): void {
@@ -381,7 +438,7 @@ function write(data: string): void {
   if (!term) {
     return
   }
-  if (props.snapViewportOnTuiWrite && containsTuiRefreshSequence(data)) {
+  if (props.snapViewportOnTuiWrite && needsPtyWriteViewportPrep(data, term)) {
     prepareTerminalForPtyWrite(term, data)
   }
   term.write(data)
@@ -675,6 +732,15 @@ watch(() => [props.themeMode, props.theme] as const, refreshResolvedTheme, { dee
 
 watch(() => props.wheelScrollModifier, attachWheelGuard)
 
+watch(
+  () => props.minimumContrastRatio,
+  (value) => {
+    if (terminal) {
+      terminal.options.minimumContrastRatio = value
+    }
+  },
+)
+
 onMounted(async () => {
   if (!hostEl.value) {
     return
@@ -690,6 +756,7 @@ onMounted(async () => {
     letterSpacing: 0,
     allowTransparency: resolveAllowTransparency(),
     drawBoldTextInBrightColors: true,
+    minimumContrastRatio: props.minimumContrastRatio,
     scrollback: props.scrollback,
     convertEol: props.convertEol,
     rightClickSelectsWord: props.rightClickSelectsWord,
@@ -775,7 +842,9 @@ defineExpose(exposed)
     <section
       v-bind="$attrs"
       class="rs-terminal"
-      :class="{ 'rs-terminal--zebra': zebraStripes }"
+      :class="{
+        'rs-terminal--zebra': zebraStripes,
+      }"
       :style="zebraStyle"
       @click="focus"
       @contextmenu.capture="onTerminalContextMenu"

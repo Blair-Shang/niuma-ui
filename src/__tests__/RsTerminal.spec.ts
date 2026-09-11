@@ -26,6 +26,7 @@ const onRenderHandlers: Array<() => void> = []
 const onScrollHandlers: Array<() => void> = []
 let pasteMock = vi.fn()
 let keyEventHandler: ((event: KeyboardEvent) => boolean) | null = null
+let lastTerminalOptions: Record<string, unknown> = {}
 
 const bufferMock = {
   baseY: 0,
@@ -46,6 +47,10 @@ vi.mock('@xterm/xterm', () => ({
     cols = 80
     rows = 24
     options: Record<string, unknown> = {}
+    constructor(options: Record<string, unknown> = {}) {
+      lastTerminalOptions = options
+      this.options = { ...options }
+    }
     buffer = {
       active: bufferMock,
     }
@@ -108,6 +113,9 @@ describe('terminal-utils', () => {
     const demo = buildAnsiColorDemo()
     expect(demo).toContain('ANSI 16 colors')
     expect(demo).toContain('\x1b[31m')
+    expect(demo).toContain('ls --color symlink')
+    expect(demo).toContain('\x1b[01;36;40m')
+    expect(demo).toContain('\x1b[40;31;01m')
   })
 
   it('resolves document theme', () => {
@@ -140,6 +148,43 @@ describe('terminal-utils', () => {
     expect(startsWithCursorHome(' \x1b[1;1H')).toBe(true)
     expect(startsWithCursorHome('process line')).toBe(false)
   })
+
+  it('fits only rows that fully fit the host height', async () => {
+    const { computeFittedTerminalRows, proposeTerminalGeometry } = await import(
+      '../components/terminal-utils'
+    )
+    expect(computeFittedTerminalRows(720, 16.8)).toBe(42)
+    expect(computeFittedTerminalRows(720, 17.5)).toBe(41)
+    expect(computeFittedTerminalRows(0, 17)).toBeNull()
+    expect(computeFittedTerminalRows(800, 2)).toBeNull()
+    expect(proposeTerminalGeometry(1600, 720, 8, 16.8, 14)).toEqual({ cols: 198, rows: 42 })
+    expect(proposeTerminalGeometry(0, 720, 8, 16.8)).toBeNull()
+  })
+
+  it('preps viewport for top clear, not for a lone cursor home on the normal buffer', async () => {
+    const { needsPtyWriteViewportPrep, prepareTerminalForPtyWrite } = await import(
+      '../components/terminal-utils'
+    )
+    const scrollToBottom = vi.fn()
+    const write = vi.fn()
+    const normal = {
+      scrollToBottom,
+      write,
+      buffer: { active: { type: 'normal', viewportY: 0, baseY: 0 } },
+    } as unknown as import('@xterm/xterm').Terminal
+    expect(needsPtyWriteViewportPrep('\x1b[H', normal)).toBe(false)
+    expect(needsPtyWriteViewportPrep('\x1b[2J', normal)).toBe(true)
+    prepareTerminalForPtyWrite(normal, '\x1b[2J')
+    expect(write).toHaveBeenCalledWith('\x1b[r')
+    expect(scrollToBottom).toHaveBeenCalled()
+
+    const alternate = {
+      scrollToBottom,
+      write,
+      buffer: { active: { type: 'alternate', viewportY: 3, baseY: 10 } },
+    } as unknown as import('@xterm/xterm').Terminal
+    expect(needsPtyWriteViewportPrep('\x1b[H', alternate)).toBe(true)
+  })
 })
 
 describe('RsTerminal', () => {
@@ -147,6 +192,21 @@ describe('RsTerminal', () => {
     pasteMock.mockClear()
     selectAllMock.mockClear()
     keyEventHandler = null
+    lastTerminalOptions = {}
+  })
+
+  it('enables minimum contrast so ls symlink colors stay readable', async () => {
+    mount(RsTerminal)
+    await nextTick()
+    expect(lastTerminalOptions.minimumContrastRatio).toBe(4.5)
+  })
+
+  it('forwards a custom minimum contrast ratio', async () => {
+    const wrapper = mount(RsTerminal, { props: { minimumContrastRatio: 7 } })
+    await nextTick()
+    expect(lastTerminalOptions.minimumContrastRatio).toBe(7)
+    await wrapper.setProps({ minimumContrastRatio: 1 })
+    expect(wrapper.vm.getTerminal()?.options.minimumContrastRatio).toBe(1)
   })
 
   it('renders overlay text', () => {

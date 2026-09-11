@@ -247,7 +247,69 @@ export function containsTuiRefreshSequence(data: string): boolean {
 }
 
 const FULL_SCREEN_CLEAR_PATTERN = /\x1b\[[0-9;]*2J|\x1b\[[0-9;]*3J/
+const ALT_SCREEN_ENTER_PATTERN = /\x1b\[\?1049h|\x1b\[\?47h|\x1b\[1049h/
 const CURSOR_HOME_TOP_PATTERN = /^\x1b\[H|^\x1b\[1;1H|^\x1b\[1H/
+
+const MIN_FITTED_TERMINAL_ROWS = 5
+const MIN_MEASURED_ROW_HEIGHT_PX = 4
+const DEFAULT_TERMINAL_SCROLLBAR_PX = 14
+
+/**
+ * 按宿主像素高度与实测行高计算能完整放下的行数。
+ * FitAddon 用理论 cellHeight，亚像素取整后行盒往往更高，多报的行会被 overflow 裁掉
+ *（top 按 1 展开几十上百核时，最后几行 CPU 就像被高度挡住）。
+ */
+export function computeFittedTerminalRows(
+  hostHeight: number,
+  rowHeight: number,
+  minRows = MIN_FITTED_TERMINAL_ROWS,
+): number | null {
+  if (hostHeight <= 0 || rowHeight < MIN_MEASURED_ROW_HEIGHT_PX) {
+    return null
+  }
+  return Math.max(minRows, Math.floor(hostHeight / rowHeight))
+}
+
+/** 读取 xterm 当前 CSS 单元格尺寸（与 FitAddon 同一套私有 dimensions）。 */
+export function readXtermCssCellSize(terminal: Terminal): { width: number; height: number } | null {
+  const core = terminal as unknown as {
+    _core?: {
+      _renderService?: {
+        dimensions?: { css?: { cell?: { width: number; height: number } } }
+      }
+    }
+  }
+  const cell = core._core?._renderService?.dimensions?.css?.cell
+  if (!cell || cell.width < 1 || cell.height < 1) {
+    return null
+  }
+  return { width: cell.width, height: cell.height }
+}
+
+/**
+ * 用宿主 client 宽高算行列，避开 FitAddon 对 computed `height: 100%` 走 parseInt 的偏差。
+ * 偏差时 PTY 会停在默认 80×24，`top` 按 1 就只画二十来行 CPU。
+ */
+export function proposeTerminalGeometry(
+  hostWidth: number,
+  hostHeight: number,
+  cellWidth: number,
+  cellHeight: number,
+  scrollbarWidth = DEFAULT_TERMINAL_SCROLLBAR_PX,
+): { cols: number; rows: number } | null {
+  if (hostWidth <= 0 || hostHeight <= 0 || cellWidth < 1 || cellHeight < 1) {
+    return null
+  }
+  return {
+    cols: Math.max(2, Math.floor((hostWidth - scrollbarWidth) / cellWidth)),
+    rows: Math.max(1, Math.floor(hostHeight / cellHeight)),
+  }
+}
+
+/** 进入备用屏（smcup），top/vim 全屏时常走这条 */
+export function containsAltScreenEnter(data: string): boolean {
+  return ALT_SCREEN_ENTER_PATTERN.test(data)
+}
 
 /** 全屏清屏（top/vim 新一轮绘制常见） */
 export function containsFullScreenClear(data: string): boolean {
@@ -271,10 +333,31 @@ export function snapTerminalViewportToBottom(terminal: Terminal): void {
   terminal.scrollToBottom()
 }
 
+/**
+ * 是否要在写入前校正视口。
+ * 只认清屏 / 进备用屏 / 已在备用屏且视口不在底部；普通 `\x1b[H` 不碰，以免把用户翻的 scrollback 拽回去。
+ */
+export function needsPtyWriteViewportPrep(data: string, terminal: Terminal): boolean {
+  if (containsFullScreenClear(data) || containsAltScreenEnter(data)) {
+    return true
+  }
+  if (terminal.buffer.active.type !== 'alternate') {
+    return false
+  }
+  return (
+    containsTuiRefreshSequence(data) && terminal.buffer.active.viewportY < terminal.buffer.active.baseY
+  )
+}
+
 /** 处理 PTY 写入前的视口/模式准备（不移动写入光标，避免输入错位） */
 export function prepareTerminalForPtyWrite(terminal: Terminal, data: string): void {
   if (containsFullScreenClear(data)) {
     resetLocalTerminalModes(terminal)
+    snapTerminalViewportToBottom(terminal)
+    return
+  }
+  if (containsAltScreenEnter(data)) {
+    snapTerminalViewportToBottom(terminal)
     return
   }
   const buffer = terminal.buffer.active
@@ -318,6 +401,11 @@ export function buildAnsiColorDemo(): string {
     '',
     '\x1b[38;5;196m256-color\x1b[0m sample:',
     gradient,
+    '',
+    '\x1b[1mls --color symlink\x1b[0m',
+    `  23 Apr  1  2024 \x1b[01;36mbusiness-logs -> /wmsdata/business-logs/\x1b[0m`,
+    `  23 Apr  1  2024 \x1b[01;36;40mbusiness-logs -> /wmsdata/business-logs/\x1b[0m`,
+    `  23 Apr  1  2024 \x1b[40;31;01mbusiness-logs -> /wmsdata/business-logs/\x1b[0m`,
   ]
   return `${lines.join('\r\n')}\r\n`
 }
