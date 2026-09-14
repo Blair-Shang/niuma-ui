@@ -29,12 +29,18 @@ const props = withDefaults(
     keyboardStep?: number
     /** 在分隔条中央展示抓手（grip）指示 */
     withHandle?: boolean
+    /**
+     * 面板铺满父级，并把插槽根节点拉高。
+     * 默认关，不改变原有内容尺寸；工作台 / 设置页显式打开，避免 :deep。
+     */
+    fill?: boolean
   }>(),
   {
     orientation: 'horizontal',
     disabled: false,
     keyboardStep: 4,
     withHandle: false,
+    fill: false,
   },
 )
 
@@ -462,7 +468,10 @@ defineExpose<RsSplitPaneExpose>({
     class="rs-split"
     :class="[
       `rs-split--${orientation}`,
-      { 'rs-split--disabled': disabled },
+      {
+        'rs-split--disabled': disabled,
+        'rs-split--fill': fill,
+      },
     ]"
   >
     <template v-for="(pane, index) in panes" :key="pane.key">
@@ -538,6 +547,19 @@ defineExpose<RsSplitPaneExpose>({
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+/* fill：面板当弹性列，插槽根节点吃满。业务改自己的内容，不要 :deep 本组件。 */
+.rs-split--fill > .rs-split__pane:not(.rs-split__pane--auto) {
+  display: flex;
+  flex-direction: column;
+}
+
+.rs-split--fill > .rs-split__pane:not(.rs-split__pane--auto) > * {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
 }
 
 .rs-split__pane--auto {

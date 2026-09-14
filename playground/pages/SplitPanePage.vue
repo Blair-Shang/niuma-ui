@@ -94,7 +94,7 @@ const splitRef = ref<{ collapse: (k: string) => void; expand: (k: string) => voi
     </DemoBlock>
 
     <DemoBlock title="可折叠面板">
-      <p class="hint">side 面板 collapsible；向左拖过阈值自动折叠，中缝聚焦后按 Enter 亦可切换。</p>
+      <p class="hint">side 面板 collapsible 时向左拖过阈值吸附折叠，中缝聚焦后按 Enter 亦可切换。分隔条只负责拖拽，不钉折叠钮。</p>
       <div class="frame frame--md">
         <RsSplitPane :panes="collapsiblePanes" with-handle>
           <template #side="{ collapsed }">

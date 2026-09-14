@@ -6,6 +6,13 @@
 
 ## [Unreleased]
 
+## [1.3.6] - 2026-09-14
+
+### 新增
+
+- `RsSplitPane`：`fill`（默认关）铺满父级并拉高插槽根节点，业务不要 `:deep` 改 `.rs-split__pane`。
+- `RsSplitPane`：`collapsible` 只表示可吸附折叠（拖过阈值 / Enter / `collapse()`）。分隔条不画折叠钮，与 Allotment、react-resizable-panels 一致。
+
 ## [1.3.5] - 2026-09-12
 
 ### 修复

@@ -88,6 +88,25 @@ describe('RsSplitPane', () => {
     expect(mountSplit({ withHandle: true }).find('.rs-split__grip').exists()).toBe(true)
   })
 
+  it('does not fill panes unless fill is set', () => {
+    expect(mountSplit().classes()).not.toContain('rs-split--fill')
+    expect(mountSplit({ fill: true }).classes()).toContain('rs-split--fill')
+  })
+
+  it('does not put a collapse control on the sash', () => {
+    const wrapper = mount(RsSplitPane, {
+      props: {
+        panes: [
+          { key: 'a', size: 40, min: 20, collapsible: true, collapsedSize: 0 },
+          { key: 'b', size: 60 },
+        ] satisfies RsSplitPaneItem[],
+      },
+      slots: { a: 'A', b: 'B' },
+    })
+    expect(wrapper.find('.rs-split__collapse').exists()).toBe(false)
+    expect(wrapper.find('.rs-split__resizer').exists()).toBe(true)
+  })
+
   it('honours controlled v-model sizes', () => {
     const wrapper = mountSplit({ sizes: [70, 30] })
     expect(wrapper.find('.rs-split__resizer').attributes('aria-valuenow')).toBe('70')
