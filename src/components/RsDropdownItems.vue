@@ -10,16 +10,19 @@ import {
   type RsDropdownItem,
   type RsDropdownItems,
 } from './dropdown-utils'
-import RsIcon from './RsIcon.vue'
+import RsDropdownItemView from './RsDropdownItemView.vue'
+import type { RsComponentSize } from '../theme/types'
 
 withDefaults(
   defineProps<{
     items: RsDropdownItems
     /** true：单选互斥；false：操作项 */
     selectable?: boolean
+    size?: RsComponentSize
   }>(),
   {
     selectable: false,
+    size: 'md',
   },
 )
 
@@ -35,7 +38,7 @@ function onActionSelect(item: RsDropdownItem) {
 
 <template>
   <template v-for="(entry, index) in items" :key="index">
-    <DropdownMenuGroup v-if="isDropdownItemGroup(entry)" class="rs-dropdown__group">
+    <DropdownMenuGroup v-if="isDropdownItemGroup(entry)" :key="`group-${index}`" class="rs-dropdown__group">
       <DropdownMenuLabel class="rs-dropdown__group-label">
         {{ entry.label }}
       </DropdownMenuLabel>
@@ -47,8 +50,7 @@ function onActionSelect(item: RsDropdownItem) {
           :disabled="item.disabled"
           class="rs-dropdown__item"
         >
-          <RsIcon v-if="item.icon" :name="item.icon" :size="16" class="rs-dropdown__item-icon" />
-          <span class="rs-dropdown__item-label">{{ item.label }}</span>
+          <RsDropdownItemView :item="item" :size="size" />
         </DropdownMenuRadioItem>
       </template>
       <template v-else>
@@ -59,32 +61,29 @@ function onActionSelect(item: RsDropdownItem) {
           class="rs-dropdown__item"
           @select="onActionSelect(item)"
         >
-          <RsIcon v-if="item.icon" :name="item.icon" :size="16" class="rs-dropdown__item-icon" />
-          <span class="rs-dropdown__item-label">{{ item.label }}</span>
+          <RsDropdownItemView :item="item" :size="size" />
         </DropdownMenuItem>
       </template>
     </DropdownMenuGroup>
 
     <DropdownMenuRadioItem
       v-else-if="selectable"
-      :key="entry.value"
+      :key="`radio-${entry.value}`"
       :value="entry.value"
       :disabled="entry.disabled"
       class="rs-dropdown__item"
     >
-      <RsIcon v-if="entry.icon" :name="entry.icon" :size="16" class="rs-dropdown__item-icon" />
-      <span class="rs-dropdown__item-label">{{ entry.label }}</span>
+      <RsDropdownItemView :item="entry" :size="size" />
     </DropdownMenuRadioItem>
 
     <DropdownMenuItem
       v-else
-      :key="entry.value"
+      :key="`action-${entry.value}`"
       :disabled="entry.disabled"
       class="rs-dropdown__item"
       @select="onActionSelect(entry)"
     >
-      <RsIcon v-if="entry.icon" :name="entry.icon" :size="16" class="rs-dropdown__item-icon" />
-      <span class="rs-dropdown__item-label">{{ entry.label }}</span>
+      <RsDropdownItemView :item="entry" :size="size" />
     </DropdownMenuItem>
   </template>
 </template>

@@ -272,7 +272,7 @@ export type {
 export type { RsBreadcrumbItem } from './components/RsBreadcrumb.vue'
 export type { RsToolbarBorder, RsToolbarSize } from './components/RsToolbar.vue'
 export type { RsContextMenuItem } from './components/context-menu-utils'
-export type { RsDropdownItem, RsDropdownItemGroup, RsDropdownItems } from './components/dropdown-utils'
+export type { RsDropdownContentWidth, RsDropdownItem, RsDropdownItemGroup, RsDropdownItems } from './components/dropdown-utils'
 export type { RsMenuItem, RsMenuItemGroup, RsMenuItems } from './components/menu-utils'
 export type { RsScrollbarOrientation, RsScrollbarType } from './components/scrollbar-utils'
 export type {

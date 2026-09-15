@@ -9,9 +9,10 @@ import {
   DropdownMenuTrigger,
 } from './reka'
 import { useRsI18n } from '../composables/useRsI18n'
-import { flattenDropdownItems, type RsDropdownItems as RsDropdownData } from './dropdown-utils'
+import { flattenDropdownItems, type RsDropdownContentWidth, type RsDropdownItems as RsDropdownData } from './dropdown-utils'
 import RsDropdownItems from './RsDropdownItems.vue'
 import RsIcon from './RsIcon.vue'
+import type { RsComponentSize } from '../theme/types'
 
 const model = defineModel<string>()
 
@@ -22,10 +23,16 @@ const props = withDefaults(
     disabled?: boolean
     /** 选中后是否在触发器回显选项 label；false 时固定显示 placeholder（操作菜单） */
     showSelected?: boolean
+    /** 菜单项密度，与控件 size 对齐 */
+    size?: RsComponentSize
+    /** 菜单宽度；工具条图标按钮用 fit，避免被触发器宽度压扁 */
+    contentWidth?: RsDropdownContentWidth
   }>(),
   {
     disabled: false,
     showSelected: true,
+    size: 'md',
+    contentWidth: 'trigger',
   },
 )
 
@@ -89,15 +96,22 @@ function onSelect(value: AcceptableValue) {
       <RsIcon name="chevron-down" :size="16" class="rs-dropdown__icon" />
     </DropdownMenuTrigger>
     <DropdownMenuPortal>
-      <DropdownMenuContent class="rs-dropdown__content" :side-offset="4">
+      <DropdownMenuContent
+        class="rs-dropdown__content"
+        :class="[
+          `rs-dropdown__content--${size}`,
+          `rs-dropdown__content--${contentWidth}`,
+        ]"
+        :side-offset="4"
+      >
         <DropdownMenuRadioGroup
           v-if="showSelected"
           v-model="model"
           @update:model-value="onSelect"
         >
-          <RsDropdownItems :items="items" selectable />
+          <RsDropdownItems :items="items" :size="size" selectable />
         </DropdownMenuRadioGroup>
-        <RsDropdownItems v-else :items="items" @select="onSelect" />
+        <RsDropdownItems v-else :items="items" :size="size" @select="onSelect" />
       </DropdownMenuContent>
     </DropdownMenuPortal>
   </DropdownMenuRoot>
@@ -279,5 +293,46 @@ function onSelect(value: AcceptableValue) {
 .rs-dropdown__item[data-disabled] {
   opacity: 0.38;
   cursor: not-allowed;
+}
+
+.rs-dropdown__item-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.rs-dropdown__item-hint {
+  font-size: var(--rs-font-size-xs);
+  color: var(--rs-muted);
+  line-height: var(--rs-line-height-tight);
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.rs-dropdown__content--fit {
+  min-width: 10.5rem;
+  width: max-content;
+}
+
+.rs-dropdown__content--ssm .rs-dropdown__item {
+  min-height: 26px;
+  padding: 5px 8px;
+  gap: var(--rs-space-xs);
+  font-size: var(--rs-font-size-xs);
+  align-items: flex-start;
+}
+
+.rs-dropdown__content--ssm .rs-dropdown__item-icon {
+  margin-top: 2px;
+}
+
+.rs-dropdown__content--sm .rs-dropdown__item {
+  min-height: 28px;
+  padding: 6px 10px;
+  font-size: var(--rs-font-size-sm);
 }
 </style>

@@ -132,4 +132,26 @@ describe('RsDropdown', () => {
     expect(document.body.querySelector('.rs-dropdown__item[data-state="checked"]')).toBeNull()
     wrapper.unmount()
   })
+
+  it('applies size and fit content width on the menu', async () => {
+    const wrapper = mount(RsDropdown, {
+      props: {
+        items: [
+          { label: 'EXPLAIN', value: 'explain', icon: 'list-tree', hint: '估算计划' },
+        ],
+        showSelected: false,
+        size: 'ssm',
+        contentWidth: 'fit',
+        placeholder: '计划',
+      },
+      attachTo: document.body,
+    })
+    await wrapper.find('.rs-dropdown__trigger').trigger('click')
+    await flushPromises()
+    const panel = document.body.querySelector('.rs-dropdown__content')
+    expect(panel?.classList.contains('rs-dropdown__content--ssm')).toBe(true)
+    expect(panel?.classList.contains('rs-dropdown__content--fit')).toBe(true)
+    expect(document.body.querySelector('.rs-dropdown__item-hint')?.textContent).toContain('估算计划')
+    wrapper.unmount()
+  })
 })
