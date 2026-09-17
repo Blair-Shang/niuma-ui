@@ -253,7 +253,7 @@ describe('RsSelect', () => {
     const wrapper = mount(RsSelect, {
       props: { options, modelValue: '' },
     })
-    const exposed = wrapper.vm as InstanceType<typeof RsSelect>
+    const exposed = wrapper.vm as { setValue: (value: unknown) => void }
     exposed.setValue('claude')
     await flushPromises()
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['claude'])
@@ -263,7 +263,7 @@ describe('RsSelect', () => {
     const wrapper = mount(RsSelect, {
       props: { options, modelValue: [], multiple: true },
     })
-    const exposed = wrapper.vm as InstanceType<typeof RsSelect>
+    const exposed = wrapper.vm as { setValue: (value: unknown) => void }
     exposed.setValue(['gpt-4o', 'claude'])
     await flushPromises()
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([['gpt-4o', 'claude']])
@@ -454,6 +454,19 @@ describe('RsSelect', () => {
     await flushPromises()
     const matched = document.querySelector('.rs-select__content')
     expect(matched!.classList.contains('rs-select__content--match-trigger')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('puts size class on portaled content so sm/ssm items match trigger height', async () => {
+    const wrapper = mount(RsSelect, {
+      props: { options, modelValue: '', size: 'sm' },
+      attachTo: document.body,
+    })
+    await wrapper.find('.rs-select__trigger').trigger('click')
+    await flushPromises()
+    const content = document.querySelector('.rs-select__content')
+    expect(content).toBeTruthy()
+    expect(content!.classList.contains('rs-select__content--sm')).toBe(true)
     wrapper.unmount()
   })
 

@@ -483,6 +483,7 @@ function highlightParts(label: string) {
       <ComboboxContent
         class="rs-select__content"
         :class="[
+          `rs-select__content--${resolvedSize}`,
           popupClassName,
           classNames?.popup,
           { 'rs-select__content--match-trigger': matchTriggerWidth },
