@@ -204,13 +204,12 @@ function flattenVueArtifacts(dir) {
 }
 
 /**
- * WriteStandaloneCss 发布与源码同一套样式：透传 @import 'tailwindcss'，内联 vue-sonner。
- * 禁止剥掉 Tailwind，否则本机联调源码和 npm dist 的 Preflight 对不齐。
+ * WriteStandaloneCss 发布独立样式：内联 vue-sonner，不含 Tailwind。
  */
 function writeStandaloneCss() {
   const sonnerPath = require.resolve('vue-sonner/style.css')
   const sonner = readFileSync(sonnerPath, utf8)
-  let css = readFileSync(resolve(root, 'src/styles.css'), utf8)
+  let css = readFileSync(resolve(root, 'src/styles/index.css'), utf8)
   css = css.replace(/@import\s+['"]vue-sonner\/style\.css['"]\s*;\s*/g, `${sonner}\n`)
   writeFileSync(resolve(distDir, 'styles.css'), css, utf8)
   mkdirSync(resolve(distDir, 'theme'), { recursive: true })
@@ -267,8 +266,8 @@ function assertPublishedSurface() {
   }
 
   const styles = readFileSync(resolve(distDir, 'styles.css'), utf8)
-  if (!styles.includes("@import 'tailwindcss'") && !styles.includes('@import "tailwindcss"')) {
-    console.error('[build-lib] dist/styles.css must pass through @import tailwindcss')
+  if (styles.includes('tailwindcss') || styles.includes('@source ')) {
+    console.error('[build-lib] dist/styles.css must not mention tailwindcss or @source')
     process.exit(1)
   }
 
@@ -284,9 +283,9 @@ function assertPublishedSurface() {
     process.exit(1)
   }
 
-  const tableEntry = readFileSync(resolve(distDir, 'components/RsTable.js'), utf8)
+  const tableEntry = readFileSync(resolve(distDir, 'components/table/src/RsTable.js'), utf8)
   if (!tableEntry.includes('rs-table.css')) {
-    console.error('[build-lib] RsTable.js must import table/rs-table.css')
+    console.error('[build-lib] table/src/RsTable.js must import style/rs-table.css')
     process.exit(1)
   }
 

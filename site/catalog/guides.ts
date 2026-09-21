@@ -64,8 +64,8 @@ export const guideDocs: GuideDoc[] = [
         id: 'install',
         title: '安装',
         titleEn: 'Install',
-        body: '要求 Node.js ≥ 20、Vue ^3.5。当前发布版本 1.3.8。建议锁定 ^1.3.0。',
-        bodyEn: 'Requires Node.js ≥ 20 and Vue ^3.5. Current release is 1.3.8. Prefer a range such as ^1.3.0.',
+        body: '要求 Node.js ≥ 20、Vue ^3.5。当前发布版本 2.0.0。建议锁定 ^2.0.0。',
+        bodyEn: 'Requires Node.js ≥ 20 and Vue ^3.5. Current release is 2.0.0. Prefer a range such as ^2.0.0.',
         code: {
           lang: 'bash',
           content: 'pnpm add niuma-ui\n# or: npm install niuma-ui / yarn add niuma-ui',
@@ -75,9 +75,9 @@ export const guideDocs: GuideDoc[] = [
         id: 'entry',
         title: '入口',
         titleEn: 'Entry',
-        body: '样式入口必须引入 styles.css（透传 Tailwind）。根节点使用 RsConfigProvider 提供主题、语言与默认控件尺寸。',
+        body: '样式入口必须引入 styles.css。根节点使用 RsConfigProvider 提供主题、语言与默认控件尺寸。',
         bodyEn:
-          'Import styles.css once (it forwards Tailwind). Wrap the root with RsConfigProvider for theme, locale, and default control size.',
+          'Import styles.css once. Wrap the root with RsConfigProvider for theme, locale, and default control size.',
         code: {
           lang: 'ts',
           content: [
@@ -115,14 +115,14 @@ export const guideDocs: GuideDoc[] = [
         bullets: [
           '业务模块只允许 import { … } from "niuma-ui"。',
           'styles.css 须在业务品牌 CSS 之前或按文档顺序加载。',
-          'Vite 宿主使用 @tailwindcss/vite 处理 styles.css 中的 Tailwind。',
+          'styles.css 是独立样式，不依赖 Tailwind。',
           '本地联调可启用 niumaUiHost，仅服务 pnpm dev，不进生产构建。',
           '不要直接依赖 reka-ui，不要 import *，不要把包名别名到 src/index.ts。',
         ],
         bulletsEn: [
           'App code may only import { … } from "niuma-ui".',
           'Load styles.css before (or as documented with) your brand CSS.',
-          'Vite hosts need @tailwindcss/vite so the forwarded Tailwind import expands.',
+          'styles.css is standalone and does not depend on Tailwind.',
           'niumaUiHost is local pnpm dev + link only. Production and CI resolve npm dist.',
           'Do not depend on reka-ui, import *, or alias the package to src/index.ts.',
         ],

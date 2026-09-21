@@ -1,5 +1,5 @@
 import { toast } from 'vue-sonner'
-import type { RsToastPosition, RsToastType } from '../components/overlay-utils'
+import type { RsToastPosition, RsToastType } from '../components/_shared/src/overlay-utils'
 
 export type { RsToastPosition, RsToastType }
 

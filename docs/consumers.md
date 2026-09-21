@@ -4,11 +4,11 @@
 
 组件用法、何时使用、API 只认文档站 [https://blair-shang.github.io/niuma-ui/](https://blair-shang.github.io/niuma-ui/)（源码 `site/`，本地 `pnpm dev:site`）。`playground/` 是维护者内部测试台，不写对外说明。
 
-**定位：** 工作台设计系统，不是轻量通用 UI 套件。自 **1.2.0** 起 npm 为编译 ESM。安装会带上 Monaco / CodeMirror / xterm；体积靠**具名导入**和下面的入口约定摇树。当前发布版本 **1.3.8**。
+**定位：** 工作台设计系统，不是轻量通用 UI 套件。自 **1.2.0** 起 npm 为编译 ESM。安装会带上 Monaco / CodeMirror / xterm；体积靠**具名导入**和下面的入口约定摇树。当前发布版本 **2.0.0**。1.x 见分支 `1.x`。
 
-**契约：** 公共 API 是包根具名导入。`vite build` / CI 走包入口，不依赖改写插件。`niumaUiHost` **只服务**本机 `pnpm dev`。不要再引一套 Tailwind，也不要把包名别名到 `src/index.ts`。
+**契约：** 公共 API 是包根具名导入。`vite build` / CI 走包入口，不依赖改写插件。`niumaUiHost` **只服务**本机 `pnpm dev`。不要把包名别名到 `src/index.ts`。
 
-1. `styles.css` 源码与 npm 同一份，**透传** `@import 'tailwindcss'`。宿主只 `import 'niuma-ui/styles.css'`，用 `@tailwindcss/vite` 展开。不要在业务 CSS 里再写一遍 Tailwind，也不要剥掉发布包里的这一行。
+1. `styles.css` 是独立样式（token + reset + 组件），**不含** Tailwind。宿主只 `import 'niuma-ui/styles.css'`。业务若自己用工具类，在宿主 CSS 里自行引入 Tailwind。
 2. 本地改源码时启用 `niumaUiHost()`（`niuma-ui/vite-plugins/niuma-ui-host`）：
    - `pnpm dev` + `link:`：具名导入改到 `src/**/*.vue`，可 HMR。
    - `vite build` / CI：不改写，解析 `dist/index.js`。
@@ -23,8 +23,9 @@ npm 包名是 **`niuma-ui`**。正式版更新 dist-tag **`latest`**，预发布
 | 场景 | 推荐 | 说明 |
 |------|------|------|
 | 对着本仓库改组件、HMR | `"niuma-ui": "link:../niuma-ui"` | 路径相对**声明依赖的 package.json** |
-| 第三方，要兼容补丁 | `"niuma-ui": "^1.3.0"` | 只吃兼容 PATCH |
-| 必须可复现 | `"niuma-ui": "1.3.8"` | 钉死当前版本 |
+| 第三方，要兼容补丁 | `"niuma-ui": "^2.0.0"` | 只吃 2.x 兼容变更 |
+| 必须可复现 | `"niuma-ui": "2.0.0"` | 钉死当前版本 |
+| 仍用 1.x | `"niuma-ui": "^1.3.9"` | Tailwind 透传约定，见 `1.x` 分支 |
 | 下游 CI 曾 checkout 本仓 | `npm:niuma-ui@latest` | 从 registry 装，不要在产品 CI 里 clone 本 Git 仓 |
 
 开源基线 **1.0.0**，[Apache License 2.0](../LICENSE)。旧包名 `@niuma/ui` 已不再发布，请用 **`niuma-ui`**。
@@ -58,10 +59,10 @@ pnpm dev
 
 ```bash
 pnpm add niuma-ui          # 当前 latest
-pnpm add niuma-ui@1.3.8    # 钉死
+pnpm add niuma-ui@2.0.0    # 钉死
 ```
 
-优先 semver，少用 `git+https://…#v1.3.8`。不要 checkout GitHub `ref: latest`（没有这个标签）。
+优先 semver，少用 `git+https://…#v2.0.0`。不要 checkout GitHub `ref: latest`（没有这个标签）。
 
 ### 1.3 下游仍提交 `link:` 时的 CI（可选）
 
@@ -72,7 +73,7 @@ pnpm pkg set "dependencies.niuma-ui=npm:niuma-ui@${NIUMA_UI_VERSION:-latest}"
 pnpm install --no-frozen-lockfile
 ```
 
-`--frozen-lockfile` 和 `latest` 冲突。需要可复现构建时设 `NIUMA_UI_VERSION=1.3.8`。
+`--frozen-lockfile` 和 `latest` 冲突。需要可复现构建时设 `NIUMA_UI_VERSION=2.0.0`。
 
 ## 2. 最小集成
 
@@ -83,7 +84,7 @@ pnpm install --no-frozen-lockfile
    import 'niuma-ui/styles.css'
    ```
 
-   Vite 宿主加上 `@tailwindcss/vite`。不要写 `@import 'niuma-ui/src/styles.css'`。
+   不要写 `@import 'niuma-ui/src/styles.css'`。
 
 3. 根节点包 `RsConfigProvider`：
 
@@ -141,7 +142,7 @@ export default defineConfig({
 
 | 插件 | 用途 |
 |------|------|
-| `niumaUiHost` | 本地 `link` 建议开。只服务 `pnpm dev`（HMR、styles、Tailwind `@source`）。build 走包入口。 |
+| `niumaUiHost` | 本地 `link` 建议开。只服务 `pnpm dev`（HMR、styles）。build 走包入口。 |
 | `monacoZhNlsPlugin` | Monaco 中文 NLS（可选） |
 | `silenceAntlrParseConsole` | 抑制 SQL 语言半成品 parse 日志（可选） |
 
@@ -197,10 +198,10 @@ A: 路径相对**声明依赖的 package.json**，不是仓库根。应用在 `w
 A: 不要。发布包是编译产物，pnpm 隔离目录即可解析 `reka-ui`。
 
 **Q: 本机正常、CI 没有样式？**  
-A: 核对 `styles.css` 是否仍含 `@import 'tailwindcss'`、宿主是否开了 `@tailwindcss/vite`、是否把入口别名到了 `src/index.ts`。`niumaUiHost` 不参与 `vite build`。
+A: 核对是否 `import 'niuma-ui/styles.css'`、是否把入口别名到了 `src/index.ts`。`niumaUiHost` 不参与 `vite build`。2.0 起样式不再依赖 Tailwind。
 
-**Q: 必须用 pnpm / Tailwind / Vite 吗？**  
-A: 安装用 npm / pnpm / yarn 均可。`styles.css` 透传 Tailwind，Vite 宿主需要 `@tailwindcss/vite`。普通组件不绑死 Vite；`RsMonacoEditor` 与官方插件需要 Vite 5+。
+**Q: 必须用 pnpm / Vite 吗？**  
+A: 安装用 npm / pnpm / yarn 均可。普通组件不绑死 Vite；`RsMonacoEditor` 与官方插件需要 Vite 5+。
 
 **Q: 能和其他组件库混用吗？**  
 A: 技术可以，视觉和焦点层容易打架。新界面请只用 `Rs*`。
@@ -217,4 +218,4 @@ A: [Apache License 2.0](../LICENSE)。见 [NOTICE](../NOTICE)。依赖库保留�
 - 安全：[SECURITY.md](../SECURITY.md)  
 - 贡献：[CONTRIBUTING.md](../CONTRIBUTING.md)  
 
-讨论 API 时请附：框架版本、最小复现、期望与实际行为。第三方产品建议钉 minor（`^1.3.0` 起）并在自有文档记录版本。
+讨论 API 时请附：框架版本、最小复现、期望与实际行为。第三方产品建议钉 minor（`^2.0.0` 起）并在自有文档记录版本。

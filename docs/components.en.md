@@ -75,19 +75,71 @@ Details: §7, §10, §12. Existing debt (some `Rs*` still lack `name`) is fixed 
 | Site slug | kebab-case = `site/demos/{slug}.vue` | `anchor`, `code-editor` |
 | Locale key | `dot.case`, component in lowercase | `anchor.label` |
 
+### 3.1 Component folders
+
 ```text
 src/
-  components/           # Rs*.vue + *-utils.ts
-  components/table/     # table submodule
-  composables/          # useRsConfig, useRsI18n, useRsToast
+  components/{slug}/
+    index.ts            # export { default as RsXxx } from './src/RsXxx.vue'
+    src/                # implementation: SFC + *-utils.ts (flat by default)
+    style/              # only when there is standalone CSS (e.g. table)
+    __tests__/          # this component’s unit tests (not published)
+  components/table/     # only engine-sized exception; see §3.2
+  components/_shared/   # cross-component internals; public helpers still go through src/index.ts
+  composables/          # cross-component: useRsConfig, useRsI18n, useRsToast
+  utils/                # DOM-free: datetime, clipboard
+  styles/index.css      # tokens + reset + global CSS
   theme/                # tokens, presets, applyTheme
   locale/               # zh-CN / en-US
   monaco/               # workers — editor path only
   icons/                # registry, not a second icon system
-  index.ts              # public surface only
+  dev/                  # host Vite prebundle seeds (CodeMirror / xterm)
+  __tests__/            # setup + cross-component smoke only
+  index.ts              # export { RsXxx } from './components/{slug}'
 ```
 
-New official UI is only `src/components/RsXxx.vue` plus a sibling `*-utils.ts`. Do not add a parallel component package under `src/`.
+**Between components** keep folders flat by slug (`components/table`, not `data/table`). **Inside a component** the four slots are `index.ts` / `src/` / optional `style/` / `__tests__/`. Folder name = catalog slug. One public component per folder (`tree-select/` is not inside `select/`). Subcontrols (`RsRadioItem`, `RsFormItem`, `RsConfirmDialog`) stay with the parent.
+
+Groups (edit `site/catalog/components/{group}.ts` only): `basic` · `form` · `nav` · `feedback` · `data` · `editor`.
+
+New official UI is only `src/components/{slug}/` (`index.ts` + `src/RsXxx.vue` + `__tests__/`; logic in `src/*-utils.ts`). `src/index.ts` must re-export `export { RsXxx } from './components/{slug}'`, not a deep `.vue` path. Do not add a parallel component package under `src/`. Do not leave implementation files on the component root (root keeps `index.ts` only). Do not reopen `src/lib/`. Do not nest source folders by group. Do not create an empty `style/` when there is no standalone CSS.
+
+### 3.2 When to nest inside `src/`
+
+Keep `src/` **flat** unless both are true:
+
+1. Implementation files (excluding tests) exceed **about 12**, or there are two or more UI regions (header / body / footer).
+2. Subfolder names are duties, not catalog groups: `table-header`, `composables`, `utils`, `context`, `features`.
+
+In 2.0 only `components/table/src` qualifies. Form (8), CodeEditor (8), and smaller stay flat. Do not pre-create empty `composables/` for Button / Input.
+
+### 3.3 Repository root
+
+```text
+src/            library source (only implementation)
+site/           public docs site
+playground/     internal smoke — not usage docs
+e2e/            Playwright visual regression
+docs/           maintainer contract (not on npm)
+vite-plugins/   host Vite plugin sources
+scripts/        build / prepare
+dist/           build output (gitignored; published via files)
+```
+
+Do not add a second `components/` at the repo root. `playground-dist` / `site-dist` / `test-results` are local artifacts and must not be committed.
+
+### 3.4 Published surface (`package.json`)
+
+| Field | 2.0 rule |
+|-------|----------|
+| `exports["."]` | Only component entry: `dist/index.js` + `dist/index.d.ts` |
+| `exports["./styles.css"]` | Standalone CSS, no Tailwind |
+| `exports["./vite-plugins/*"]` | Toolchain, not daily component imports |
+| `exports["./vite-prebundle/*"]` | Host Vite prebundle seeds |
+| `files` | Only `dist`, `LICENSE`, `NOTICE`, `README*.md`, `CHANGELOG.md` |
+| Forbidden | `exports["./*"]`; putting `src/`, `docs/`, or `site/` in `files` |
+
+Hosts import `{ RsButton } from 'niuma-ui'` and `'niuma-ui/styles.css'` only. Deep paths (`niuma-ui/src/…`, internal `*-utils`) are not SemVer.
 
 ---
 
@@ -208,18 +260,18 @@ Utils must no-op or return safely without `window`. Detect scroll containers by 
 
 Keep `*-utils.ts` pure and tested. Vue files bind lifecycle, events, and style.
 
-`src/__tests__/RsXxx.spec.ts` minimum: mount smoke, agreed events, utils edges (empty list, encoding, missing container, defaults). Import-only tests are not enough.
+`src/components/{slug}/__tests__/RsXxx.spec.ts` minimum: mount smoke, agreed events, utils edges (empty list, encoding, missing container, defaults). Cross-component smoke stays in `src/__tests__/`. Visual e2e stays in repo-root `e2e/`. Import-only tests are not enough.
 
 ---
 
 ## 15. New-component checklist
 
-1. `RsXxx.vue` + `xxx-utils.ts` if needed (UTF-8, no BOM).
+1. `src/components/{slug}/src/RsXxx.vue` + `src/xxx-utils.ts` if needed + root `index.ts` (UTF-8, no BOM). Keep `src/` flat; do not pre-create subfolders (§3.2).
 2. `defineOptions({ name: 'RsXxx' })`, class `.rs-xxx`.
-3. Export from `src/index.ts` per §4.
+3. `src/index.ts`: `export { RsXxx } from './components/{slug}'`. Public types / host helpers per §4, re-exported from the same folder.
 4. `zh-CN` + `en-US` keys in `src/locale/messages.ts`.
-5. `src/__tests__/RsXxx.spec.ts`.
-6. Register in `site/catalog/components/{group}.ts` (when-to-use, API, tokens, FAQ).
+5. `src/components/{slug}/__tests__/RsXxx.spec.ts`.
+6. Register in `site/catalog/components/{group}.ts` (`basic` / `form` / `nav` / `feedback` / `data` / `editor`: when-to-use, API, tokens, FAQ).
 7. `site/demos/{slug}.vue` with `DocDemo` and copyable source.
 8. Update the inventory in **both** this file and [components.md](./components.md); slug matches catalog.
 9. `CHANGELOG.md` `[Unreleased]`.

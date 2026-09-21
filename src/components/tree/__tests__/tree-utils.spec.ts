@@ -1,0 +1,234 @@
+import { describe, expect, it } from 'vitest'
+import {
+  buildTreeNodeIndex,
+  collectHalfCheckedKeys,
+  filterTreeNodes,
+  flattenVisibleTreeNodes,
+  isTreeAncestorKey,
+  resolveAccordionExpandedKeys,
+  resolveTreeIndent,
+  resolveTreeRowHeight,
+  resolveTreeCheckState,
+  resolveTreeFieldNames,
+  resolveTreeFocusKey,
+  resolveTreeVirtualEnabled,
+  shouldShowTreeCheckbox,
+  sliceVirtualTreeNodes,
+  splitTreeLabelHighlight,
+  toggleTreeCheck,
+  type RsTreeNode,
+} from '../src/tree-utils'
+import { RS_COMPONENT_SIZES } from '../../../theme/types'
+
+const nodes = [
+  {
+    key: 'root',
+    label: '根',
+    children: [
+      { key: 'child-a', label: '子节点 A' },
+      { key: 'child-b', label: '子节点 B' },
+    ],
+  },
+]
+
+describe('tree-utils', () => {
+  it('filters nodes by keyword and keeps ancestors', () => {
+    const filtered = filterTreeNodes(nodes, 'b')
+    expect(filtered).toHaveLength(1)
+    expect(filtered[0]?.children).toHaveLength(1)
+    expect(filtered[0]?.children?.[0]?.key).toBe('child-b')
+  })
+
+  it('filters with custom filterNode', () => {
+    const apiNodes = [{ id: '1', name: 'Alpha' }, { id: '2', name: 'Beta' }]
+    const filtered = filterTreeNodes(apiNodes, 'bet', {
+      fieldNames: { key: 'id', label: 'name' },
+      filterNode: (node, keyword) => String(node.name).toLowerCase().includes(keyword.toLowerCase()),
+    })
+    expect(filtered).toHaveLength(1)
+    expect(filtered[0]?.id).toBe('2')
+  })
+
+  it('flattens visible nodes based on expanded keys', () => {
+    const expanded = new Set(['root'])
+    const flat = flattenVisibleTreeNodes(nodes, expanded)
+    expect(flat.map((item) => item.key)).toEqual(['root', 'child-a', 'child-b'])
+  })
+
+  it('tracks ancestor levelLines for continuous showLine guides', () => {
+    const tree: RsTreeNode[] = [
+      {
+        key: 'a',
+        label: 'A',
+        children: [
+          { key: 'a1', label: 'A1' },
+          {
+            key: 'a2',
+            label: 'A2',
+            children: [{ key: 'a2x', label: 'A2X' }],
+          },
+        ],
+      },
+      { key: 'b', label: 'B' },
+    ]
+    const flat = flattenVisibleTreeNodes(tree, new Set(['a', 'a2']))
+    const a2x = flat.find((item) => item.key === 'a2x')
+    // a 不是末项 → 子树行需保留 depth0 贯穿线；a2 是 a 下末项 → depth1 应断开
+    expect(a2x?.levelLines).toEqual([true, false])
+    expect(a2x?.isLast).toBe(true)
+    const a1 = flat.find((item) => item.key === 'a1')
+    expect(a1?.levelLines).toEqual([true])
+    expect(a1?.isLast).toBe(false)
+  })
+
+  it('toggles parent-child checks', () => {
+    const index = buildTreeNodeIndex(nodes)
+    const next = toggleTreeCheck('root', new Set(), index, false)
+    expect(next).toEqual(expect.arrayContaining(['root', 'child-a', 'child-b']))
+    expect(resolveTreeCheckState('root', new Set(next), index, false)).toBe('checked')
+  })
+
+  it('collects half checked keys', () => {
+    const index = buildTreeNodeIndex(nodes)
+    const half = collectHalfCheckedKeys(index, new Set(['child-a']), false)
+    expect(half).toEqual(['root'])
+  })
+
+  it('resolves accordion expanded keys', () => {
+    const index = buildTreeNodeIndex(nodes)
+    const next = resolveAccordionExpandedKeys('child-b', ['root', 'child-a'], index, ['root'])
+    expect(next).toEqual(expect.arrayContaining(['root', 'child-b']))
+    expect(next).not.toContain('child-a')
+  })
+
+  it('supports strict checking', () => {
+    const index = buildTreeNodeIndex(nodes)
+    const next = toggleTreeCheck('child-a', new Set(), index, true)
+    expect(next).toEqual(['child-a'])
+    expect(resolveTreeCheckState('root', new Set(next), index, true)).toBe('unchecked')
+  })
+
+  it('enables virtual scroll by threshold', () => {
+    expect(resolveTreeVirtualEnabled({ flatCount: 50 })).toBe(false)
+    expect(resolveTreeVirtualEnabled({ flatCount: 150 })).toBe(true)
+    expect(resolveTreeVirtualEnabled({ virtual: true, flatCount: 10 })).toBe(true)
+  })
+
+  it('slices virtual tree nodes', () => {
+    const flat = Array.from({ length: 200 }, (_, index) => ({
+      key: String(index),
+      node: { key: String(index), label: `N${index}` },
+      depth: 0,
+      hasChildren: false,
+      isLast: index === 199,
+      parentKey: null,
+      levelLines: [] as boolean[],
+    }))
+    const slice = sliceVirtualTreeNodes(flat, 320, 200, 32, 2)
+    expect(slice.nodes.length).toBeLessThan(flat.length)
+    expect(slice.paddingTop).toBeGreaterThan(0)
+  })
+
+  it('clamps virtual slice when scrollTop exceeds filtered content', () => {
+    const flat = Array.from({ length: 5 }, (_, index) => ({
+      key: String(index),
+      node: { key: String(index), label: `N${index}` },
+      depth: 0,
+      hasChildren: false,
+      isLast: index === 4,
+      parentKey: null,
+      levelLines: [] as boolean[],
+    }))
+    const slice = sliceVirtualTreeNodes(flat, 50_000, 200, 32, 2)
+    expect(slice.nodes.length).toBeGreaterThan(0)
+    expect(slice.nodes.length).toBeLessThanOrEqual(flat.length)
+    expect(slice.paddingTop).toBeLessThan(flat.length * 32)
+  })
+
+  it('reports the slice start index so rows can be positioned in O(1)', () => {
+    const flat = Array.from({ length: 500 }, (_, index) => ({
+      key: String(index),
+      node: { key: String(index), label: `N${index}` },
+      depth: 0,
+      hasChildren: false,
+      isLast: index === 499,
+      parentKey: null,
+      levelLines: [] as boolean[],
+    }))
+    const slice = sliceVirtualTreeNodes(flat, 3200, 200, 32, 2)
+    expect(slice.startIndex).toBe(98)
+    expect(slice.nodes[0]?.key).toBe(String(slice.startIndex))
+    expect(slice.paddingTop).toBe(slice.startIndex * 32)
+  })
+
+  it('flattens a huge sibling group without blowing the call stack', () => {
+    // 旧实现用 push(...子结果)，单层可见节点过多时实参超限会抛 RangeError
+    const wide: RsTreeNode = {
+      key: 'wide',
+      label: '宽节点',
+      children: Array.from({ length: 200_000 }, (_, index) => ({
+        key: `w-${index}`,
+        label: `W${index}`,
+      })),
+    }
+    const flat = flattenVisibleTreeNodes([wide], new Set(['wide']))
+    expect(flat).toHaveLength(200_001)
+    expect(flat[200_000]?.key).toBe('w-199999')
+  })
+
+  it('detects ancestry by walking up parents', () => {
+    const index = buildTreeNodeIndex(nodes)
+    expect(isTreeAncestorKey('root', 'child-a', index)).toBe(true)
+    expect(isTreeAncestorKey('child-a', 'root', index)).toBe(false)
+    expect(isTreeAncestorKey('child-a', 'child-b', index)).toBe(false)
+    expect(isTreeAncestorKey('root', 'root', index)).toBe(false)
+  })
+
+  it('short-circuits check state when nothing is checked', () => {
+    const index = buildTreeNodeIndex(nodes)
+    expect(resolveTreeCheckState('root', new Set(), index, false)).toBe('unchecked')
+    expect(collectHalfCheckedKeys(index, new Set(), false)).toEqual([])
+  })
+
+  it('highlights label segments', () => {
+    const parts = splitTreeLabelHighlight('RsTree 组件', 'tree')
+    expect(parts.find((part) => part.highlight)?.text).toBe('Tree')
+  })
+
+  it('resolves a finite row height and indent for every size', () => {
+    // 漏掉任一档会返回 undefined，进而让虚拟滚动的 padding 变成 NaN
+    for (const size of RS_COMPONENT_SIZES) {
+      expect(Number.isFinite(resolveTreeRowHeight(size))).toBe(true)
+      expect(Number.isFinite(resolveTreeIndent(size))).toBe(true)
+    }
+    expect(resolveTreeRowHeight('ssm')).toBeLessThan(resolveTreeRowHeight('sm'))
+    expect(resolveTreeIndent('ssm')).toBeLessThan(resolveTreeIndent('sm'))
+    expect(resolveTreeRowHeight('md', 21)).toBe(21)
+  })
+
+  it('maps field names', () => {
+    const fields = resolveTreeFieldNames({ key: 'id', label: 'title', children: 'items' })
+    expect(fields.key).toBe('id')
+    expect(fields.children).toBe('items')
+  })
+
+  it('moves focus within flat nodes', () => {
+    const flat = flattenVisibleTreeNodes(nodes, new Set(['root']))
+    const index = buildTreeNodeIndex(nodes)
+    expect(resolveTreeFocusKey(flat, 'child-a', 'next', index)).toBe('child-b')
+    expect(resolveTreeFocusKey(flat, 'child-b', 'parent', index)).toBe('root')
+  })
+
+  it('supports onlyCheckLeaf mode', () => {
+    const index = buildTreeNodeIndex(nodes)
+    const root = nodes[0]!
+    expect(shouldShowTreeCheckbox(root)).toBe(true)
+    expect(shouldShowTreeCheckbox(root, undefined, { onlyCheckLeaf: true })).toBe(false)
+    const next = toggleTreeCheck('child-a', new Set(), index, false, true)
+    expect(next).toEqual(['child-a'])
+    expect(resolveTreeCheckState('root', new Set(next), index, false, true)).toBe('indeterminate')
+    const both = toggleTreeCheck('child-b', new Set(next), index, false, true)
+    expect(resolveTreeCheckState('root', new Set(both), index, false, true)).toBe('checked')
+    expect(collectHalfCheckedKeys(index, new Set(next), false, true)).toEqual(['root'])
+  })
+})

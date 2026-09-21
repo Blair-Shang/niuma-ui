@@ -1,12 +1,12 @@
 /**
- * 第一方宿主插件：只服务 pnpm dev（源码 HMR、styles alias、Tailwind @source）。
+ * 第一方宿主插件：只服务 pnpm dev（源码 HMR、styles alias）。
  * vite build / CI 走包主入口，不改写导入。
  * 禁止把 @niuma/ui 别名到 src/index.ts（评估整桶会灌入未使用组件 CSS）。
  *
- * 写法对齐 Vite / unplugin 惯例：工厂 + options、createFilter、
- * es-module-lexer 定位静态 import/export、magic-string 保留 sourcemap。
+ * 写法：工厂 + options、createFilter、es-module-lexer 定位静态 import/export、
+ * magic-string 保留 sourcemap。
  */
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { createRequire } from 'node:module'
 import { createFilter, type FilterPattern } from '@rollup/pluginutils'
@@ -42,7 +42,7 @@ type HostContext = {
 
 /**
  * NiumaUiHost 返回一组插件（Vite 会摊平）。
- * serve 改写具名导入到源码并 alias styles；build 只补 Tailwind @source。
+ * serve 改写具名导入到源码并 alias styles。
  */
 export function niumaUiHost(options: NiumaUiHostOptions = {}): Plugin[] {
   const root = options.root ?? resolvePkgRoot()
@@ -57,7 +57,7 @@ export function niumaUiHost(options: NiumaUiHostOptions = {}): Plugin[] {
       options.exclude ?? [/\/node_modules\//],
     ),
   }
-  return [niumaUiHostAlias(ctx), niumaUiHostRewrite(ctx), niumaUiHostTailwindSource(ctx)]
+  return [niumaUiHostAlias(ctx), niumaUiHostRewrite(ctx)]
 }
 
 /**
@@ -104,7 +104,9 @@ function niumaUiHostAlias(ctx: HostContext): Plugin {
       if (!ctx.hasSrc) {
         return dayjsAlias.length > 0 ? { resolve: { alias: dayjsAlias } } : {}
       }
-      const styles = join(ctx.root, 'src/styles.css')
+      const styles = existsSync(join(ctx.root, 'src/styles/index.css'))
+        ? join(ctx.root, 'src/styles/index.css')
+        : join(ctx.root, 'src/styles.css')
       const alias = [
         ...(existsSync(styles)
           ? [
@@ -147,58 +149,6 @@ function niumaUiHostRewrite(ctx: HostContext): Plugin {
       )
     },
   }
-}
-
-const NIUMA_UI_STYLES = /niuma-ui[\\/](?:src|dist)[\\/]styles\.css$/
-
-/**
- * NiumaUiHostTailwindSource 给 niuma-ui/styles.css 补上宿主根与包内扫描目录。
- * CI 只看 node_modules 里的 styles.css 时，Tailwind 否则扫不到官网 / Ops 源码。
- */
-function niumaUiHostTailwindSource(ctx: HostContext): Plugin {
-  return {
-    name: 'niuma-ui-host:tailwind-source',
-    enforce: 'pre',
-    configResolved(config) {
-      ctx.viteRoot = config.root
-    },
-    transform(code, id) {
-      const file = id.split('?')[0] ?? id
-      if (!NIUMA_UI_STYLES.test(file.replace(/\\/g, '/'))) return null
-      if (!code.includes('tailwindcss')) return null
-      const cssDir = dirname(file)
-      const pkgScan =
-        ctx.useSource && existsSync(join(ctx.root, 'src'))
-          ? join(ctx.root, 'src')
-          : existsSync(join(ctx.root, 'dist'))
-            ? join(ctx.root, 'dist')
-            : ctx.root
-      const specs = [ctx.viteRoot, pkgScan]
-        .map((dir) => toSourceRel(cssDir, dir))
-        .filter((spec, i, all) => all.indexOf(spec) === i)
-      const inject = specs
-        .filter((spec) => !code.includes(`@source '${spec}'`) && !code.includes(`@source "${spec}"`))
-        .map((spec) => `@source '${spec}';`)
-        .join('\n')
-      if (!inject) return null
-      const next = code.replace(
-        /@import\s+['"]tailwindcss['"]\s*;/,
-        `@import 'tailwindcss';\n${inject}`,
-      )
-      if (next === code) return null
-      return { code: next, map: null }
-    },
-  }
-}
-
-/**
- * ToSourceRel 把目录收成 Tailwind @source 可用的相对路径。
- */
-export function toSourceRel(fromDir: string, targetDir: string): string {
-  let rel = relative(fromDir, targetDir).replace(/\\/g, '/')
-  if (rel === '') return '.'
-  if (!rel.startsWith('.')) rel = `./${rel}`
-  return rel
 }
 
 const VUE_SCRIPT_RE = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi
@@ -504,7 +454,8 @@ function loadRuntimeBindings(root: string, useSource: boolean): Map<string, Nium
   if (!existsSync(indexPath)) {
     throw new Error(`niumaUiHost: 未找到 ${srcIndex} 或 ${distIndex}`)
   }
-  const map = parseRuntimeBindings(readFileSync(indexPath, 'utf8'))
+  let map = parseRuntimeBindings(readFileSync(indexPath, 'utf8'))
+  if (useSource) map = followSourceBarrels(root, map)
   if (map.size === 0) {
     throw new Error(
       `niumaUiHost: ${indexPath} 没有解析到运行时导出（需要 src re-export 或 dist 桶 import/export）`,
@@ -513,15 +464,74 @@ function loadRuntimeBindings(root: string, useSource: boolean): Map<string, Nium
   return map
 }
 
+/**
+ * FollowSourceBarrels 把 `./components/button` 这类目录再导出展开到实现文件。
+ * 只跟一层，避免评估整桶 `src/index.ts`。
+ */
+export function followSourceBarrels(
+  root: string,
+  map: Map<string, NiumaUiBinding>,
+): Map<string, NiumaUiBinding> {
+  const next = new Map<string, NiumaUiBinding>()
+  for (const [name, binding] of map) {
+    const file = resolveSourceModule(root, binding.from)
+    if (!file || !/[/\\]index\.(ts|js)$/.test(file)) {
+      next.set(name, binding)
+      continue
+    }
+    const child = parseRuntimeBindings(readFileSync(file, 'utf8'))
+    const inner = child.get(name)
+    if (!inner) {
+      next.set(name, { ...binding, from: toSrcRel(root, file) })
+      continue
+    }
+    const innerAbs = resolveRelativeModule(file, inner.from)
+    next.set(name, {
+      ...inner,
+      from: innerAbs ? toSrcRel(root, innerAbs) : inner.from,
+    })
+  }
+  return next
+}
+
+function resolveSourceModule(root: string, from: string): string | null {
+  const rel = from.replace(/\\/g, '/').replace(/^\.\//, '')
+  return resolveExisting(join(root, 'src', rel))
+}
+
+function resolveRelativeModule(fromFile: string, spec: string): string | null {
+  return resolveExisting(join(dirname(fromFile), spec))
+}
+
+function resolveExisting(abs: string): string | null {
+  if (existsSync(abs)) {
+    const st = statSync(abs)
+    if (st.isFile()) return abs
+    if (st.isDirectory()) {
+      for (const name of ['index.ts', 'index.js']) {
+        const idx = join(abs, name)
+        if (existsSync(idx)) return idx
+      }
+    }
+  }
+  for (const ext of ['.ts', '.js', '.vue']) {
+    if (existsSync(`${abs}${ext}`)) return `${abs}${ext}`
+  }
+  return null
+}
+
+function toSrcRel(root: string, abs: string): string {
+  let rel = relative(join(root, 'src'), abs).replace(/\\/g, '/')
+  rel = rel.replace(/\.(ts|js)$/, '')
+  return `./${rel}`
+}
+
 function resolveTarget(from: string, spec: string, root: string, useSource: boolean): string {
   if (!useSource) return `${spec}/${toPublishedRel(from)}`
+  const resolved = resolveSourceModule(root, from)
+  if (resolved) return toViteFsPath(resolved)
   const rel = from.replace(/\\/g, '/').replace(/^\.\//, '')
-  let abs = join(root, 'src', rel)
-  if (!existsSync(abs)) {
-    if (existsSync(`${abs}.ts`)) abs = `${abs}.ts`
-    else if (existsSync(`${abs}.js`)) abs = `${abs}.js`
-  }
-  return toViteFsPath(abs)
+  return toViteFsPath(join(root, 'src', rel))
 }
 
 function toPublishedRel(from: string): string {

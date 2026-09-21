@@ -6,6 +6,32 @@
 
 ## [Unreleased]
 
+### 变更
+
+- 单测放到对应模块的 `__tests__/`；跨组件冒烟仍留在 `src/__tests__/`。
+- 每个组件目录增加 `index.ts`，`src/index.ts` 只从目录再导出。
+- `src/lib` 并入 `src/utils`。
+- `RsTreeSelect` 独立目录 `components/tree-select/`。组件与组件之间按 slug 平铺；归类只写文档站 `basic` / `form` / `nav` / `feedback` / `data` / `editor`。
+- 每个组件内部为 `index.ts` + `src/` + 可选 `style/` + `__tests__/`。
+- 表格 `src/` 再拆：`table-header` / `table-body` / `table-footer` / `composables` / `context` / `features` / `utils`。
+- 架构契约补齐目录规范：组件四槽、`src/` 再拆门槛、仓库根、`package.json` 发布面（`docs/components.md` §3）。
+
+## [2.0.0] - 2026-09-21
+
+### 破坏性变更
+
+- 移除 Tailwind。`styles.css` 只含 `--rs-*` token、reset 与组件样式；宿主不再需要 `@tailwindcss/vite`。若业务自己写了工具类，在宿主 CSS 里自行引入 Tailwind。
+- 源码按组件分目录：`src/components/{name}/`。表格引擎从 `composables/` 并入 `src/components/table/`。样式源码为 `src/styles/index.css`。
+- 去掉 `exports["./*"]`。只从包根具名导入，不要 `niuma-ui/components/...`。
+- 1.x 维护线见 Git 分支 `1.x`（含 Tailwind 透传约定）。
+
+### 迁移
+
+1. 继续 `import 'niuma-ui/styles.css'`。
+2. 若只为展开本包才装 `@tailwindcss/vite`，可以卸掉。
+3. 深路径导入改回 `import { RsButton } from 'niuma-ui'`。
+4. 仍要 1.3.x 行为请装 `niuma-ui@1` 或跟踪 `1.x` 分支。
+
 ## [1.3.9] - 2026-09-21
 
 ### 新增

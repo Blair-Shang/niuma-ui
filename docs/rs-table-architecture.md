@@ -18,6 +18,20 @@ ViewContext provide（实例级）
 ColGroup / Header / Body / BodyRow（纯视图 inject）
 ```
 
+源码目录（`src/components/table/src/`）：
+
+```text
+RsTable.vue                 # 壳
+rs-table-props.ts / rs-table-api.ts / assemble* / bind*
+table-header/               # 表头 + 列筛选
+table-body/                 # 表体、单元格、编辑器、ColGroup
+table-footer/               # 汇总行
+composables/                # useRsTable*
+context/                    # ViewContext / ModuleRegistry / keys
+features/                   # FeatureHost + 内置 feature
+utils/                      # 纯函数
+```
+
 无头入口：`useRsTableHeadless`（只有 Core + Api + Features，无 DOM）。
 
 ## 同页多表会不会互相影响？
@@ -53,7 +67,7 @@ ColGroup / Header / Body / BodyRow（纯视图 inject）
 
 加性兼容的 props/emits 继续保留；内部 composable 路径可能变，第三方勿依赖未导出的私有符号。
 
-**自动化矩阵**（真源：`src/components/table/rs-table-compat-matrix.ts`）：
+**自动化矩阵**（真源：`src/components/table/src/utils/rs-table-compat-matrix.ts`）：
 
 - 必选 Api 方法列表 + inline snapshot  
 - `RS_TABLE_PROP_DEFAULTS` 键锁定  
@@ -79,7 +93,7 @@ api.getAnalyticsSnapshot()
 - 列宽拖拽 DOM 直写  
 - 行 `v-memo` 保留在 Body  
 
-门槛：`src/__tests__/perf-budgets.ts`；CI 跑 `pnpm test:perf`（`CI=true` 时预算更紧）。
+门槛：`src/components/table/__tests__/perf-budgets.ts`；CI 跑 `pnpm test:perf`（`CI=true` 时预算更紧）。
 
 ## 无障碍
 

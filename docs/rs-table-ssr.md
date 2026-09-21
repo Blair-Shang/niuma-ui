@@ -84,5 +84,5 @@ const rows = await fetchOrders() // 服务端可 await
 
 ## 验证
 
-仓库提供 SSR 冒烟：`src/__tests__/RsTable.ssr.spec.ts`（`renderToString`）。  
+仓库提供 SSR 冒烟：`src/components/table/__tests__/RsTable.ssr.spec.ts`（`renderToString`）。  
 CI：`pnpm test:ssr`。

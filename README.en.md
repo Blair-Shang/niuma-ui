@@ -11,7 +11,7 @@ Vue 3 **workbench** design system: consistent `Rs*` components, `--rs-*` tokens,
 
 Built for ops consoles, database workbenches, and internal admin UIs. Marketing sites can use named imports. `npm install` pulls Monaco, CodeMirror, and xterm; named imports control the bundle.
 
-**Status:** [Apache License 2.0](./LICENSE) since v1.0.0. Compiled ESM on npm since v1.2.0. Current version is **1.3.8** (`package.json` / npm `niuma-ui`).
+**Status:** [Apache License 2.0](./LICENSE) since v1.0.0. Compiled ESM on npm since v1.2.0. Current line is **2.0.0**. The `1.x` branch keeps the 1.3 line.
 
 ## Features
 
@@ -29,7 +29,7 @@ Built for ops consoles, database workbenches, and internal admin UIs. Marketing 
 | Package manager | npm / pnpm / yarn (this repo develops with pnpm ≥ 9) |
 | Vue | ^3.5 (`peerDependency`) |
 | Bundler | Vite 5+ recommended; `RsMonacoEditor` needs Vite `?worker` |
-| Styles | `import 'niuma-ui/styles.css'` (forwards `@import 'tailwindcss'`); Vite hosts add `@tailwindcss/vite` |
+| Styles | `import 'niuma-ui/styles.css'` (standalone CSS, no Tailwind) |
 
 ## Install
 
@@ -38,7 +38,7 @@ pnpm add niuma-ui
 # or: npm install niuma-ui / yarn add niuma-ui
 ```
 
-Prefer a range such as `^1.3.0`. Pin **1.3.8** when you need a bit-for-bit install.
+Prefer a range such as `^2.0.0`. Pin **2.0.0** for a bit-for-bit install. Use `niuma-ui@1` for the 1.x line.
 
 Local `link`, Vite plugins, and bundle size: **[Consumer guide](./docs/consumers.en.md)** ([中文](./docs/consumers.md)).
 

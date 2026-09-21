@@ -25,7 +25,7 @@ Requires Node.js ≥ 20, pnpm ≥ 9 in this repo, Vue ^3.5. Downstream installs 
 
 1. Open an Issue first for large features or breaking API changes.
 2. Keep each PR focused.
-3. Add or update tests under `src/__tests__/` when behavior changes.
+3. Add or update `*.spec.ts` under the module’s `__tests__/` when behavior changes (components: `src/components/{slug}/__tests__/`; cross-component smoke only in `src/__tests__/`).
 4. Public usage **must** land on the docs site `site/` (catalog + `demos/{slug}.vue`). `playground/` is internal smoke / visual regression only and must not be treated as usage docs.
 5. When public API, tokens, architecture, or install steps change, update:
    - [docs/components.md](./docs/components.md) and [docs/components.en.md](./docs/components.en.md)
@@ -93,10 +93,24 @@ The full architecture contract (red lines, public surface, tokens, Vue/CSS/overl
 | A11y | Native first, then ARIA; icon buttons need a label; current item `aria-current`; overlay focus trap |
 | Docs | Public usage is `site/` only; `playground/` is internal test |
 | Tests | Mount smoke + utils edge cases |
+| Directories | Component: `index.ts` + `src/` + `__tests__/`. Keep `src/` flat; only engine-sized folders nest. See [§3](./docs/components.en.md) |
 
 ### Adding a component
 
-Follow the checklist in [docs/components.en.md §15](./docs/components.en.md): implement → export → locale → tests → **site catalog + demo** → inventory → CHANGELOG. Playground is optional.
+Follow the checklist in [docs/components.en.md §15](./docs/components.en.md). Folder template:
+
+```text
+src/components/{slug}/
+  index.ts              # export { default as RsXxx } from './src/RsXxx.vue'
+  src/
+    RsXxx.vue
+    xxx-utils.ts        # when needed
+  style/                # only when there is standalone CSS
+  __tests__/
+    RsXxx.spec.ts
+```
+
+Add one line to `src/index.ts`: `export { RsXxx } from './components/{slug}'`. Folder name equals the docs slug. Register the group in `site/catalog/components/{group}.ts` (`basic` / `form` / `nav` / `feedback` / `data` / `editor`). Do not nest source folders by group. Then locale → **site catalog + demo** → inventory → CHANGELOG. Playground is optional.
 
 ### Breaking changes
 

@@ -8,7 +8,7 @@ import {
   type ComputedRef,
   type Ref,
 } from 'vue'
-import { resolveVisibleTabValues, type RsTabItem, type RsTabsOverflow } from '../components/tabs-utils'
+import { resolveVisibleTabValues, type RsTabItem, type RsTabsOverflow } from '../components/tabs/src/tabs-utils'
 
 interface UseRsTabsNavOptions {
   items: ComputedRef<RsTabItem[]>

@@ -5,17 +5,17 @@ import { describe, expect, it } from 'vitest'
 import {
   dayjsServeAliases,
   emitLiveReexportIndex,
+  followSourceBarrels,
   parseRuntimeBindings,
   rewriteHostModule,
   rewriteHostStatement,
   scriptBlocks,
-  toSourceRel,
   type NiumaUiBinding,
 } from './niuma-ui-host'
 
 const map = new Map<string, NiumaUiBinding>([
-  ['RsButton', { from: './components/RsButton.vue', kind: 'default' }],
-  ['supportsRsButtonTone', { from: './components/button-utils', kind: 'named' }],
+  ['RsButton', { from: './components/button/RsButton.vue', kind: 'default' }],
+  ['supportsRsButtonTone', { from: './components/button/button-utils', kind: 'named' }],
 ])
 
 const pkgRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -27,10 +27,10 @@ function published(from: string): string {
 }
 
 const DIST_BARREL = `
-import RsConfigProvider_default from "./components/RsConfigProvider.js";
-import RsBadge_default from "./components/RsBadge.js";
-import RsButton_default from "./components/RsButton.js";
-import { isRsButtonFilledVariant, supportsRsButtonTone } from "./components/button-utils.js";
+import RsConfigProvider_default from "./components/config-provider/RsConfigProvider.js";
+import RsBadge_default from "./components/badge/RsBadge.js";
+import RsButton_default from "./components/button/RsButton.js";
+import { isRsButtonFilledVariant, supportsRsButtonTone } from "./components/button/button-utils.js";
 import { useRsToast } from "./composables/useRsToast.js";
 export { RsBadge_default as RsBadge, RsButton_default as RsButton, RsConfigProvider_default as RsConfigProvider, isRsButtonFilledVariant, supportsRsButtonTone, useRsToast };
 `
@@ -39,17 +39,37 @@ describe('parseRuntimeBindings', () => {
   it('parses src/index.ts re-exports', () => {
     const source = readFileSync(join(pkgRoot, 'src/index.ts'), 'utf8')
     const parsed = parseRuntimeBindings(source)
-    expect(parsed.get('RsButton')).toEqual({ from: './components/RsButton.vue', kind: 'default' })
+    expect(parsed.get('RsButton')).toEqual({
+      from: './components/button',
+      kind: 'named',
+      sourceName: 'RsButton',
+    })
     expect(parsed.get('RsConfigProvider')).toEqual({
-      from: './components/RsConfigProvider.vue',
-      kind: 'default',
+      from: './components/config-provider',
+      kind: 'named',
+      sourceName: 'RsConfigProvider',
     })
     expect(parsed.get('supportsRsButtonTone')).toEqual({
-      from: './components/button-utils',
+      from: './components/button',
       kind: 'named',
       sourceName: 'supportsRsButtonTone',
     })
     expect(parsed.has('RsCardVariant')).toBe(false)
+  })
+
+  it('follows component barrels to implementation files', () => {
+    const source = readFileSync(join(pkgRoot, 'src/index.ts'), 'utf8')
+    const followed = followSourceBarrels(pkgRoot, parseRuntimeBindings(source))
+    expect(followed.get('RsButton')).toEqual({ from: './components/button/src/RsButton.vue', kind: 'default' })
+    expect(followed.get('RsConfigProvider')).toEqual({
+      from: './components/config-provider/src/RsConfigProvider.vue',
+      kind: 'default',
+    })
+    expect(followed.get('supportsRsButtonTone')).toEqual({
+      from: './components/button/src/button-utils',
+      kind: 'named',
+      sourceName: 'supportsRsButtonTone',
+    })
   })
 
   it('maps real dist monaco named exports onto files, not ./monaco', () => {
@@ -63,19 +83,19 @@ describe('parseRuntimeBindings', () => {
   it('parses published dist barrel import + export aliases', () => {
     const parsed = parseRuntimeBindings(DIST_BARREL)
     expect(parsed.get('RsButton')).toEqual({
-      from: './components/RsButton.js',
+      from: './components/button/RsButton.js',
       kind: 'default',
     })
     expect(parsed.get('RsConfigProvider')).toEqual({
-      from: './components/RsConfigProvider.js',
+      from: './components/config-provider/RsConfigProvider.js',
       kind: 'default',
     })
     expect(parsed.get('RsBadge')).toEqual({
-      from: './components/RsBadge.js',
+      from: './components/badge/RsBadge.js',
       kind: 'default',
     })
     expect(parsed.get('supportsRsButtonTone')).toEqual({
-      from: './components/button-utils.js',
+      from: './components/button/button-utils.js',
       kind: 'named',
       sourceName: 'supportsRsButtonTone',
     })
@@ -91,19 +111,10 @@ describe('emitLiveReexportIndex', () => {
   it('emits from-clause re-exports, not an import-all facade', () => {
     const parsed = parseRuntimeBindings(DIST_BARREL)
     const out = emitLiveReexportIndex(parsed)
-    expect(out).toContain(`export { default as RsButton } from './components/RsButton.js'`)
-    expect(out).toContain(`export { supportsRsButtonTone } from './components/button-utils.js'`)
+    expect(out).toContain(`export { default as RsButton } from './components/button/RsButton.js'`)
+    expect(out).toContain(`export { supportsRsButtonTone } from './components/button/button-utils.js'`)
     expect(out).not.toContain('RsButton_default')
     expect(out).not.toMatch(/^import /m)
-  })
-})
-
-describe('toSourceRel', () => {
-  it('returns a relative @source path', () => {
-    expect(toSourceRel(join('repo', 'niuma-ui', 'dist'), join('repo', 'niuma-site'))).toBe(
-      '../../niuma-site',
-    )
-    expect(toSourceRel(join('repo', 'app'), join('repo', 'app'))).toBe('.')
   })
 })
 
@@ -158,7 +169,7 @@ describe('rewriteHostModule', () => {
     ].join('\n')
     const out = await rewriteHostModule(sfc, '/app/App.vue', map, (from) => published(from))
     expect(out?.code).toContain(
-      `import { default as RsButton } from '@niuma/ui/components/RsButton.js'`,
+      `import { default as RsButton } from '@niuma/ui/components/button/RsButton.js'`,
     )
     expect(out?.code).toContain('<template>')
     expect(out?.code).toContain('</script>')
@@ -175,7 +186,7 @@ describe('rewriteHostStatement', () => {
     )
     expect(next).toBe(
       [
-        `import { default as RsButton } from '@niuma/ui/components/RsButton.js'`,
+        `import { default as RsButton } from '@niuma/ui/components/button/RsButton.js'`,
         `import type { RsCardVariant } from '@niuma/ui'`,
       ].join('\n'),
     )
@@ -199,8 +210,8 @@ describe('rewriteHostStatement', () => {
     )
     expect(next).toBe(
       [
-        `import { default as RsButton } from '@niuma/ui/components/RsButton.js'`,
-        `import { supportsRsButtonTone as toneOk } from '@niuma/ui/components/button-utils.js'`,
+        `import { default as RsButton } from '@niuma/ui/components/button/RsButton.js'`,
+        `import { supportsRsButtonTone as toneOk } from '@niuma/ui/components/button/button-utils.js'`,
       ].join('\n'),
     )
   })
@@ -212,7 +223,7 @@ describe('rewriteHostStatement', () => {
       map,
       published,
     )
-    expect(next).toBe(`export { default as RsButton } from '@niuma/ui/components/RsButton.js'`)
+    expect(next).toBe(`export { default as RsButton } from '@niuma/ui/components/button/RsButton.js'`)
   })
 
   it('rewrites site ui.ts barrel from published dist bindings', () => {
@@ -225,9 +236,9 @@ describe('rewriteHostStatement', () => {
     )
     expect(next).toBe(
       [
-        `export { default as RsConfigProvider } from '@niuma/ui/components/RsConfigProvider.js'`,
-        `export { default as RsButton } from '@niuma/ui/components/RsButton.js'`,
-        `export { default as RsBadge } from '@niuma/ui/components/RsBadge.js'`,
+        `export { default as RsConfigProvider } from '@niuma/ui/components/config-provider/RsConfigProvider.js'`,
+        `export { default as RsButton } from '@niuma/ui/components/button/RsButton.js'`,
+        `export { default as RsBadge } from '@niuma/ui/components/badge/RsBadge.js'`,
       ].join('\n'),
     )
   })

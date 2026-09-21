@@ -25,7 +25,7 @@ pnpm test:watch
 
 1. 大型功能或破坏性 API 变更请先开 Issue 讨论。
 2. 单个 PR 聚焦一件事。
-3. 行为变更时补充或更新 `src/__tests__/` 测试。
+3. 行为变更时在对应模块的 `__tests__/` 补充或更新 `*.spec.ts`（组件跟 `src/components/{slug}/__tests__/`；跨组件冒烟才放 `src/__tests__/`）。
 4. 对外用法**必须**写在文档站 `site/`（catalog + `demos/{slug}.vue`）。`playground/` 只做内部冒烟与像素回归，禁止当作用法说明。
 5. 涉及公开 API、token、架构或安装步骤时同步更新：
    - [docs/components.md](./docs/components.md)（架构红线；英文 [components.en.md](./docs/components.en.md)）
@@ -95,10 +95,24 @@ pnpm test:watch
 | 无障碍 | 先原生后 ARIA；图标按钮要标签；当前项 `aria-current`；浮层焦点陷阱 |
 | 文档 | 对外用法只认 `site/`；`playground/` 仅内部测试 |
 | 测试 | 挂载冒烟 + utils 边界 |
+| 目录 | 组件 `index.ts` + `src/` + `__tests__/`；`src/` 默认平铺；仅表格级再拆。细则 [§3](./docs/components.md) |
 
 ### 新增组件步骤
 
-按 [docs/components.md §15](./docs/components.md) 检查清单执行：实现 → 筛选导出 → locale → 单测 → **site catalog + demo** → 更新清单 → CHANGELOG。playground 可选。
+按 [docs/components.md §15](./docs/components.md) 检查清单执行。目录模板：
+
+```text
+src/components/{slug}/
+  index.ts              # export { default as RsXxx } from './src/RsXxx.vue'
+  src/
+    RsXxx.vue
+    xxx-utils.ts        # 需要时
+  style/                # 仅有独立 CSS 时
+  __tests__/
+    RsXxx.spec.ts
+```
+
+`src/index.ts` 只增加一行：`export { RsXxx } from './components/{slug}'`。目录名等于文档站 slug，并在 `site/catalog/components/{group}.ts` 归入 `basic` / `form` / `nav` / `feedback` / `data` / `editor`。不要按 group 再套一层源码目录。然后 locale → **site catalog + demo** → 更新清单 → CHANGELOG。playground 可选。
 
 ### 破坏性变更
 

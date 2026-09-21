@@ -11,7 +11,7 @@ Vue 3 **工作台**设计系统：一致的 `Rs*` 组件与 `--rs-*` Token，以
 
 适用于运维控制台、数据库工作台、内部后台。营销站也可以用具名导入。`npm install` 会带上 Monaco、CodeMirror、xterm，体积靠具名导入摇树。
 
-**状态：** [Apache License 2.0](./LICENSE)，自 v1.0.0 开源。自 v1.2.0 起 npm 发布编译 ESM，按包名导入即可。当前版本见 npm 上的 `niuma-ui`（仓库 `package.json` 为 **1.3.8**）。
+**状态：** [Apache License 2.0](./LICENSE)，自 v1.0.0 开源。自 v1.2.0 起 npm 发布编译 ESM。当前主线 **2.0.0**。1.x 见分支 `1.x`。
 
 ## 特性
 
@@ -29,7 +29,7 @@ Vue 3 **工作台**设计系统：一致的 `Rs*` 组件与 `--rs-*` Token，以
 | 包管理器 | npm / pnpm / yarn（本仓库开发用 pnpm ≥ 9） |
 | Vue | ^3.5（peerDependency） |
 | 打包器 | 推荐 Vite 5+；`RsMonacoEditor` 需要 Vite 处理 `?worker` |
-| 样式 | `import 'niuma-ui/styles.css'`（内含 `@import 'tailwindcss'`）；Vite 宿主加 `@tailwindcss/vite` |
+| 样式 | `import 'niuma-ui/styles.css'`（独立 CSS，不含 Tailwind） |
 
 ## 安装
 
@@ -38,7 +38,7 @@ pnpm add niuma-ui
 # 或 npm install niuma-ui / yarn add niuma-ui
 ```
 
-建议锁定兼容范围，例如 `^1.3.0`。精确复现请钉死版本（当前 **1.3.8**）。
+建议锁定兼容范围，例如 `^2.0.0`。精确复现请钉死 **2.0.0**。1.x 请用 `niuma-ui@1`。
 
 本地改源码、Vite 插件、包体积见 **[消费方指南](./docs/consumers.md)**（[English](./docs/consumers.en.md)）。
 

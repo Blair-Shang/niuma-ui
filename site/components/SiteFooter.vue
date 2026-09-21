@@ -13,11 +13,9 @@ const copy = computed(() => siteText(locale.value as SiteLocale).footer)
   <footer class="site-footer">
     <div class="site-footer__inner">
       <div class="site-footer__brand">
-        <img src="/favicon.svg" width="28" height="28" alt="" />
-        <div>
-          <strong>{{ siteConfig.name }}</strong>
-          <p>{{ siteConfig.license }}</p>
-        </div>
+        <img class="site-footer__mark" src="/favicon.svg" width="28" height="28" alt="" />
+        <strong class="site-footer__name">{{ siteConfig.name }}</strong>
+        <p class="site-footer__license">{{ siteConfig.license }}</p>
       </div>
       <div class="site-footer__cols">
         <div>
@@ -55,6 +53,7 @@ const copy = computed(() => siteText(locale.value as SiteLocale).footer)
 .site-footer__inner {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 2rem;
   max-width: 70rem;
@@ -62,22 +61,33 @@ const copy = computed(() => siteText(locale.value as SiteLocale).footer)
 }
 
 .site-footer__brand {
-  display: flex;
-  gap: 0.75rem;
-  min-width: 12rem;
+  display: grid;
+  grid-template-columns: 28px auto;
+  column-gap: 0.55rem;
+  align-items: center;
 }
 
-.site-footer__brand img {
+.site-footer__mark {
+  grid-column: 1;
+  grid-row: 1;
+  display: block;
+  width: 28px;
+  height: 28px;
   border-radius: 7px;
 }
 
-.site-footer__brand strong {
-  display: block;
-  font-size: 0.95rem;
+.site-footer__name {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
 }
 
-.site-footer__brand p {
-  margin: 0.2rem 0 0;
+.site-footer__license {
+  grid-column: 2;
+  grid-row: 2;
+  margin: 0;
   color: var(--rs-muted);
   font-size: 0.75rem;
 }

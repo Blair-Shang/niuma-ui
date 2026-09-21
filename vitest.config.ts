@@ -1,12 +1,12 @@
 import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
-import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
-  plugins: [vue(), tailwindcss()],
+  plugins: [vue()],
   resolve: {
     alias: {
+      'niuma-ui/styles.css': fileURLToPath(new URL('./src/styles/index.css', import.meta.url)),
       'niuma-ui': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },

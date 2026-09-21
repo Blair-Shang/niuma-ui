@@ -4,11 +4,11 @@ How to integrate `niuma-ui` into a host app (desktop shell, admin console, or ma
 
 Usage, when-to-use, and API live only on the docs site: [https://blair-shang.github.io/niuma-ui/](https://blair-shang.github.io/niuma-ui/) (source `site/`, local `pnpm dev:site`). `playground/` is the maintainer test bench. It does not document public usage.
 
-**Positioning:** a workbench design system, not a lightweight general-purpose kit. Since **1.2.0** the npm package is compiled ESM. Install pulls Monaco / CodeMirror / xterm; bundle size depends on **named imports** and the entry rules below.
+**Positioning:** a workbench design system, not a lightweight general-purpose kit. Since **1.2.0** the npm package is compiled ESM. Install pulls Monaco / CodeMirror / xterm; bundle size depends on **named imports** and the entry rules below. Current release is **2.0.0**. The `1.x` branch keeps the 1.3 line.
 
-**Contract:** the public API is named imports from the package root. `vite build` / CI resolve that entry and do not depend on rewrite plugins. `niumaUiHost` is **serve-only** (`pnpm dev`). Do not add a second Tailwind pipeline or alias the package to `src/index.ts`.
+**Contract:** the public API is named imports from the package root. `vite build` / CI resolve that entry and do not depend on rewrite plugins. `niumaUiHost` is **serve-only** (`pnpm dev`). Do not alias the package to `src/index.ts`.
 
-1. `styles.css` is the same in source and on npm. It **forwards** `@import 'tailwindcss'`. Hosts only `import 'niuma-ui/styles.css'` and let `@tailwindcss/vite` expand that line. Do not import Tailwind again in app CSS, and do not strip the import from the published file.
+1. `styles.css` is standalone (tokens + reset + components) and **does not** include Tailwind. Hosts only `import 'niuma-ui/styles.css'`. If the app uses utility classes, import Tailwind in the host CSS.
 2. Enable `niumaUiHost()` (`niuma-ui/vite-plugins/niuma-ui-host`):
    - `pnpm dev` + `link:`: named imports rewrite to `src/**/*.vue`, `styles.css` points at source, components HMR.
    - `vite build` / CI: no rewrite; resolve real re-exports from `dist/index.js`.
@@ -23,8 +23,9 @@ The npm name is **`niuma-ui`**. Stable publishes update dist-tag **`latest`**. P
 | Case | Recommended | Notes |
 |------|-------------|--------|
 | Local HMR against this repo | `"niuma-ui": "link:../niuma-ui"` | Path is relative to the **package.json that declares the dependency** |
-| Third-party, want patches | `"niuma-ui": "^1.3.0"` | Compatible PATCH only |
-| Must reproduce | `"niuma-ui": "1.3.8"` | Exact version |
+| Third-party, want patches | `"niuma-ui": "^2.0.0"` | Compatible 2.x only |
+| Must reproduce | `"niuma-ui": "2.0.0"` | Exact version |
+| Stay on 1.x | `"niuma-ui": "^1.3.9"` | Tailwind-forwarding contract; see the `1.x` branch |
 | Downstream CI that used to clone this repo | `npm:niuma-ui@latest` | Install from the registry; do not checkout this git repo in product CI |
 
 Open-source baseline **1.0.0**, [Apache License 2.0](../LICENSE). The old scoped name `@niuma/ui` is not published — use **`niuma-ui`**.
@@ -58,10 +59,10 @@ pnpm dev
 
 ```bash
 pnpm add niuma-ui          # current latest
-pnpm add niuma-ui@1.3.8    # pin
+pnpm add niuma-ui@2.0.0    # pin
 ```
 
-Prefer a semver range over `git+https://…#v1.3.8` unless you cannot reach npm. Do not checkout `ref: latest` from GitHub — that tag does not exist.
+Prefer a semver range over `git+https://…#v2.0.0` unless you cannot reach npm. Do not checkout `ref: latest` from GitHub — that tag does not exist.
 
 ### 1.3 Downstream CI that still commits `link:` (optional)
 
@@ -72,18 +73,18 @@ pnpm pkg set "dependencies.niuma-ui=npm:niuma-ui@${NIUMA_UI_VERSION:-latest}"
 pnpm install --no-frozen-lockfile
 ```
 
-`--frozen-lockfile` fights `latest`. Pin with `NIUMA_UI_VERSION=1.3.8` when you need a known build.
+`--frozen-lockfile` fights `latest`. Pin with `NIUMA_UI_VERSION=2.0.0` when you need a known build.
 
 ## 2. Minimal integration
 
 1. Install `vue` (peer) and `niuma-ui`.
-2. Import styles once at the app entry (tokens, vue-sonner, and the forwarded Tailwind import):
+2. Import styles once at the app entry:
 
    ```ts
    import 'niuma-ui/styles.css'
    ```
 
-   Vite hosts add `@tailwindcss/vite` so that line expands in both dev and build. Do not write `@import 'niuma-ui/src/styles.css'`.
+   Do not write `@import 'niuma-ui/src/styles.css'`.
 
 3. Wrap the root with `RsConfigProvider`:
 
@@ -143,7 +144,7 @@ export default defineConfig({
 
 | Plugin | Use |
 |--------|-----|
-| `niumaUiHost` | Recommended for local `link`. Serve-only HMR, styles alias, Tailwind `@source`. Build uses the package entry. |
+| `niumaUiHost` | Recommended for local `link`. Serve-only HMR and styles alias. Build uses the package entry. |
 | `monacoZhNlsPlugin` | Chinese NLS for Monaco context menus (optional) |
 | `silenceAntlrParseConsole` | Quiets unfinished SQL-language parse logs (optional) |
 
@@ -201,10 +202,10 @@ A: The path is relative to the **package.json that declares the dependency**, no
 A: No. The published package is compiled; pnpm isolation can resolve `reka-ui` and friends.
 
 **Q: Dev looks fine, CI looks unstyled?**  
-A: Check that `styles.css` still contains `@import 'tailwindcss'`, the host has `@tailwindcss/vite`, and you did not alias the root entry to `src/index.ts`. `niumaUiHost` does not run in `vite build`.
+A: Check that you `import 'niuma-ui/styles.css'` and did not alias the root entry to `src/index.ts`. `niumaUiHost` does not run in `vite build`. 2.0 styles do not depend on Tailwind.
 
-**Q: Must I use pnpm / Tailwind / Vite?**  
-A: Install with npm, pnpm, or yarn. `styles.css` forwards Tailwind; Vite hosts need `@tailwindcss/vite`. Ordinary components are not Vite-only. `RsMonacoEditor` and the official `vite-plugins/*` need Vite 5+ (workers / plugin API).
+**Q: Must I use pnpm / Vite?**  
+A: Install with npm, pnpm, or yarn. Ordinary components are not Vite-only. `RsMonacoEditor` and the official `vite-plugins/*` need Vite 5+ (workers / plugin API).
 
 **Q: Can I mix other component libraries?**  
 A: Technically yes; visuals and focus layers will clash. New UI should be `Rs*` only; migrate leftovers by surface.
@@ -221,4 +222,4 @@ A: [Apache License 2.0](../LICENSE). See [NOTICE](../NOTICE). Dependencies keep 
 - Security: [SECURITY.md](../SECURITY.md)  
 - Contributing: [CONTRIBUTING.md](../CONTRIBUTING.md)  
 
-When discussing design or API, include host framework versions, a minimal reproduction, and expected vs actual behavior. Third-party products should pin a minor (`^1.3.0` and up) and record the version in their own docs.
+When discussing design or API, include host framework versions, a minimal reproduction, and expected vs actual behavior. Third-party products should pin a minor (`^2.0.0` and up) and record the version in their own docs.

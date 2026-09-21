@@ -1,6 +1,5 @@
 import { defineConfig, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import tailwindcss from '@tailwindcss/vite'
 import { fileURLToPath, URL } from 'node:url'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -49,7 +48,6 @@ export default defineConfig({
   publicDir: 'public',
   plugins: [
     vue(),
-    tailwindcss(),
     faviconIcoFallback(),
     // Monaco 原生右键菜单中文化
     monacoZhNlsPlugin(),
@@ -57,6 +55,7 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
+      'niuma-ui/styles.css': fileURLToPath(new URL('../src/styles/index.css', import.meta.url)),
       'niuma-ui': fileURLToPath(new URL('../src', import.meta.url)),
     },
   },

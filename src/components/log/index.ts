@@ -1,0 +1,35 @@
+export { default as RsLog } from './src/RsLog.vue'
+export type { RsLogExpose, RsLogLive } from './src/RsLog.vue'
+export type {
+  InferLogLevelOptions,
+  RsLogCopySource,
+  RsLogHighlightPart,
+  RsLogInferMarkers,
+  RsLogLevel,
+  RsLogLine,
+  RsLogLineInput,
+  RsLogMarker,
+  RsLogSeverityScale,
+  RsNormalizedLogLine,
+} from './src/log-utils'
+export {
+  RS_LOG_FILTER_LEVELS,
+  RS_LOG_LEVELS,
+  asLogLineInputs,
+  clampLogCount,
+  countDroppedLines,
+  filterLogLines,
+  formatLogTime,
+  inferLogLevel,
+  isRsLogLevel,
+  joinLogLines,
+  normalizeLogLines,
+  otelSeverityOf,
+  parseRsLogLevel,
+  resolveLogCopyText,
+  resolveLogLive,
+  splitLogHighlight,
+  splitLogText,
+  syslogSeverityOf,
+  toLogLineInput,
+} from './src/log-utils'

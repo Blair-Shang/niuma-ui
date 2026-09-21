@@ -76,21 +76,80 @@ import { RsButton, RsConfigProvider } from 'niuma-ui'
 | 文档站 slug | kebab-case，与文件 `site/demos/{slug}.vue` 一致 | `anchor`、`code-editor` |
 | 语言包 key | `dot.case`，组件名小写 | `anchor.label`、`breadcrumb.separator` |
 
-目录：
+### 3.1 组件目录
 
 ```text
 src/
-  components/           # Rs*.vue + *-utils.ts
-  components/table/     # 表格子模块（勿在宿主产品再抄一套 engine）
-  composables/          # useRsConfig、useRsI18n、useRsToast …
+  components/{slug}/
+    index.ts            # export { default as RsXxx } from './src/RsXxx.vue'
+    src/                # 实现：SFC + *-utils.ts（默认平铺）
+    style/              # 仅有独立 CSS 时（如表格 rs-table.css）
+    __tests__/          # 本组件单测（不进 npm）
+  components/table/     # 唯一「引擎级」例外，见 §3.2
+  components/_shared/   # 跨组件内部工具；公开 helper 仍只经 src/index.ts
+  composables/          # 跨组件：useRsConfig、useRsI18n、useRsToast …
+  utils/                # 无 DOM：日期、剪贴板
+  styles/index.css      # token + reset + 全局样式
   theme/                # token 类型、预设、applyTheme
   locale/               # zh-CN / en-US
   monaco/               # Worker / 语言，仅编辑器路径
   icons/                # 注册表，不是第三套图标体系
-  index.ts              # 唯一公开面
+  dev/                  # 宿主 Vite prebundle 种子（CodeMirror / xterm）
+  __tests__/            # 仅 setup 与跨组件冒烟
+  index.ts              # export { RsXxx } from './components/{slug}'
 ```
 
-新官方组件只加 `src/components/RsXxx.vue`（逻辑进同族 `*-utils.ts`）。禁止在 `src/` 根再开平行「组件包」。
+**组件与组件之间按 slug 平铺**（`components/table`，不要 `data/table`）。**每个组件内部**固定四槽：`index.ts` / `src/` / 可选 `style/` / `__tests__/`。目录名 = `site/catalog` 的 slug。一个对外组件一个目录（`tree-select/` 不进 `select/`）。子控件（`RsRadioItem`、`RsFormItem`、`RsConfirmDialog`）跟父组件目录。
+
+归类（只改 `site/catalog/components/{group}.ts`，不改源码层级）：
+
+| group | 放什么 |
+|-------|--------|
+| `basic` | 按钮、图标、链接、徽章、标签、分割、头像、卡片、容器、滚动条、ConfigProvider |
+| `form` | 表单与录入控件（含 TreeSelect、Upload、日期时间） |
+| `nav` | 锚点、面包屑、菜单、侧栏、页签、步骤、下拉、工具条、分栏、分页 |
+| `feedback` | 提示、空态、加载、浮层、对话框、抽屉、右键、Toaster |
+| `data` | 表格、树、虚拟列表、描述列表、统计卡 |
+| `editor` | 代码块 / 编辑器、Markdown、日志、终端、Prose |
+
+新官方组件只加 `src/components/{slug}/`（`index.ts` + `src/RsXxx.vue` + `__tests__/`；逻辑进 `src/*-utils.ts`）。`src/index.ts` 只写 `export { RsXxx } from './components/{slug}'`，不要指到 `.vue` 深路径。禁止在 `src/` 根再开平行「组件包」。禁止把实现摊回组件根目录（根上只留 `index.ts`）。禁止再开 `src/lib/`。禁止按 group 嵌套源码目录。禁止没有独立 CSS 时空建 `style/`。
+
+### 3.2 何时再拆 `src/`
+
+`src/` **默认平铺**。只有同时满足下面两条才分子目录：
+
+1. 实现文件（不含测试）**超过约 12 个**，或出现两块以上独立 UI 区域（表头 / 表体 / 表尾）。
+2. 子目录名表示职责，不用 group：`table-header`、`composables`、`utils`、`context`、`features`。
+
+2.0 只有 `components/table/src` 达标。Form（8）、CodeEditor（8）及以下保持平铺。禁止给 Button / Input 预建空的 `composables/`。
+
+### 3.3 仓库根（本包目录）
+
+```text
+src/            库源码（唯一实现）
+site/           对外文档站
+playground/     内部冒烟，禁止当用法说明
+e2e/            Playwright 像素回归
+docs/           维护者契约（不进 npm）
+vite-plugins/   宿主 Vite 插件源码
+scripts/        构建 / 准备脚本
+dist/           构建产物（gitignore，npm files 发布）
+```
+
+禁止在仓库根再开第二套 `components/`。`playground-dist` / `site-dist` / `test-results` 只作本地产物，不提交。
+
+### 3.4 发布面（`package.json`）
+
+| 字段 | 2.0 约定 |
+|------|----------|
+| `exports["."]` | 唯一组件入口：`dist/index.js` + `dist/index.d.ts` |
+| `exports["./styles.css"]` | 独立样式，不含 Tailwind |
+| `exports["./vite-plugins/*"]` | 工具链，不是日常组件导入 |
+| `exports["./vite-prebundle/*"]` | 宿主 Vite 预构建种子 |
+| `files` | 只 `dist`、`LICENSE`、`NOTICE`、`README*.md`、`CHANGELOG.md` |
+| 禁止 | `exports["./*"]`；把 `src/`、`docs/`、`site/` 写进 `files` |
+
+消费方只 `import { RsButton } from 'niuma-ui'` 与 `import 'niuma-ui/styles.css'`。深路径（`niuma-ui/src/…`、内部 `*-utils`）无 SemVer。
 
 ---
 
@@ -260,13 +319,13 @@ Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
 
 复杂逻辑放 `*-utils.ts`：纯输入输出、可单测。Vue 文件只绑生命周期、事件、样式。
 
-`src/__tests__/RsXxx.spec.ts` 最低要求：
+`src/components/{slug}/__tests__/RsXxx.spec.ts` 最低要求：
 
 1. 挂载冒烟（渲染标题 / 角色）。
 2. 用户动作发出约定事件。
 3. utils 的边界：空列表、编码、缺容器、默认值。
 
-禁止用无断言的「能 import 就算过」。
+跨组件冒烟放 `src/__tests__/`。e2e / 像素回归仍在仓库根 `e2e/`。禁止用无断言的「能 import 就算过」。
 
 ---
 
@@ -274,12 +333,12 @@ Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
 
 缺一项即视为未完成。
 
-1. `src/components/RsXxx.vue` + 需要时 `xxx-utils.ts`（UTF-8 无 BOM）。
+1. `src/components/{slug}/src/RsXxx.vue` + 需要时 `src/xxx-utils.ts` + 根 `index.ts`（UTF-8 无 BOM）。`src/` 默认平铺，勿预建子目录（§3.2）。
 2. `defineOptions({ name: 'RsXxx' })`，类名 `.rs-xxx`。
-3. `src/index.ts` 导出组件；公开类型 / 宿主 helper 按第 4 节筛选。
+3. `src/index.ts` 写 `export { RsXxx } from './components/{slug}'`；公开类型 / 宿主 helper 按第 4 节筛选，从同一目录再导出。
 4. `src/locale/messages.ts` 中英 key。
-5. `src/__tests__/RsXxx.spec.ts`。
-6. `site/catalog/components/{group}.ts` 登记：介绍、何时使用、props/events/slots、Token、FAQ。
+5. `src/components/{slug}/__tests__/RsXxx.spec.ts`。
+6. `site/catalog/components/{group}.ts` 登记（`basic` / `form` / `nav` / `feedback` / `data` / `editor`）：介绍、何时使用、props/events/slots、Token、FAQ。
 7. `site/demos/{slug}.vue`（`DocDemo`，可复制代码）。
 8. 更新本文「组件清单」；slug 与 catalog 一致。
 9. `CHANGELOG.md` `[Unreleased]`。

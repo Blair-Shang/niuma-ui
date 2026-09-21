@@ -12,6 +12,7 @@
   "include": ["src/**/*.ts", "src/**/*.vue"],
   "exclude": [
     "src/**/*.spec.ts",
+    "src/**/perf-budgets.ts",
     "src/__tests__/**",
     "playground/**",
     "vite-plugins/**",

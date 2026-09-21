@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { getPaginationRange, slicePageData } from '../components/pagination-utils'
-import { formatFileSize, validateUploadFiles } from '../components/upload-utils'
+import { getPaginationRange, slicePageData } from '../components/pagination/src/pagination-utils'
+import { formatFileSize, validateUploadFiles } from '../components/upload/src/upload-utils'
 
 describe('new Rs UI utilities', () => {
   it('creates compact pagination ranges', () => {
