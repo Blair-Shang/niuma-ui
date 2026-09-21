@@ -1,15 +1,16 @@
 {
   "name": "niuma-ui",
-  "version": "1.3.8",
+  "version": "1.3.9",
   "license": "Apache-2.0",
   "type": "module",
-  "description": "Vue 3 工作台设计系统（Rs* 组件、--rs-* token；含可选编辑器 / 终端）",
+  "description": "Vue 3 workbench design system — Rs* components, --rs-* tokens, optional Monaco / CodeMirror / xterm",
   "keywords": [
     "vue",
     "vue3",
     "ui",
     "components",
     "design-system",
+    "workbench",
     "reka-ui",
     "niuma"
   ],
@@ -18,7 +19,7 @@
     "type": "git",
     "url": "git+https://github.com/Blair-Shang/niuma-ui.git"
   },
-  "homepage": "https://github.com/Blair-Shang/niuma-ui#readme",
+  "homepage": "https://blair-shang.github.io/niuma-ui/",
   "bugs": {
     "url": "https://github.com/Blair-Shang/niuma-ui/issues"
   },
@@ -76,11 +77,14 @@
   ],
   "scripts": {
     "dev": "vite --config playground/vite.config.ts",
+    "dev:site": "vite --config site/vite.config.ts",
     "build": "node scripts/build-lib.mjs",
     "prepare": "node scripts/prepare.mjs",
     "prepublishOnly": "node scripts/build-lib.mjs",
     "build:playground": "vite build --config playground/vite.config.ts",
     "preview:playground": "vite preview --config playground/vite.config.ts",
+    "build:site": "vite build --config site/vite.config.ts",
+    "preview:site": "vite preview --config site/vite.config.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:perf": "vitest run src/__tests__/RsTable.perf.spec.ts src/__tests__/useRsTableCore.perf.spec.ts",

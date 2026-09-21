@@ -253,6 +253,27 @@ describe('RsTerminal', () => {
     expect(selectAllMock).toHaveBeenCalledTimes(1)
   })
 
+  it('emits extraSelect for appended context menu items', async () => {
+    const { flushPromises } = await import('@vue/test-utils')
+    const wrapper = mount(RsTerminal, {
+      props: {
+        extraContextMenuItems: [{ key: 'sftpToCwd', label: 'SFTP 到当前路径', icon: 'folder-open' }],
+      },
+      attachTo: document.body,
+    })
+    await nextTick()
+    await wrapper.find('.rs-terminal').trigger('contextmenu')
+    await flushPromises()
+    const extra = [...document.body.querySelectorAll('.rs-context-menu__item')].find((item) =>
+      item.textContent?.includes('SFTP 到当前路径'),
+    )
+    expect(extra).toBeTruthy()
+    ;(extra as HTMLElement).click()
+    await flushPromises()
+    expect(wrapper.emitted('extraSelect')?.[0]).toEqual(['sftpToCwd'])
+    wrapper.unmount()
+  })
+
   it('pastes once on ctrl+v keydown and ignores keyup', async () => {
     mount(RsTerminal, { props: { shortcuts: true } })
     await nextTick()

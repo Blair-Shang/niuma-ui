@@ -1,25 +1,28 @@
-name: 缺陷报告
-description: 报告 niuma-ui 中的缺陷
+name: Bug report / 缺陷报告
+description: Report a defect in niuma-ui / 报告 niuma-ui 中的缺陷
 title: "[bug]: "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
+        Thanks for the report. Search existing Issues first.
         感谢反馈。请先搜索是否已有相同 Issue。
+
+        Security issues: follow [SECURITY.md](../SECURITY.md). Do not use this form.
         安全漏洞请按 SECURITY.md 私下报告，不要用本表单。
   - type: textarea
     id: describe
     attributes:
-      label: 问题描述
-      description: 清晰说明出了什么问题。
+      label: What happened / 问题描述
+      description: What went wrong, in one paragraph.
     validations:
       required: true
   - type: textarea
     id: reproduce
     attributes:
-      label: 复现步骤
-      description: 最小复现步骤，或仓库 / Playground 片段。
+      label: Reproduction / 复现步骤
+      description: Minimal steps, a repo, or a docs-site snippet. Not the playground unless this is a visual-regression bug.
       placeholder: |
         1. …
         2. …
@@ -28,25 +31,25 @@ body:
   - type: textarea
     id: expected
     attributes:
-      label: 期望行为
+      label: Expected / 期望行为
     validations:
       required: true
   - type: input
     id: version
     attributes:
-      label: "niuma-ui 版本 / tag"
-      placeholder: "v1.0.0"
+      label: niuma-ui version
+      placeholder: "1.3.8"
     validations:
       required: true
   - type: input
     id: env
     attributes:
-      label: 环境
-      placeholder: "Vue 3.5.x、Vite 8.x、Chrome / Electron …"
+      label: Environment / 环境
+      placeholder: "Vue 3.5.x, Vite 5.x, Chrome / Electron …"
     validations:
       required: true
   - type: textarea
     id: extra
     attributes:
-      label: 补充信息
-      description: 截图、控制台日志、相关组件（RsTable、RsDialog 等）。
+      label: Extra / 补充
+      description: Screenshots, console logs, related components (RsTable, RsDialog, …).

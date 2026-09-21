@@ -1,6 +1,7 @@
 node_modules
 dist
 playground-dist
+site-dist
 coverage
 .DS_Store
 *.local

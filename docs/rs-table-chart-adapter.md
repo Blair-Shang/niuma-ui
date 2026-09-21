@@ -1,5 +1,7 @@
 # RsTable 图表适配（库无关 → ECharts）
 
+English: advanced Chinese note. The library does **not** bundle echarts. Public helpers: `createChartSeriesTableFeature`, `mapRsTableSeriesToEChartsOption`.
+
 内核只产出 `RsTableChartSeries`；**不捆绑 echarts**。官方提供纯映射函数，业务自行 `setOption`。
 
 ## 快速接入

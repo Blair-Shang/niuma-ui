@@ -1,0 +1,37 @@
+html {
+  --site-header-bg: #fff;
+  --site-canvas: #f3f5f9;
+  --site-aside-bg: #eef1f6;
+  --site-article-bg: #fff;
+  --site-line: #e4e8ef;
+  --site-footer-bg: #e8ecf3;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  font-family:
+    var(--rs-font-sans),
+    'PingFang SC',
+    'Hiragino Sans GB',
+    'Microsoft YaHei',
+    sans-serif;
+  background: var(--rs-bg);
+  color: var(--rs-text);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--rs-primary) 22%, transparent);
+}
+
+#app {
+  min-height: 100%;
+}

@@ -1,4 +1,4 @@
-name: Deploy Playground
+name: Deploy Docs
 
 on:
   push:
@@ -33,15 +33,15 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Build playground
+      - name: Build docs site
         env:
           VITE_BASE: /niuma-ui/
-        run: pnpm build:playground
+        run: pnpm build:site
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: playground-dist
+          path: site-dist
 
   deploy:
     needs: build

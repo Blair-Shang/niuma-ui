@@ -18,10 +18,10 @@ about: 向 main 提交变更 / Open a pull request against main
 
 ## 检查清单 / Checklist
 
-- [ ] 已阅读 [CONTRIBUTING.md](../CONTRIBUTING.md)
+- [ ] 已阅读 [CONTRIBUTING.md](../CONTRIBUTING.md) / [CONTRIBUTING.en.md](../CONTRIBUTING.en.md)
 - [ ] 行为变更时已补充或更新测试
 - [ ] 公开 API 变更时已更新文档与 CHANGELOG
-- [ ] 新 `Rs*` 组件已从 `src/index.ts` 导出，并写入 `docs/components.md`
+- [ ] 新 `Rs*` 已从 `src/index.ts` 导出，并同时写入 `docs/components.md` 与 `docs/components.en.md` / New `Rs*` exported and listed in both inventories
 - [ ] 本地 `pnpm test` 通过
 
 ## 测试计划 / Test plan

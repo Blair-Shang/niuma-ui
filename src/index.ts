@@ -2,6 +2,13 @@ export { default as RsConfigProvider } from './components/RsConfigProvider.vue'
 export { default as RsBadge } from './components/RsBadge.vue'
 export { default as RsContainer } from './components/RsContainer.vue'
 export { default as RsBreadcrumb } from './components/RsBreadcrumb.vue'
+export { default as RsAnchor } from './components/RsAnchor.vue'
+export type { RsAnchorFlatItem, RsAnchorItem } from './components/anchor-utils'
+export {
+  flattenAnchorItems,
+  hrefToAnchorId,
+  pickActiveAnchorHref,
+} from './components/anchor-utils'
 export { default as RsToolbar } from './components/RsToolbar.vue'
 export { default as RsButton } from './components/RsButton.vue'
 export type { RsButtonTone, RsButtonVariant } from './components/button-utils'

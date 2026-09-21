@@ -1,142 +1,423 @@
-# 组件说明
+# 组件规范
 
-`niuma-ui` 的公开能力面。稳定导入必须来自包根入口：
+本文是 `niuma-ui` 的**架构契约**。改组件、加导出、动 Token 之前先对照这里。违反下列红线即破坏架构，须 MAJOR 或先收回。
+
+English: [components.en.md](./components.en.md)。两份清单必须同步更新。接入：[consumers.md](./consumers.md) / [consumers.en.md](./consumers.en.md)。贡献：[CONTRIBUTING.md](../CONTRIBUTING.md) / [CONTRIBUTING.en.md](../CONTRIBUTING.en.md)。
+
+稳定导入只允许包根：
 
 ```ts
 import { RsButton, RsConfigProvider } from 'niuma-ui'
 ```
 
-**禁止**直接从 `reka-ui` 导入，也不要依赖未文档化的深路径。
+**禁止** `import … from 'reka-ui'`，禁止未文档化的深路径（`niuma-ui/src/…`、内部 `*-utils` 文件）。
 
-## 设计约定
+---
 
-1. **前缀**：公开 UI 为 `Rs*`；内部工具文件不使用此前缀（如 `table-utils.ts`）。
-2. **配置根**：应用使用 `RsConfigProvider` 包裹（`theme`、`locale`、`control-size`）。
-3. **Token**：使用 `--rs-*`（以及 `--rs-table-*`、`--rs-terminal-*`、`--rs-log-*`、`--rs-code-*`、`--rs-prose-*` 等子系统变量）。品牌覆盖见 `src/theme/brand.example.css`。
-4. **排版**：字号 / 字重 / 字族只走 `--rs-font-size-*`、`--rs-font-weight-*`、`--rs-font-sans|mono|serif`。CodeMirror / Monaco / xterm 等只接受数字的 API，用 `readCssLengthPx` / `readCodeFontFamily` 从 token 读取，禁止硬编码 px 或 system 字体栈。
-5. **组合**：在本仓库内封装 Reka UI 原语；浮层行为与现有 `RsDialog`、`RsPopover` 等保持一致。
-6. **公开 vs 内部**：仅 `src/index.ts` 中的符号纳入 SemVer 保证。宿主确需的表格子件等可导出，但须写进下方清单。
-7. **重型模块**：`RsMonacoEditor`、`RsTerminal`、表格富编辑会引入大体积依赖。官网 / 轻量后台建议薄封装按需引用（见 [consumers.md](./consumers.md)）。
+## 1. 文档分工（不要写错地方）
 
-## 组件清单
+| 文档 | 只写什么 | 不写什么 |
+|------|----------|----------|
+| **本文** | 架构红线、命名、公开面、Token、Vue/CSS/浮层/表单/a11y/i18n/SSR、新增检查清单、组件目录 | 某个 prop 的逐条 API（去文档站） |
+| `site/` | 对外用法：何时使用、Demo、API、Token、FAQ | 内部像素回归 |
+| `playground/` | 维护者冒烟与像素回归 | 对外用法、安装教程、完整 API |
+| `src/index.ts` | 唯一 SemVer 公开面 | 未登记的「顺便导出」 |
+| `docs/consumers.md` | 宿主 Vite / 体积 / CI | 组件内部结构 |
+| `CONTRIBUTING.md` | PR、测试、发版 | 重复本文细则 |
 
-### 基础
+组件 API 以文档站为准：`#/components/{slug}`（本地 `pnpm dev:site`）。清单与 `site/catalog/components/` 必须同增同删。
 
-| 组件 | 说明 |
-|------|------|
-| `RsConfigProvider` | 主题、语言、默认控件尺寸 |
-| `RsIcon` | 按名称渲染 Lucide（及自定义）图标 |
-| `RsContainer` | 响应式宽度 / 内边距容器 |
-| `RsScrollbar` | 滚动区域 |
-| `RsLoading` | 加载指示 |
-| `RsEmpty` | 空状态 |
-| `RsLink` | 文字链接 |
-| `RsBadge` | 状态 / 数量徽标 |
-| `RsTag` / `RsDynamicTags` | 标签 / 可编辑标签组 |
-| `RsAvatar` | 头像 / 回退 |
-| `RsLabel` | 表单标签 |
-| `RsCard` / `RsStatCard` | 内容卡 / 指标卡 |
-| `RsDivider` | 分隔线 |
-| `RsAlert` | 反馈提示条 |
-| `RsDescriptions` / `RsDescriptionsItem` | 描述列表 |
-| `RsLoadingBar` | 顶栏加载进度（配合 `useRsLoadingBar`） |
+---
 
-### 操作与输入
+## 2. 架构红线
 
-| 组件 | 说明 |
-|------|------|
-| `RsButton` | 按钮（`variant` 形态 × `tone` 语义色、加载、仅图标） |
-| `RsCheckbox` | 复选框 |
-| `RsSwitch` | 开关（`checkedValue` / `uncheckedValue` 自定义选中值） |
-| `RsRadio` / `RsRadioItem` | 单选分组 |
-| `RsInput` | 文本输入与校验；框内 prefix/suffix（清除在自定义 suffix 前）；框外连体 `addonBefore` / `addonAfter` |
-| `RsInputNumber` | 数字输入 |
-| `RsSelect` | 选择器（面板内搜索 / 创建、远程防抖、匹配高亮、`variant`、`maxTagCount="responsive"`） |
-| `RsAutoComplete` | 自动完成：在输入框内打字出建议；列表贴输入框并视口避让（APG Combobox） |
-| `RsCascader` | 级联选择（多列、`changeOnSelect` / `expandTrigger`） |
-| `RsTreeSelect` | 树选择（面板内搜索，复用 `RsTree`） |
-| `RsMentions` | 提及输入（`@` 前缀） |
-| `RsUpload` | 文件选择与校验辅助 |
-| `RsForm` | 表单布局、`model` / NamePath、`validateMessages`、`getFieldsValue` |
-| `RsFormItem` | 表单项（字段唯一注册点；`dependencies` / `help` / `extra`；对标 Form.Item） |
-| `RsFormList` | 动态数组字段（`add` / `remove` / `move`，对标 Form.List） |
-| `RsFieldset` | 表单分区（WHATWG `fieldset` / `legend`）。说明走标题旁 `tooltip`；`borderStyle` / `borderTone`（含 faded 虚化）；`titleWeight` / `titleTone` / `titleSize` 调标题清晰度。不是 `RsCard` |
-| `RsDatePicker` / `RsDateTimePicker` / `RsTimePicker` | 日期时间选择 |
-| `RsCalendarGrid` | 日历网格原语 |
-| `RsTimePickerColumns` | 时间列原语 |
+维护者**不得**在未开 Issue / 未 MAJOR 的情况下做这些事：
 
-### 导航与布局
+1. 让业务或文档站直接依赖 `reka-ui`、Lucide 内部路径、或本包 `src/` 深路径。
+2. 在 `src/index.ts` 增加导出却不更新本文「公开面」与文档站。
+3. 把 DOM 实现细节（滚动计算、墨点、Portal 节点查询）当成稳定 API 导出。
+4. 用 `:deep` 或硬编码 px / hex / system 字体栈代替 `--rs-*`。
+5. 新开平行包、平行入口、或第二套主题属性（主题只走 `data-rs-theme` + `RsConfigProvider`）。
+6. 在宿主产品仓复制一份 `Rs*` 并改内部类名。要改，回本仓改。
+7. 把 Monaco / xterm / 表格富编辑打进轻量默认路径，或要求营销站 `import *`。
+8. 把 `playground/` 写成对外用法或官网；对外说明只认 `site/`。
+9. 拆掉 `*-utils.ts` 的纯函数，把可测逻辑写回模板。
+10. 用 `window` / `document` 在工具函数里假设浏览器一定存在（SSR / jsdom 必须可退化）。
+11. 能用原生 HTML 语义时改用 `div` + `role` / 自造键盘（WHATWG 优先；APG 的第一条也是「先用原生」）。
+12. 新的对话框、菜单、 Combobox、Tabs、Grid / Tree 不按 [APG](https://www.w3.org/WAI/ARIA/apg/) 做键盘、焦点与可访问名称。
 
-| 组件 | 说明 |
-|------|------|
-| `RsBreadcrumb` | 面包屑 |
-| `RsToolbar` | 工具条 |
-| `RsTabs` | 标签页（关闭 / 重命名 / 溢出） |
-| `RsSteps` | 步骤条 |
-| `RsMenu` | 菜单 |
-| `RsDropdown` | 下拉菜单 |
-| `RsSidebar` / `RsSidebarGroup` / `RsSidebarItem` | 侧边栏 |
-| `RsSplitPane` | 可拖拽分栏 |
-| `RsPagination` | 分页 |
-| `RsVirtualList` | 虚拟列表 |
+拿不准：**不导出**。宿主真需要，先写进本文再导出。
 
-### 浮层与反馈
+### 外部规范（遵守范围）
 
-| 组件 | 说明 |
-|------|------|
-| `RsTooltip` / `RsTooltipProvider` | 提示 |
-| `RsPopover` | 气泡卡片 |
-| `RsDialog` / `RsConfirmDialog` | 对话框 / 确认框 |
-| `RsDrawer` | 抽屉 |
-| `RsContextMenu` | 右键菜单 |
-| `RsToaster` | Toast 宿主（配合 `useRsToast`） |
+下列规范中适用于本库的条款必须遵守。冲突时：WHATWG 语义 > APG 键盘/角色 > Vue 风格。不把整本规范当作已全文审计。
 
-### 数据展示
+| 规范 | 怎么遵守 | 不怎么遵守 |
+|------|----------|------------|
+| [WHATWG HTML](https://html.spec.whatwg.org/multipage/) | 按钮用 `<button type>`，分组用 `fieldset`/`legend`，导航用 `<nav>`，链接用 `<a href>`，禁用走原生 `disabled` 并转发 | 不把组件库写成「完整 HTML 文档规范」。工作台控件（虚拟表格、日志）在原生不够时才上 ARIA widget |
+| [Vue Style Guide](https://vuejs.org/style-guide/) | **A（防错）必须**；**B（强烈建议）新代码必须**（含 `defineOptions({ name: 'RsXxx' })`、禁止同节点 `v-if`+`v-for`） | **C** 已选定：Composition API + `<script setup>` + scoped，不再每 PR 重选。**D** 少用（`$parent`、递归隐式、非受控与受控混用无文档） |
+| [WAI-ARIA APG](https://www.w3.org/WAI/ARIA/apg/) | 自定义 widget 对上对应 pattern：Dialog、Menu、Combobox、Tabs、Grid、Tree、Window Splitter。可访问名称、焦点陷阱、`Esc`、方向键以 APG 为准；装饰物 `aria-hidden` | 不做「每个 pattern 的读屏矩阵已签核」的对外承诺，直到该组件有键盘单测或清单 |
+| Google HTML/CSS Style Guide | **不作为本库规范** | 省略可选闭合标签与 Vue 模板冲突；类名用 BEM `.rs-block__el--mod`，不用 Google 短横线单词表 |
 
-| 组件 | 说明 |
-|------|------|
-| `RsTable` | 数据表（排序、选择、虚拟、编辑）；架构见 [rs-table-architecture.md](./rs-table-architecture.md)；SSR [rs-table-ssr.md](./rs-table-ssr.md)；图表 [rs-table-chart-adapter.md](./rs-table-chart-adapter.md)；像素回归 [rs-table-visual.md](./rs-table-visual.md) |
-| `RsTableCellEditor` | 单元格编辑器 |
-| `RsTableHeader` / `RsTableBody` / `RsTableColGroup` | 表格视图子件（ViewContext inject） |
-| `RsTree` | 树（勾选、拖拽、虚拟） |
-| `RsCodeBlock` | 代码块（默认只读；`editable` 可改正文；`showBar` 可隐藏工具条） |
-| `RsMarkdown` | Markdown 渲染 |
-| `RsProseEditor` | 富文本编辑表面 |
+实现细节见 §7、§10、§12。存量债（例如部分 `Rs*` 尚未写 `name`）新 PR 顺手补，新组件不得再缺。
 
-### 编辑器与终端（重型）
+---
 
-| 组件 | 说明 |
-|------|------|
-| `RsCodeEditor` | 基于 CodeMirror 的编辑器 |
-| `RsMonacoEditor` | 基于 Monaco 的编辑器 |
-| `RsTerminal` | 基于 xterm 的终端 |
-| `RsLog` | 只读日志（虚拟滚动、RFC 5424 / OTel 级别、搜索过滤、键盘漫游、WCAG 色条；作业 / 发版用，不是 PTY）。内置扫描 `[ERROR]` / 行首级别 / 工具链行首；产品文案用 `inferMarkers` 传入成功 / 失败标识，或写 `level`） |
+## 3. 命名与文件
 
-## 相关导出
+| 种类 | 规则 | 例 |
+|------|------|-----|
+| 公开组件 | `Rs` + PascalCase，`defineOptions({ name: 'RsXxx' })` | `RsAnchor.vue` |
+| 公开类型 | `Rs` 前缀 | `RsAnchorItem`、`RsButtonTone` |
+| 内部工具 | kebab + `-utils.ts`，**无** `Rs` 文件名 | `anchor-utils.ts` |
+| 内部函数 | 可无前缀；一旦导出必须 `Rs` 或已登记动词（`flattenAnchorItems`） | |
+| CSS 块 | `.rs-{name}`，元素 `__`，修饰 `--` | `.rs-anchor__link--active` |
+| Token | `--rs-*`；子系统 `--rs-table-*` / `--rs-terminal-*` / `--rs-log-*` / `--rs-code-*` / `--rs-prose-*` | |
+| 文档站 slug | kebab-case，与文件 `site/demos/{slug}.vue` 一致 | `anchor`、`code-editor` |
+| 语言包 key | `dot.case`，组件名小写 | `anchor.label`、`breadcrumb.separator` |
 
-根入口除 Vue 组件外，还导出配套工具与类型（表格 / 树辅助、日期校验、Monaco Worker、剪贴板、主题 API、i18n 等）。请优先使用 `src/index.ts` 的具名导出，不要复制内部文件。
-
-## 目录结构
+目录：
 
 ```text
 src/
-  components/          # Rs*.vue + *-utils.ts
-  components/table/    # 表格子模块
-  composables/         # useRsConfig、useRsToast、useRsI18n 等
-  theme/               # token、预设、applyTheme
-  locale/              # 语言包
-  monaco/              # Monaco 语言 / Worker
-  icons/               # 图标注册表
-  index.ts             # 仅公开 API
+  components/           # Rs*.vue + *-utils.ts
+  components/table/     # 表格子模块（勿在宿主产品再抄一套 engine）
+  composables/          # useRsConfig、useRsI18n、useRsToast …
+  theme/                # token 类型、预设、applyTheme
+  locale/               # zh-CN / en-US
+  monaco/               # Worker / 语言，仅编辑器路径
+  icons/                # 注册表，不是第三套图标体系
+  index.ts              # 唯一公开面
 ```
 
-拿不准时：宿主产品需要的就导出并写入本文档；否则保持未导出。
+新官方组件只加 `src/components/RsXxx.vue`（逻辑进同族 `*-utils.ts`）。禁止在 `src/` 根再开平行「组件包」。
 
-## 演示站约定
+---
 
-`playground/` 是对外演示门面（非内部验收实验室）：
+## 4. 公开面与 SemVer
 
-1. 新组件在 `playground/routes.ts` 登记 `group`、`description`（可选 `featured`）。
-2. 页面使用 `DemoPage`；关键示例块用 `DemoBlock` 的 `code` 提供可复制源码。
-3. 高频组件补充 `DemoPage` 的 `api` 简表（见 `ButtonPage.vue`）。
-4. 本地 `pnpm dev`；生产构建 `pnpm build:playground`。
+仅 `src/index.ts` 的符号享受 SemVer。分四层：
+
+| 层 | 可导出 | 例 | 变更 |
+|----|--------|----|------|
+| **组件** | `Rs*` SFC | `RsAnchor` | 删组件 / 改默认行为 → MAJOR |
+| **契约类型** | props / item 上出现的类型 | `RsAnchorItem`、`RsButtonVariant` | 改字段 → MAJOR |
+| **宿主 helper** | 无 DOM、有单测、文档站或 consumers 写过 | `hrefToAnchorId`、`resolveRsButtonVariant` | 改语义 → MAJOR |
+| **内部** | 不导出 | `scrollContainerTo`、`findLinkByHref` | 可随时改 |
+
+新增导出的检查：
+
+1. 类型是否出现在公开 props / 事件上？是 → 导出类型。
+2. 宿主是否必须调用才能正确集成？否 → **不要导出**。
+3. 导出后写入本文清单或文档站 API，并加单测。
+
+破坏性变更（须 MAJOR + CHANGELOG 迁移说明）：
+
+- 更名 / 删除 props、事件、插槽、导出、CSS 类、Token
+- 改变 `v-model` 类型或默认值语义
+- `changeHash` 等默认值翻转
+
+兼容（MINOR / PATCH）：新增可选 props、新增组件、修 bug 且旧用法结果不变。
+
+---
+
+## 5. Token、尺寸、圆角、排版
+
+主题只通过 `RsConfigProvider` + `data-rs-theme="light|dark"`。品牌覆盖复制 `src/theme/brand.example.css`，在 `styles.css` **之后**加载同名 `--rs-*`。
+
+禁止：
+
+- 组件里写死 `#6366f1`、`14px`、`system-ui, sans-serif`
+- 业务 `:deep(.rs-xxx)` 改高度 / 圆角 / 字号（应用 `size` / `radius` / Token）
+- 新开 `--niuma-*`、`--el-*` 第二套变量
+
+尺寸（`RsComponentSize`）：`ssm` < `sm` < `md`（默认）< `lg`。高度走 `--rs-control-height-*`。解析顺序：**props → `RsForm` → `RsConfigProvider` → `md`**。用 `useResolvedRsComponentSize` / `resolveRsComponentSize`，不要自己读 context。
+
+圆角（`RsRadius`）：`none | xs | sm | md | lg | full`。用 `useResolvedRsRadius` / `rsRadiusCss`，对应 `--rs-radius-*`。
+
+字号 / 字重 / 字族：只走 `--rs-font-size-*`、`--rs-font-weight-*`、`--rs-font-sans|mono|serif`。CodeMirror / Monaco / xterm 只要数字时，用 `readCssLengthPx` / `readCodeFontFamily` 从 Token 读。
+
+z-index 只使用 `--rs-z-tooltip`（10）、`--rs-z-dropdown`（50）、`--rs-z-panel`（80）、`--rs-z-modal`（100）、`--rs-z-loading-bar`（190）、`--rs-z-toast`（200）。禁止魔法数字。
+
+---
+
+## 6. 形态 × 语义色
+
+形态与色相分开，禁止一个 prop 同时改形状和颜色。
+
+- **`variant`**：形态（实心 / 描边 / 幽灵 / 文字 / 链接）。不要用 variant 表达「危险」。
+- **`tone`**：色相（`neutral` / `primary` / `danger` / `success` / `warning` / `info`）。
+
+`RsButton`：`variant="default" tone="warning"` 才是描边警告。历史 `variant="danger"` 视为 `primary + tone=danger` 的兼容别名，新组件不要再发明这种混用。
+
+新组件若同时有形态和颜色，必须正交，禁止再做一个 `type="success"` 同时改形状和颜色。
+
+---
+
+## 7. Vue 契约
+
+```vue
+<script setup lang="ts">
+defineOptions({ name: 'RsXxx' })
+const model = defineModel<string>({ default: '' }) // 单值优先 defineModel
+</script>
+```
+
+遵守 [Vue Style Guide](https://vuejs.org/style-guide/) 的 A/B。公开组件**必须** `defineOptions({ name: 'RsXxx' })`（文件名不能代替 `name`，DevTools / keep-alive / 警告栈都靠它）。
+
+| 主题 | 规则 |
+|------|------|
+| 受控值 | 优先 `defineModel` / `v-model`。多值用 `v-model:visible` 这种具名。 |
+| 事件 | 用户动作 `click` / `change`；值同步走 `update:modelValue`。载荷用元组 `defineEmits<{ change: [href: string] }>()`。 |
+| 布尔 props | 默认 `false`，在模板里当开关（`affix`、`lineless`）。 |
+| 函数 props | `getContainer?: () => HTMLElement \| Window \| null`，允许返回空，组件自己回退。 |
+| 插槽 | `default` 主内容；具名用语义英文（`prefix` / `suffix` / `title`）。不要 `#slot1`。 |
+| 禁用 | `disabled` 统一词，并转发到原生 / ARIA。 |
+| 尺寸 | 控件类 props 叫 `size`，类型 `RsComponentSize`。 |
+| Hash 路由 | 会写 `location.hash` 的能力必须提供关闭开关（如 `changeHash`，文档站默认 `false`）。 |
+
+组件只做 UI 与已有 Token / 已有宿主桥。禁止在组件里直连数据库、写 SQL、或复制产品后台逻辑。
+
+---
+
+## 8. CSS
+
+- 根类 `.rs-{name}`，与 `name: 'RsXxx'` 对应（Anchor → `rs-anchor`）。
+- 状态用修饰类，不用内联调色：`.rs-anchor__link--active`。
+- 间距 / 颜色用 Token 或 `color-mix(in srgb, var(--rs-primary) …)`。
+- 逻辑属性：`inset-inline-start`、`padding-inline`、`margin-block`，方便以后 RTL。
+- `scoped` 只包自己的块。改子组件外观用 props / Token，不 `:deep` 掏内部。
+- 动效尊重 `prefers-reduced-motion: reduce`（滚动 `behavior: 'auto'`，缩短或取消 transition）。
+
+---
+
+## 9. 浮层
+
+Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
+
+1. 原语只封装在本包 `components/reka` 一类入口，**对外仍是 `Rs*`**。
+2. 弹出层走 Portal，z-index 用第 5 节的 `--rs-z-*`。
+3. 模态层必须焦点陷阱、Esc 关闭、恢复焦点；非模态不锁滚动。
+4. 定位复用已有 `overlay-utils`（翻转、夹视口），不要每个浮层重写一套。
+5. 文档站与工作台共用同一套，禁止 site 里再引一个 headless 库。
+
+---
+
+## 10. 表单
+
+- 字段唯一注册点是 `RsFormItem`，不是每个 Input 自己挂到 Form。
+- 控件加入 Form 时走 `form-utils` 的 context，尺寸跟随 Form。
+- 校验消息走 `validateMessages` / locale，不要硬编码中文。
+- `RsFieldset` 是 WHATWG `fieldset`/`legend`，**不是** `RsCard`。
+- `RsFormList` 只管理数组字段（`add` / `remove` / `move`）。
+
+---
+
+## 11. 国际化
+
+组件 API（props / 事件 / 插槽 / 类名）只用英文；用户可见字符串必须可翻译。
+
+- 运行时文案（`aria-label`、空态、占位、按钮）走 `useRsI18n()` + `src/locale/messages.ts`。
+- **现网支持的 locale：** `zh-CN`、`en-US`（BCP-47）。默认 `zh-CN`（`src/locale/types.ts`）。新增或修改 key 必须两种语言同一天合入。
+- **再加一种语言（如 `ja-JP`）：**
+  1. 扩展 `RsLocale`；
+  2. 在 `messages.ts` 复制全表，翻译 value，key 不得改；
+  3. 文档站 `site/i18n.ts` 同步加一份；
+  4. 单测覆盖 `t('…')` 回退（缺 key 回 `en-US` 或 `zh-CN`，禁止回中文硬编码）。
+- 数字 / 日期 / 复数：优先 `Intl.*`，不要在组件里写死 `YYYY-MM-DD` 或「共 n 条」。
+- 书写方向：CSS 用逻辑属性（`padding-inline`、`inset-inline-start`）。尚未做完整 RTL 皮肤；`dir="rtl"` 不得靠负 margin 硬翻。要做 RTL 时只加一套逻辑属性补丁，不开第二套类名。
+- 文档站文案在 `site/i18n.ts`，**不要**把官网句子写进组件 locale。
+- 仓库规范文档中英文同步更新（`docs/*.md` 与 `docs/*.en.md`）。组件清单两份一起改。
+
+---
+
+## 12. 无障碍
+
+遵守 [APG](https://www.w3.org/WAI/ARIA/apg/) 与 WCAG 2.2 AA。顺序固定：
+
+1. **先原生**（WHATWG）：能用 `<button>` / `<a href>` / `<input>` / `fieldset` 就不要 `div[role=…]`。
+2. **原生不够再用 ARIA**：角色、状态、键盘一次配齐，禁止只挂 `role` 不挂键盘。
+3. **名称**：图标按钮必须 `tooltip` 或 `aria-label`；导航 `<nav>` + `aria-label`；当前项 `aria-current="page"` 或 `"location"`（页内目录用 `location`）。
+4. **焦点**：`outline: none` 必须同时有 `:focus-visible` + `--rs-focus-ring`。模态层：陷阱、`Esc`、关闭后恢复焦点。
+5. **装饰**：轨道 / 墨点 / 纯视觉图标 `aria-hidden="true"`。
+6. **对照 pattern**：Dialog、Menu / MenuBar、Combobox、Tabs、Grid（`RsTable`）、Tree、Window Splitter（`RsSplitPane`）。新浮层先对 APG 再写样式。
+
+状态色对比不得低于现有语义 Token（日志色条、终端 `minimumContrastRatio` 是先例）。
+
+---
+
+## 13. SSR 与运行时环境
+
+工具函数必须能在无 `window` 时安全返回或空操作，禁止未守卫的 `throw`。
+
+检测滚动容器用特征（`scrollY` / `nodeType`），不要依赖跨 iframe 的 `instanceof Window`。
+
+`getElementById` 的 id 先 `decodeURIComponent`（hash 可能是 `%20` / 中文编码）。
+
+---
+
+## 14. 工具函数与测试
+
+复杂逻辑放 `*-utils.ts`：纯输入输出、可单测。Vue 文件只绑生命周期、事件、样式。
+
+`src/__tests__/RsXxx.spec.ts` 最低要求：
+
+1. 挂载冒烟（渲染标题 / 角色）。
+2. 用户动作发出约定事件。
+3. utils 的边界：空列表、编码、缺容器、默认值。
+
+禁止用无断言的「能 import 就算过」。
+
+---
+
+## 15. 新增组件检查清单
+
+缺一项即视为未完成。
+
+1. `src/components/RsXxx.vue` + 需要时 `xxx-utils.ts`（UTF-8 无 BOM）。
+2. `defineOptions({ name: 'RsXxx' })`，类名 `.rs-xxx`。
+3. `src/index.ts` 导出组件；公开类型 / 宿主 helper 按第 4 节筛选。
+4. `src/locale/messages.ts` 中英 key。
+5. `src/__tests__/RsXxx.spec.ts`。
+6. `site/catalog/components/{group}.ts` 登记：介绍、何时使用、props/events/slots、Token、FAQ。
+7. `site/demos/{slug}.vue`（`DocDemo`，可复制代码）。
+8. 更新本文「组件清单」；slug 与 catalog 一致。
+9. `CHANGELOG.md` `[Unreleased]`。
+10. 交互回归可补 `playground/routes.ts`（可选，**不能代替** site）。
+11. 若是 Dialog / Menu / Combobox / Tabs / Grid / Tree：键盘路径按 APG（Tab / 方向键 / Esc / Enter），单测或 FAQ 写明。
+12. 能用原生语义就不要新 `role`。
+
+---
+
+## 16. 重型模块
+
+`RsMonacoEditor`、`RsTerminal`、`RsCodeEditor`、表格富编辑会拉大依赖。官网与轻量后台必须具名导入，并在产品层 `ui.ts` 再导出用到的符号。安装体积说明见 [consumers.md](./consumers.md)。
+
+---
+
+## 17. 组件清单
+
+下列为稳定 `Rs*`。API 细节以文档站为准，此处只作 SemVer 目录。新增必须同步 `site/catalog`。
+
+### 基础
+
+| 组件 | 说明 | 文档站 |
+|------|------|--------|
+| `RsConfigProvider` | 主题、语言、默认控件尺寸 | `#/components` 根配置见指南 |
+| `RsIcon` | Lucide（及自定义）按名渲染 | `#/components/icon` |
+| `RsContainer` | 响应式宽度 / 内边距 | `#/components/container` |
+| `RsScrollbar` | 滚动区域 | `#/components/scrollbar` |
+| `RsLoading` | 加载指示 | `#/components/loading` |
+| `RsEmpty` | 空状态 | `#/components/empty` |
+| `RsLink` | 文字链接 | `#/components/link` |
+| `RsBadge` | 状态 / 数量徽标 | `#/components/badge` |
+| `RsTag` / `RsDynamicTags` | 标签 / 可编辑标签组 | `#/components/tag` |
+| `RsAvatar` | 头像 / 回退 | `#/components/avatar` |
+| `RsLabel` | 表单标签 | `#/components/label` |
+| `RsCard` / `RsStatCard` | 内容卡 / 指标卡 | `#/components/card` |
+| `RsDivider` | 分隔线 | `#/components/divider` |
+| `RsAlert` | 反馈提示条 | `#/components/alert` |
+| `RsDescriptions` / `RsDescriptionsItem` | 描述列表 | `#/components/descriptions` |
+| `RsLoadingBar` | 顶栏进度（`useRsLoadingBar`） | `#/components/loading-bar` |
+
+### 操作与输入
+
+| 组件 | 说明 | 文档站 |
+|------|------|--------|
+| `RsButton` | `variant` × `tone`、加载、仅图标 | `#/components/button` |
+| `RsCheckbox` | 复选框 | `#/components/checkbox` |
+| `RsSwitch` | `checkedValue` / `uncheckedValue` | `#/components/switch` |
+| `RsRadio` / `RsRadioItem` | 单选分组 | `#/components/radio` |
+| `RsInput` | 校验；prefix/suffix；addonBefore/After | `#/components/input` |
+| `RsInputNumber` | 数字输入 | `#/components/input-number` |
+| `RsSelect` | 搜索 / 创建 / 远程 / `maxTagCount` | `#/components/select` |
+| `RsAutoComplete` | APG Combobox | `#/components/auto-complete` |
+| `RsCascader` | 多列级联 | `#/components/cascader` |
+| `RsTreeSelect` | 复用 `RsTree` | `#/components/tree-select` |
+| `RsMentions` | `@` 提及 | `#/components/mentions` |
+| `RsUpload` | 文件选择与校验辅助 | `#/components/upload` |
+| `RsForm` / `RsFormItem` / `RsFormList` | 表单、字段注册、数组字段 | `#/components/form` |
+| `RsFieldset` | `fieldset`/`legend`，不是 Card | `#/components/fieldset` |
+| `RsDatePicker` / `RsDateTimePicker` / `RsTimePicker` | 日期时间 | `#/components/date-picker` |
+| `RsCalendarGrid` / `RsTimePickerColumns` | 日历 / 时间列原语 | `#/components/calendar-grid` |
+
+### 导航与布局
+
+| 组件 | 说明 | 文档站 |
+|------|------|--------|
+| `RsBreadcrumb` | 面包屑 | `#/components/breadcrumb` |
+| `RsAnchor` | 页内目录；Hash 路由须 `changeHash=false` | `#/components/anchor` |
+| `RsToolbar` | 工具条 | `#/components/toolbar` |
+| `RsTabs` | 关闭 / 重命名 / 溢出 | `#/components/tabs` |
+| `RsSteps` | 步骤条 | `#/components/steps` |
+| `RsMenu` | 菜单 | `#/components/menu` |
+| `RsDropdown` | 下拉命令 | `#/components/dropdown` |
+| `RsSidebar` / `RsSidebarGroup` / `RsSidebarItem` | 侧栏 | `#/components/sidebar` |
+| `RsSplitPane` | 可拖拽分栏 | `#/components/split-pane` |
+| `RsPagination` | 分页 | `#/components/pagination` |
+| `RsVirtualList` | 虚拟列表 | `#/components/virtual-list` |
+
+### 浮层与反馈
+
+| 组件 | 说明 | 文档站 |
+|------|------|--------|
+| `RsTooltip` / `RsTooltipProvider` | 提示 | `#/components/tooltip` |
+| `RsPopover` | 气泡卡片 | `#/components/popover` |
+| `RsDialog` / `RsConfirmDialog` | 对话框 / 确认 | `#/components/dialog` |
+| `RsDrawer` | 抽屉 | `#/components/drawer` |
+| `RsContextMenu` | 右键菜单 | `#/components/context-menu` |
+| `RsToaster` | Toast 宿主（`useRsToast`） | `#/components/toaster` |
+
+### 数据展示
+
+| 组件 | 说明 | 文档站 |
+|------|------|--------|
+| `RsTable` | 排序、选择、虚拟、编辑。架构 [rs-table-architecture.md](./rs-table-architecture.md)；SSR [rs-table-ssr.md](./rs-table-ssr.md)；图表 [rs-table-chart-adapter.md](./rs-table-chart-adapter.md)；像素 [rs-table-visual.md](./rs-table-visual.md) | `#/components/table` |
+| `RsTableCellEditor` | 单元格编辑器 | `#/components/table-cell-edit` |
+| `RsTableHeader` / `RsTableBody` / `RsTableColGroup` | 表格视图子件（ViewContext） | 随 Table |
+| `RsTree` | 勾选、拖拽、虚拟 | `#/components/tree` |
+| `RsCodeBlock` | 默认只读；`editable` / `showBar` | `#/components/code-block` |
+| `RsMarkdown` | Markdown 渲染 | `#/components/markdown` |
+| `RsProseEditor` | 富文本表面 | 随编辑器族 |
+
+### 编辑器与终端（重型）
+
+| 组件 | 说明 | 文档站 |
+|------|------|--------|
+| `RsCodeEditor` | CodeMirror | `#/components/code-editor` |
+| `RsMonacoEditor` | Monaco | `#/components/monaco-editor` |
+| `RsTerminal` | xterm | `#/components/terminal` |
+| `RsLog` | 只读日志（不是 PTY） | `#/components/log` |
+
+### 已登记的宿主 helper（摘）
+
+完整符号以 `src/index.ts` 为准。下列类别允许导出；**未列的 DOM 实现函数默认内部**。
+
+| 类别 | 例 | 说明 |
+|------|-----|------|
+| 按钮 | `resolveRsButtonVariant` / `resolveRsButtonTone` | 形态与色相 |
+| 锚点 | `hrefToAnchorId`、`flattenAnchorItems`、`pickActiveAnchorHref` | 纯函数；滚动 / ink 不导出 |
+| 尺寸 / 圆角 | `useResolvedRsComponentSize`、`rsRadiusCss` | |
+| 主题 | `applyTheme`、`themePresets` | |
+| i18n | `useRsI18n`、`createTranslator` | |
+| 表单 / 日期校验 | `validateDateValue` 等 | 无 DOM |
+| 表格 | `useRsTable*`（见表格架构文） | 勿在业务再写一套 engine |
+
+---
+
+## 18. 文档站与内部测试台
+
+对外用法只认 `site/`：
+
+1. 新组件在 `site/catalog/components/` 登记介绍、何时使用、API、Token、FAQ。
+2. 可复制示例在 `site/demos/{slug}.vue`，用 `DocDemo`。
+3. 本地 `pnpm dev:site` → http://127.0.0.1:5181 ；`pnpm build:site` 部署 GitHub Pages（https://blair-shang.github.io/niuma-ui/）。
+
+`playground/` 是维护者内部测试台，**不是**第二份官网：
+
+1. `playground/routes.ts` 只登记测试页路径。
+2. `DemoPage` / `DemoBlock` 做冒烟；Playwright 做像素回归。
+3. `pnpm dev` → http://127.0.0.1:5180。
+4. 禁止在此写安装教程或把简表当成对外 API。
+
+宿主产品（含网关控制台）说明 `Rs*` 用法时，链接文档站，不要链 playground。playground 与本文或 site 冲突时，以本文红线 + site API 为准。

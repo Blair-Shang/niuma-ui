@@ -52,6 +52,7 @@ const hasApi = computed(() => (props.api?.length ?? 0) > 0)
       <h2 id="demo-api-heading" class="demo-page__api-title">
         {{ t('playground.demo.api') }}
       </h2>
+      <p class="demo-page__api-hint">{{ t('playground.demo.apiHint') }}</p>
       <div class="demo-page__api-wrap">
         <table class="demo-page__api-table">
           <thead>
@@ -126,10 +127,17 @@ const hasApi = computed(() => (props.api?.length ?? 0) > 0)
 }
 
 .demo-page__api-title {
-  margin: 0 0 var(--rs-space-md);
+  margin: 0 0 var(--rs-space-xs);
   font-size: var(--rs-font-size-base);
   font-weight: 600;
   color: var(--rs-text);
+}
+
+.demo-page__api-hint {
+  margin: 0 0 var(--rs-space-md);
+  font-size: var(--rs-font-size-xs);
+  line-height: var(--rs-line-height-normal);
+  color: var(--rs-muted);
 }
 
 .demo-page__api-wrap {

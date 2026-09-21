@@ -1,48 +1,26 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import { RsButton, RsCodeBlock, useRsConfig } from 'niuma-ui'
+import { RsButton, useRsConfig } from 'niuma-ui'
 import { playgroundRoutes } from '../routes'
 
 const { t } = useRsConfig()
 
 const featured = computed(() => playgroundRoutes.filter((route) => route.featured))
 
-const installCode = `pnpm add niuma-ui`
-
-// 示例源码用 join 拼接，避免 Vite/Rolldown 把字符串里的 import 当真实依赖扫描
-const quickStartCode = [
-  "import { createApp } from 'vue'",
-  "import { RsConfigProvider, RsButton } from 'niuma-ui'",
-  "import 'niuma-ui/styles.css'",
-  "import App from " + "'./" + "App.vue'",
-  '',
-  "createApp(App).mount('#app')",
-].join('\n')
-
-const usageCode = [
-  '<script setup lang="ts">',
-  "import { RsConfigProvider, RsButton } from 'niuma-ui'",
-  '<\/script>',
-  '',
-  '<template>',
-  '  <RsConfigProvider theme="light" locale="zh-CN">',
-  '    <RsButton variant="primary">Hello Niuma</RsButton>',
-  '  </RsConfigProvider>',
-  '</template>',
-].join('\n')
+const docsUrl = 'https://blair-shang.github.io/niuma-ui/'
 </script>
 
 <template>
   <article class="index-page">
     <header class="index-page__hero">
-      <p class="index-page__eyebrow">niuma-ui</p>
+      <p class="index-page__eyebrow">playground</p>
       <h1 class="index-page__title">{{ t('playground.index.title') }}</h1>
       <p class="index-page__intro">{{ t('playground.index.intro') }}</p>
       <div class="index-page__actions">
-        <a href="#install" class="index-page__action-link">
+        <a :href="docsUrl" class="index-page__action-link" target="_blank" rel="noreferrer">
           <RsButton variant="primary">
-            {{ t('playground.index.cta.install') }}
+            {{ t('playground.index.cta.site') }}
           </RsButton>
         </a>
         <RouterLink to="/button" class="index-page__action-link">
@@ -50,30 +28,17 @@ const usageCode = [
             {{ t('playground.index.cta.browse') }}
           </RsButton>
         </RouterLink>
-        <a
-          class="index-page__gh"
-          href="https://github.com/Blair-Shang/niuma-ui"
-          target="_blank"
-          rel="noreferrer"
-        >
-          GitHub
-        </a>
       </div>
     </header>
 
-    <section id="install" class="index-page__section">
-      <h2 class="index-page__h2">{{ t('playground.index.install') }}</h2>
-      <p class="index-page__text">{{ t('playground.index.installHint') }}</p>
-      <RsCodeBlock :code="installCode" lang="bash" />
-    </section>
-
     <section class="index-page__section">
-      <h2 class="index-page__h2">{{ t('playground.index.quickStart') }}</h2>
-      <p class="index-page__text">{{ t('playground.index.quickStartHint') }}</p>
-      <div class="index-page__code-stack">
-        <RsCodeBlock :code="quickStartCode" lang="ts" />
-        <RsCodeBlock :code="usageCode" lang="vue" />
-      </div>
+      <h2 class="index-page__h2">{{ t('playground.index.docs') }}</h2>
+      <p class="index-page__text">{{ t('playground.index.docsHint') }}</p>
+      <p class="index-page__text">
+        <a :href="docsUrl" target="_blank" rel="noreferrer">{{ docsUrl }}</a>
+        ·
+        <code>pnpm dev:site</code>
+      </p>
     </section>
 
     <section class="index-page__section">
@@ -171,17 +136,6 @@ const usageCode = [
   color: inherit;
 }
 
-.index-page__gh {
-  margin-inline-start: var(--rs-space-xs);
-  font-size: var(--rs-font-size-sm);
-  color: var(--rs-muted);
-  text-decoration: none;
-}
-
-.index-page__gh:hover {
-  color: var(--rs-primary);
-}
-
 .index-page__section {
   margin-bottom: var(--rs-space-2xl, 2.5rem);
 }
@@ -205,10 +159,8 @@ const usageCode = [
   color: var(--rs-muted);
 }
 
-.index-page__code-stack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rs-space-md);
+.index-page__text a {
+  color: var(--rs-primary);
 }
 
 .index-page__cards {

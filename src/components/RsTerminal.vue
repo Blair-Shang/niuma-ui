@@ -85,6 +85,11 @@ const props = withDefaults(
     /** 右键菜单是否展示「询问 AI」（仅 emit，业务侧自行处理） */
     showAskAi?: boolean
     /**
+     * 追加到内置右键菜单（复制/粘贴等）与「清空」之间。
+     * `key` 勿与 copy / paste / selectAll / search / askAi / clear 冲突。
+     */
+    extraContextMenuItems?: RsContextMenuItem[]
+    /**
      * 右键是否自动选中光标下单词。
      * SSH/vim/less 等 TUI 场景建议 false，避免冲掉用户已拖选的大段文本。
      */
@@ -123,6 +128,7 @@ const props = withDefaults(
     theme: () => ({}),
     contextMenu: true,
     showAskAi: false,
+    extraContextMenuItems: () => [],
     rightClickSelectsWord: true,
     shortcuts: true,
     scrollback: 5000,
@@ -145,6 +151,8 @@ const emit = defineEmits<{
   askAi: [text: string]
   /** 选区变化，携带当前选中文本（无选区时为空串） */
   selectionChange: [text: string]
+  /** 业务追加的右键项被选中 */
+  extraSelect: [key: string]
 }>()
 
 const { t } = useRsI18n()
@@ -238,6 +246,9 @@ const contextMenuItems = computed<RsContextMenuItem[]>(() => {
         disabled: !hasSelection.value && !menuSelectionSnapshot.value,
       },
     )
+  }
+  if (props.extraContextMenuItems?.length) {
+    items.push({ key: 'sep-extra', label: '', separator: true }, ...props.extraContextMenuItems)
   }
   items.push(
     { key: 'sep-1', label: '', separator: true },
@@ -612,8 +623,21 @@ async function runTerminalAction(action: RsTerminalAction): Promise<void> {
   }
 }
 
+const BUILTIN_TERMINAL_ACTIONS = new Set<string>([
+  'copy',
+  'paste',
+  'selectAll',
+  'clear',
+  'askAi',
+  'search',
+])
+
 function onContextMenuSelect(key: string): void {
-  void runTerminalAction(key as RsTerminalAction)
+  if (BUILTIN_TERMINAL_ACTIONS.has(key)) {
+    void runTerminalAction(key as RsTerminalAction)
+    return
+  }
+  emit('extraSelect', key)
 }
 
 // xterm 只有一个 handler 槽位且无法卸载，所以恒定挂载、由 handler 内部实时读 props.shortcuts，

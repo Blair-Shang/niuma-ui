@@ -102,6 +102,14 @@ watch(
       <div class="pg-shell__toolbar">
         <a
           class="pg-shell__repo"
+          href="https://blair-shang.github.io/niuma-ui/"
+          target="_blank"
+          rel="noreferrer"
+        >
+          {{ t('playground.docs') }}
+        </a>
+        <a
+          class="pg-shell__repo"
           href="https://github.com/Blair-Shang/niuma-ui"
           target="_blank"
           rel="noreferrer"

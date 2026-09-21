@@ -4,15 +4,18 @@
 
 请同时阅读 [行为准则](./CODE_OF_CONDUCT.md)。
 
-English note: component and install docs are maintained in Chinese first; PRs may describe changes in Chinese or English.
+English: [CONTRIBUTING.en.md](./CONTRIBUTING.en.md) · [docs/components.en.md](./docs/components.en.md) · [docs/consumers.en.md](./docs/consumers.en.md) · [README.en.md](./README.en.md). PR descriptions may be Chinese or English.
+
+用户向文档（README、consumers）不要写发版密钥或个人 npm 账号。发版只写在本文。
 
 ## 开发环境
 
 ```bash
 pnpm install
-pnpm dev          # Playground：http://localhost:5180
-pnpm build        # 库产物 → dist/（npm 发布用；本机 link 的类型检查也依赖它）
-pnpm test         # Vitest 单次
+pnpm dev:site     # 文档站（对外用法）：http://127.0.0.1:5181
+pnpm dev          # 内部测试台：http://127.0.0.1:5180（禁止当官网）
+pnpm build        # 库产物 → dist/
+pnpm test
 pnpm test:watch
 ```
 
@@ -23,11 +26,11 @@ pnpm test:watch
 1. 大型功能或破坏性 API 变更请先开 Issue 讨论。
 2. 单个 PR 聚焦一件事。
 3. 行为变更时补充或更新 `src/__tests__/` 测试。
-4. 新 UI 在 `playground/` 提供演示入口：于 `playground/routes.ts` 登记 `group` / `description`，并尽量为关键 DemoBlock 补充可复制 `code` 与 `DemoPage` 的 `api` 简表。
-5. 涉及公开 API、token 或安装步骤时同步更新：
-   - [README.md](./README.md)
-   - [docs/consumers.md](./docs/consumers.md)
-   - [docs/components.md](./docs/components.md)
+4. 对外用法**必须**写在文档站 `site/`（catalog + `demos/{slug}.vue`）。`playground/` 只做内部冒烟与像素回归，禁止当作用法说明。
+5. 涉及公开 API、token、架构或安装步骤时同步更新：
+   - [docs/components.md](./docs/components.md)（架构红线；英文 [components.en.md](./docs/components.en.md)）
+   - [docs/consumers.md](./docs/consumers.md) / [docs/consumers.en.md](./docs/consumers.en.md)
+   - [README.md](./README.md) / [README.en.md](./README.en.md)（若安装/约定变化）
    - [CHANGELOG.md](./CHANGELOG.md) 的 `[Unreleased]` 段落
 6. 非发版 PR 不要擅自改 `package.json` 的 `version`。
 
@@ -40,7 +43,7 @@ pnpm test:watch
 - `docs: 补充 Tree fieldNames 说明`
 - `chore: 收紧 CI`
 
-本地提交请使用本人身份（例如 name=`shangjian`），不要使用 Cursor / bot 账号作为 author。
+本地提交请使用本人 git 身份，不要使用 Cursor / bot 账号作为 author。
 
 ## 发版
 
@@ -72,32 +75,34 @@ pnpm test:watch
 
 ## 组件规范
 
-完整清单与规则见 **[docs/components.md](./docs/components.md)**。摘要：
+**完整架构契约**（红线、公开面、Token、Vue/CSS/浮层/表单/a11y/SSR、检查清单）见：
+
+- 中文：[docs/components.md](./docs/components.md)
+- English: [docs/components.en.md](./docs/components.en.md)
+
+摘要（细节以该文档为准，冲突时以红线为准）：
 
 | 规则 | 说明 |
 |------|------|
-| 命名 | 公开组件使用 `Rs*` 前缀（如 `RsButton.vue`） |
-| 公开 API | 仅通过 `src/index.ts` 导出；稳定能力不要要求消费方深路径导入 |
-| Reka UI | 原语封装在本包内；消费方不得直接依赖 `reka-ui` |
-| Token | 视觉值走 `--rs-*` / 主题预设，避免写死品牌色、字号 px 或 system 字体栈 |
-| 尺寸 / 圆角 | 优先 `RsComponentSize` / `RsRadius` 与对应 resolve hooks |
-| 国际化 | 用户可见文案尽量走 `useRsI18n` / locale 表 |
-| 无障碍 | 图标按钮需标签；保持键盘焦点与对话框焦点陷阱 |
-| 重型依赖 | Monaco / xterm 等放在专用组件；轻量应用勿盲目用主入口 |
-| 测试 | 新组件至少有挂载冒烟测试；工具函数覆盖边界情况 |
+| 命名 | 公开组件 `Rs*`；内部 `*-utils.ts` 无 Rs 前缀 |
+| 公开 API | 只从 `src/index.ts` 导出；DOM 实现细节默认不导出 |
+| Reka UI | 原语封在本包；消费方与 site 不得直接依赖 `reka-ui` |
+| Token | `--rs-*`；禁止硬编码品牌色、px、system 字体栈 |
+| 尺寸 / 圆角 | `RsComponentSize` / `RsRadius` + resolve hooks |
+| 形态 × 色 | `variant` 管形状，`tone` 管色相 |
+| 国际化 | `useRsI18n`，zh-CN 与 en-US 成对 |
+| 外部规范 | WHATWG 语义、Vue Style Guide A/B、APG 键盘；Google HTML/CSS 不作合同 |
+| 无障碍 | 先原生后 ARIA；图标按钮要标签；当前项 `aria-current`；浮层焦点陷阱 |
+| 文档 | 对外用法只认 `site/`；`playground/` 仅内部测试 |
+| 测试 | 挂载冒烟 + utils 边界 |
 
 ### 新增组件步骤
 
-1. 实现 `src/components/RsYourComponent.vue`（复杂逻辑可拆 `*-utils.ts`）。
-2. 在 `src/index.ts` 导出组件及公开类型 / 辅助函数。
-3. 添加 `src/__tests__/RsYourComponent.spec.ts`。
-4. 在 Playground 增加演示。
-5. 更新 [docs/components.md](./docs/components.md) 清单。
-6. 在 `CHANGELOG.md` 记录。
+按 [docs/components.md §15](./docs/components.md) 检查清单执行：实现 → 筛选导出 → locale → 单测 → **site catalog + demo** → 更新清单 → CHANGELOG。playground 可选。
 
 ### 破坏性变更
 
-Props 更名、删除导出、删除 token 等需 **MAJOR** 版本，并在 CHANGELOG 写清迁移说明。
+Props / 事件 / 插槽 / 导出 / Token / 默认值语义变更须 **MAJOR**，CHANGELOG 写迁移。未登记的新导出视为破坏架构。
 
 ## 缺陷与需求
 

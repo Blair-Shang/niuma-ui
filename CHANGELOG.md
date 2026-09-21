@@ -6,6 +6,22 @@
 
 ## [Unreleased]
 
+## [1.3.9] - 2026-09-21
+
+### 新增
+
+- `RsAnchor`：页内目录。滚动容器可注入、墨点跟随、嵌套标题；Hash 路由设 `changeHash=false`。
+
+### 文档
+
+- 新增 `site/` 文档站（何时使用、代码演示、API、Design Token）。GitHub Pages 部署 `pnpm build:site`。`playground/` 仅内部测试，`pnpm dev` 不变。
+- `docs/components.md` 补为维护者架构契约（红线、公开面分层、Token / Vue / 浮层 / 表单 / a11y / SSR、新增检查清单）；英文 `docs/components.en.md`。`CONTRIBUTING.md` 改为 site 优先，playground 不能代替文档站。
+- `docs/components.en.md` 含完整组件清单；新增 `docs/consumers.en.md`；规范写明第三语言与 RTL 扩展步骤。中英清单必须同 PR 更新。
+- README / 接入指南按消费方改写：用户页不写发版密钥；版本统一 1.3.8；快速开始可复制；`consumers.md` 与英文同步。发版步骤只留在 `CONTRIBUTING.md` / `CONTRIBUTING.en.md`。
+- npm `description` 改为英文；`homepage` 指向文档站。`SECURITY.md` 中英并列。文档站指南页随 locale 切换英文正文。
+- 架构契约写明外部规范范围：尽量遵守 WHATWG HTML、Vue Style Guide A/B、WAI-ARIA APG；Google HTML/CSS Style Guide 不作合同。冲突时语义 > APG 键盘 > Vue 风格。
+- 明确 `playground/` 仅为内部冒烟与像素回归；对外用法只认 `site/` 文档站。playground 首页不再写安装教程。
+
 ## [1.3.8] - 2026-09-17
 
 ### 修复

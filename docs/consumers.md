@@ -1,114 +1,91 @@
 # 消费方接入指南
 
-本文面向将 `niuma-ui` 集成到宿主应用（桌面端、Web 后台、官网等）的工程团队。阅读前请先浏览仓库根目录 [README.md](../README.md)。组件清单与设计约定见 [components.md](./components.md)。
+把 `niuma-ui` 装进宿主应用（桌面壳、后台、官网）。请先读根目录 [README.md](../README.md)。架构与清单：[components.md](./components.md)。English: [consumers.en.md](./consumers.en.md)。
 
-在线组件演示：[https://blair-shang.github.io/niuma-ui/](https://blair-shang.github.io/niuma-ui/)。
+组件用法、何时使用、API 只认文档站 [https://blair-shang.github.io/niuma-ui/](https://blair-shang.github.io/niuma-ui/)（源码 `site/`，本地 `pnpm dev:site`）。`playground/` 是维护者内部测试台，不写对外说明。
 
-**定位：** 工作台设计系统，不是轻量通用 UI 套件。自 **1.2.0** 起 npm 包为编译 ESM。安装会带上 Monaco / CodeMirror / xterm；打包体积靠具名导入 + 下面的入口约定摇树。
+**定位：** 工作台设计系统，不是轻量通用 UI 套件。自 **1.2.0** 起 npm 为编译 ESM。安装会带上 Monaco / CodeMirror / xterm；体积靠**具名导入**和下面的入口约定摇树。当前发布版本 **1.3.8**。
 
-**契约：公共 API 是主入口具名导入。`vite build` / CI 走包主入口，不依赖改写插件。`niumaUiHost` 只服务本机 `pnpm dev`。** 不要在单个产品里补 Tailwind 或改栏宽。
+**契约：** 公共 API 是包根具名导入。`vite build` / CI 走包入口，不依赖改写插件。`niumaUiHost` **只服务**本机 `pnpm dev`。不要再引一套 Tailwind，也不要把包名别名到 `src/index.ts`。
 
-1. `styles.css` 源码与发布包同一份，**透传** `@import 'tailwindcss'`。宿主入口只 `import 'niuma-ui/styles.css'`，用 `@tailwindcss/vite` 处理这一行；不要在业务 CSS 里再写一遍 `@import 'tailwindcss'`，也不要剥掉发布包里的这一行。
-2. 宿主启用 `niumaUiHost()`（`niuma-ui/vite-plugins/niuma-ui-host`）：
-   - `pnpm dev` + `link:`：具名导入改到 `src/**/*.vue`，`styles.css` 指到源码，组件可 HMR。
-   - `vite build` / CI：不改写，解析 `dist/index.js` 的真实 re-export。
-3. **禁止**把 `@niuma/ui` 别名到 `src/index.ts`。评估整桶会灌入未使用组件 CSS，和打包摇树对不齐。
-4. 一律从主入口具名导入。官网等轻量宿主在自己的 `src/ui.ts` 里只 re-export 用到的符号（产品层减体积，不是绕过打包器）。不要 `import *`。
-5. 子路径（`vite-plugins/*`、`styles.css`、`vite-prebundle/*`）给工具链用，不是业务组件的常规写法。
+1. `styles.css` 源码与 npm 同一份，**透传** `@import 'tailwindcss'`。宿主只 `import 'niuma-ui/styles.css'`，用 `@tailwindcss/vite` 展开。不要在业务 CSS 里再写一遍 Tailwind，也不要剥掉发布包里的这一行。
+2. 本地改源码时启用 `niumaUiHost()`（`niuma-ui/vite-plugins/niuma-ui-host`）：
+   - `pnpm dev` + `link:`：具名导入改到 `src/**/*.vue`，可 HMR。
+   - `vite build` / CI：不改写，解析 `dist/index.js`。
+3. **禁止**把包别名到 `src/index.ts`。整桶求值会灌入未使用组件 CSS，摇树失效。
+4. 一律从根入口具名导入。轻量站点在自己的 `src/ui.ts` 再导出用到的符号。不要 `import *`。
+5. 子路径（`vite-plugins/*`、`styles.css`、`vite-prebundle/*`）给工具链，不是日常组件导入。
 
-## 1. 选择依赖方式
+## 1. 怎么依赖
 
-npm 包名是 **`niuma-ui`**。正式版 `pnpm publish` 会更新 dist-tag **`latest`**（当前 1.2.5）；预发布打 **`next`**。不维护 GitHub 标签 `latest`。
+npm 包名是 **`niuma-ui`**。正式版更新 dist-tag **`latest`**，预发布 **`next`**。没有名为 `latest` 的 Git 标签。
 
-| 场景 | 推荐写法 | 说明 |
-|------|----------|------|
-| 本机改组件、热更新联调 | `"@niuma/ui": "link:../niuma-ui"` | 与 UI 仓同级；`web/` 里用 `../../niuma-ui` |
-| niuma-cloud / NiuMa 流水线 | `npm:niuma-ui@latest` | workflow 里改依赖后从 registry 安装，不 checkout 兄弟仓 |
-| 第三方 / 要锁补丁 | `"niuma-ui": "^1.2.0"` | 自动吃兼容 PATCH，不跟 major |
-| 必须可复现 | `"niuma-ui": "1.2.0"` | 钉死精确版本 |
+| 场景 | 推荐 | 说明 |
+|------|------|------|
+| 对着本仓库改组件、HMR | `"niuma-ui": "link:../niuma-ui"` | 路径相对**声明依赖的 package.json** |
+| 第三方，要兼容补丁 | `"niuma-ui": "^1.3.0"` | 只吃兼容 PATCH |
+| 必须可复现 | `"niuma-ui": "1.3.8"` | 钉死当前版本 |
+| 下游 CI 曾 checkout 本仓 | `npm:niuma-ui@latest` | 从 registry 装，不要在产品 CI 里 clone 本 Git 仓 |
 
-开源基线 **1.0.0**，许可证 [Apache License 2.0](../LICENSE)。第一方宿主（cloud Admin、桌面 `web/`）依赖键常用 `@niuma/ui`，用 `npm:niuma-ui@…` 或 `link:` 指向同一份包。
+开源基线 **1.0.0**，[Apache License 2.0](../LICENSE)。旧包名 `@niuma/ui` 已不再发布，请用 **`niuma-ui`**。
 
-### 1.1 本地 link（开发机）
-
-目录约定示例：
+### 1.1 本地 `link`
 
 ```text
 workspace/
   niuma-ui/          # 本仓库
-  your-app/          # 宿主（若在子目录则 link 路径改为 ../../niuma-ui）
+  your-app/          # 宿主（若在子目录，路径改为 ../../niuma-ui）
 ```
-
-`your-app/package.json`（第一方也可用 `@niuma/ui` 作为依赖键）：
 
 ```json
 {
   "dependencies": {
-    "@niuma/ui": "link:../niuma-ui",
+    "niuma-ui": "link:../niuma-ui",
     "vue": "^3.5.0"
   }
 }
 ```
 
-若宿主位于 monorepo 的 `web/` 下：
-
-```json
-"@niuma/ui": "link:../../niuma-ui"
-```
-
 ```bash
-# 先在 niuma-ui 仓安装一次：prepare 会在缺少 dist 时自动 build
-cd ../niuma-ui && pnpm install
+cd ../niuma-ui && pnpm install   # 缺 dist 时 prepare 会 build
 cd ../your-app && pnpm install
 pnpm dev
 ```
 
-`exports` 只认 `dist`（和 Vue / Vite 一样）。clone 后没有 dist 时，在 **niuma-ui** 里 `pnpm install` 会走 `prepare` 编出插件和桶。之后宿主 `link:` + `pnpm dev`：`niumaUiHost` 把用到的组件指到兄弟仓 `src/`，改 `.vue` 即可 HMR。打包 / CI 仍解析 npm `dist`。改 Vite 插件源码后需再 `pnpm build`（或删掉 dist 再 install）一次。
+`exports` 只认 `dist`。clone 后在 **niuma-ui** 里 `pnpm install` 会编出插件和桶。`link:` + `pnpm dev` 时 `niumaUiHost` 把用到的组件指到源码。生产 / CI 仍解析 npm `dist`。改 Vite 插件源码后需再 `pnpm build`。
 
-### 1.2 第一方流水线（niuma-cloud / NiuMa）
-
-仓库里的 `package.json` 保持 `link:` 方便本机。CI **不要** checkout `niuma-ui` Git 仓，安装前改成 npm：
+### 1.2 npm（默认推荐）
 
 ```bash
-# niuma-cloud（根 package.json）
-pnpm pkg set "dependencies.@niuma/ui=npm:niuma-ui@${NIUMA_UI_VERSION:-latest}"
+pnpm add niuma-ui          # 当前 latest
+pnpm add niuma-ui@1.3.8    # 钉死
+```
+
+优先 semver，少用 `git+https://…#v1.3.8`。不要 checkout GitHub `ref: latest`（没有这个标签）。
+
+### 1.3 下游仍提交 `link:` 时的 CI（可选）
+
+若宿主仓提交的仍是 `link:`，CI 应改写成 npm，**不要**再 clone 本仓库：
+
+```bash
+pnpm pkg set "dependencies.niuma-ui=npm:niuma-ui@${NIUMA_UI_VERSION:-latest}"
 pnpm install --no-frozen-lockfile
-
-# NiuMa（workspace 包 @niuma/web）
-# 不要用 --filter pkg set：会被当成脚本名，改不到 web/package.json。
-pnpm --filter @niuma/web add "@niuma/ui@npm:niuma-ui@${NIUMA_UI_VERSION:-latest}"
 ```
 
-- 默认 `latest`：niuma-ui 发正式版后，下次跑 cloud / 桌面打包即用新包。
-- 钉死：仓库变量 `NIUMA_UI_VERSION=1.2.0`，或 workflow 输入 `niuma_ui_version`。
-- `--frozen-lockfile` 会钉住锁文件里的旧解析，跟 `latest` 冲突，流水线必须用 `--no-frozen-lockfile`（或先改依赖再装）。
-- Vite 用 `require.resolve('@niuma/ui/package.json')` 定位包根，给 `server.fs.allow`。启用 `niumaUiHost()`，不要把主入口别名到 `src/index.ts`。
+`--frozen-lockfile` 和 `latest` 冲突。需要可复现构建时设 `NIUMA_UI_VERSION=1.3.8`。
 
-`niuma-site` 若仍 `link:` + checkout 兄弟仓，与上述无关；要对齐时用同一套 npm 改写。
+## 2. 最小集成
 
-### 1.3 第三方 npm
-
-```bash
-pnpm add niuma-ui          # 装当前 latest
-pnpm add niuma-ui@1.2.0    # 钉死
-```
-
-不推荐 `git+https://…#v1.2.0`，除非内网拉不到 npm。也不要 `ref: latest` 去 checkout Git。第三方大工程请钉 `^1.2.0`，不要跟 `latest`。
-
-## 2. 最小集成清单
-
-1. 安装 `vue`（满足 peer）与 `niuma-ui`。
-2. 在应用入口引入样式（含 token、vue-sonner，以及透传的 `@import 'tailwindcss'`）：
+1. 安装 `vue`（peer）与 `niuma-ui`。
+2. 入口只引一次样式：
 
    ```ts
    import 'niuma-ui/styles.css'
    ```
 
-   Vite 宿主加上 `@tailwindcss/vite`，让这一行在 dev 和 build 都被展开。不要手写 `@import 'niuma-ui/src/styles.css'`，也不要在业务 CSS 里再 `@import 'tailwindcss'`。
+   Vite 宿主加上 `@tailwindcss/vite`。不要写 `@import 'niuma-ui/src/styles.css'`。
 
-   - CodeMirror 6 主题在 JS 里；xterm / Monaco 的 CSS 跟组件 `import`。`vite-prebundle/*` 只给本机 `optimizeDeps`。
-
-3. 根组件包裹 `RsConfigProvider`：
+3. 根节点包 `RsConfigProvider`：
 
    ```vue
    <RsConfigProvider theme="light" locale="zh-CN" control-size="md">
@@ -116,29 +93,23 @@ pnpm add niuma-ui@1.2.0    # 钉死
    </RsConfigProvider>
    ```
 
-4. 业务只从 `niuma-ui` 导入组件与 composable，不要直接安装或引用 `reka-ui`。
+   现支持 `zh-CN` | `en-US`。
+
+4. 组件和 composable 只从 `niuma-ui` 导入，不要装 `reka-ui`。
 
 ### 主题与品牌
 
-- 默认主题由 `RsConfigProvider` 的 `theme`（`light` | `dark` | …）写入 `data-rs-theme`。
-- 产品品牌色可在业务 CSS 中覆盖同名 `--rs-*` 变量；参考 [`src/theme/brand.example.css`](../src/theme/brand.example.css)。
-- 表格、终端、代码编辑器等子系统另有 `--rs-table-*`、`--rs-terminal-*`、`--rs-code-*`、`--rs-prose-*` 等 token，可按需覆盖。
-- 排版与文字语义（对齐 Ant Design / Arco 常用档位）：
-  - 字号：`--rs-font-size-xs` … `--rs-font-size-3xl`
-  - 字重：`--rs-font-weight-regular|medium|semibold|bold`
-  - 字体族：`--rs-font-sans` / `--rs-font-mono` / `--rs-font-serif` / `--rs-font-rounded`
-  - 代码 / 终端：`--rs-code-font-family|size`、`--rs-terminal-font-family|size|weight`（Monaco / xterm 从这些 token 读取）
-  - 文字色：`--rs-text-primary|secondary|tertiary|disabled|inverse|link|link-hover`
-    （兼容旧名 `--rs-text` / `--rs-muted` / `--rs-placeholder`）
-  - JS 侧也可使用导出的 `RS_FONT_SIZE_CSS` / `RS_FONT_WEIGHT_CSS`，以及 `readCssLengthPx` / `readCodeFontFamily`
+- `theme`（`light` | `dark`）写入 `data-rs-theme`。
+- 业务 CSS 覆盖同名 `--rs-*`，见 [`src/theme/brand.example.css`](../src/theme/brand.example.css)。
+- 子系统：`--rs-table-*`、`--rs-terminal-*`、`--rs-code-*`、`--rs-prose-*`。
+- 排版：`--rs-font-size-*`、`--rs-font-weight-*`、`--rs-font-sans|mono|serif`。
+- JS：`RS_FONT_SIZE_CSS`、`readCssLengthPx`、`readCodeFontFamily`。
 
 ### TypeScript
 
-npm 包入口是编译后的 ESM + `.d.ts`（类型指向 `.js`，不再暴露 `.vue`）。宿主 `tsconfig` 使用 `"moduleResolution": "bundler"` / `node16` / `nodenext` 即可，不必把路径指到本包的 `src/`，也不需要 `shamefully-hoist`。
+npm 入口是编译 ESM + `.d.ts`（类型指向 `.js`，不是 `.vue`）。宿主 `"moduleResolution": "bundler"` / `node16` / `nodenext` 即可，不要 path-map 到本包 `src/`。
 
-类型始终走包入口 `.d.ts`。`pnpm dev` 运行时由 `niumaUiHost` 指到源码，不必为了看效果先 build。
-
-## 3. Vite 配置要点
+## 3. Vite
 
 ### 3.1 允许读取 link 目录
 
@@ -147,8 +118,7 @@ import { dirname } from 'node:path'
 import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
-const uiRoot = dirname(require.resolve('@niuma/ui/package.json'))
-// 第三方依赖键为 niuma-ui 时：require.resolve('niuma-ui/package.json')
+const uiRoot = dirname(require.resolve('niuma-ui/package.json'))
 
 export default defineConfig({
   server: {
@@ -159,12 +129,10 @@ export default defineConfig({
 })
 ```
 
-### 3.2 官方 Vite 插件
+### 3.2 官方插件
 
 ```ts
 import { niumaUiHost } from 'niuma-ui/vite-plugins/niuma-ui-host'
-import { monacoZhNlsPlugin } from 'niuma-ui/vite-plugins/monaco-zh-nls'
-import { silenceAntlrParseConsole } from 'niuma-ui/vite-plugins/silence-antlr-parse-console'
 
 export default defineConfig({
   plugins: [...niumaUiHost()],
@@ -173,15 +141,15 @@ export default defineConfig({
 
 | 插件 | 用途 |
 |------|------|
-| `niumaUiHost` | 第一方宿主建议开。只服务 `pnpm dev`（源码 HMR、styles alias、Tailwind `@source`）。`vite build` 走包主入口。旧路径 `vite-plugins/rewrite-named-imports` 仍 re-export，勿再新写。 |
-| `monacoZhNlsPlugin` | Monaco 右键菜单等 UI 中文 NLS |
-| `silenceAntlrParseConsole` | 抑制 SQL 语言服务半成品 parse 的 console 噪音 |
+| `niumaUiHost` | 本地 `link` 建议开。只服务 `pnpm dev`（HMR、styles、Tailwind `@source`）。build 走包入口。 |
+| `monacoZhNlsPlugin` | Monaco 中文 NLS（可选） |
+| `silenceAntlrParseConsole` | 抑制 SQL 语言半成品 parse 日志（可选） |
 
-后两个仅在使用 `RsMonacoEditor` / SQL 语言能力的宿主中启用即可。
+后两个仅在使用 `RsMonacoEditor` / SQL 语言时启用。
 
-### 3.3 optimizeDeps（桌面重型编辑器场景）
+### 3.3 `optimizeDeps`（重型编辑器）
 
-Monaco 体积大，不建议整包放入 `optimizeDeps.include`。CodeMirror / xterm 用公开子路径：
+不要把整个 Monaco 放进 `optimizeDeps.include`。CodeMirror / xterm 用公开预打包路径：
 
 ```ts
 import { createRequire } from 'node:module'
@@ -199,66 +167,54 @@ export default defineConfig({
 })
 ```
 
-## 4. 包体积与按需引入
+## 4. 包体积
 
-`niuma-ui` 主入口聚合了面向 IDE / 运维工作台的完整能力。
-
-- 一律 `import { RsButton } from 'niuma-ui'`。官网在宿主 `src/ui.ts` 里只 re-export 用到的符号。`niumaUiHost` 只为 `pnpm dev` 联调。
-- 不要 `import * as UI from 'niuma-ui'`。
-- 样式一律 `niuma-ui/styles.css`。
+- 一律 `import { RsButton } from 'niuma-ui'`。官网在宿主 `src/ui.ts` 再导出用到的符号。
+- 不要 `import *`。
+- 样式只用 `niuma-ui/styles.css`。
 
 ## 5. RsTable SSR / 图表
 
-- SSR：优先 `useRsTableHeadless`；首屏只用轻量只读 `<RsTable>`（关 virtual / editable / contextMenu / cellTooltip）。详见 [rs-table-ssr.md](./rs-table-ssr.md)。
-- 图表：用 `createChartSeriesTableFeature` + `mapRsTableSeriesToEChartsOption`，echarts 留在宿主。详见 [rs-table-chart-adapter.md](./rs-table-chart-adapter.md)。
+- SSR：优先 `useRsTableHeadless`；首屏可用只读 `<RsTable>`（关掉 virtual / editable / contextMenu / cellTooltip）。见 [rs-table-ssr.md](./rs-table-ssr.md)。
+- 图表：`createChartSeriesTableFeature` + `mapRsTableSeriesToEChartsOption`，echarts 留在宿主。见 [rs-table-chart-adapter.md](./rs-table-chart-adapter.md)。
 
-## 6. 升级策略
+## 6. 升级
 
-1. 阅读目标版本的 [CHANGELOG](../CHANGELOG.md) / GitHub Release。
-2. 第一方流水线跟 `latest` 时无需改 workflow；要验证某版设 `NIUMA_UI_VERSION`。第三方改 `package.json` 版本后 `pnpm install`。
-3. 跑宿主测试与关键冒烟（主题切换、Dialog、Table、若有则编辑器）。
-4. MAJOR 升级前检查：组件 props 更名、token 删除、peer Vue 版本。
-
-本地 `link` 开发不必先发 npm；合并 / 打包前用流水线的 npm `latest`（或钉死版本）再验一遍。
+1. 读目标版本 [CHANGELOG](../CHANGELOG.md) / GitHub Release。
+2. 改 `package.json` 后 `pnpm install`。跟 `latest` 的流水线改完依赖须 `--no-frozen-lockfile`。
+3. 冒烟：主题切换、Dialog、Table，以及你用到的编辑器。
+4. MAJOR 前核对：props 更名、Token 删除、peer Vue。
 
 ## 7. 常见问题
 
-**Q: link 后报找不到 `dist/vite-plugins/niuma-ui-host.js`？**  
-A: 仓库不提交 dist。到 niuma-ui 根目录执行 `pnpm install`（缺 dist 时 `prepare` 会 build），或手动 `pnpm build`。不要把 `exports` 指到源码 `.ts`。
+**Q: link 后找不到 `dist/vite-plugins/niuma-ui-host.js`？**  
+A: 仓库不提交 dist。到 niuma-ui 根目录 `pnpm install` 或 `pnpm build`。不要把 `exports` 指到源码 `.ts`。
 
-**Q: link 后解析到错误路径？**  
-A: `link:` 相对路径相对的是**声明依赖的 package.json 所在目录**，不是仓库根。`web/package.json` 通常要用 `../../niuma-ui`。
-
-**Q: CI 还在 checkout niuma-ui Git 仓？**  
-A: cloud / 桌面 Pack 已改为 npm `niuma-ui@latest`。若仍失败，看是否误写 GitHub `ref: latest`（没有这个 git 标签），或 registry 装不到 `niuma-ui`。
-
-**Q: 装了 latest 但 CI 还是旧版？**  
-A: 锁文件 + `--frozen-lockfile` 不会漂。第一方 workflow 须 `pkg set` 后再 `--no-frozen-lockfile`。
+**Q: link 解析到错误目录？**  
+A: 路径相对**声明依赖的 package.json**，不是仓库根。应用在 `web/` 下通常要用 `../../niuma-ui`。
 
 **Q: 还要 `shamefully-hoist=true` 吗？**  
-A: 不要。当前 npm 包是编译产物，pnpm 隔离目录即可解析 `reka-ui` 等依赖。那是源码发布时期的权宜之计。
+A: 不要。发布包是编译产物，pnpm 隔离目录即可解析 `reka-ui`。
 
-**Q: 本机好看、流水线构建像缺样式 / 栏宽对不齐？**  
-A: 不是 CodeMirror / 终端没打进包。核对：`styles.css` 是否还带着 `@import 'tailwindcss'`、宿主是否开了 `@tailwindcss/vite`、是否把主入口别名到了整桶 `index.ts`。`niumaUiHost` 只影响 `pnpm dev`。不要在单个产品里再引一遍 Tailwind 或改栏宽来「对齐」。
+**Q: 本机正常、CI 没有样式？**  
+A: 核对 `styles.css` 是否仍含 `@import 'tailwindcss'`、宿主是否开了 `@tailwindcss/vite`、是否把入口别名到了 `src/index.ts`。`niumaUiHost` 不参与 `vite build`。
 
 **Q: 必须用 pnpm / Tailwind / Vite 吗？**  
-A: 安装用 npm / pnpm / yarn 均可。`styles.css` 透传 Tailwind，Vite 宿主需要 `@tailwindcss/vite`。普通组件不绑死 Vite；`RsMonacoEditor` 与官方 `vite-plugins/*` 需要 Vite 5+（Worker / 插件 API）。
+A: 安装用 npm / pnpm / yarn 均可。`styles.css` 透传 Tailwind，Vite 宿主需要 `@tailwindcss/vite`。普通组件不绑死 Vite；`RsMonacoEditor` 与官方插件需要 Vite 5+。
 
-**Q: 能否与 Element Plus / Ant Design Vue 混用？**  
-A: 技术上可以，但视觉与焦点层易冲突。新界面请统一 `Rs*`；存量迁移可分区推进。
+**Q: 能和其他组件库混用吗？**  
+A: 技术可以，视觉和焦点层容易打架。新界面请只用 `Rs*`。
 
 **Q: 支持 Vue 2？**  
-A: 不支持。仅 Vue 3。
+A: 不支持。
 
 **Q: 许可证？**  
-A: [Apache License 2.0](../LICENSE)。版权与第三方声明见 [NOTICE](../NOTICE)。依赖库各自保留其原许可证（Reka UI、Lucide、Monaco、CodeMirror、xterm 等）。
+A: [Apache License 2.0](../LICENSE)。见 [NOTICE](../NOTICE)。依赖库保留各自许可证。
 
-## 8. 支持与反馈
+## 8. 支持
 
 - Issues：https://github.com/Blair-Shang/niuma-ui/issues  
-- 安全漏洞：[SECURITY.md](../SECURITY.md)  
+- 安全：[SECURITY.md](../SECURITY.md)  
 - 贡献：[CONTRIBUTING.md](../CONTRIBUTING.md)  
 
-设计与 API 讨论请附：宿主框架版本、复现仓库或最小示例、期望行为与实际行为。
-
-第三方产品建议固定 minor（`^1.2.0` 起的编译包）并在自有文档记录版本。第一方打包跟 npm `latest`，出问题用 `NIUMA_UI_VERSION` 回退。
+讨论 API 时请附：框架版本、最小复现、期望与实际行为。第三方产品建议钉 minor（`^1.3.0` 起）并在自有文档记录版本。

@@ -1,0 +1,32 @@
+/* 文档站品牌色 + 壳层色 */
+html[data-rs-theme='light'] {
+  --site-header-bg: rgb(255 255 255 / 94%);
+  --site-canvas: #f3f5f9;
+  --site-aside-bg: #eef1f6;
+  --site-article-bg: #ffffff;
+  --site-line: #e4e8ef;
+  --site-footer-bg: #e8ecf3;
+}
+
+html[data-rs-theme='dark'] {
+  --site-header-bg: color-mix(in srgb, var(--rs-bg) 88%, transparent);
+  --site-canvas: color-mix(in srgb, var(--rs-bg) 94%, #000);
+  --site-aside-bg: color-mix(in srgb, var(--rs-surface) 80%, #000);
+  --site-article-bg: var(--rs-surface);
+  --site-line: var(--rs-border-subtle);
+  --site-footer-bg: color-mix(in srgb, var(--rs-surface) 86%, #000);
+}
+
+html[data-rs-brand='indigo'][data-rs-theme='light'] {
+  --rs-primary: #3d5afe;
+  --rs-primary-hover: #304ffe;
+  --rs-primary-container: #e8eaff;
+  --rs-on-primary-container: #1a237e;
+}
+
+html[data-rs-brand='indigo'][data-rs-theme='dark'] {
+  --rs-primary: #8c9eff;
+  --rs-primary-hover: #a5b4ff;
+  --rs-primary-container: #1c2248;
+  --rs-on-primary-container: #c5cae9;
+}

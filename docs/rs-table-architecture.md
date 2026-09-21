@@ -1,5 +1,7 @@
 # RsTable 架构 / 兼容矩阵 / 多表隔离
 
+English: maintainer note (Chinese). Public Table API: [docs site](https://blair-shang.github.io/niuma-ui/#/components/table). Architecture contract: [components.en.md](./components.en.md).
+
 ## 分层
 
 ```

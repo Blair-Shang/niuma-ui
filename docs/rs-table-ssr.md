@@ -1,5 +1,7 @@
 # RsTable SSR 指南
 
+English: this is an advanced Chinese note. Public Table API lives on the [docs site](https://blair-shang.github.io/niuma-ui/#/components/table). Host integration: [consumers.en.md](./consumers.en.md).
+
 面向 Nuxt / Vite SSR / 自定义 `renderToString` 宿主。目标：首屏可出 HTML，水合不炸，重交互仍在客户端。
 
 ## 推荐分层

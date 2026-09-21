@@ -1,5 +1,7 @@
 # RsTable Playwright 像素回归
 
+English: maintainer visual-regression note (Chinese). Official docs are `site/`; this lab uses `playground/` at :5180.
+
 自动化截图对比，防止样式/布局静默漂移。与 DOM 基线互补：DOM 锁结构，像素锁观感。
 
 ## 命令
