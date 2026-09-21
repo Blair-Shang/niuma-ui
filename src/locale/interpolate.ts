@@ -107,16 +107,28 @@ function readBalanced(source: string, open: number): { text: string; end: number
   return null
 }
 
+const pluralRulesByLocale = new Map<string, Intl.PluralRules>()
+
+function pluralRulesFor(locale: string): Intl.PluralRules | undefined {
+  const cached = pluralRulesByLocale.get(locale)
+  if (cached) return cached
+  try {
+    const rules = new Intl.PluralRules(locale)
+    pluralRulesByLocale.set(locale, rules)
+    return rules
+  } catch {
+    return undefined
+  }
+}
+
 function pickPluralClause(locale: string, n: number, clauses: Map<string, string>): string {
   if (Number.isFinite(n)) {
     const exact = clauses.get(`=${n}`)
     if (exact != null) return exact
-    try {
-      const category = new Intl.PluralRules(locale).select(n)
+    const category = pluralRulesFor(locale)?.select(n)
+    if (category) {
       const matched = clauses.get(category)
       if (matched != null) return matched
-    } catch {
-      /* 未知 locale 用 other */
     }
   }
   return clauses.get('other') ?? ''

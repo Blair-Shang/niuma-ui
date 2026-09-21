@@ -6,7 +6,8 @@ import type { RsConfirmOptions } from '../components/dialog/src/dialog-utils'
 import type { RsDialogBeforeClose, RsDialogCloseReason, RsDialogWidth } from '../components/dialog/src/dialog-utils'
 import type { RsFeedbackTone } from '../components/_shared/src/overlay-utils'
 import { isRsLocaleRegistered } from '../locale/registry'
-import { defaultLocale, type RsLocale } from '../locale/types'
+import { resolveHostLocale } from '../locale/resolve-host'
+import { type RsLocale } from '../locale/types'
 import { readResolvedTheme } from '../theme/apply'
 import type { RsThemeMode } from '../theme/types'
 
@@ -76,9 +77,9 @@ function readDomTheme(): RsThemeMode {
 }
 
 function readDomLocale(): RsLocale {
-  if (typeof document === 'undefined') return defaultLocale
+  if (typeof document === 'undefined') return resolveHostLocale()
   const value = document.documentElement.getAttribute('data-rs-locale')
-  return value && isRsLocaleRegistered(value) ? value : defaultLocale
+  return value && isRsLocaleRegistered(value) ? value : resolveHostLocale()
 }
 
 /** 命令式实例的销毁函数；测试收尾用 destroyAllRsDialogHosts 走正规 unmount。 */

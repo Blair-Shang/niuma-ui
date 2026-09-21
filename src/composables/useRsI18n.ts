@@ -1,7 +1,8 @@
 import { computed, inject } from 'vue'
 import { interpolateRsMessage, resolveRsTranslateArgs, type RsI18nVars, type RsTranslateFn } from '../locale/interpolate'
 import { resolveRsMessage } from '../locale/registry'
-import { defaultLocale, type RsLocale } from '../locale/types'
+import { resolveHostLocale } from '../locale/resolve-host'
+import { type RsLocale } from '../locale/types'
 import { rsConfigKey } from './useRsConfig'
 
 export type { RsI18nVars, RsTranslateFn }
@@ -17,10 +18,10 @@ function translate(
   return interpolateRsMessage(raw, parsed.vars, locale)
 }
 
-/** 组件内安全取文案：Provider 内跟随 locale，否则回退 defaultLocale */
+/** 组件内安全取文案：Provider 内跟随 locale，否则按本机语言，再回退 zh-CN */
 export function useRsI18n() {
   const ctx = inject(rsConfigKey, null)
-  const locale = computed<RsLocale>(() => ctx?.locale.value ?? defaultLocale)
+  const locale = computed<RsLocale>(() => ctx?.locale.value ?? resolveHostLocale())
 
   const t: RsTranslateFn = (key, fallbackOrVars, vars) =>
     translate(locale.value, key, fallbackOrVars, vars)

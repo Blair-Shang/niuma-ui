@@ -606,4 +606,22 @@ describe('RsDialog', () => {
     expect(wrapper.findComponent(RsDialog).props('open')).toBe(false)
     wrapper.unmount()
   })
+
+  it('closes on Escape (APG Dialog)', async () => {
+    const Host = defineComponent({
+      components: { RsDialog },
+      setup() {
+        const open = ref(true)
+        return { open }
+      },
+      template: '<RsDialog v-model:open="open" title="Escape" :fullscreenable="false" />',
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await flushPromises()
+    expect(document.body.querySelector('.rs-dialog__content')).not.toBeNull()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await flushPromises()
+    expect(wrapper.findComponent(RsDialog).props('open')).toBe(false)
+    wrapper.unmount()
+  })
 })

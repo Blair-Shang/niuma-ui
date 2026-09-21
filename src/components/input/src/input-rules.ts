@@ -1,6 +1,6 @@
 import type { RsTranslateFn } from '../../../composables/useRsI18n'
 import { createTranslator } from '../../../composables/useRsI18n'
-import { defaultLocale } from '../../../locale/types'
+import { resolveHostLocale } from '../../../locale/resolve-host'
 
 export type RsInputRule = 'email' | 'number' | 'integer' | 'phone' | 'url' | 'minComplexity'
 
@@ -45,7 +45,7 @@ export function validateInputRule(value: string, rule: RsInputRule): boolean {
 
 export function getInputRuleMessage(rule: RsInputRule, t?: RsTranslateFn): string {
   const key = inputRuleMessageKeys[rule]
-  const tr = t ?? createTranslator(defaultLocale)
+  const tr = t ?? createTranslator(resolveHostLocale())
   return tr(key)
 }
 
@@ -63,7 +63,7 @@ export function runInputValidation(
   },
   t?: RsTranslateFn,
 ): RsInputValidateResult {
-  const tr = t ?? createTranslator(defaultLocale)
+  const tr = t ?? createTranslator(resolveHostLocale())
 
   if (options.required && value.trim() === '') {
     return { valid: false, message: tr('input.required') }

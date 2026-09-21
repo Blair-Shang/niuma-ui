@@ -43,7 +43,7 @@ describe('RsFieldset', () => {
     })
     expect(wrapper.find('.rs-fieldset__description').exists()).toBe(false)
     expect(wrapper.find('.rs-tooltip__icon-trigger').exists()).toBe(true)
-    expect(wrapper.find('.rs-tooltip__icon-trigger').attributes('aria-label')).toBe('分组说明')
+    expect(wrapper.find('.rs-tooltip__icon-trigger').attributes('aria-label')).toBe('Group help')
     expect(wrapper.find('legend').text()).toContain('推送对象')
     expect(wrapper.find('legend').text()).not.toContain('已选 2 个文件')
   })

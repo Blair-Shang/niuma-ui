@@ -166,10 +166,10 @@ describe('RsInput', () => {
     await wrapper.find('input').trigger('blur')
     await flushPromises()
     expect(wrapper.find('.rs-input-group').classes()).toContain('rs-input-group--invalid')
-    expect(wrapper.find('.rs-input-field__error').text()).toContain('邮箱')
+    expect(wrapper.find('.rs-input-field__error').text()).toContain('Enter a valid email address')
     expect(wrapper.emitted('validate')?.[0]?.[0]).toEqual({
       valid: false,
-      message: '请输入有效的邮箱地址',
+      message: 'Enter a valid email address',
     })
   })
 

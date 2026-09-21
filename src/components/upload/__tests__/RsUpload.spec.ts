@@ -78,9 +78,9 @@ describe('upload-utils', () => {
 })
 
 describe('RsUpload', () => {
-  it('renders default zh-CN label', () => {
+  it('renders default en-US label', () => {
     const wrapper = mount(RsUpload)
-    expect(wrapper.find('.rs-upload__label').text()).toBe('点击或拖拽文件到此处上传')
+    expect(wrapper.find('.rs-upload__label').text()).toBe('Click or drag files here to upload')
   })
 
   it('renders custom label and hint', () => {
@@ -93,7 +93,7 @@ describe('RsUpload', () => {
 
   it('renders default browse hint when hint is omitted', () => {
     const wrapper = mount(RsUpload)
-    expect(wrapper.find('.rs-upload__hint').text()).toBe('或点击浏览本地文件')
+    expect(wrapper.find('.rs-upload__hint').text()).toBe('or click to browse files')
   })
 
   it('uses en-US label inside RsConfigProvider', () => {

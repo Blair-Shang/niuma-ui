@@ -51,15 +51,15 @@ describe('RsLoading', () => {
     expect(wrapper.classes()).toContain('rs-loading--overlay')
   })
 
-  it('exposes status role and default zh-CN aria-label', () => {
+  it('exposes status role and default en-US aria-label', () => {
     const wrapper = mount(RsLoading)
     expect(wrapper.attributes('role')).toBe('status')
-    expect(wrapper.attributes('aria-label')).toBe('加载中')
+    expect(wrapper.attributes('aria-label')).toBe('Loading')
   })
 
   it('shows label when showLabel is true', () => {
     const wrapper = mount(RsLoading, { props: { showLabel: true } })
-    expect(wrapper.find('.rs-loading__label').text()).toBe('加载中')
+    expect(wrapper.find('.rs-loading__label').text()).toBe('Loading')
   })
 
   it('uses custom label for visible text and aria-label', () => {

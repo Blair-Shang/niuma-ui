@@ -1,6 +1,6 @@
 import { resolveRsLocaleDir } from './registry'
+import { resolveHostLocale } from './resolve-host'
 import {
-  defaultLocale,
   dirAttribute,
   localeAttribute,
   type RsDirMode,
@@ -33,8 +33,8 @@ export function applyLocale(
 
 export function readDocumentLocale(el?: HTMLElement | null): RsLocale {
   if (typeof document === 'undefined') {
-    return defaultLocale
+    return resolveHostLocale()
   }
   const target = el ?? document.documentElement
-  return target.getAttribute(localeAttribute) || defaultLocale
+  return target.getAttribute(localeAttribute) || resolveHostLocale()
 }

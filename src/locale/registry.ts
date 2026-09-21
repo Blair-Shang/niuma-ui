@@ -62,7 +62,7 @@ export function resolveRsMessage(code: string, key: string): string | undefined 
   return (
     packs.get(code)?.messages[key] ??
     packs.get(fallbackLocale)?.messages[key] ??
-    packs.get(defaultLocale)?.messages[key]
+    packs.get('zh-CN')?.messages[key]
   )
 }
 

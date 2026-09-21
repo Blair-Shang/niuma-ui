@@ -1,4 +1,5 @@
 export { applyLocale, readDocumentLocale, resolveDirMode } from './apply'
+export { resolveHostLocale } from './resolve-host'
 export {
   inferRsLocaleDir,
   isRsLocaleRegistered,

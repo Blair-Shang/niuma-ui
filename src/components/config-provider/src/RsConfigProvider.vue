@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { createRsConfigState, provideRsConfig } from '../../../composables/useRsConfig'
-import { applyLocale } from '../../../locale/apply'
-import { defaultLocale, type RsDirMode, type RsLocale } from '../../../locale/types'
+import { applyLocale, resolveDirMode } from '../../../locale/apply'
+import { resolveHostLocale } from '../../../locale/resolve-host'
+import { type RsDirMode, type RsLocale } from '../../../locale/types'
 import { applyTheme, subscribePreferredColorScheme } from '../../../theme/apply'
 import type { RsComponentSize, RsRadius, RsThemeMode } from '../../../theme/types'
+import { ConfigProvider as RekaConfigProvider } from '../../_shared/src/reka'
 
 defineOptions({ name: 'RsConfigProvider' })
 
@@ -29,7 +31,6 @@ const props = withDefaults(
   }>(),
   {
     theme: 'light',
-    locale: defaultLocale,
     dir: 'auto',
     controlSize: 'md',
     themeScope: 'global',
@@ -39,7 +40,7 @@ const props = withDefaults(
 const rootEl = ref<HTMLElement | null>(null)
 const config = createRsConfigState(
   props.theme,
-  props.locale,
+  props.locale ?? resolveHostLocale(),
   props.controlSize,
   props.controlRadius,
   props.dir,
@@ -85,7 +86,7 @@ watch(
 watch(
   () => props.locale,
   (value) => {
-    if (value !== config.locale.value) config.setLocale(value)
+    if (value != null && value !== config.locale.value) config.setLocale(value)
   },
 )
 watch(
@@ -126,15 +127,20 @@ watch(rootEl, () => {
   }
 })
 
+const resolvedDir = computed(() => resolveDirMode(config.dir.value, config.locale.value))
+const rekaLocale = computed(() => config.locale.value)
+
 onBeforeUnmount(() => {
   stopPreferred?.()
 })
 </script>
 
 <template>
-  <div ref="rootEl" class="rs-config-provider">
-    <slot />
-  </div>
+  <RekaConfigProvider :dir="resolvedDir" :locale="rekaLocale">
+    <div ref="rootEl" class="rs-config-provider">
+      <slot />
+    </div>
+  </RekaConfigProvider>
 </template>
 
 <style scoped>

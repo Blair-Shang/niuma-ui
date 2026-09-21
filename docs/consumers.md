@@ -1,6 +1,6 @@
 # 消费方接入指南
 
-把 `niuma-ui` 装进宿主应用（桌面壳、后台、官网）。请先读根目录 [README.md](../README.md)。架构与清单：[components.md](./components.md)。English: [consumers.en.md](./consumers.en.md)。
+把 `niuma-ui` 装进宿主应用（桌面壳、后台、官网）。请先读根目录 [README.zh-CN.md](../README.zh-CN.md)。架构与清单：[components.md](./components.md)。English: [consumers.en.md](./consumers.en.md)。
 
 组件用法、何时使用、API 只认文档站 [https://blair-shang.github.io/niuma-ui/](https://blair-shang.github.io/niuma-ui/)（源码 `site/`，本地 `pnpm dev:site`）。`playground/` 是维护者内部测试台，不写对外说明。
 
@@ -95,7 +95,7 @@ pnpm install --no-frozen-lockfile
    </RsConfigProvider>
    ```
 
-   现支持 `zh-CN` | `en-US`。
+   未设 `locale` 时跟本机语言（中文系统为 `zh-CN`）。其它语言见 [locales.md](./locales.md)。
 
 4. 组件和 composable 只从 `niuma-ui` 导入，不要装 `reka-ui`。
 
@@ -107,7 +107,7 @@ pnpm install --no-frozen-lockfile
 - 业务 CSS 覆盖同名 `--rs-*`，见 [`src/theme/brand.example.css`](../src/theme/brand.example.css)。
 - 文字覆盖 `--rs-text-primary`（不要新写 `--rs-text`）。
 - 品牌图标色是可选子系统：`import 'niuma-ui/brand-icons.css'`。不引入则 mark 为单色。
-- 第三方语言（社区 / 宿主维护，本包不发官方 ja / ar 等）：`registerRsLocale('ja-JP', { 'select.placeholder': '…' })`，再设 `locale="ja-JP"`。`t()` 支持 `{count, plural, one {#} other {#}}`。RTL：`dir="rtl"` 或登记时 `{ dir: 'rtl' }`。
+- 未设 `locale` 跟本机语言，回退 `zh-CN`。第三方语言见 [locales.md](./locales.md)：`registerRsLocale` + `rsLocaleMessageKeys`。`t()` 支持 `{count, plural, one {#} other {#}}`。RTL：`dir="rtl"` 或登记时 `{ dir: 'rtl' }`。
 - 子系统：`--rs-table-*`、`--rs-terminal-*`、`--rs-code-*`、`--rs-prose-*`。
 - 排版：`--rs-font-size-*`、`--rs-font-weight-*`、`--rs-font-sans|mono|serif`。
 - JS：`RS_FONT_SIZE_CSS`、`readCssLengthPx`、`readCodeFontFamily`。

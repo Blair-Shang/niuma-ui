@@ -10,7 +10,7 @@ describe('RsPagination', () => {
     const wrapper = mount(RsPagination, {
       props: { total: 100, page: 1, pageSize: 10 },
     })
-    expect(wrapper.find('nav.rs-pagination').attributes('aria-label')).toBe('分页')
+    expect(wrapper.find('nav.rs-pagination').attributes('aria-label')).toBe('Pagination')
   })
 
   it('uses en-US aria-label when locale is en-US', () => {
@@ -32,7 +32,7 @@ describe('RsPagination', () => {
     const wrapper = mount(RsPagination, {
       props: { total: 86, page: 1, pageSize: 20 },
     })
-    expect(wrapper.find('.rs-pagination__summary').text()).toBe('共 86 条')
+    expect(wrapper.find('.rs-pagination__summary').text()).toBe('86 items')
   })
 
   it('hides summary when showSummary is false', () => {
@@ -143,7 +143,7 @@ describe('RsPagination', () => {
     await input.setValue('7')
     const jumperBtn = wrapper
       .findAll('button')
-      .find((btn) => btn.text() === '确定')
+      .find((btn) => btn.text() === 'Go')
     expect(jumperBtn).toBeDefined()
     await jumperBtn?.trigger('click')
     expect(wrapper.emitted('update:page')?.pop()).toEqual([7])
@@ -158,7 +158,7 @@ describe('RsPagination', () => {
         showQuickJumper: true,
       },
     })
-    const jumperBtn = wrapper.findAll('button').find((btn) => btn.text() === '确定')
+    const jumperBtn = wrapper.findAll('button').find((btn) => btn.text() === 'Go')
     expect(jumperBtn).toBeUndefined()
   })
 
@@ -172,7 +172,7 @@ describe('RsPagination', () => {
         showJumpConfirm: false,
       },
     })
-    const jumperBtn = wrapper.findAll('button').find((btn) => btn.text() === '确定')
+    const jumperBtn = wrapper.findAll('button').find((btn) => btn.text() === 'Go')
     expect(jumperBtn).toBeUndefined()
   })
 
@@ -216,7 +216,7 @@ describe('RsPagination', () => {
     await input.setValue('99')
     const jumperBtn = wrapper
       .findAll('button')
-      .find((btn) => btn.text() === '确定')
+      .find((btn) => btn.text() === 'Go')
     await jumperBtn?.trigger('click')
     expect(wrapper.emitted('update:page')?.pop()).toEqual([10])
   })

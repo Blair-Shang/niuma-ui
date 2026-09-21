@@ -1,6 +1,6 @@
 import { interpolateRsMessage, type RsTranslateFn } from '../../../locale/interpolate'
 import { createTranslator } from '../../../composables/useRsI18n'
-import { defaultLocale } from '../../../locale/types'
+import { resolveHostLocale } from '../../../locale/resolve-host'
 import type { RsFormNamePath } from './form-path'
 import {
   getInputRuleMessage,
@@ -276,7 +276,7 @@ export async function runFormFieldRules(
   rules: RsFormRuleItem[],
   options?: RsFormFieldRulesOptions,
 ): Promise<RsFormRuleValidateResult> {
-  const tr = options?.t ?? createTranslator(defaultLocale)
+  const tr = options?.t ?? createTranslator(resolveHostLocale())
   const trigger = options?.trigger
 
   for (const rule of rules) {

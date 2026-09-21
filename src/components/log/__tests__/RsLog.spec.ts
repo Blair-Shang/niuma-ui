@@ -51,7 +51,7 @@ describe('RsLog', () => {
       props: { lines, showTime: true, height: 120, itemSize: 24 },
     })
     expect(wrapper.find('.rs-log__time').text()).toBe('12:00:01')
-    expect(wrapper.find('.rs-log__level').text()).toBe('成功')
+    expect(wrapper.find('.rs-log__level').text()).toBe('Success')
     expect(wrapper.find('.rs-log__row--success').exists()).toBe(true)
     expect(wrapper.find('.rs-log__marker').exists()).toBe(true)
     wrapper.unmount()
@@ -162,7 +162,7 @@ describe('RsLog', () => {
     })
     expect(wrapper.find('.rs-log__level').exists()).toBe(false)
     expect(wrapper.find('.rs-log__marker').exists()).toBe(true)
-    expect(wrapper.find('.rs-log__sr-only').text()).toContain('成功')
+    expect(wrapper.find('.rs-log__sr-only').text()).toContain('Success')
     expect(wrapper.find('.rs-log__row--success').exists()).toBe(true)
     wrapper.unmount()
   })

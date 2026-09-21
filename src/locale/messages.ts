@@ -468,3 +468,6 @@ export const enUS: RsLocaleMessages = {
   'markdown.empty': 'Nothing to preview',
 }
 
+/** 社区语言包应对齐的 key 清单（与 en-US 表相同）。 */
+export const rsLocaleMessageKeys = Object.keys(enUS)
+

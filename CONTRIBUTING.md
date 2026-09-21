@@ -4,7 +4,7 @@
 
 请同时阅读 [行为准则](./CODE_OF_CONDUCT.md)。
 
-English: [CONTRIBUTING.en.md](./CONTRIBUTING.en.md) · [docs/components.en.md](./docs/components.en.md) · [docs/consumers.en.md](./docs/consumers.en.md) · [README.en.md](./README.en.md). PR descriptions may be Chinese or English.
+English: [CONTRIBUTING.en.md](./CONTRIBUTING.en.md) · [docs/components.en.md](./docs/components.en.md) · [docs/consumers.en.md](./docs/consumers.en.md) · [README.md](./README.md). PR descriptions may be Chinese or English.
 
 用户向文档（README、consumers）不要写发版密钥或个人 npm 账号。发版只写在本文。
 
@@ -30,7 +30,7 @@ pnpm test:watch
 5. 涉及公开 API、token、架构或安装步骤时同步更新：
    - [docs/components.md](./docs/components.md)（架构红线；英文 [components.en.md](./docs/components.en.md)）
    - [docs/consumers.md](./docs/consumers.md) / [docs/consumers.en.md](./docs/consumers.en.md)
-   - [README.md](./README.md) / [README.en.md](./README.en.md)（若安装/约定变化）
+   - [README.md](./README.md) / [README.zh-CN.md](./README.zh-CN.md)（若安装/约定变化）
    - [CHANGELOG.md](./CHANGELOG.md) 的 `[Unreleased]` 段落
 6. 非发版 PR 不要擅自改 `package.json` 的 `version`。
 
@@ -90,7 +90,7 @@ pnpm test:watch
 | Token | `--rs-*`；禁止硬编码品牌色、px、system 字体栈 |
 | 尺寸 / 圆角 | `RsComponentSize` / `RsRadius` + resolve hooks |
 | 形态 × 色 | `variant` 管形状，`tone` 管色相 |
-| 国际化 | `useRsI18n`，zh-CN 与 en-US 成对 |
+| 国际化 | `useRsI18n`，未设 locale 跟本机语言，回退 zh-CN；zh-CN / en-US 成对。社区语言见 [docs/locales.md](./docs/locales.md) |
 | 外部规范 | WHATWG 语义、Vue Style Guide A/B、APG 键盘；Google HTML/CSS 不作合同 |
 | 无障碍 | 先原生后 ARIA；图标按钮要标签；当前项 `aria-current`；浮层焦点陷阱 |
 | 文档 | 对外用法只认 `site/`；`playground/` 仅内部测试 |
@@ -113,6 +113,10 @@ src/components/{slug}/
 ```
 
 `src/index.ts` 只增加一行：`export { RsXxx } from './components/{slug}'`。目录名等于文档站 slug，并在 `site/catalog/components/{group}.ts` 归入 `basic` / `form` / `nav` / `feedback` / `data` / `editor`。不要按 group 再套一层源码目录。然后 locale → **site catalog + demo** → 更新清单 → CHANGELOG。playground 可选。
+
+## 社区语言包
+
+官方只维护 zh-CN / en-US。登记其它语言、key 清单与复数写法见 [docs/locales.md](./docs/locales.md)。不要把 ja / ar / ko 官方表推进 `messages.ts`。
 
 ### 破坏性变更
 

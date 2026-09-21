@@ -230,7 +230,7 @@ Wrap Reka only inside this package; hosts still see `Rs*`. Portals use §5 z-ind
 Public API names (props, events, slots, CSS classes) stay English. User-visible strings must be translatable.
 
 - Runtime copy (`aria-label`, empty states, placeholders, buttons) goes through `useRsI18n()` and `src/locale/messages.ts`.
-- **Built-in locales:** `zh-CN` and `en-US` (BCP-47). Default is `zh-CN`. New or changed keys must land in both languages in the same PR.
+- **Built-in locales:** `zh-CN` and `en-US` (BCP-47). Omitted `locale` follows the host language (`zh*` → `zh-CN`, `en*` → `en-US`); unknown tags fall back to `zh-CN`. New or changed keys must land in both languages in the same PR. Community packs: [locales.en.md](./locales.en.md).
 - **Built-in packs stay `zh-CN` / `en-US`.** Other languages are registered by hosts or community via `registerRsLocale`. This package does not ship official ja / ar / ko tables.
 - **Third-party locale:** `registerRsLocale('ja-JP', messages, { dir: 'ltr' })`, then `RsConfigProvider locale="ja-JP"`. Missing keys fall back `en-US` → `zh-CN`. Do not grow the `RsLocale` union.
 - Numbers and dates use `Intl.*`. `t()` accepts an ICU plural subset: `{count, plural, one {# item} other {# items}}`, plus `=0`. Categories come from `Intl.PluralRules(locale)`; `#` becomes the number. Pass `{ count }` / `{ total }` — do not `.replace('{total}', …)`.
@@ -396,7 +396,7 @@ Stable `Rs*` components. Per-prop APIs live on the docs site. Additions must upd
 | Anchor | `hrefToAnchorId`, `flattenAnchorItems`, `pickActiveAnchorHref` | Pure helpers; do not export scroll / ink |
 | Size / radius | `useResolvedRsComponentSize`, `rsRadiusCss` | |
 | Theme | `applyTheme`, `resolveThemeMode`, `readResolvedTheme`; `themePresets` is reference-only | |
-| i18n | `useRsI18n`, `registerRsLocale`, `applyLocale` | |
+| i18n | `useRsI18n`, `registerRsLocale`, `applyLocale`, `resolveHostLocale`, `resolveDirMode`, `rsLocaleMessageKeys` | |
 | Form / date | `validateDateValue`, … | No DOM |
 | Table | `useRsTable*` (see table architecture) | Do not reimplement the engine in a host |
 

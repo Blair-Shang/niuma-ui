@@ -6,7 +6,7 @@ describe('RsDateTimePicker', () => {
   it('renders popover trigger with datetime placeholder', () => {
     const wrapper = mount(RsDateTimePicker, { props: { modelValue: '' } })
     expect(wrapper.find('.rs-date-picker__trigger').exists()).toBe(true)
-    expect(wrapper.find('.rs-date-picker__value').text()).toContain('选择日期时间')
+    expect(wrapper.find('.rs-date-picker__value').text()).toContain('Select date and time')
     expect(wrapper.classes()).toContain('rs-field')
   })
 
@@ -44,7 +44,7 @@ describe('RsDateTimePicker', () => {
       props: { modelValue: { start: '', end: '' }, range: true },
     })
     expect(wrapper.findAll('.rs-date-picker__trigger')).toHaveLength(1)
-    expect(wrapper.find('.rs-date-picker__value').text()).toContain('选择日期时间范围')
+    expect(wrapper.find('.rs-date-picker__value').text()).toContain('Select date-time range')
   })
 
   it('opens panel with calendar and embedded time picker', async () => {

@@ -28,6 +28,7 @@ export {
   ComboboxTrigger,
   ComboboxViewport,
   ComboboxVirtualizer,
+  ConfigProvider,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuPortal,

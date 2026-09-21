@@ -6,7 +6,7 @@ describe('RsDatePicker', () => {
   it('renders trigger button with placeholder', () => {
     const wrapper = mount(RsDatePicker, { props: { modelValue: '' } })
     expect(wrapper.find('.rs-date-picker__trigger').exists()).toBe(true)
-    expect(wrapper.find('.rs-date-picker__value').text()).toContain('选择日期')
+    expect(wrapper.find('.rs-date-picker__value').text()).toContain('Select date')
     expect(wrapper.classes()).toContain('rs-field')
   })
 
@@ -56,7 +56,7 @@ describe('RsDatePicker', () => {
       props: { modelValue: { start: '', end: '' }, range: true },
     })
     expect(wrapper.findAll('.rs-date-picker__trigger')).toHaveLength(1)
-    expect(wrapper.find('.rs-date-picker__value').text()).toContain('选择日期范围')
+    expect(wrapper.find('.rs-date-picker__value').text()).toContain('Select date range')
   })
 
   it('shows range label when range model is set', () => {
@@ -67,7 +67,7 @@ describe('RsDatePicker', () => {
       },
     })
     expect(wrapper.find('.rs-date-picker__value').text()).toContain('2025')
-    expect(wrapper.find('.rs-date-picker__value').text()).toContain('~')
+    expect(wrapper.find('.rs-date-picker__value').text()).toContain('2025-06-01 – 2025-06-30')
   })
 
   it('confirms single selection from popover', async () => {

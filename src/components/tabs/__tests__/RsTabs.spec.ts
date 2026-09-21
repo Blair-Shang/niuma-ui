@@ -139,7 +139,7 @@ describe('tabs-utils', () => {
 describe('RsTabs', () => {
   it('renders root with tabs aria-label', () => {
     const wrapper = mountTabs()
-    expect(wrapper.find('.rs-tabs').attributes('aria-label')).toBe('标签页')
+    expect(wrapper.find('.rs-tabs').attributes('aria-label')).toBe('Tabs')
   })
 
   it('uses en-US aria-label when locale is en-US', () => {

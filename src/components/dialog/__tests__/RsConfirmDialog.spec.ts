@@ -21,15 +21,15 @@ describe('RsConfirmDialog', () => {
     wrapper.unmount()
   })
 
-  it('falls back to zh-CN i18n defaults', async () => {
+  it('falls back to en-US i18n defaults', async () => {
     const wrapper = mount(RsConfirmDialog, {
       props: { open: true },
       attachTo: document.body,
     })
     await flushPromises()
     const content = document.body.querySelector('.rs-confirm-dialog__content')
-    expect(content?.textContent).toContain('确认操作？')
-    expect(content?.textContent).toContain('此操作可能无法撤销')
+    expect(content?.textContent).toContain('Confirm action?')
+    expect(content?.textContent).toContain('This action may not be reversible')
     wrapper.unmount()
   })
 

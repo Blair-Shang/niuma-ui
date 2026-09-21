@@ -187,7 +187,7 @@ describe('RsTable', () => {
     const wrapper = mount(RsTable, {
       props: { columns, data, loading: true },
     })
-    expect(wrapper.find('.rs-table__empty').text()).toBe('加载中…')
+    expect(wrapper.find('.rs-table__empty').text()).toBe('Loading…')
     expect(wrapper.findAll('.rs-table__row')).toHaveLength(0)
   })
 
@@ -195,7 +195,7 @@ describe('RsTable', () => {
     const wrapper = mount(RsTable, {
       props: { columns, data: [] },
     })
-    expect(wrapper.find('.rs-table__empty').text()).toBe('暂无数据')
+    expect(wrapper.find('.rs-table__empty').text()).toBe('No data')
     expect(wrapper.find('.rs-table__empty-content').exists()).toBe(true)
   })
 
@@ -217,7 +217,7 @@ describe('RsTable', () => {
     const loading = mount(RsTable, {
       props: { columns, data, loading: true },
     })
-    expect(loading.find('.rs-table__empty-content').text()).toBe('加载中…')
+    expect(loading.find('.rs-table__empty-content').text()).toBe('Loading…')
     loading.unmount()
   })
 
@@ -883,7 +883,7 @@ describe('RsTable', () => {
     await wrapper.vm.$nextTick()
     expect(wrapper.emitted('cellEditCommit')).toBeUndefined()
     expect(wrapper.find('.rs-table-edit-gutter__commit').exists()).toBe(true)
-    expect(wrapper.find('.rs-table-edit-gutter__commit-hint').text()).toBe('提交')
+    expect(wrapper.find('.rs-table-edit-gutter__commit-hint').text()).toBe('Commit')
     await wrapper.find('.rs-table-edit-gutter__commit').trigger('click')
     const payload = wrapper.emitted('rowEditCommit')?.[0]
     expect(payload?.[2]).toEqual([{ colKey: 'name', value: 'Beta', previous: 'Alpha' }])
@@ -1196,8 +1196,8 @@ describe('RsTable', () => {
     const labels = [...document.body.querySelectorAll('.rs-context-menu__label')].map(
       (node) => node.textContent?.trim(),
     )
-    expect(labels).toContain('复制单元格')
-    expect(labels).toContain('复制行')
+    expect(labels).toContain('Copy cell')
+    expect(labels).toContain('Copy row')
     wrapper.unmount()
   })
 
@@ -1211,7 +1211,7 @@ describe('RsTable', () => {
     await wrapper.find('.rs-table__td--data').trigger('contextmenu')
     await flushPromises()
     const items = document.body.querySelectorAll('.rs-context-menu__item')
-    const copyCell = [...items].find((item) => item.textContent?.includes('复制单元格'))
+    const copyCell = [...items].find((item) => item.textContent?.includes('Copy cell'))
     expect(copyCell).toBeTruthy()
     ;(copyCell as HTMLElement).click()
     await flushPromises()
@@ -1221,7 +1221,7 @@ describe('RsTable', () => {
     await wrapper.find('.rs-table__td--data').trigger('contextmenu')
     await flushPromises()
     const copyRow = [...document.body.querySelectorAll('.rs-context-menu__item')].find((item) =>
-      item.textContent?.includes('复制行'),
+      item.textContent?.includes('Copy row'),
     )
     ;(copyRow as HTMLElement).click()
     await flushPromises()

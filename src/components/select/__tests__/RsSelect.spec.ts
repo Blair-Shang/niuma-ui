@@ -39,11 +39,11 @@ describe('RsSelect', () => {
     expect(wrapper.find('.rs-select__placeholder').text()).toBe('选择模型')
   })
 
-  it('uses zh-CN default placeholder', () => {
+  it('uses default placeholder', () => {
     const wrapper = mount(RsSelect, {
       props: { options, modelValue: '' },
     })
-    expect(wrapper.find('.rs-select__placeholder').text()).toBe('请选择')
+    expect(wrapper.find('.rs-select__placeholder').text()).toBe('Select')
   })
 
   it('keeps numeric option values on v-model including 0', async () => {
@@ -276,7 +276,7 @@ describe('RsSelect', () => {
     })
     await wrapper.find('.rs-select__trigger').trigger('click')
     await flushPromises()
-    expect(document.body.querySelector('.rs-select__status')?.textContent).toBe('加载中…')
+    expect(document.body.querySelector('.rs-select__status')?.textContent).toBe('Loading…')
     wrapper.unmount()
   })
 

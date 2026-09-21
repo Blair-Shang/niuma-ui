@@ -15,7 +15,7 @@ describe('RsBreadcrumb', () => {
     const wrapper = mount(RsBreadcrumb, {
       props: { items: threeLevelItems },
     })
-    expect(wrapper.find('nav.rs-breadcrumb').attributes('aria-label')).toBe('面包屑')
+    expect(wrapper.find('nav.rs-breadcrumb').attributes('aria-label')).toBe('Breadcrumb')
   })
 
   it('renders all items', () => {
@@ -121,7 +121,7 @@ describe('RsBreadcrumb', () => {
     })
     const sep = wrapper.find('.rs-breadcrumb__sep')
     expect(sep.exists()).toBe(true)
-    expect(sep.attributes('aria-label')).toBe('分隔符')
+    expect(sep.attributes('aria-label')).toBe('Separator')
   })
 
   it('renders i18n labels in en-US locale', () => {

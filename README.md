@@ -5,44 +5,45 @@
 [![Vue 3](https://img.shields.io/badge/Vue-3.5+-42b883.svg)](https://vuejs.org/)
 [![Node](https://img.shields.io/badge/Node-%3E%3D20-brightgreen.svg)](https://nodejs.org/)
 
-[English](./README.en.md) | 简体中文
+English | [简体中文](./README.zh-CN.md)
 
-Vue 3 **工作台**设计系统：一致的 `Rs*` 组件与 `--rs-*` Token，以及按需使用的编辑器 / 终端封装。
+Vue 3 **workbench** design system: consistent `Rs*` components, `--rs-*` tokens, and optional editor / terminal wrappers.
 
-适用于运维控制台、数据库工作台、内部后台。营销站也可以用具名导入。`npm install` 会带上 Monaco、CodeMirror、xterm，体积靠具名导入摇树。
+Built for ops consoles, database workbenches, and internal admin UIs. Marketing sites can use named imports. `npm install` pulls Monaco, CodeMirror, and xterm; named imports control the bundle.
 
-**状态：** [Apache License 2.0](./LICENSE)，自 v1.0.0 开源。自 v1.2.0 起 npm 发布编译 ESM。当前主线 **2.0.0**。1.x 见分支 `1.x`。
+**Status:** [Apache License 2.0](./LICENSE) since v1.0.0. Compiled ESM on npm since v1.2.0. Current line is **2.0.0**. The `1.x` branch keeps the 1.3 line.
 
-## 特性
+## Features
 
-- **Design Token**：明暗主题走 `data-rs-theme`（`light` / `dark` / `system`）与 CSS 变量，宿主用品牌层覆盖
-- **Rs\* 组件**：Button、Form、Dialog、Table、Tree、Tabs、Anchor 等
-- **专业工具**：Monaco、CodeMirror、xterm（只在用到的路由引入）
-- **无障碍**：底层 [Reka UI](https://reka-ui.com/)，应用只依赖 `niuma-ui`
-- **Vite**：`import { RsButton } from 'niuma-ui'` 即可打包；`niumaUiHost` 仅本机 `pnpm dev` 联调源码
+- **Design tokens** — light / dark / system via `data-rs-theme` and CSS variables; hosts override a brand layer
+- **Rs\* components** — Button, Form, Dialog, Table, Tree, Tabs, Anchor, and more
+- **Tooling** — Monaco, CodeMirror, xterm (import only on routes that need them)
+- **Accessibility** — [Reka UI](https://reka-ui.com/) underneath; apps depend only on `niuma-ui`
+- **i18n** — omitted `locale` follows the host language (`zh*` → `zh-CN`, `en*` → `en-US`); unknown tags fall back to `zh-CN`. Extra languages: `registerRsLocale` ([guide](./docs/locales.en.md))
+- **Vite** — `import { RsButton } from 'niuma-ui'` is enough to bundle; `niumaUiHost` is local `pnpm dev` HMR only
 
-## 要求
+## Requirements
 
-| 项 | 版本 |
-|----|------|
+| Item | Version |
+|------|---------|
 | Node.js | ≥ 20 |
-| 包管理器 | npm / pnpm / yarn（本仓库开发用 pnpm ≥ 9） |
-| Vue | ^3.5（peerDependency） |
-| 打包器 | 推荐 Vite 5+；`RsMonacoEditor` 需要 Vite 处理 `?worker` |
-| 样式 | `import 'niuma-ui/styles.css'`（独立 CSS，不含 Tailwind） |
+| Package manager | npm / pnpm / yarn (this repo develops with pnpm ≥ 9) |
+| Vue | ^3.5 (`peerDependency`) |
+| Bundler | Vite 5+ recommended; `RsMonacoEditor` needs Vite `?worker` |
+| Styles | `import 'niuma-ui/styles.css'` (standalone CSS, no Tailwind) |
 
-## 安装
+## Install
 
 ```bash
 pnpm add niuma-ui
-# 或 npm install niuma-ui / yarn add niuma-ui
+# or: npm install niuma-ui / yarn add niuma-ui
 ```
 
-建议锁定兼容范围，例如 `^2.0.0`。精确复现请钉死 **2.0.0**。1.x 请用 `niuma-ui@1`。
+Prefer a range such as `^2.0.0`. Pin **2.0.0** for a bit-for-bit install. Use `niuma-ui@1` for the 1.x line.
 
-本地改源码、Vite 插件、包体积见 **[消费方指南](./docs/consumers.md)**（[English](./docs/consumers.en.md)）。
+Local `link`, Vite plugins, and bundle size: **[Consumer guide](./docs/consumers.en.md)** ([中文](./docs/consumers.md)).
 
-## 快速开始
+## Quick start
 
 ```ts
 // main.ts
@@ -60,67 +61,62 @@ import { RsConfigProvider, RsButton } from 'niuma-ui'
 </script>
 
 <template>
-  <RsConfigProvider theme="light" locale="zh-CN">
+  <RsConfigProvider theme="light" locale="en-US">
     <RsButton variant="primary">Hello</RsButton>
   </RsConfigProvider>
 </template>
 ```
 
-`locale` 现支持 `zh-CN` | `en-US`。
+Omit `locale` to follow the host language. Chinese systems stay on `zh-CN`. Community packs: [locales.en.md](./docs/locales.en.md).
 
-## 使用约定
+## Usage
 
-1. 只从包根具名导入：`import { RsButton } from 'niuma-ui'`。**不要**直接依赖 `reka-ui`，不要 `import *`。
-2. 样式只引一次 `niuma-ui/styles.css`，再加载你的品牌 CSS。
-3. 根节点包 `RsConfigProvider`（主题、语言、默认控件尺寸）。
-4. 轻量站点在自己的 `ui.ts` 里再导出用到的符号。不要把包名别名到本仓库的 `src/index.ts`。
+1. Named-import from the package root only. **Do not** depend on `reka-ui`. Do not `import *`.
+2. Import `niuma-ui/styles.css` once, then your brand CSS.
+3. Wrap the app with `RsConfigProvider` (theme, locale, default control size).
+4. Light sites re-export used symbols from their own `ui.ts`. Do not alias the package to this repo’s `src/index.ts`.
 
-组件 API 以文档站为准。仓库里的架构契约给维护者：[组件规范](./docs/components.md)（[English](./docs/components.en.md)）。
+Component APIs live on the docs site. The architecture contract is for maintainers: [components.en.md](./docs/components.en.md) ([中文](./docs/components.md)).
 
-## 文档
+## Docs
 
-- **组件文档（官网）**：[https://blair-shang.github.io/niuma-ui/](https://blair-shang.github.io/niuma-ui/)（源码 `site/`）
-- 本地文档站：`pnpm dev:site` → http://127.0.0.1:5181
-- `playground/` 仅内部冒烟与像素回归（`pnpm dev` → :5180），不提供对外用法
+- **Component site:** [https://blair-shang.github.io/niuma-ui/](https://blair-shang.github.io/niuma-ui/) (source: `site/`)
+- Local docs: `pnpm dev:site` → http://127.0.0.1:5181
+- `playground/` is internal smoke / visual regression only (`pnpm dev` → :5180). It is not usage documentation.
 
-| 文档 | 给谁看 |
-|------|--------|
-| [docs/consumers.md](./docs/consumers.md) | 把库装进产品的人（[English](./docs/consumers.en.md)） |
-| [docs/components.md](./docs/components.md) | 改本仓库的人（[English](./docs/components.en.md)） |
-| [CONTRIBUTING.md](./CONTRIBUTING.md) | PR、测试、发版（[English](./CONTRIBUTING.en.md)） |
-| [CHANGELOG.md](./CHANGELOG.md) | 版本记录 |
-| [SECURITY.md](./SECURITY.md) | 漏洞私下报告 |
+| Doc | Audience |
+|-----|----------|
+| [docs/consumers.en.md](./docs/consumers.en.md) | People installing the library ([中文](./docs/consumers.md)) |
+| [docs/locales.en.md](./docs/locales.en.md) | Registering extra languages ([中文](./docs/locales.md)) |
+| [docs/components.en.md](./docs/components.en.md) | People changing this repository ([中文](./docs/components.md)) |
+| [CONTRIBUTING.en.md](./CONTRIBUTING.en.md) | PRs, tests, releases ([中文](./CONTRIBUTING.md)) |
+| [CHANGELOG.md](./CHANGELOG.md) | Release notes |
+| [SECURITY.md](./SECURITY.md) | Private vulnerability reports |
 
-## 本地开发
+## Local development
 
 ```bash
 pnpm install
-pnpm dev:site     # 文档站
-pnpm test         # Vitest
-pnpm build        # 库 → dist/
+pnpm dev:site     # docs site
+pnpm test
+pnpm build        # library → dist/
 ```
 
-贡献步骤见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the full contributor flow.
 
-## 版本
+## Versioning
 
-遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)：
+[Semantic Versioning](https://semver.org/): compatible fixes are PATCH, compatible features MINOR, breaking API or token renames MAJOR.
 
-| 变更 | 版本 |
-|------|------|
-| 兼容的缺陷 / 文档 | PATCH |
-| 兼容的新组件 / 能力 | MINOR |
-| 破坏性 API 或 Token 更名 | MAJOR |
+Stable publishes set npm dist-tag **`latest`**; prereleases use **`next`**. There is no Git tag named `latest`. Release steps live only in [CONTRIBUTING.md](./CONTRIBUTING.md).
 
-正式版更新 npm dist-tag **`latest`**，预发布走 **`next`**。没有名为 `latest` 的 Git 标签。发版流程只在 [CONTRIBUTING.md](./CONTRIBUTING.md)，不在本页。
+## License and credits
 
-## 许可与致谢
+[Apache License 2.0](./LICENSE). Attribution: [NOTICE](./NOTICE).
 
-[Apache License 2.0](./LICENSE)。版权与第三方声明见 [NOTICE](./NOTICE)。
+Primitives: [Reka UI](https://reka-ui.com/). Icons: [Lucide](https://lucide.dev/). Editors: [Monaco](https://microsoft.github.io/monaco-editor/), [CodeMirror](https://codemirror.net/). Terminal: [xterm.js](https://xtermjs.org/).
 
-交互原语：[Reka UI](https://reka-ui.com/)。图标：[Lucide](https://lucide.dev/)。编辑器：[Monaco](https://microsoft.github.io/monaco-editor/)、[CodeMirror](https://codemirror.net/)。终端：[xterm.js](https://xtermjs.org/)。
-
-- 文档站：https://blair-shang.github.io/niuma-ui/
-- npm：https://www.npmjs.com/package/niuma-ui
-- 源码：https://github.com/Blair-Shang/niuma-ui
-- Issues：https://github.com/Blair-Shang/niuma-ui/issues
+- Docs: https://blair-shang.github.io/niuma-ui/
+- npm: https://www.npmjs.com/package/niuma-ui
+- Source: https://github.com/Blair-Shang/niuma-ui
+- Issues: https://github.com/Blair-Shang/niuma-ui/issues

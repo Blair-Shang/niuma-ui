@@ -18,7 +18,7 @@ describe('RsLog a11y baseline', () => {
     expect(viewport.attributes('aria-label')).toBe('构建日志')
     expect(viewport.attributes('tabindex')).toBe('0')
     expect(wrapper.find('[role="list"]').exists()).toBe(true)
-    expect(wrapper.find('.rs-log__row').attributes('aria-label')).toContain('错误')
+    expect(wrapper.find('.rs-log__row').attributes('aria-label')).toContain('Error')
     expect(wrapper.find('.rs-log__row').attributes('aria-label')).toContain('[ERROR] boom')
     wrapper.unmount()
   })
@@ -44,7 +44,7 @@ describe('RsLog a11y baseline', () => {
     expect(on.find('[aria-live="polite"]').exists()).toBe(true)
     await on.setProps({ lines: 'a\nb' })
     await nextTick()
-    expect(on.find('[aria-live="polite"]').text()).toContain('新增')
+    expect(on.find('[aria-live="polite"]').text()).toContain('1 new line')
     on.unmount()
   })
 

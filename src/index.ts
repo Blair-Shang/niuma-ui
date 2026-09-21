@@ -883,12 +883,15 @@ export type {
   RsTextDirection,
 } from './locale/types'
 export { defaultLocale, fallbackLocale } from './locale/types'
+export { rsLocaleMessageKeys } from './locale/messages'
 export {
   applyLocale,
   inferRsLocaleDir,
   isRsLocaleRegistered,
   listRsLocales,
   registerRsLocale,
+  resolveDirMode,
+  resolveHostLocale,
   resolveRsLocaleDir,
   resolveRsMessage,
 } from './locale/registry-public'

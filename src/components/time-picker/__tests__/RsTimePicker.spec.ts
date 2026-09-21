@@ -6,7 +6,7 @@ describe('RsTimePicker', () => {
   it('renders popover trigger with placeholder', () => {
     const wrapper = mount(RsTimePicker, { props: { modelValue: '' } })
     expect(wrapper.find('.rs-time-picker__trigger').exists()).toBe(true)
-    expect(wrapper.find('.rs-time-picker__value').text()).toContain('选择时间')
+    expect(wrapper.find('.rs-time-picker__value').text()).toContain('Select time')
     expect(wrapper.classes()).toContain('rs-field')
   })
 
@@ -44,7 +44,7 @@ describe('RsTimePicker', () => {
       props: { modelValue: { start: '', end: '' }, range: true },
     })
     expect(wrapper.findAll('.rs-time-picker__trigger')).toHaveLength(1)
-    expect(wrapper.find('.rs-time-picker__value').text()).toContain('选择时间范围')
+    expect(wrapper.find('.rs-time-picker__value').text()).toContain('Select time range')
   })
 
   it('shows range label when range model is set', () => {

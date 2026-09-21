@@ -285,7 +285,7 @@ Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
 组件 API（props / 事件 / 插槽 / 类名）只用英文；用户可见字符串必须可翻译。
 
 - 运行时文案（`aria-label`、空态、占位、按钮）走 `useRsI18n()` + `src/locale/messages.ts`。
-- **内置 locale：** `zh-CN`、`en-US`（BCP-47）。默认 `zh-CN`。新增或修改 key 必须两种语言同一天合入。
+- **内置 locale：** `zh-CN`、`en-US`（BCP-47）。未设 `locale` 时按本机语言选择（`zh*` → `zh-CN`，`en*` → `en-US`），认不出回退 `zh-CN`。新增或修改 key 必须两种语言同一天合入。社区语言：[docs/locales.md](./locales.md)。
 - **内置 locale 只维护 `zh-CN` / `en-US`。** 其它语言由使用方或社区用 `registerRsLocale` 登记，本包不发官方 ja / ar / ko 等表。
 - **第三方语言：** `registerRsLocale('ja-JP', messages, { dir: 'ltr' })`，然后 `RsConfigProvider locale="ja-JP"`。缺 key 回退 `en-US` → `zh-CN`。不要再改 `RsLocale` 联合类型。
 - 数字 / 日期走 `Intl.*`。`t()` 支持 ICU 子集复数：`{count, plural, one {# item} other {# items}}`，可用 `=0`；类别由 `Intl.PluralRules(locale)` 决定，`#` 换成数字。组件里传 `{ count }` / `{ total }`，不要 `.replace('{total}', …)`。
@@ -463,7 +463,7 @@ Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
 | 锚点 | `hrefToAnchorId`、`flattenAnchorItems`、`pickActiveAnchorHref` | 纯函数；滚动 / ink 不导出 |
 | 尺寸 / 圆角 | `useResolvedRsComponentSize`、`rsRadiusCss` | |
 | 主题 | `applyTheme`、`resolveThemeMode`、`readResolvedTheme`；`themePresets` 仅参考 | |
-| i18n | `useRsI18n`、`registerRsLocale`、`applyLocale` | |
+| i18n | `useRsI18n`、`registerRsLocale`、`applyLocale`、`resolveHostLocale`、`resolveDirMode`、`rsLocaleMessageKeys` | |
 | 表单 / 日期校验 | `validateDateValue` 等 | 无 DOM |
 | 表格 | `useRsTable*`（见表格架构文） | 勿在业务再写一套 engine |
 

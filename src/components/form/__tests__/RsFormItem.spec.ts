@@ -37,9 +37,9 @@ describe('RsFormItem', () => {
 
     const result = await wrapper.vm.formRef!.validate()
     expect(result.valid).toBe(false)
-    expect(result.errors.service).toBe('此项为必填')
+    expect(result.errors.service).toBe('This field is required')
     expect(wrapper.find('input').exists()).toBe(false)
-    expect(wrapper.find('.rs-form-item__error').text()).toBe('此项为必填')
+    expect(wrapper.find('.rs-form-item__error').text()).toBe('This field is required')
     expect(wrapper.find('.picker').exists()).toBe(true)
     wrapper.unmount()
   })
@@ -98,7 +98,7 @@ describe('RsFormItem', () => {
 
     wrapper.vm.service = ''
     await flushPromises()
-    expect(wrapper.find('.rs-form-item__error').text()).toBe('此项为必填')
+    expect(wrapper.find('.rs-form-item__error').text()).toBe('This field is required')
     wrapper.unmount()
   })
 
@@ -227,7 +227,7 @@ describe('RsFormItem', () => {
     const wrapper = mount(Host)
     await flushPromises()
     const result = await wrapper.vm.formRef!.validate()
-    expect(result.errors.service).toBe('请填写关联服务')
+    expect(result.errors.service).toBe('Please enter 关联服务')
     wrapper.unmount()
   })
 

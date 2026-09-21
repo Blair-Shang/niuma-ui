@@ -30,7 +30,7 @@ Requires Node.js ≥ 20, pnpm ≥ 9 in this repo, Vue ^3.5. Downstream installs 
 5. When public API, tokens, architecture, or install steps change, update:
    - [docs/components.md](./docs/components.md) and [docs/components.en.md](./docs/components.en.md)
    - [docs/consumers.md](./docs/consumers.md) / [docs/consumers.en.md](./docs/consumers.en.md)
-   - [README.md](./README.md) / [README.en.md](./README.en.md) if install rules change
+   - [README.md](./README.md) / [README.zh-CN.md](./README.zh-CN.md) if install rules change
    - the `[Unreleased]` section of [CHANGELOG.md](./CHANGELOG.md)
 6. Do not bump `package.json` `version` except in a release PR.
 
@@ -88,7 +88,7 @@ The full architecture contract (red lines, public surface, tokens, Vue/CSS/overl
 | Tokens | `--rs-*` only; no hardcoded brand colors, px, or system font stacks |
 | Size / radius | `RsComponentSize` / `RsRadius` + resolve hooks |
 | Shape × color | `variant` is shape, `tone` is hue |
-| i18n | `useRsI18n`; `zh-CN` and `en-US` as a pair |
+| i18n | `useRsI18n`; omitted locale follows the host language, fallback `zh-CN`; pair zh-CN / en-US. Community packs: [docs/locales.en.md](./docs/locales.en.md) |
 | External specs | WHATWG semantics, Vue Style Guide A/B, APG keyboard; Google HTML/CSS is not a contract |
 | A11y | Native first, then ARIA; icon buttons need a label; current item `aria-current`; overlay focus trap |
 | Docs | Public usage is `site/` only; `playground/` is internal test |
@@ -111,6 +111,10 @@ src/components/{slug}/
 ```
 
 Add one line to `src/index.ts`: `export { RsXxx } from './components/{slug}'`. Folder name equals the docs slug. Register the group in `site/catalog/components/{group}.ts` (`basic` / `form` / `nav` / `feedback` / `data` / `editor`). Do not nest source folders by group. Then locale → **site catalog + demo** → inventory → CHANGELOG. Playground is optional.
+
+## Community locales
+
+Official tables stay zh-CN / en-US. Registration, key lists, and plurals: [docs/locales.en.md](./docs/locales.en.md). Do not add official ja / ar / ko tables to `messages.ts`.
 
 ### Breaking changes
 

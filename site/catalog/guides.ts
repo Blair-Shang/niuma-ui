@@ -13,9 +13,9 @@ export const guideDocs: GuideDoc[] = [
         id: 'overview',
         title: '定位',
         titleEn: 'Positioning',
-        body: 'Niuma UI 提供一致的 Rs* 组件与 --rs-* 设计 Token，底层基于 Reka UI。它不是 Ant Design 那种轻量通用库：安装会带上 Monaco、CodeMirror、xterm 等专业工具依赖，适合控制台与桌面工作台。营销站请具名导入，避免把重型编辑器打进首包。',
+        body: 'Niuma UI 提供一致的 Rs* 组件与 --rs-* 设计 Token，底层基于 Reka UI。安装会带上 Monaco、CodeMirror、xterm 等专业工具依赖，适合控制台与桌面工作台。营销站请具名导入，避免把重型编辑器打进首包。',
         bodyEn:
-          'Niuma UI ships consistent Rs* components and --rs-* tokens on top of Reka UI. It is not a lightweight Ant Design-style kit: install pulls Monaco, CodeMirror, and xterm. Use named imports on marketing sites so heavy editors stay out of the first bundle.',
+          'Niuma UI ships consistent Rs* components and --rs-* tokens on top of Reka UI. Install pulls Monaco, CodeMirror, and xterm for workbench routes. Use named imports on marketing sites so heavy editors stay out of the first bundle.',
       },
       {
         id: 'principles',
@@ -24,14 +24,14 @@ export const guideDocs: GuideDoc[] = [
         bullets: [
           '公开能力只从 niuma-ui 根入口具名导入，禁止直接依赖 reka-ui。',
           '主题与尺寸走 RsConfigProvider + CSS 变量，业务用品牌层覆盖，不 :deep 改内部结构。',
-          '形态（variant）与语义色（tone）正交，对齐 Ant Design color / Element Plus type。',
+          '形态（variant）与语义色（tone）正交：variant 管外形，tone 管色相。',
           '重型模块（表格富编辑、Monaco、终端）按需引用，官网与轻量后台应做薄封装。',
           '维护者改组件或加导出前先读 docs/components.md 与 docs/components.en.md（两份清单同步），避免破坏公开面。',
         ],
         bulletsEn: [
           'Named-import public APIs from the niuma-ui root only. Do not depend on reka-ui.',
           'Theme and size go through RsConfigProvider and CSS variables. Hosts override a brand layer; do not :deep internals.',
-          'variant is shape, tone is hue — the same split as Ant Design color / Element Plus type.',
+          'variant is shape, tone is hue.',
           'Load heavy modules (rich table edit, Monaco, terminal) on demand. Thin-wrap them on marketing sites.',
           'Maintainers read docs/components.en.md (and the Chinese twin) before changing exports, so the public surface stays intact.',
         ],
@@ -101,7 +101,7 @@ export const guideDocs: GuideDoc[] = [
             '</script>',
             '',
             '<template>',
-            '  <RsConfigProvider theme="light" locale="zh-CN">',
+            '  <RsConfigProvider theme="light" locale="en-US">',
             '    <RsButton variant="primary">Hello</RsButton>',
             '  </RsConfigProvider>',
             '</template>',
@@ -189,21 +189,21 @@ export const guideDocs: GuideDoc[] = [
     slug: 'i18n',
     title: '国际化',
     titleEn: 'Internationalization',
-    description: '内置 zh-CN / en-US。组件文案走 useRsI18n，可随 RsConfigProvider.locale 切换。',
+    description: '未设 locale 跟本机语言（中文系统为 zh-CN）。其它语言由社区 registerRsLocale。',
     descriptionEn:
-      'Shipped locales: zh-CN / en-US. Component copy uses useRsI18n and follows RsConfigProvider.locale.',
+      'Omitted locale follows the host language (Chinese systems stay on zh-CN). Other languages: registerRsLocale.',
     sections: [
       {
         id: 'locale',
         title: '切换语言',
         titleEn: 'Switch locale',
-        body: '内置 zh-CN / en-US。第三方先 registerRsLocale，再把 BCP-47 码传给 locale。缺 key 回退英文。',
+        body: '未设 locale 跟本机语言：zh* → zh-CN，en* → en-US，认不出回退 zh-CN。第三方用 registerRsLocale + rsLocaleMessageKeys 登记。缺 key 回退 en-US → zh-CN。t() 支持 {count, plural, one {#} other {#}}。',
         bodyEn:
-          'Built-in: zh-CN / en-US. Hosts call registerRsLocale, then pass the BCP-47 code to locale. Missing keys fall back to English.',
+          'Omitted locale follows the host language: zh* → zh-CN, en* → en-US, otherwise zh-CN. Hosts register packs with registerRsLocale and rsLocaleMessageKeys. Missing keys fall back en-US → zh-CN. t() accepts {count, plural, one {#} other {#}}.',
         code: {
           lang: 'ts',
           content:
-            "import { registerRsLocale } from 'niuma-ui'\n\nregisterRsLocale('ja-JP', {\n  'select.placeholder': '選択してください',\n})\n",
+            "import { registerRsLocale, rsLocaleMessageKeys } from 'niuma-ui'\n\nregisterRsLocale('ja-JP', {\n  'select.placeholder': '選択してください',\n  'pagination.summary': '{total, plural, other {# 件}}',\n})\n",
         },
       },
       {

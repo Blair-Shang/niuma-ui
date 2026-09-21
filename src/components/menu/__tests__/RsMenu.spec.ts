@@ -73,7 +73,7 @@ describe('RsMenu', () => {
     const wrapper = mount(RsMenu, {
       props: { items: flatItems, modelValue: 'dashboard' },
     })
-    expect(wrapper.find('nav.rs-menu').attributes('aria-label')).toBe('导航菜单')
+    expect(wrapper.find('nav.rs-menu').attributes('aria-label')).toBe('Navigation menu')
   })
 
   it('uses en-US aria-label when locale is en-US', () => {

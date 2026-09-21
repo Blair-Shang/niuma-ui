@@ -7,7 +7,7 @@ const note = ref('')
 </script>
 
 <template>
-  <DocDemo id="demo-basic" title="基本用法" description="多行文本。autosize 随内容增高，Token 与 Input 对齐。">
+  <DocDemo id="demo-basic" title="基本用法" description="多行文本。autosize 随内容增高，Token 与 Input 同一套。">
     <RsTextarea
       v-model="note"
       label="备注"

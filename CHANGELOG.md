@@ -6,6 +6,21 @@
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-09-21
+
+### 变更
+
+- 未设 `locale` 时按本机语言选择（`navigator.languages`）：`zh*` → `zh-CN`，`en*` → `en-US`，已登记语言按前缀匹配。无法识别或 SSR 回退 `zh-CN`。显式传 `locale` 的应用不受影响。
+
+### 新增
+
+- `t()` ICU 子集复数：`{count, plural, one {#} other {#}}`，`Intl.PluralRules`。
+- `rsLocaleMessageKeys`：社区语言包 key 清单。说明见 `docs/locales.md`。
+- `RsConfigProvider` 把解析后的 `dir` / `locale` 传给 Reka，Select 等浮层跟书写方向。
+- 公开导出 `resolveDirMode`、`resolveHostLocale`。
+- 文档站 / npm README 默认英文；中文见 `README.zh-CN.md`。
+- RTL 像素回归：`/#/visual/rs-rtl`。
+
 ## [2.0.1] - 2026-09-21
 
 ### 变更

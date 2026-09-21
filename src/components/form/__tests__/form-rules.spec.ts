@@ -65,7 +65,7 @@ describe('form-rules', () => {
 
   it('interpolates required message with label', async () => {
     const labeled = await runFormFieldRules('', [{ required: true }], { label: '邮箱' })
-    expect(labeled.message).toBe('请填写邮箱')
+    expect(labeled.message).toBe('Please enter 邮箱')
   })
 
   it('supports message as function', async () => {

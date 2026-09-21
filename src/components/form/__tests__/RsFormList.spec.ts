@@ -43,7 +43,7 @@ describe('RsFormList', () => {
 
     const invalid = await wrapper.vm.formRef!.validate()
     expect(invalid.valid).toBe(false)
-    expect(invalid.errors['users.0.name']).toBe('此项为必填')
+    expect(invalid.errors['users.0.name']).toBe('This field is required')
 
     wrapper.find('input').setValue('Ada')
     await flushPromises()

@@ -45,7 +45,7 @@ const zh = {
   },
   features: [
     { title: 'Design Token', body: '明暗主题与品牌色走 --rs-* 变量，业务覆盖即可换肤。' },
-    { title: '形态 × 语义色', body: 'variant 管形态，tone 管色相，对齐 Ant Design / Element Plus。' },
+    { title: '形态 × 语义色', body: 'variant 管形态，tone 管色相，二者互不绑定。' },
     { title: '无障碍', body: '底层 Reka UI，焦点、键盘与浮层行为有统一约定。' },
     { title: '工作台密度', body: '表格、树、分栏、日志与编辑器面向运维台与桌面工具。' },
     { title: '按需引入', body: '具名导入摇树。Monaco / 终端按路由加载，不进轻量首包。' },
@@ -132,7 +132,7 @@ const en: typeof zh = {
   },
   features: [
     { title: 'Design tokens', body: 'Light/dark and brand color live on --rs-* variables. Override, don’t fork.' },
-    { title: 'Variant × tone', body: 'Shape and semantic color are orthogonal — same model as Ant Design / Element Plus.' },
+    { title: 'Variant × tone', body: 'Shape and semantic color are orthogonal and can be combined independently.' },
     { title: 'Accessible', body: 'Built on Reka UI with shared focus, keyboard, and overlay contracts.' },
     { title: 'Workbench density', body: 'Table, tree, split pane, log, and editors for ops consoles and desktop tools.' },
     { title: 'Tree-shakable', body: 'Named imports. Load Monaco and the terminal per route, not in the first paint.' },

@@ -5,7 +5,8 @@ import {
   type RsTranslateFn,
 } from '../locale/interpolate'
 import { resolveRsMessage } from '../locale/registry'
-import { defaultLocale, type RsDirMode, type RsLocale } from '../locale/types'
+import { resolveHostLocale } from '../locale/resolve-host'
+import { type RsDirMode, type RsLocale } from '../locale/types'
 import { resolveThemeMode } from '../theme/apply'
 import type { RsComponentSize, RsRadius, RsResolvedTheme, RsThemeMode } from '../theme/types'
 
@@ -51,7 +52,7 @@ export function useRsConfigOptional(): RsConfigContext | null {
 
 export function createRsConfigState(
   initialTheme: RsThemeMode = 'light',
-  initialLocale: RsLocale = defaultLocale,
+  initialLocale: RsLocale = resolveHostLocale(),
   initialControlSize: RsComponentSize = 'md',
   initialControlRadius?: RsRadius,
   initialDir: RsDirMode = 'auto',

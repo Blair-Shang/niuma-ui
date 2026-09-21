@@ -1,6 +1,6 @@
 # Consumer guide
 
-How to integrate `niuma-ui` into a host app (desktop shell, admin console, or marketing site). Read the root [README.en.md](../README.en.md) first. Architecture and catalog: [components.en.md](./components.en.md). Chinese: [consumers.md](./consumers.md).
+How to integrate `niuma-ui` into a host app (desktop shell, admin console, or marketing site). Read the root [README.md](../README.md) first. Architecture and catalog: [components.en.md](./components.en.md). Chinese: [consumers.md](./consumers.md).
 
 Usage, when-to-use, and API live only on the docs site: [https://blair-shang.github.io/niuma-ui/](https://blair-shang.github.io/niuma-ui/) (source `site/`, local `pnpm dev:site`). `playground/` is the maintainer test bench. It does not document public usage.
 
@@ -95,7 +95,7 @@ pnpm install --no-frozen-lockfile
    </RsConfigProvider>
    ```
 
-   Shipped locales: `zh-CN` | `en-US`.
+   Omit `locale` to follow the host language (Chinese systems stay on `zh-CN`). Extra languages: [locales.en.md](./locales.en.md).
 
 4. Import components and composables only from `niuma-ui`. Do not install or import `reka-ui`.
 
@@ -107,7 +107,7 @@ pnpm install --no-frozen-lockfile
 - Override the same `--rs-*` names in host CSS. See [`src/theme/brand.example.css`](../src/theme/brand.example.css).
 - Override text with `--rs-text-primary` (do not start new overrides on `--rs-text`).
 - Brand mark colors are optional: `import 'niuma-ui/brand-icons.css'`. Without it, marks are monochrome.
-- Extra languages (host / community; this package does not ship official ja / ar packs): `registerRsLocale('ja-JP', { 'select.placeholder': '…' })`, then `locale="ja-JP"`. `t()` supports `{count, plural, one {#} other {#}}`. RTL: `dir="rtl"` or `{ dir: 'rtl' }` when registering.
+- Omitted `locale` follows the host language and falls back to `zh-CN`. Extra languages: [locales.en.md](./locales.en.md) (`registerRsLocale` + `rsLocaleMessageKeys`). `t()` supports `{count, plural, one {#} other {#}}`. RTL: `dir="rtl"` or `{ dir: 'rtl' }` when registering.
 - Subsystems: `--rs-table-*`, `--rs-terminal-*`, `--rs-code-*`, `--rs-prose-*`.
 - Type scale: `--rs-font-size-*`, `--rs-font-weight-*`, `--rs-font-sans|mono|serif`.
 - JS helpers: `RS_FONT_SIZE_CSS`, `RS_FONT_WEIGHT_CSS`, `readCssLengthPx`, `readCodeFontFamily`.

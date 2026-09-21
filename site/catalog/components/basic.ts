@@ -12,7 +12,7 @@ export const basicComponents: ComponentDoc[] = [
     group: 'basic',
     summary: '触发即时操作。',
     description:
-      '按钮用于开始一个即时操作。形态（variant）与语义色（tone）正交：variant 控制实心 / 轮廓 / 幽灵 / 文字 / 链接，tone 只改色相。对齐 Ant Design 的 type × color、Element Plus 的 type。',
+      '按钮用于开始一个即时操作。形态（variant）与语义色（tone）正交：variant 控制实心 / 轮廓 / 幽灵 / 文字 / 链接，tone 只改色相。'
     whenToUse: [
       '主操作、次操作、危险操作需要明确视觉层级时。',
       '工具栏中的图标按钮，需配合 tooltip / aria-label 提供名称。',
