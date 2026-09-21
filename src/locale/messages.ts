@@ -71,7 +71,7 @@ export const zhCN: RsLocaleMessages = {
   'pagination.prev': '上一页',
   'pagination.next': '下一页',
   'pagination.page': '页',
-  'pagination.summary': '共 {total} 条',
+  'pagination.summary': '{total, plural, other {共 # 条}}',
   'pagination.jumpTo': '跳至',
   'pagination.jumpPageSuffix': '页',
   'pagination.jumpConfirm': '确定',
@@ -168,7 +168,7 @@ export const zhCN: RsLocaleMessages = {
   'log.copied': '已复制',
   'log.copyFailed': '复制失败，请用 HTTPS 或手动选择正文',
   'log.filter': '按级别过滤',
-  'log.newLines': '新增 {count} 行',
+  'log.newLines': '{count, plural, other {新增 # 行}}',
   'log.lineNo': '第 {n} 行',
   'log.level.trace': '跟踪',
   'log.level.debug': '调试',
@@ -305,7 +305,7 @@ export const enUS: RsLocaleMessages = {
   'pagination.prev': 'Previous',
   'pagination.next': 'Next',
   'pagination.page': 'page',
-  'pagination.summary': 'Total {total} items',
+  'pagination.summary': '{total, plural, one {# item} other {# items}}',
   'pagination.jumpTo': 'Go to',
   'pagination.jumpPageSuffix': 'page',
   'pagination.jumpConfirm': 'Go',
@@ -402,7 +402,7 @@ export const enUS: RsLocaleMessages = {
   'log.copied': 'Copied',
   'log.copyFailed': 'Copy failed. Use HTTPS or select the log text.',
   'log.filter': 'Filter levels',
-  'log.newLines': '{count} new lines',
+  'log.newLines': '{count, plural, one {# new line} other {# new lines}}',
   'log.lineNo': 'Line {n}',
   'log.level.trace': 'Trace',
   'log.level.debug': 'Debug',
@@ -468,7 +468,3 @@ export const enUS: RsLocaleMessages = {
   'markdown.empty': 'Nothing to preview',
 }
 
-export const localeMap = {
-  'zh-CN': zhCN,
-  'en-US': enUS,
-} as const

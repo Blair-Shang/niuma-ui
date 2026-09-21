@@ -58,7 +58,7 @@ withDefaults(
   font-weight: var(--rs-label-font-weight);
 }
 .rs-label__required {
-  margin-left: 0.125rem;
+  margin-inline-start: 0.125rem;
   color: var(--rs-danger);
 }
 .rs-label__hint {

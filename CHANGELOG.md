@@ -6,6 +6,8 @@
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-09-21
+
 ### 变更
 
 - 单测放到对应模块的 `__tests__/`；跨组件冒烟仍留在 `src/__tests__/`。
@@ -15,6 +17,20 @@
 - 每个组件内部为 `index.ts` + `src/` + 可选 `style/` + `__tests__/`。
 - 表格 `src/` 再拆：`table-header` / `table-body` / `table-footer` / `composables` / `context` / `features` / `utils`。
 - 架构契约补齐目录规范：组件四槽、`src/` 再拆门槛、仓库根、`package.json` 发布面（`docs/components.md` §3）。
+- `:root` 不再默认暗色。未写属性时用浅色 token。暗色宿主请在 `index.html` 写 `data-rs-theme="dark"` 或 `theme="dark"`，避免首屏闪浅色。
+- `themePresets` 标明仅参考，不驱动画面。
+- 文字公开 token 改为 `--rs-text-primary` 等；`--rs-text` / `--rs-muted` / `--rs-placeholder` 降为别名。
+- 数据源品牌色移出通用 `styles.css`。需要官方色的宿主加 `import 'niuma-ui/brand-icons.css'`。
+
+### 新增
+
+- `RsConfigProvider` `theme` 支持 `system`，跟随 `prefers-color-scheme`。`applyTheme` 仍写解析后的 `data-rs-theme="light|dark"`，并标 `data-rs-theme-pref="system"`。
+- `resolveThemeMode` / `readResolvedTheme` / `useRsConfig().resolvedTheme`。无 `data-rs-theme` 时按浅色，与 Provider 默认一致。
+- 内置品牌图标名单 `rsBrandIconNames`；Lucide 走 `--rs-icon-color`。图形规则在 `src/icons/style/brand-icons.css`。
+- `registerRsLocale`：第三方登记 BCP-47 文案；缺 key 回退 en-US。
+- `RsConfigProvider dir`（`ltr` / `rtl` / `auto`），写入 `dir` / `lang` / `data-rs-dir`。
+- 高对比：`forced-colors` 下语义 token 映射系统色。
+- 可选 `niuma-ui/brand-icons.css`：数据源 mark 色。不引入则 mark 为 currentColor。
 
 ## [2.0.0] - 2026-09-21
 

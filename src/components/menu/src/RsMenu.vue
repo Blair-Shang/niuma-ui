@@ -171,13 +171,13 @@ watch(
   width: 100%;
   min-height: var(--rs-menu-item-height);
   padding: 0 0.5rem;
-  padding-left: calc(0.5rem + var(--rs-menu-depth, 0) * 0.875rem);
+  padding-inline-start: calc(0.5rem + var(--rs-menu-depth, 0) * 0.875rem);
   border: none;
   border-radius: var(--rs-menu-item-radius);
   background: transparent;
   color: var(--rs-menu-item-fg);
   font-size: var(--rs-menu-item-font-size);
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   transition:
     color var(--rs-transition-fast),
@@ -186,8 +186,8 @@ watch(
 .rs-menu--horizontal .rs-menu__item {
   width: auto;
   min-width: 0;
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
+  padding-inline-start: 0.5rem;
+  padding-inline-end: 0.5rem;
 }
 .rs-menu--collapsed .rs-menu__item {
   justify-content: center;
@@ -296,7 +296,7 @@ watch(
 .rs-menu--horizontal .rs-menu__entry--submenu .rs-menu__submenu {
   position: absolute;
   top: calc(100% + 0.25rem);
-  left: 0;
+  inset-inline-start: 0;
   z-index: var(--rs-z-dropdown);
   min-width: 10rem;
   padding: 0.25rem;

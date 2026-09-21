@@ -79,11 +79,11 @@ withDefaults(
   width: 0;
   min-height: 1em;
   margin: 0 var(--rs-space-md);
-  border-left: 1px solid var(--rs-border);
+  border-inline-start: 1px solid var(--rs-border);
   vertical-align: middle;
 }
 
 .rs-divider--vertical.rs-divider--dashed {
-  border-left-style: dashed;
+  border-inline-start-style: dashed;
 }
 </style>

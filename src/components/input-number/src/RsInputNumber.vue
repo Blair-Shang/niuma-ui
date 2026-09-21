@@ -541,7 +541,7 @@ defineExpose({
   width: 22px;
   height: 100%;
   overflow: hidden;
-  border-left: 1px solid var(--rs-input-border, var(--rs-border));
+  border-inline-start: 1px solid var(--rs-input-border, var(--rs-border));
 }
 .rs-input-number--ssm .rs-input-number__handlers,
 .rs-input-number--sm .rs-input-number__handlers {

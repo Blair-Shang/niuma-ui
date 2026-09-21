@@ -184,7 +184,7 @@ function onSelect(item: RsContextMenuItem) {
 /* 键盘快捷键 */
 .rs-context-menu__shortcut {
   flex-shrink: 0;
-  margin-left: 16px;
+  margin-inline-start: 16px;
   font-size: var(--rs-font-size-xs);
   font-weight: var(--rs-font-weight-regular);
   color: var(--rs-ctx-shortcut);
@@ -195,7 +195,7 @@ function onSelect(item: RsContextMenuItem) {
 /* 子菜单展开箭头 */
 .rs-context-menu__arrow {
   flex-shrink: 0;
-  margin-left: 6px;
+  margin-inline-start: 6px;
   color: var(--rs-ctx-icon);
 }
 

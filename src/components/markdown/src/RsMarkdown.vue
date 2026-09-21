@@ -179,7 +179,7 @@ function setMode(next: RsMarkdownMode): void {
   min-height: 0;
 }
 .rs-markdown--split .rs-markdown__editor {
-  border-right: 1px solid var(--rs-border);
+  border-inline-end: 1px solid var(--rs-border);
 }
 .rs-markdown__preview {
   overflow: auto;
@@ -238,7 +238,7 @@ function setMode(next: RsMarkdownMode): void {
 }
 .rs-markdown__prose ul,
 .rs-markdown__prose ol {
-  padding-left: 1.4em;
+  padding-inline-start: 1.4em;
 }
 .rs-markdown__prose li + li {
   margin-top: 0.25em;
@@ -259,8 +259,9 @@ function setMode(next: RsMarkdownMode): void {
   font-weight: var(--rs-font-weight-semibold);
 }
 .rs-markdown__prose blockquote {
-  padding: 0.15em 0 0.15em 0.9em;
-  border-left: 3px solid var(--rs-border);
+  padding-block: 0.15em;
+  padding-inline: 0.9em 0;
+  border-inline-start: 3px solid var(--rs-border);
   color: var(--rs-muted);
 }
 .rs-markdown__prose hr {
@@ -315,7 +316,7 @@ function setMode(next: RsMarkdownMode): void {
 .rs-markdown__prose td {
   padding: 0.45em 0.7em;
   border: 1px solid var(--rs-border);
-  text-align: left;
+  text-align: start;
 }
 .rs-markdown__prose th {
   background: color-mix(in srgb, var(--rs-muted-bg, var(--rs-border)) 40%, transparent);
@@ -330,7 +331,8 @@ function setMode(next: RsMarkdownMode): void {
   display: inline-block;
   width: 0.9em;
   height: 0.9em;
-  margin: 0 0.4em 0.05em 0;
+  margin-block: 0 0.05em;
+  margin-inline: 0 0.4em;
   border: 1px solid var(--rs-border);
   border-radius: 0.15em;
   vertical-align: middle;
@@ -343,6 +345,6 @@ function setMode(next: RsMarkdownMode): void {
 }
 .rs-markdown__prose li:has(> .rs-markdown__task) {
   list-style: none;
-  margin-left: -1.15em;
+  margin-inline-start: -1.15em;
 }
 </style>

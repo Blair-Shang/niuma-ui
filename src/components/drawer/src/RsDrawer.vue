@@ -667,8 +667,7 @@ defineExpose({
 }
 .rs-drawer__content--top > .rs-drawer__resize,
 .rs-drawer__content--bottom > .rs-drawer__resize {
-  left: 0;
-  right: 0;
+  inset-inline: 0;
   height: 6px;
   cursor: ns-resize;
 }
@@ -730,8 +729,7 @@ defineExpose({
 }
 .rs-drawer__content--top,
 .rs-drawer__content--bottom {
-  left: 0;
-  right: 0;
+  inset-inline: 0;
   height: min(100vh, var(--rs-drawer-panel-size, 22rem));
 }
 .rs-drawer__content--contained:is(.rs-drawer__content--top, .rs-drawer__content--bottom) {

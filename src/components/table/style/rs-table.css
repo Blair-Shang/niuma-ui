@@ -120,7 +120,7 @@
 }
 .rs-table--column-bordered .rs-table__th:not(:last-child),
 .rs-table--column-bordered .rs-table__td:not(:last-child) {
-  border-right: 1px solid var(--rs-table-cell-divider);
+  border-inline-end: 1px solid var(--rs-table-cell-divider);
 }
 .rs-table__table {
   width: 100%;
@@ -287,7 +287,7 @@
   white-space: nowrap;
 }
 .rs-table__sort-priority {
-  margin-left: 0.125rem;
+  margin-inline-start: 0.125rem;
   font-size: 0.625rem;
   color: var(--rs-table-muted-fg);
 }
@@ -362,13 +362,13 @@
   white-space: nowrap;
 }
 .rs-table__summary-cell--left {
-  text-align: left;
+  text-align: start;
 }
 .rs-table__summary-cell--center {
   text-align: center;
 }
 .rs-table__summary-cell--right {
-  text-align: right;
+  text-align: end;
 }
 .rs-table__summary-cell--pad {
   padding: 0;
@@ -392,7 +392,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.125rem;
-  margin-left: var(--rs-space-xs);
+  margin-inline-start: var(--rs-space-xs);
   vertical-align: middle;
   flex-shrink: 0;
 }
@@ -428,7 +428,7 @@
   gap: 0.125rem;
   min-width: 1.125rem;
   height: 1.125rem;
-  margin-left: 0;
+  margin-inline-start: 0;
   padding: 0;
   border: 0;
   background: transparent;
@@ -564,7 +564,7 @@
   vertical-align: middle;
   color: var(--rs-table-muted-fg);
   background: var(--rs-table-gutter-bg);
-  border-right: 1px solid var(--rs-table-gutter-border);
+  border-inline-end: 1px solid var(--rs-table-gutter-border);
   user-select: none;
 }
 .rs-table__th--gutter {
@@ -786,13 +786,13 @@
   line-height: 0;
 }
 .rs-table__cell--left {
-  text-align: left;
+  text-align: start;
 }
 .rs-table__cell--center {
   text-align: center;
 }
 .rs-table__cell--right {
-  text-align: right;
+  text-align: end;
 }
 .rs-table__empty {
   padding: 0;
@@ -802,7 +802,7 @@
 /* 宽表时 td 远大于视口；内层 sticky + 视口宽度，保证空态落在可见区域中心 */
 .rs-table__empty-content {
   position: sticky;
-  left: 0;
+  inset-inline-start: 0;
   box-sizing: border-box;
   max-width: 100%;
   padding: var(--rs-space-xl);
@@ -824,7 +824,7 @@
 .rs-table__resize-handle {
   position: absolute;
   top: 0;
-  right: 0;
+  inset-inline-end: 0;
   width: 7px;
   height: 100%;
   transform: translateX(50%);
@@ -1043,7 +1043,7 @@
   padding: var(--rs-space-md) var(--rs-space-lg);
 }
 .rs-table-cell-editor--inline .rs-input-number__handlers {
-  border-left-color: transparent;
+  border-inline-start-color: transparent;
 }
 .rs-table-cell-editor--inline .rs-input-number__handler--up {
   border-bottom-color: transparent;
@@ -1189,7 +1189,7 @@
 .rs-table-cell-editor__validating {
   position: absolute;
   top: 2px;
-  right: 4px;
+  inset-inline-end: 4px;
   z-index: 1;
   font-size: 10px;
   line-height: 1;
@@ -1199,7 +1199,7 @@
 .rs-table-cell-editor__null-tag {
   position: absolute;
   top: 2px;
-  right: 4px;
+  inset-inline-end: 4px;
   z-index: 1;
   font-size: 10px;
   line-height: 1;
@@ -1212,7 +1212,7 @@
 .rs-table-cell-editor__null-tag {
   position: absolute;
   top: 2px;
-  right: 4px;
+  inset-inline-end: 4px;
   z-index: 1;
   font-size: 10px;
   line-height: 1;

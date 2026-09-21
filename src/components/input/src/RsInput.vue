@@ -993,7 +993,7 @@ defineExpose<RsInputExpose>({
 
   border: none;
 
-  border-left: 1px solid var(--rs-input-border, var(--rs-border));
+  border-inline-start: 1px solid var(--rs-input-border, var(--rs-border));
 
   border-radius: 0;
 
@@ -1009,9 +1009,9 @@ defineExpose<RsInputExpose>({
 
 .rs-input-addon--before {
 
-  border-left: none;
+  border-inline-start: none;
 
-  border-right: 1px solid var(--rs-input-border, var(--rs-border));
+  border-inline-end: 1px solid var(--rs-input-border, var(--rs-border));
 
 }
 
@@ -1284,7 +1284,7 @@ defineExpose<RsInputExpose>({
 
 .rs-input-group__affix--prefix {
 
-  padding-left: var(--rs-space-md);
+  padding-inline-start: var(--rs-space-md);
 
 }
 
@@ -1292,43 +1292,43 @@ defineExpose<RsInputExpose>({
 
   gap: var(--rs-space-xs);
 
-  padding-right: var(--rs-space-sm);
+  padding-inline-end: var(--rs-space-sm);
 
 }
 
 .rs-input-group--ssm .rs-input-group__affix--prefix {
 
-  padding-left: var(--rs-space-xs);
+  padding-inline-start: var(--rs-space-xs);
 
 }
 
 .rs-input-group--ssm .rs-input-group__affix--suffix {
 
-  padding-right: var(--rs-space-xs);
+  padding-inline-end: var(--rs-space-xs);
 
 }
 
 .rs-input-group--sm .rs-input-group__affix--prefix {
 
-  padding-left: var(--rs-space-sm);
+  padding-inline-start: var(--rs-space-sm);
 
 }
 
 .rs-input-group--sm .rs-input-group__affix--suffix {
 
-  padding-right: var(--rs-space-xs);
+  padding-inline-end: var(--rs-space-xs);
 
 }
 
 .rs-input-group--lg .rs-input-group__affix--prefix {
 
-  padding-left: var(--rs-space-lg);
+  padding-inline-start: var(--rs-space-lg);
 
 }
 
 .rs-input-group--lg .rs-input-group__affix--suffix {
 
-  padding-right: var(--rs-space-md);
+  padding-inline-end: var(--rs-space-md);
 
 }
 
@@ -1451,13 +1451,13 @@ defineExpose<RsInputExpose>({
 
 .rs-input-group--has-prefix .rs-input-group__control {
 
-  padding-left: var(--rs-space-sm);
+  padding-inline-start: var(--rs-space-sm);
 
 }
 
 .rs-input-group--has-suffix .rs-input-group__control {
 
-  padding-right: var(--rs-space-xs);
+  padding-inline-end: var(--rs-space-xs);
 
 }
 

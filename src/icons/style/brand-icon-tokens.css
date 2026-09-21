@@ -1,0 +1,40 @@
+/**
+ * 工作台品牌 mark 色（可选）。
+ * 用法：在 styles.css 之后 `import 'niuma-ui/brand-icons.css'`。
+ * 不引入时，mark 走 currentColor，与 Lucide 一致。
+ */
+
+:root:not([data-rs-theme]),
+[data-rs-theme='light'] {
+  --rs-icon-ftp-accent: #ea580c;
+  --rs-icon-ftp-on-accent: #ffffff;
+  --rs-icon-redis-accent: #dc382d;
+  --rs-icon-mongodb-accent: #47a248;
+  --rs-icon-vastbase-accent: #ff6f1a;
+  --rs-icon-mysql-accent: #4479a1;
+  --rs-icon-sqlite-accent: #003b57;
+  --rs-icon-dameng-accent: #0000d2;
+  --rs-icon-dameng-wave: #ec1b34;
+  --rs-icon-oracle-accent: #f80000;
+  --rs-icon-clickhouse-accent: #ffcc01;
+  --rs-icon-kingbase-accent: #c9151e;
+  --rs-icon-sqlserver-accent: #cc2927;
+  --rs-icon-postgres-accent: #336791;
+}
+
+[data-rs-theme='dark'] {
+  --rs-icon-ftp-accent: #fb923c;
+  --rs-icon-ftp-on-accent: #ffffff;
+  --rs-icon-redis-accent: #ff6f61;
+  --rs-icon-mongodb-accent: #5cb85c;
+  --rs-icon-vastbase-accent: #ff8a3d;
+  --rs-icon-mysql-accent: #5a9fd4;
+  --rs-icon-sqlite-accent: #5aafd4;
+  --rs-icon-dameng-accent: #4d4dff;
+  --rs-icon-dameng-wave: #ff4d63;
+  --rs-icon-oracle-accent: #ff4d4d;
+  --rs-icon-clickhouse-accent: #ffe066;
+  --rs-icon-kingbase-accent: #ff4d57;
+  --rs-icon-sqlserver-accent: #ff5a57;
+  --rs-icon-postgres-accent: #6a9ec4;
+}

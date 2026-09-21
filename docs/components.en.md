@@ -37,7 +37,7 @@ Do **not** do these without an Issue and a MAJOR (or a revert):
 2. Add an `src/index.ts` export without updating this public-surface section and the site.
 3. Export DOM implementation details (scroll math, ink, Portal queries) as stable API.
 4. Replace `--rs-*` with `:deep`, hardcoded px / hex, or a system font stack.
-5. Add a parallel package, a second entry, or a second theme attribute. Theme is `data-rs-theme` + `RsConfigProvider` only.
+5. Add a parallel package, a second entry, or a second theme attribute. Theme is `data-rs-theme` + `RsConfigProvider` only (`system` adds `data-rs-theme-pref`).
 6. Fork an `Rs*` inside a host app and restyle internals. Change this repository instead.
 7. Pull Monaco / xterm / rich table editing onto the default light path, or require `import *` on marketing sites.
 8. Treat `playground/` as public usage or the official site. Public copy is `site/` only.
@@ -164,7 +164,15 @@ MINOR / PATCH: optional props, new components, fixes that keep old call sites wo
 
 ## 5. Tokens, size, radius, type
 
-Theme is `RsConfigProvider` + `data-rs-theme="light|dark"`. Brand overlays copy `src/theme/brand.example.css` and load **after** `styles.css`.
+Theme is `RsConfigProvider` + `data-rs-theme`. `theme` is `light` | `dark` | `system`. `system` follows `prefers-color-scheme`; `applyTheme` still writes the resolved `data-rs-theme="light|dark"` and marks `data-rs-theme-pref="system"`. No attribute means light (`:root:not([data-rs-theme])`), matching the Provider default. Set `data-rs-theme` on `index.html` for first paint.
+
+Colors live only in `styles.css` / the host brand sheet. `themePresets` is a reference palette and does not paint the page. Brand overlays copy `src/theme/brand.example.css` and load **after** `styles.css`.
+
+Text tokens are `--rs-text-primary` / `--rs-text-secondary` / `--rs-text-tertiary` / `--rs-text-disabled` / `--rs-text-inverse` / `--rs-text-link`. `--rs-text` / `--rs-muted` / `--rs-placeholder` are aliases only — do not use them in new overrides.
+
+Lucide strokes use `--rs-icon-color`. Data-source mark colors are optional: `import 'niuma-ui/brand-icons.css'`. Without it, marks use `currentColor`.
+
+High contrast: under `forced-colors: active`, semantic tokens map to `Canvas` / `CanvasText` / `Highlight`. Components do not need their own forced-colors blocks.
 
 Do not hardcode `#6366f1`, `14px`, or `system-ui`. Do not `:deep(.rs-xxx)` height / radius / font-size. Do not invent `--niuma-*` / `--el-*`.
 
@@ -222,14 +230,11 @@ Wrap Reka only inside this package; hosts still see `Rs*`. Portals use §5 z-ind
 Public API names (props, events, slots, CSS classes) stay English. User-visible strings must be translatable.
 
 - Runtime copy (`aria-label`, empty states, placeholders, buttons) goes through `useRsI18n()` and `src/locale/messages.ts`.
-- **Shipped locales:** `zh-CN` and `en-US` (BCP-47). Default is `zh-CN`. New or changed keys must land in both languages in the same PR.
-- **Adding a locale (for example `ja-JP`):**
-  1. Extend `RsLocale`.
-  2. Clone the full table in `messages.ts`; translate values, never rename keys.
-  3. Add the same locale in `site/i18n.ts`.
-  4. Tests must cover `t('…')` fallback (missing key → `en-US` or `zh-CN`, never a hardcoded Chinese string).
-- Numbers, dates, and plurals: use `Intl.*`. Do not hardcode `YYYY-MM-DD` or “n items” in one language.
-- Writing direction: logical CSS (`padding-inline`, `inset-inline-start`). A full RTL theme is not shipped yet. Do not fake `dir="rtl"` with negative margins. When RTL lands, patch logical properties only — do not add a second class set.
+- **Built-in locales:** `zh-CN` and `en-US` (BCP-47). Default is `zh-CN`. New or changed keys must land in both languages in the same PR.
+- **Built-in packs stay `zh-CN` / `en-US`.** Other languages are registered by hosts or community via `registerRsLocale`. This package does not ship official ja / ar / ko tables.
+- **Third-party locale:** `registerRsLocale('ja-JP', messages, { dir: 'ltr' })`, then `RsConfigProvider locale="ja-JP"`. Missing keys fall back `en-US` → `zh-CN`. Do not grow the `RsLocale` union.
+- Numbers and dates use `Intl.*`. `t()` accepts an ICU plural subset: `{count, plural, one {# item} other {# items}}`, plus `=0`. Categories come from `Intl.PluralRules(locale)`; `#` becomes the number. Pass `{ count }` / `{ total }` — do not `.replace('{total}', …)`.
+- **Writing direction:** `RsConfigProvider dir` (`ltr` / `rtl` / `auto`). `auto` follows the locale (`ar` / `he` / `fa` / `ur` → rtl). Writes `dir`, `lang`, and `data-rs-dir`. Use logical CSS (`padding-inline-start`, `inset-inline-end`, `text-align: start`). Do not fake RTL with negative margins or a second class set. Keep physical `left: 50%` for viewport centering, Drawer / Toaster corner placement, dialog resize handles, and JS `style.left`. RTL screenshot: playground `/#/visual/rs-rtl`, `pnpm test:visual`.
 - Site marketing copy lives in `site/i18n.ts`, not the component locale table.
 - Repository guidelines are maintained in both languages (`docs/*.md` and `docs/*.en.md`). Update both inventories when adding a component.
 
@@ -390,8 +395,8 @@ Stable `Rs*` components. Per-prop APIs live on the docs site. Additions must upd
 | Button | `resolveRsButtonVariant` / `resolveRsButtonTone` | Shape and hue |
 | Anchor | `hrefToAnchorId`, `flattenAnchorItems`, `pickActiveAnchorHref` | Pure helpers; do not export scroll / ink |
 | Size / radius | `useResolvedRsComponentSize`, `rsRadiusCss` | |
-| Theme | `applyTheme`, `themePresets` | |
-| i18n | `useRsI18n`, `createTranslator` | |
+| Theme | `applyTheme`, `resolveThemeMode`, `readResolvedTheme`; `themePresets` is reference-only | |
+| i18n | `useRsI18n`, `registerRsLocale`, `applyLocale` | |
 | Form / date | `validateDateValue`, … | No DOM |
 | Table | `useRsTable*` (see table architecture) | Do not reimplement the engine in a host |
 

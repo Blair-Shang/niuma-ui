@@ -130,8 +130,7 @@ defineExpose({
 .rs-loading-bar {
   position: fixed;
   top: 0;
-  left: 0;
-  right: 0;
+  inset-inline: 0;
   z-index: var(--rs-z-loading-bar);
   pointer-events: none;
   opacity: 0;

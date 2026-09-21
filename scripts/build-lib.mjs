@@ -209,9 +209,18 @@ function flattenVueArtifacts(dir) {
 function writeStandaloneCss() {
   const sonnerPath = require.resolve('vue-sonner/style.css')
   const sonner = readFileSync(sonnerPath, utf8)
+  const brandIcons = readFileSync(resolve(root, 'src/icons/style/brand-icons.css'), utf8)
   let css = readFileSync(resolve(root, 'src/styles/index.css'), utf8)
   css = css.replace(/@import\s+['"]vue-sonner\/style\.css['"]\s*;\s*/g, `${sonner}\n`)
+  css = css.replace(/@import\s+['"]\.\.\/icons\/style\/brand-icons\.css['"]\s*;\s*/g, `${brandIcons}\n`)
+  if (css.includes('@import')) {
+    throw new Error('styles.css still has @import after inlining; npm consumers cannot resolve src paths')
+  }
   writeFileSync(resolve(distDir, 'styles.css'), css, utf8)
+  cpSync(
+    resolve(root, 'src/icons/style/brand-icon-tokens.css'),
+    resolve(distDir, 'brand-icons.css'),
+  )
   mkdirSync(resolve(distDir, 'theme'), { recursive: true })
   cpSync(
     resolve(root, 'src/theme/brand.example.css'),

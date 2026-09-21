@@ -847,13 +847,18 @@ export { useRsToast } from './composables/useRsToast'
 export type { RsToastInput } from './composables/useRsToast'
 export {
   rsCommonIconNames,
+  rsBrandIconNames,
+  rsBrandIconAccentVar,
   LUCIDE_ATTRIBUTION,
   LUCIDE_LICENSE,
   lucideIconCount,
   isRsIconName,
+  isRsBrandIconName,
 } from './icons/registry'
+export type { RsBrandIconName } from './icons/registry'
 export type {
   RsThemeMode,
+  RsResolvedTheme,
   RsThemeTokens,
   RsComponentSize,
   RsRadius,
@@ -870,12 +875,34 @@ export {
   RS_FONT_WEIGHTS,
   RS_FONT_WEIGHT_CSS,
 } from './theme/types'
-export type { RsLocale } from './locale/types'
+export type {
+  RsBuiltinLocale,
+  RsDirMode,
+  RsLocale,
+  RsLocaleMessages,
+  RsTextDirection,
+} from './locale/types'
+export { defaultLocale, fallbackLocale } from './locale/types'
+export {
+  applyLocale,
+  inferRsLocaleDir,
+  isRsLocaleRegistered,
+  listRsLocales,
+  registerRsLocale,
+  resolveRsLocaleDir,
+  resolveRsMessage,
+} from './locale/registry-public'
 export { useRsConfig, useRsConfigOptional, createRsConfigState } from './composables/useRsConfig'
 export { useResolvedRsComponentSize, resolveRsComponentSize } from './components/_shared'
 export { useResolvedRsRadius, rsRadiusCss } from './components/_shared'
 export { themePresets } from './theme/presets'
-export { applyTheme } from './theme/apply'
+export {
+  applyTheme,
+  prefersColorSchemeDark,
+  readResolvedTheme,
+  resolveThemeMode,
+  subscribePreferredColorScheme,
+} from './theme/apply'
 export {
   parseCssLengthToPx,
   readCodeFontFamily,

@@ -191,7 +191,7 @@ function onSelect(value: AcceptableValue) {
 .rs-dropdown__value {
   flex: 1;
   min-width: 0;
-  text-align: left;
+  text-align: start;
 }
 
 .rs-dropdown__label {
@@ -244,7 +244,7 @@ function onSelect(value: AcceptableValue) {
   top: -0.55em;
   margin-bottom: 0.125rem;
   padding: 0 0.375rem;
-  margin-left: var(--rs-space-md);
+  margin-inline-start: var(--rs-space-md);
   width: fit-content;
   max-width: calc(100% - var(--rs-space-md) * 2);
   background: var(--rs-surface-elevated);

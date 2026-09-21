@@ -80,6 +80,10 @@ const router = createRouter({
       path: '/visual/rs-log',
       component: () => import('./pages/visual/RsLogVisualPage.vue'),
     },
+    {
+      path: '/visual/rs-rtl',
+      component: () => import('./pages/visual/RsRtlVisualPage.vue'),
+    },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })

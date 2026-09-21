@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, type Component } from 'vue'
-import { resolveLucideIcon } from '../../../icons/registry'
+import { isRsBrandIconName, resolveLucideIcon } from '../../../icons/registry'
 import type { RsComponentSize } from '../../../theme/types'
 
 const SIZE_PRESET: Record<RsComponentSize, number> = {
@@ -49,6 +49,8 @@ const lucideSize = computed(() => {
   return Number.parseInt(String(size), 10) || SIZE_PRESET.md
 })
 
+const isBrand = computed(() => isRsBrandIconName(props.name))
+
 const iconStyle = computed(() => {
   const style: Record<string, string> = {}
   if (props.color) style.color = props.color
@@ -76,7 +78,7 @@ const isSemantic = computed(() => Boolean(props.label))
     :is="iconComponent"
     v-if="iconComponent"
     class="rs-icon"
-    :class="{ 'rs-icon--spin': spin }"
+    :class="{ 'rs-icon--spin': spin, 'rs-icon--brand': isBrand }"
     :style="iconStyle"
     :size="lucideSize"
     :stroke-width="strokeWidth"

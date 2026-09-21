@@ -1,6 +1,6 @@
 import { computed, inject } from 'vue'
 import { interpolateRsMessage, resolveRsTranslateArgs, type RsI18nVars, type RsTranslateFn } from '../locale/interpolate'
-import { localeMap } from '../locale/messages'
+import { resolveRsMessage } from '../locale/registry'
 import { defaultLocale, type RsLocale } from '../locale/types'
 import { rsConfigKey } from './useRsConfig'
 
@@ -13,8 +13,8 @@ function translate(
   vars?: RsI18nVars,
 ): string {
   const parsed = resolveRsTranslateArgs(fallbackOrVars, vars)
-  const raw = localeMap[locale][key] ?? parsed.fallback ?? key
-  return interpolateRsMessage(raw, parsed.vars)
+  const raw = resolveRsMessage(locale, key) ?? parsed.fallback ?? key
+  return interpolateRsMessage(raw, parsed.vars, locale)
 }
 
 /** 组件内安全取文案：Provider 内跟随 locale，否则回退 defaultLocale */

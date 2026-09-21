@@ -1,0 +1,173 @@
+/*
+ * 内置图标：Lucide 走 --rs-icon-color；品牌 mark 走 --rs-icon-{name}-accent。
+ * 色值在 styles/index.css 的主题块里，这里只写图形规则。
+ */
+
+.rs-icon {
+  color: var(--rs-icon-color, currentColor);
+}
+
+.lucide-api-icon .api-icon__label {
+  fill: currentColor;
+  stroke: none;
+  font-family: var(--rs-font-rounded);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  text-anchor: middle;
+  -webkit-font-smoothing: antialiased;
+}
+
+.lucide-ftp-icon .ftp-icon__folder {
+  fill: var(--rs-icon-ftp-accent, currentColor);
+  stroke: color-mix(in srgb, var(--rs-icon-ftp-accent, currentColor) 55%, #1a1a1a);
+  stroke-width: 1.1;
+}
+
+.lucide-ftp-icon .ftp-icon__label {
+  fill: var(--rs-icon-ftp-on-accent, #ffffff);
+  stroke: none;
+  font-family: var(--rs-font-mono);
+  font-size: 6.2px;
+  font-weight: 900;
+  letter-spacing: -0.08em;
+  text-anchor: middle;
+  -webkit-font-smoothing: antialiased;
+}
+
+.rs-context-menu__item[data-highlighted] .lucide-ftp-icon .ftp-icon__folder,
+.rs-context-menu__item[data-state='open'] .lucide-ftp-icon .ftp-icon__folder {
+  fill: rgb(255 255 255 / 0.95);
+  stroke: rgb(255 255 255 / 0.55);
+}
+
+.rs-context-menu__item[data-highlighted] .lucide-ftp-icon .ftp-icon__label,
+.rs-context-menu__item[data-state='open'] .lucide-ftp-icon .ftp-icon__label {
+  fill: var(--rs-icon-ftp-accent);
+}
+
+.lucide-redis-icon .redis-icon__mark {
+  fill: var(--rs-icon-redis-accent, currentColor);
+}
+
+.rs-context-menu__item[data-highlighted] .lucide-redis-icon .redis-icon__mark,
+.rs-context-menu__item[data-state='open'] .lucide-redis-icon .redis-icon__mark {
+  fill: rgb(255 255 255 / 0.95);
+}
+
+.lucide-mongodb-icon .mongodb-icon__mark {
+  fill: var(--rs-icon-mongodb-accent, currentColor);
+}
+
+.rs-context-menu__item[data-highlighted] .lucide-mongodb-icon .mongodb-icon__mark,
+.rs-context-menu__item[data-state='open'] .lucide-mongodb-icon .mongodb-icon__mark {
+  fill: rgb(255 255 255 / 0.95);
+}
+
+.lucide-vastbase-icon .vastbase-icon__mark {
+  fill: var(--rs-icon-vastbase-accent, currentColor);
+}
+
+.rs-context-menu__item[data-highlighted] .lucide-vastbase-icon .vastbase-icon__mark,
+.rs-context-menu__item[data-state='open'] .lucide-vastbase-icon .vastbase-icon__mark {
+  fill: rgb(255 255 255 / 0.95);
+}
+
+.lucide-mysql-icon .mysql-icon__mark {
+  fill: var(--rs-icon-mysql-accent, currentColor);
+}
+
+.rs-context-menu__item[data-highlighted] .lucide-mysql-icon .mysql-icon__mark,
+.rs-context-menu__item[data-state='open'] .lucide-mysql-icon .mysql-icon__mark {
+  fill: rgb(255 255 255 / 0.95);
+}
+
+.lucide-dameng-icon .dameng-icon__oval {
+  fill: var(--rs-icon-dameng-accent);
+}
+
+.lucide-dameng-icon .dameng-icon__wave {
+  fill: var(--rs-icon-dameng-wave, currentColor);
+}
+
+.rs-context-menu__item[data-highlighted] .lucide-dameng-icon .dameng-icon__oval,
+.rs-context-menu__item[data-state='open'] .lucide-dameng-icon .dameng-icon__oval,
+.rs-context-menu__item[data-highlighted] .lucide-dameng-icon .dameng-icon__wave,
+.rs-context-menu__item[data-state='open'] .lucide-dameng-icon .dameng-icon__wave {
+  fill: rgb(255 255 255 / 0.95);
+}
+
+.lucide-sqlite-icon .sqlite-icon__mark {
+  fill: var(--rs-icon-sqlite-accent, currentColor);
+}
+
+.rs-context-menu__item[data-highlighted] .lucide-sqlite-icon .sqlite-icon__mark,
+.rs-context-menu__item[data-state='open'] .lucide-sqlite-icon .sqlite-icon__mark {
+  fill: rgb(255 255 255 / 0.95);
+}
+
+.lucide-oracle-icon .oracle-icon__mark {
+  fill: var(--rs-icon-oracle-accent, currentColor);
+}
+
+.rs-context-menu__item[data-highlighted] .lucide-oracle-icon .oracle-icon__mark,
+.rs-context-menu__item[data-state='open'] .lucide-oracle-icon .oracle-icon__mark {
+  fill: rgb(255 255 255 / 0.95);
+}
+
+.lucide-clickhouse-icon .clickhouse-icon__mark {
+  fill: var(--rs-icon-clickhouse-accent, currentColor);
+}
+
+.rs-context-menu__item[data-highlighted] .lucide-clickhouse-icon .clickhouse-icon__mark,
+.rs-context-menu__item[data-state='open'] .lucide-clickhouse-icon .clickhouse-icon__mark {
+  fill: rgb(255 255 255 / 0.95);
+}
+
+.lucide-kingbase-icon .kingbase-icon__mark {
+  fill: var(--rs-icon-kingbase-accent, currentColor);
+}
+
+.rs-context-menu__item[data-highlighted] .lucide-kingbase-icon .kingbase-icon__mark,
+.rs-context-menu__item[data-state='open'] .lucide-kingbase-icon .kingbase-icon__mark {
+  fill: rgb(255 255 255 / 0.95);
+}
+
+.lucide-sqlserver-icon .sqlserver-icon__mark {
+  fill: var(--rs-icon-sqlserver-accent, currentColor);
+}
+
+.rs-context-menu__item[data-highlighted] .lucide-sqlserver-icon .sqlserver-icon__mark,
+.rs-context-menu__item[data-state='open'] .lucide-sqlserver-icon .sqlserver-icon__mark {
+  fill: rgb(255 255 255 / 0.95);
+}
+
+.lucide-postgres-icon .postgres-icon__mark {
+  fill: var(--rs-icon-postgres-accent, currentColor);
+}
+
+.rs-context-menu__item[data-highlighted] .lucide-postgres-icon .postgres-icon__mark,
+.rs-context-menu__item[data-state='open'] .lucide-postgres-icon .postgres-icon__mark {
+  fill: rgb(255 255 255 / 0.95);
+}
+
+@media (forced-colors: active) {
+  .lucide-ftp-icon .ftp-icon__folder,
+  .lucide-ftp-icon .ftp-icon__label,
+  .lucide-redis-icon .redis-icon__mark,
+  .lucide-mongodb-icon .mongodb-icon__mark,
+  .lucide-vastbase-icon .vastbase-icon__mark,
+  .lucide-mysql-icon .mysql-icon__mark,
+  .lucide-dameng-icon .dameng-icon__oval,
+  .lucide-dameng-icon .dameng-icon__wave,
+  .lucide-sqlite-icon .sqlite-icon__mark,
+  .lucide-oracle-icon .oracle-icon__mark,
+  .lucide-clickhouse-icon .clickhouse-icon__mark,
+  .lucide-kingbase-icon .kingbase-icon__mark,
+  .lucide-sqlserver-icon .sqlserver-icon__mark,
+  .lucide-postgres-icon .postgres-icon__mark,
+  .lucide-api-icon .api-icon__label {
+    fill: CanvasText;
+    stroke: CanvasText;
+  }
+}

@@ -149,12 +149,12 @@ function onClear(): void {
 .rs-cascader__placeholder {
   flex: 1;
   color: var(--rs-muted);
-  text-align: left;
+  text-align: start;
 }
 .rs-cascader__value {
   flex: 1;
   overflow: hidden;
-  text-align: left;
+  text-align: start;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -177,11 +177,11 @@ function onClear(): void {
   margin: 0;
   padding: var(--rs-space-xs);
   overflow: auto;
-  border-right: 1px solid var(--rs-border);
+  border-inline-end: 1px solid var(--rs-border);
   list-style: none;
 }
 .rs-cascader__col:last-child {
-  border-right: 0;
+  border-inline-end: 0;
 }
 .rs-cascader__item {
   display: flex;

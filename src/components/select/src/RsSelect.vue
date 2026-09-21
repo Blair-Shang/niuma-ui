@@ -669,7 +669,7 @@ function highlightParts(label: string) {
   color: var(--rs-text);
   font-size: var(--rs-font-size-sm);
   line-height: var(--rs-line-height-tight);
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   outline: none;
   box-shadow: var(--rs-input-shadow, none);
@@ -798,7 +798,7 @@ function highlightParts(label: string) {
 .rs-select__value {
   flex: 1;
   min-width: 0;
-  text-align: left;
+  text-align: start;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -821,7 +821,7 @@ function highlightParts(label: string) {
 }
 
 .rs-select__tag--rest {
-  padding-right: 0.5rem;
+  padding-inline-end: 0.5rem;
   color: var(--rs-muted);
   background: var(--rs-surface-hover);
   border-color: var(--rs-border);

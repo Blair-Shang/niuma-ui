@@ -4,13 +4,19 @@ import {
   resolveRsTranslateArgs,
   type RsTranslateFn,
 } from '../locale/interpolate'
-import { localeMap } from '../locale/messages'
-import { defaultLocale, type RsLocale } from '../locale/types'
-import type { RsComponentSize, RsRadius, RsThemeMode } from '../theme/types'
+import { resolveRsMessage } from '../locale/registry'
+import { defaultLocale, type RsDirMode, type RsLocale } from '../locale/types'
+import { resolveThemeMode } from '../theme/apply'
+import type { RsComponentSize, RsRadius, RsResolvedTheme, RsThemeMode } from '../theme/types'
 
 export interface RsConfigContext {
+  /** 用户偏好：light / dark / system */
   theme: Ref<RsThemeMode>
+  /** 已解析的明暗，跟着 applyTheme 与系统偏好更新 */
+  resolvedTheme: Ref<RsResolvedTheme>
   locale: Ref<RsLocale>
+  /** 书写方向偏好：ltr / rtl / auto（跟 locale） */
+  dir: Ref<RsDirMode>
   /** 全局默认控件尺寸（ssm / sm / md / lg）。 */
   controlSize: Ref<RsComponentSize>
   /**
@@ -20,8 +26,11 @@ export interface RsConfigContext {
   controlRadius: Ref<RsRadius | undefined>
   setTheme: (mode: RsThemeMode) => void
   setLocale: (locale: RsLocale) => void
+  setDir: (dir: RsDirMode) => void
   setControlSize: (size: RsComponentSize) => void
   setControlRadius: (radius: RsRadius | undefined) => void
+  /** 系统偏好变化或 applyTheme 之后同步 resolvedTheme */
+  syncResolvedTheme: () => void
   t: RsTranslateFn
 }
 
@@ -45,21 +54,30 @@ export function createRsConfigState(
   initialLocale: RsLocale = defaultLocale,
   initialControlSize: RsComponentSize = 'md',
   initialControlRadius?: RsRadius,
+  initialDir: RsDirMode = 'auto',
 ): RsConfigContext {
   const theme = ref<RsThemeMode>(initialTheme)
+  const resolvedTheme = ref<RsResolvedTheme>(resolveThemeMode(initialTheme))
   const locale = ref<RsLocale>(initialLocale)
+  const dir = ref<RsDirMode>(initialDir)
   const controlSize = ref<RsComponentSize>(initialControlSize)
   const controlRadius = ref<RsRadius | undefined>(initialControlRadius)
 
   function setTheme(mode: RsThemeMode) {
     theme.value = mode
+    resolvedTheme.value = resolveThemeMode(mode)
+  }
+
+  function syncResolvedTheme() {
+    resolvedTheme.value = resolveThemeMode(theme.value)
   }
 
   function setLocale(next: RsLocale) {
     locale.value = next
-    if (typeof document !== 'undefined') {
-      document.documentElement.setAttribute('data-rs-locale', next)
-    }
+  }
+
+  function setDir(next: RsDirMode) {
+    dir.value = next
   }
 
   function setControlSize(size: RsComponentSize) {
@@ -72,23 +90,23 @@ export function createRsConfigState(
 
   const t: RsTranslateFn = (key, fallbackOrVars, vars) => {
     const parsed = resolveRsTranslateArgs(fallbackOrVars, vars)
-    const raw = localeMap[locale.value][key] ?? parsed.fallback ?? key
-    return interpolateRsMessage(raw, parsed.vars)
-  }
-
-  if (typeof document !== 'undefined') {
-    document.documentElement.setAttribute('data-rs-locale', locale.value)
+    const raw = resolveRsMessage(locale.value, key) ?? parsed.fallback ?? key
+    return interpolateRsMessage(raw, parsed.vars, locale.value)
   }
 
   return {
     theme,
+    resolvedTheme,
     locale,
+    dir,
     controlSize,
     controlRadius,
     setTheme,
     setLocale,
+    setDir,
     setControlSize,
     setControlRadius,
+    syncResolvedTheme,
     t,
   }
 }

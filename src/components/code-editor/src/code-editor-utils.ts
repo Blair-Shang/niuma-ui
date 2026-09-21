@@ -1,3 +1,5 @@
+import { readResolvedTheme } from '../../../theme/apply'
+
 export type RsCodeEditorLanguage =
   | 'plaintext'
   | 'json'
@@ -92,8 +94,7 @@ export function codeEditorLanguageLabel(language?: string): string {
 }
 
 export function readDocumentTheme(): RsResolvedCodeEditorTheme {
-  if (typeof document === 'undefined') return 'dark'
-  return document.documentElement.dataset.rsTheme === 'light' ? 'light' : 'dark'
+  return readResolvedTheme()
 }
 
 export function resolveCodeEditorTheme(theme: RsCodeEditorTheme = 'auto'): RsResolvedCodeEditorTheme {

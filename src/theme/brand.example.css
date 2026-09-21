@@ -10,7 +10,7 @@
  * 可覆盖的常见 token：
  * - 品牌色：--rs-primary / --rs-primary-hover / --rs-*-container
  * - 文字语义：--rs-text-primary / --rs-text-secondary / --rs-text-tertiary /
- *   --rs-text-disabled / --rs-text-link（底层亦兼容 --rs-text / --rs-muted）
+ *   --rs-text-disabled / --rs-text-link（--rs-text / --rs-muted 只是别名）
  * - 按钮次要态：--rs-btn-outline-border / --rs-btn-secondary-bg /
  *   --rs-btn-secondary-bg-hover / --rs-btn-secondary-bg-active
  * - 排版：--rs-font-sans / --rs-font-mono / --rs-font-serif / --rs-font-size-* / --rs-font-weight-*
@@ -22,6 +22,10 @@
  * - 表格专用：--rs-table-*（色值参考 VS Code Dark/Light Modern）
  * - 树专用：--rs-tree-*（导航线 / 选中 / 焦点）
  * - 终端专用：--rs-terminal-*（默认 macOS Terminal.app 风格）
+ * - 线标：--rs-icon-color（Lucide，默认 currentColor）
+ * - 品牌 mark：--rs-icon-mysql-accent 等（名单 rsBrandIconNames）
+ *
+ * 不要改 themePresets.ts 当换肤：那只是参考色板，画面只认本文件与 styles.css。
  */
 
 [data-rs-theme='light'] {

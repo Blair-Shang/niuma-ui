@@ -432,7 +432,7 @@ watch(open, async (isOpen) => {
   font: inherit;
   font-size: var(--rs-font-size-sm);
   line-height: var(--rs-line-height-tight);
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   outline: none;
   box-shadow: var(--rs-input-shadow, none);

@@ -497,7 +497,7 @@ defineExpose<RsTextareaExpose>({
 }
 
 .rs-textarea__shell.has-clear .rs-textarea__control {
-  padding-right: 1.85rem;
+  padding-inline-end: 1.85rem;
 }
 
 .rs-input-field--sm .rs-textarea__control {
@@ -530,7 +530,7 @@ defineExpose<RsTextareaExpose>({
 .rs-textarea__clear {
   position: absolute;
   top: 0.45rem;
-  right: 0.45rem;
+  inset-inline-end: 0.45rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -554,7 +554,7 @@ defineExpose<RsTextareaExpose>({
 
 .rs-textarea__count {
   position: absolute;
-  right: 0.65rem;
+  inset-inline-end: 0.65rem;
   bottom: 0.3rem;
   margin: 0;
   pointer-events: none;

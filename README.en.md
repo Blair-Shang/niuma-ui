@@ -15,7 +15,7 @@ Built for ops consoles, database workbenches, and internal admin UIs. Marketing 
 
 ## Features
 
-- **Design tokens** — light / dark via `data-rs-theme` and CSS variables; hosts override a brand layer
+- **Design tokens** — light / dark / system via `data-rs-theme` and CSS variables; hosts override a brand layer
 - **Rs\* components** — Button, Form, Dialog, Table, Tree, Tabs, Anchor, and more
 - **Tooling** — Monaco, CodeMirror, xterm (import only on routes that need them)
 - **Accessibility** — [Reka UI](https://reka-ui.com/) underneath; apps depend only on `niuma-ui`

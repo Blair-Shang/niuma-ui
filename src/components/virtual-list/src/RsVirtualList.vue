@@ -210,8 +210,7 @@ defineExpose({ scrollToIndex })
 }
 .rs-virtual-list__items {
   position: absolute;
-  left: 0;
-  right: 0;
+  inset-inline: 0;
   top: 0;
 }
 .rs-virtual-list__item {

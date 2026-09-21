@@ -8,7 +8,7 @@
 
 **契约：** 公共 API 是包根具名导入。`vite build` / CI 走包入口，不依赖改写插件。`niumaUiHost` **只服务**本机 `pnpm dev`。不要把包名别名到 `src/index.ts`。
 
-1. `styles.css` 是独立样式（token + reset + 组件），**不含** Tailwind。宿主只 `import 'niuma-ui/styles.css'`。业务若自己用工具类，在宿主 CSS 里自行引入 Tailwind。
+1. `styles.css` 是独立样式（token + reset + 组件），**不含** Tailwind。宿主 `import 'niuma-ui/styles.css'`。数据源品牌图标色再加 `import 'niuma-ui/brand-icons.css'`。业务若自己用工具类，在宿主 CSS 里自行引入 Tailwind。
 2. 本地改源码时启用 `niumaUiHost()`（`niuma-ui/vite-plugins/niuma-ui-host`）：
    - `pnpm dev` + `link:`：具名导入改到 `src/**/*.vue`，可 HMR。
    - `vite build` / CI：不改写，解析 `dist/index.js`。
@@ -82,6 +82,7 @@ pnpm install --no-frozen-lockfile
 
    ```ts
    import 'niuma-ui/styles.css'
+   import 'niuma-ui/brand-icons.css' // 可选：数据源 mark 官方色
    ```
 
    不要写 `@import 'niuma-ui/src/styles.css'`。
@@ -100,8 +101,13 @@ pnpm install --no-frozen-lockfile
 
 ### 主题与品牌
 
-- `theme`（`light` | `dark`）写入 `data-rs-theme`。
+- `theme`（`light` | `dark` | `system`）。`system` 跟随操作系统明暗；DOM 上仍是 `data-rs-theme="light|dark"`。
+- 无属性时样式按浅色。首屏请在 `index.html` 写 `<html data-rs-theme="light">`（或 `dark`）。
+- 色值只认 CSS。`themePresets` 是参考，改它不会换肤。
 - 业务 CSS 覆盖同名 `--rs-*`，见 [`src/theme/brand.example.css`](../src/theme/brand.example.css)。
+- 文字覆盖 `--rs-text-primary`（不要新写 `--rs-text`）。
+- 品牌图标色是可选子系统：`import 'niuma-ui/brand-icons.css'`。不引入则 mark 为单色。
+- 第三方语言（社区 / 宿主维护，本包不发官方 ja / ar 等）：`registerRsLocale('ja-JP', { 'select.placeholder': '…' })`，再设 `locale="ja-JP"`。`t()` 支持 `{count, plural, one {#} other {#}}`。RTL：`dir="rtl"` 或登记时 `{ dir: 'rtl' }`。
 - 子系统：`--rs-table-*`、`--rs-terminal-*`、`--rs-code-*`、`--rs-prose-*`。
 - 排版：`--rs-font-size-*`、`--rs-font-weight-*`、`--rs-font-sans|mono|serif`。
 - JS：`RS_FONT_SIZE_CSS`、`readCssLengthPx`、`readCodeFontFamily`。

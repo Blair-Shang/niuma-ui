@@ -15,7 +15,7 @@ Vue 3 **工作台**设计系统：一致的 `Rs*` 组件与 `--rs-*` Token，以
 
 ## 特性
 
-- **Design Token**：明暗主题走 `data-rs-theme` 与 CSS 变量，宿主用品牌层覆盖
+- **Design Token**：明暗主题走 `data-rs-theme`（`light` / `dark` / `system`）与 CSS 变量，宿主用品牌层覆盖
 - **Rs\* 组件**：Button、Form、Dialog、Table、Tree、Tabs、Anchor 等
 - **专业工具**：Monaco、CodeMirror、xterm（只在用到的路由引入）
 - **无障碍**：底层 [Reka UI](https://reka-ui.com/)，应用只依赖 `niuma-ui`

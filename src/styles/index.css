@@ -1,4 +1,5 @@
 @import 'vue-sonner/style.css';
+@import '../icons/style/brand-icons.css';
 
 /*
  * 盒模型由本包收口。html 定 border-box，其余 inherit（弹出层挂 body 也一致）。
@@ -160,51 +161,15 @@ html {
   --rs-label-font-weight: var(--rs-font-weight-medium);
   --rs-label-line-height: var(--rs-line-height-normal);
 
-  /* FTP 图标内嵌字样默认强调色 */
-  --rs-icon-ftp-accent: #ea580c;
-  --rs-icon-ftp-on-accent: #ffffff;
-
-  /* Redis 品牌图标默认强调色（Redis 官方红） */
-  --rs-icon-redis-accent: #dc382d;
-
-  /* MongoDB 品牌图标默认强调色（MongoDB 官方绿） */
-  --rs-icon-mongodb-accent: #47a248;
-
-  /* Vastbase 品牌图标默认强调色（海量数据官网橙） */
-  --rs-icon-vastbase-accent: #ff6f1a;
-
-  /* MySQL 品牌图标默认强调色（MySQL 官方蓝） */
-  --rs-icon-mysql-accent: #4479a1;
-
-  /* Dameng 品牌图标默认色（官网 logo 取样：蓝 / 红） */
-  --rs-icon-dameng-accent: #0000d2;
-  --rs-icon-dameng-wave: #ec1b34;
-
-  /* SQLite 品牌图标默认强调色（SQLite 官方蓝） */
-  --rs-icon-sqlite-accent: #003b57;
-
-  /* Oracle 品牌图标默认强调色（Oracle 官方红） */
-  --rs-icon-oracle-accent: #f80000;
-
-  /* ClickHouse 品牌图标默认强调色（ClickHouse 官方黄） */
-  --rs-icon-clickhouse-accent: #ffcc01;
-
-  /* 人大金仓品牌图标默认强调色（官网政务红） */
-  --rs-icon-kingbase-accent: #c9151e;
-
-  /* SQL Server 品牌图标默认强调色（Simple Icons / 产品红） */
-  --rs-icon-sqlserver-accent: #cc2927;
-
-  /* PostgreSQL 品牌图标默认强调色（官方大象蓝） */
-  --rs-icon-postgres-accent: #336791;
+  /* Lucide / 线性图标。品牌 mark 色在可选 niuma-ui/brand-icons.css */
+  --rs-icon-color: currentColor;
 
   /* macOS 风格原生滚动条（与 RsScrollbar 视觉一致） */
   --rs-scrollbar-size: 13px;
   --rs-scrollbar-padding: 2px;
 }
 
-/* ── 公共暗色：VS Code Dark Modern 中性灰阶 × macOS 深色规范 ── */
-:root,
+/* ── 公共暗色：仅 data-rs-theme=dark（system 由 JS 解析后再写该值）── */
 [data-rs-theme='dark'] {
   color-scheme: dark;
 
@@ -286,18 +251,17 @@ html {
   --rs-btn-secondary-bg: var(--rs-surface-hover);
   --rs-btn-secondary-bg-hover: color-mix(in srgb, var(--rs-primary) 16%, var(--rs-surface-hover));
   --rs-btn-secondary-bg-active: color-mix(in srgb, var(--rs-primary) 24%, var(--rs-surface-hover));
-  --rs-text: #cccccc;
-  --rs-muted: #9d9d9d;
-  --rs-placeholder: #919191;
-  /* 文字语义 alias（Ant / Arco 四级 + link；底层仍可用 --rs-text / --rs-muted） */
-  --rs-text-primary: var(--rs-text);
-  --rs-text-secondary: var(--rs-muted);
-  --rs-text-tertiary: var(--rs-placeholder);
+  --rs-text-primary: #cccccc;
+  --rs-text-secondary: #9d9d9d;
+  --rs-text-tertiary: #919191;
   --rs-text-disabled: #6e6e6e;
   --rs-text-inverse: #ffffff;
   --rs-text-link: var(--rs-primary);
   --rs-text-link-hover: var(--rs-primary-hover);
-  --rs-label-color: var(--rs-text);
+  --rs-text: var(--rs-text-primary);
+  --rs-muted: var(--rs-text-secondary);
+  --rs-placeholder: var(--rs-text-tertiary);
+  --rs-label-color: var(--rs-text-primary);
   --rs-danger: #ff453a;
   --rs-danger-container: #3b1210;
   --rs-on-danger-container: #ff8a84;
@@ -311,20 +275,6 @@ html {
   --rs-info-container: #0a2540;
   --rs-on-info-container: #6cb4ff;
 
-  --rs-icon-ftp-accent: #fb923c;
-  --rs-icon-ftp-on-accent: #ffffff;
-  --rs-icon-redis-accent: #ff6f61;
-  --rs-icon-mongodb-accent: #5cb85c;
-  --rs-icon-vastbase-accent: #ff8a3d;
-  --rs-icon-mysql-accent: #5a9fd4;
-  --rs-icon-sqlite-accent: #5aafd4;
-  --rs-icon-dameng-accent: #4d4dff;
-  --rs-icon-dameng-wave: #ff4d63;
-  --rs-icon-oracle-accent: #ff4d4d;
-  --rs-icon-clickhouse-accent: #ffe066;
-  --rs-icon-kingbase-accent: #ff4d57;
-  --rs-icon-sqlserver-accent: #ff5a57;
-  --rs-icon-postgres-accent: #6a9ec4;
   --rs-focus-border: var(--rs-primary);
   --rs-focus-ring: color-mix(in srgb, var(--rs-primary) 28%, transparent);
   --rs-focus-ring-width: 2px;
@@ -466,7 +416,8 @@ html {
   --rs-shadow-lg: 0 12px 32px rgb(0 0 0 / 0.5), 0 0 0 0.5px rgb(255 255 255 / 0.1);
 }
 
-/* ── 公共亮色：macOS systemBackground / label 色阶 ── */
+/* ── 公共亮色：无属性 = light，避免盖住后面的 dark（:root 与属性选择器同权）── */
+:root:not([data-rs-theme]),
 [data-rs-theme='light'] {
   color-scheme: light;
 
@@ -545,18 +496,17 @@ html {
   --rs-btn-secondary-bg: var(--rs-surface-hover);
   --rs-btn-secondary-bg-hover: color-mix(in srgb, var(--rs-primary) 12%, var(--rs-surface-hover));
   --rs-btn-secondary-bg-active: color-mix(in srgb, var(--rs-primary) 18%, var(--rs-surface-hover));
-  --rs-text: #1d1d1f;
-  --rs-muted: #6e6e73;
-  --rs-placeholder: #909090;
-  /* 文字语义 alias（Ant / Arco 四级 + link；底层仍可用 --rs-text / --rs-muted） */
-  --rs-text-primary: var(--rs-text);
-  --rs-text-secondary: var(--rs-muted);
-  --rs-text-tertiary: var(--rs-placeholder);
+  --rs-text-primary: #1d1d1f;
+  --rs-text-secondary: #6e6e73;
+  --rs-text-tertiary: #909090;
   --rs-text-disabled: #aeaeb2;
   --rs-text-inverse: #ffffff;
   --rs-text-link: var(--rs-primary);
   --rs-text-link-hover: var(--rs-primary-hover);
-  --rs-label-color: var(--rs-text);
+  --rs-text: var(--rs-text-primary);
+  --rs-muted: var(--rs-text-secondary);
+  --rs-placeholder: var(--rs-text-tertiary);
+  --rs-label-color: var(--rs-text-primary);
   --rs-danger: #ff3b30;
   --rs-danger-container: #ffe5e3;
   --rs-on-danger-container: #c41e16;
@@ -705,21 +655,6 @@ html {
   --rs-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.04), 0 0 0 0.5px rgb(0 0 0 / 0.04);
   --rs-shadow: 0 4px 16px rgb(0 0 0 / 0.08), 0 0 0 0.5px rgb(0 0 0 / 0.06);
   --rs-shadow-lg: 0 12px 32px rgb(0 0 0 / 0.12), 0 0 0 0.5px rgb(0 0 0 / 0.08);
-
-  --rs-icon-ftp-accent: #ea580c;
-  --rs-icon-ftp-on-accent: #ffffff;
-  --rs-icon-redis-accent: #dc382d;
-  --rs-icon-mongodb-accent: #47a248;
-  --rs-icon-vastbase-accent: #ff6f1a;
-  --rs-icon-mysql-accent: #4479a1;
-  --rs-icon-sqlite-accent: #003b57;
-  --rs-icon-dameng-accent: #0000d2;
-  --rs-icon-dameng-wave: #ec1b34;
-  --rs-icon-oracle-accent: #f80000;
-  --rs-icon-clickhouse-accent: #ffcc01;
-  --rs-icon-kingbase-accent: #c9151e;
-  --rs-icon-sqlserver-accent: #cc2927;
-  --rs-icon-postgres-accent: #336791;
 }
 
 /**
@@ -732,6 +667,51 @@ html {
   .rs-motion-reduce::after {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+/*
+ * 高对比：把语义 token 映射到系统色。组件继续读 --rs-*，不必每组件写 forced-colors。
+ */
+@media (forced-colors: active) {
+  :root:not([data-rs-theme]),
+  [data-rs-theme='light'],
+  [data-rs-theme='dark'] {
+    --rs-bg: Canvas;
+    --rs-surface: Canvas;
+    --rs-surface-elevated: Canvas;
+    --rs-surface-hover: Highlight;
+    --rs-item-hover: Highlight;
+    --rs-input-bg: Field;
+    --rs-input-border: ButtonText;
+    --rs-input-border-hover: Highlight;
+    --rs-border: ButtonText;
+    --rs-border-subtle: ButtonText;
+    --rs-text-primary: CanvasText;
+    --rs-text-secondary: GrayText;
+    --rs-text-tertiary: GrayText;
+    --rs-text-disabled: GrayText;
+    --rs-text-inverse: Canvas;
+    --rs-text-link: LinkText;
+    --rs-text-link-hover: LinkText;
+    --rs-text: CanvasText;
+    --rs-muted: GrayText;
+    --rs-placeholder: GrayText;
+    --rs-label-color: CanvasText;
+    --rs-primary: Highlight;
+    --rs-primary-hover: Highlight;
+    --rs-primary-foreground: HighlightText;
+    --rs-primary-container: Canvas;
+    --rs-on-primary-container: CanvasText;
+    --rs-danger: Mark;
+    --rs-success: CanvasText;
+    --rs-warning: CanvasText;
+    --rs-info: Highlight;
+    --rs-focus-border: Highlight;
+    --rs-focus-ring: Highlight;
+    --rs-shadow-sm: none;
+    --rs-shadow: none;
+    --rs-shadow-lg: none;
   }
 }
 
@@ -989,7 +969,7 @@ code {
   top: -0.55em;
   margin-bottom: 0.125rem;
   padding: 0 0.375rem;
-  margin-left: var(--rs-space-sm);
+  margin-inline-start: var(--rs-space-sm);
   width: fit-content;
   max-width: calc(100% - var(--rs-space-sm) * 2);
   background: var(--rs-surface-elevated);
@@ -1021,14 +1001,14 @@ code {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  text-align: left;
+  text-align: start;
 }
 
 .rs-select__item-check {
   display: inline-flex;
   width: 0.875rem;
   flex-shrink: 0;
-  margin-left: auto;
+  margin-inline-start: auto;
   color: var(--rs-primary);
 }
 
@@ -1099,8 +1079,7 @@ code {
 
 .rs-select__content--sm .rs-select__viewport,
 .rs-select__content--ssm .rs-select__viewport {
-  padding-left: 0.25rem;
-  padding-right: 0.25rem;
+  padding-inline: 0.25rem;
   padding-bottom: 0.25rem;
 }
 
@@ -1152,7 +1131,7 @@ code {
 }
 
 .rs-auto-complete--clearable .rs-auto-complete__input {
-  padding-right: calc(var(--rs-space-md) + 1.25rem);
+  padding-inline-end: calc(var(--rs-space-md) + 1.25rem);
 }
 
 .rs-auto-complete__input::placeholder {
@@ -1180,7 +1159,7 @@ code {
 .rs-auto-complete__clear {
   position: absolute;
   top: 50%;
-  right: var(--rs-space-sm);
+  inset-inline-end: var(--rs-space-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1443,7 +1422,7 @@ code {
 .rs-toast__close {
   position: absolute;
   top: 0;
-  left: 0;
+  inset-inline-start: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1471,161 +1450,4 @@ code {
 .rs-toast__close:focus-visible {
   outline: none;
   box-shadow: 0 0 0 var(--rs-focus-ring-width, 2px) var(--rs-focus-ring);
-}
-
-/* Activity Bar「API」字标：粗圆角字重，随 currentColor */
-.lucide-api-icon .api-icon__label {
-  fill: currentColor;
-  stroke: none;
-  font-family: var(--rs-font-rounded);
-  font-size: 9.5px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  text-anchor: middle;
-  -webkit-font-smoothing: antialiased;
-}
-
-/* FTP 自定义图标：橙色实心文件夹 + 白色 FTP 字样 */
-.lucide-ftp-icon .ftp-icon__folder {
-  fill: var(--rs-icon-ftp-accent);
-  stroke: color-mix(in srgb, var(--rs-icon-ftp-accent) 55%, #1a1a1a);
-  stroke-width: 1.1;
-}
-
-.lucide-ftp-icon .ftp-icon__label {
-  fill: var(--rs-icon-ftp-on-accent);
-  stroke: none;
-  font-family: var(--rs-font-mono);
-  font-size: 6.2px;
-  font-weight: 900;
-  letter-spacing: -0.08em;
-  text-anchor: middle;
-  -webkit-font-smoothing: antialiased;
-}
-
-.rs-context-menu__item[data-highlighted] .lucide-ftp-icon .ftp-icon__folder,
-.rs-context-menu__item[data-state='open'] .lucide-ftp-icon .ftp-icon__folder {
-  fill: rgb(255 255 255 / 0.95);
-  stroke: rgb(255 255 255 / 0.55);
-}
-
-.rs-context-menu__item[data-highlighted] .lucide-ftp-icon .ftp-icon__label,
-.rs-context-menu__item[data-state='open'] .lucide-ftp-icon .ftp-icon__label {
-  fill: var(--rs-icon-ftp-accent);
-}
-
-/* Redis 自定义图标：官方品牌 mark，单色填充随主题调整明暗对比度 */
-.lucide-redis-icon .redis-icon__mark {
-  fill: var(--rs-icon-redis-accent);
-}
-
-.rs-context-menu__item[data-highlighted] .lucide-redis-icon .redis-icon__mark,
-.rs-context-menu__item[data-state='open'] .lucide-redis-icon .redis-icon__mark {
-  fill: rgb(255 255 255 / 0.95);
-}
-
-/* MongoDB 自定义图标：官方品牌 mark，单色填充随主题调整明暗对比度 */
-.lucide-mongodb-icon .mongodb-icon__mark {
-  fill: var(--rs-icon-mongodb-accent);
-}
-
-.rs-context-menu__item[data-highlighted] .lucide-mongodb-icon .mongodb-icon__mark,
-.rs-context-menu__item[data-state='open'] .lucide-mongodb-icon .mongodb-icon__mark {
-  fill: rgb(255 255 255 / 0.95);
-}
-
-/* Vastbase 自定义图标：海量数据官方品牌 mark，单色填充随主题调整明暗对比度 */
-.lucide-vastbase-icon .vastbase-icon__mark {
-  fill: var(--rs-icon-vastbase-accent);
-}
-
-.rs-context-menu__item[data-highlighted] .lucide-vastbase-icon .vastbase-icon__mark,
-.rs-context-menu__item[data-state='open'] .lucide-vastbase-icon .vastbase-icon__mark {
-  fill: rgb(255 255 255 / 0.95);
-}
-
-/* MySQL 自定义图标：官方品牌 mark，单色填充随主题调整明暗对比度 */
-.lucide-mysql-icon .mysql-icon__mark {
-  fill: var(--rs-icon-mysql-accent);
-}
-
-.rs-context-menu__item[data-highlighted] .lucide-mysql-icon .mysql-icon__mark,
-.rs-context-menu__item[data-state='open'] .lucide-mysql-icon .mysql-icon__mark {
-  fill: rgb(255 255 255 / 0.95);
-}
-
-/* Dameng 自定义图标：官方品牌 mark（蓝椭圆 + 红波浪） */
-.lucide-dameng-icon .dameng-icon__oval {
-  fill: var(--rs-icon-dameng-accent);
-}
-
-.lucide-dameng-icon .dameng-icon__wave {
-  fill: var(--rs-icon-dameng-wave);
-}
-
-.rs-context-menu__item[data-highlighted] .lucide-dameng-icon .dameng-icon__oval,
-.rs-context-menu__item[data-state='open'] .lucide-dameng-icon .dameng-icon__oval,
-.rs-context-menu__item[data-highlighted] .lucide-dameng-icon .dameng-icon__wave,
-.rs-context-menu__item[data-state='open'] .lucide-dameng-icon .dameng-icon__wave {
-  fill: rgb(255 255 255 / 0.95);
-}
-
-/* SQLite 自定义图标：官方品牌 mark，单色填充随主题调整明暗对比度 */
-.lucide-sqlite-icon .sqlite-icon__mark {
-  fill: var(--rs-icon-sqlite-accent);
-}
-
-.rs-context-menu__item[data-highlighted] .lucide-sqlite-icon .sqlite-icon__mark,
-.rs-context-menu__item[data-state='open'] .lucide-sqlite-icon .sqlite-icon__mark {
-  fill: rgb(255 255 255 / 0.95);
-}
-
-/* Oracle 自定义图标：官方品牌 oval mark，单色填充随主题调整明暗对比度 */
-.lucide-oracle-icon .oracle-icon__mark {
-  fill: var(--rs-icon-oracle-accent);
-}
-
-.rs-context-menu__item[data-highlighted] .lucide-oracle-icon .oracle-icon__mark,
-.rs-context-menu__item[data-state='open'] .lucide-oracle-icon .oracle-icon__mark {
-  fill: rgb(255 255 255 / 0.95);
-}
-
-/* ClickHouse 自定义图标：官方品牌 barcode mark，单色填充随主题调整明暗对比度 */
-.lucide-clickhouse-icon .clickhouse-icon__mark {
-  fill: var(--rs-icon-clickhouse-accent);
-}
-
-.rs-context-menu__item[data-highlighted] .lucide-clickhouse-icon .clickhouse-icon__mark,
-.rs-context-menu__item[data-state='open'] .lucide-clickhouse-icon .clickhouse-icon__mark {
-  fill: rgb(255 255 255 / 0.95);
-}
-
-/* 人大金仓自定义图标：官方品牌 K lettermark，单色填充随主题调整明暗对比度 */
-.lucide-kingbase-icon .kingbase-icon__mark {
-  fill: var(--rs-icon-kingbase-accent);
-}
-
-.rs-context-menu__item[data-highlighted] .lucide-kingbase-icon .kingbase-icon__mark,
-.rs-context-menu__item[data-state='open'] .lucide-kingbase-icon .kingbase-icon__mark {
-  fill: rgb(255 255 255 / 0.95);
-}
-
-/* SQL Server 自定义图标：官方品牌火焰/翼形 mark，单色填充随主题调整明暗对比度 */
-.lucide-sqlserver-icon .sqlserver-icon__mark {
-  fill: var(--rs-icon-sqlserver-accent);
-}
-
-.rs-context-menu__item[data-highlighted] .lucide-sqlserver-icon .sqlserver-icon__mark,
-.rs-context-menu__item[data-state='open'] .lucide-sqlserver-icon .sqlserver-icon__mark {
-  fill: rgb(255 255 255 / 0.95);
-}
-
-/* PostgreSQL 自定义图标：官方大象（Slonik）mark，单色填充随主题调整明暗对比度 */
-.lucide-postgres-icon .postgres-icon__mark {
-  fill: var(--rs-icon-postgres-accent);
-}
-
-.rs-context-menu__item[data-highlighted] .lucide-postgres-icon .postgres-icon__mark,
-.rs-context-menu__item[data-state='open'] .lucide-postgres-icon .postgres-icon__mark {
-  fill: rgb(255 255 255 / 0.95);
 }

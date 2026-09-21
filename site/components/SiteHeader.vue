@@ -14,7 +14,7 @@ const emit = defineEmits<{
   'update:menuOpen': [value: boolean]
 }>()
 
-const { theme, locale, setTheme, setLocale } = useRsConfig()
+const { resolvedTheme, locale, setTheme, setLocale } = useRsConfig()
 const route = useRoute()
 const copy = computed(() => siteText(locale.value as SiteLocale))
 const isDocs = computed(() => route.path.startsWith('/guide') || route.path.startsWith('/components'))
@@ -25,7 +25,7 @@ const section = computed(() => {
 })
 
 function toggleTheme() {
-  setTheme(theme.value === 'dark' ? 'light' : 'dark')
+  setTheme(resolvedTheme.value === 'dark' ? 'light' : 'dark')
 }
 
 function toggleLocale() {
@@ -82,7 +82,7 @@ function toggleLocale() {
         <RsButton
           size="sm"
           variant="ghost"
-          :icon="theme === 'dark' ? 'sun' : 'moon'"
+          :icon="resolvedTheme === 'dark' ? 'sun' : 'moon'"
           icon-only
           :tooltip="copy.nav.theme"
           @click="toggleTheme"

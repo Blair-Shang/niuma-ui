@@ -5,6 +5,7 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
 import 'niuma-ui/styles.css'
+import 'niuma-ui/brand-icons.css'
 import './style.css'
 import './theme-brand.css'
 

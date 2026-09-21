@@ -140,12 +140,13 @@ export const guideDocs: GuideDoc[] = [
         id: 'provider',
         title: 'ConfigProvider',
         titleEn: 'ConfigProvider',
-        body: 'RsConfigProvider 控制 theme（light / dark）、locale、control-size。也可在运行时调用 useRsConfig() 的 setTheme / setLocale。',
+        body: 'RsConfigProvider 控制 theme（light / dark / system）、locale、control-size。system 跟随操作系统。首屏请在 html 上写 data-rs-theme，避免闪烁。运行时用 useRsConfig() 的 setTheme / setLocale；resolvedTheme 是已解析的明暗。',
         bodyEn:
-          'RsConfigProvider sets theme (light / dark), locale, and control-size. At runtime use useRsConfig().setTheme / setLocale.',
+          'RsConfigProvider sets theme (light / dark / system), locale, and control-size. system follows the OS. Set data-rs-theme on html for first paint. At runtime use setTheme / setLocale; resolvedTheme is the resolved light or dark.',
         code: {
           lang: 'vue',
-          content: '<RsConfigProvider theme="dark" locale="en-US" control-size="md">\n  <App />\n</RsConfigProvider>',
+          content:
+            '<RsConfigProvider theme="system" locale="en-US" control-size="md">\n  <App />\n</RsConfigProvider>',
         },
       },
       {
@@ -174,6 +175,14 @@ export const guideDocs: GuideDoc[] = [
         bodyEn:
           'Tokens inherit. To darken one toolbar outline, override --rs-btn-outline-border on that container only.',
       },
+      {
+        id: 'icons',
+        title: '内置图标',
+        titleEn: 'Built-in icons',
+        body: 'Lucide 线标走 --rs-icon-color。数据源 mark 色是可选子系统：import niuma-ui/brand-icons.css。不引入则为 currentColor。',
+        bodyEn:
+          'Lucide strokes use --rs-icon-color. Data-source mark colors are optional: import niuma-ui/brand-icons.css. Without it, marks use currentColor.',
+      },
     ],
   },
   {
@@ -188,9 +197,25 @@ export const guideDocs: GuideDoc[] = [
         id: 'locale',
         title: '切换语言',
         titleEn: 'Switch locale',
+        body: '内置 zh-CN / en-US。第三方先 registerRsLocale，再把 BCP-47 码传给 locale。缺 key 回退英文。',
+        bodyEn:
+          'Built-in: zh-CN / en-US. Hosts call registerRsLocale, then pass the BCP-47 code to locale. Missing keys fall back to English.',
+        code: {
+          lang: 'ts',
+          content:
+            "import { registerRsLocale } from 'niuma-ui'\n\nregisterRsLocale('ja-JP', {\n  'select.placeholder': '選択してください',\n})\n",
+        },
+      },
+      {
+        id: 'rtl',
+        title: '书写方向',
+        titleEn: 'Writing direction',
+        body: 'dir 默认 auto，跟 locale（ar / he 等为 rtl）。也可强制 dir="rtl"。会写到 html 的 dir 与 lang。',
+        bodyEn:
+          'dir defaults to auto and follows the locale (ar / he → rtl). Force with dir="rtl". Writes html dir and lang.',
         code: {
           lang: 'vue',
-          content: '<RsConfigProvider locale="en-US">\n  <RsEmpty />\n</RsConfigProvider>',
+          content: '<RsConfigProvider locale="ar" dir="auto">\n  <RsEmpty />\n</RsConfigProvider>',
         },
       },
       {

@@ -37,7 +37,7 @@ import { RsButton, RsConfigProvider } from 'niuma-ui'
 2. 在 `src/index.ts` 增加导出却不更新本文「公开面」与文档站。
 3. 把 DOM 实现细节（滚动计算、墨点、Portal 节点查询）当成稳定 API 导出。
 4. 用 `:deep` 或硬编码 px / hex / system 字体栈代替 `--rs-*`。
-5. 新开平行包、平行入口、或第二套主题属性（主题只走 `data-rs-theme` + `RsConfigProvider`）。
+5. 新开平行包、平行入口、或第二套主题属性（主题只走 `data-rs-theme` + `RsConfigProvider`；`system` 只多一个 `data-rs-theme-pref`）。
 6. 在宿主产品仓复制一份 `Rs*` 并改内部类名。要改，回本仓改。
 7. 把 Monaco / xterm / 表格富编辑打进轻量默认路径，或要求营销站 `import *`。
 8. 把 `playground/` 写成对外用法或官网；对外说明只认 `site/`。
@@ -182,7 +182,15 @@ dist/           构建产物（gitignore，npm files 发布）
 
 ## 5. Token、尺寸、圆角、排版
 
-主题只通过 `RsConfigProvider` + `data-rs-theme="light|dark"`。品牌覆盖复制 `src/theme/brand.example.css`，在 `styles.css` **之后**加载同名 `--rs-*`。
+主题只通过 `RsConfigProvider` + `data-rs-theme`。`theme` 可为 `light` | `dark` | `system`。`system` 跟 `prefers-color-scheme`，`applyTheme` 仍把解析结果写成 `data-rs-theme="light|dark"`，并标 `data-rs-theme-pref="system"`。无属性时 CSS 按浅色（`:root:not([data-rs-theme])`），与 Provider 默认 `light` 一致。首屏请在 `index.html` 写好 `data-rs-theme`。
+
+色值只认 `styles.css` / 宿主 brand.css。`themePresets` 是参考色板，不驱动画面。品牌覆盖复制 `src/theme/brand.example.css`，在 `styles.css` **之后**加载同名 `--rs-*`。
+
+文字只认 `--rs-text-primary` / `--rs-text-secondary` / `--rs-text-tertiary` / `--rs-text-disabled` / `--rs-text-inverse` / `--rs-text-link`。`--rs-text` / `--rs-muted` / `--rs-placeholder` 只是别名，新覆盖不要写它们。
+
+Lucide 线标走 `--rs-icon-color`。数据源品牌 mark 色是可选子系统：`import 'niuma-ui/brand-icons.css'`（`--rs-icon-{name}-accent`）。不引入则 mark 为 `currentColor`。
+
+高对比：`forced-colors: active` 时语义 token 映射到 `Canvas` / `CanvasText` / `Highlight` 等系统色，组件不必各写一套。
 
 禁止：
 
@@ -277,14 +285,11 @@ Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
 组件 API（props / 事件 / 插槽 / 类名）只用英文；用户可见字符串必须可翻译。
 
 - 运行时文案（`aria-label`、空态、占位、按钮）走 `useRsI18n()` + `src/locale/messages.ts`。
-- **现网支持的 locale：** `zh-CN`、`en-US`（BCP-47）。默认 `zh-CN`（`src/locale/types.ts`）。新增或修改 key 必须两种语言同一天合入。
-- **再加一种语言（如 `ja-JP`）：**
-  1. 扩展 `RsLocale`；
-  2. 在 `messages.ts` 复制全表，翻译 value，key 不得改；
-  3. 文档站 `site/i18n.ts` 同步加一份；
-  4. 单测覆盖 `t('…')` 回退（缺 key 回 `en-US` 或 `zh-CN`，禁止回中文硬编码）。
-- 数字 / 日期 / 复数：优先 `Intl.*`，不要在组件里写死 `YYYY-MM-DD` 或「共 n 条」。
-- 书写方向：CSS 用逻辑属性（`padding-inline`、`inset-inline-start`）。尚未做完整 RTL 皮肤；`dir="rtl"` 不得靠负 margin 硬翻。要做 RTL 时只加一套逻辑属性补丁，不开第二套类名。
+- **内置 locale：** `zh-CN`、`en-US`（BCP-47）。默认 `zh-CN`。新增或修改 key 必须两种语言同一天合入。
+- **内置 locale 只维护 `zh-CN` / `en-US`。** 其它语言由使用方或社区用 `registerRsLocale` 登记，本包不发官方 ja / ar / ko 等表。
+- **第三方语言：** `registerRsLocale('ja-JP', messages, { dir: 'ltr' })`，然后 `RsConfigProvider locale="ja-JP"`。缺 key 回退 `en-US` → `zh-CN`。不要再改 `RsLocale` 联合类型。
+- 数字 / 日期走 `Intl.*`。`t()` 支持 ICU 子集复数：`{count, plural, one {# item} other {# items}}`，可用 `=0`；类别由 `Intl.PluralRules(locale)` 决定，`#` 换成数字。组件里传 `{ count }` / `{ total }`，不要 `.replace('{total}', …)`。
+- **书写方向：** `RsConfigProvider dir`（`ltr` / `rtl` / `auto`）。`auto` 跟 locale（`ar` / `he` / `fa` / `ur` 为 rtl）。写入元素的 `dir`、`lang`、`data-rs-dir`。CSS 只用逻辑属性（`padding-inline-start`、`inset-inline-end`、`text-align: start`）；禁止负 margin 硬翻，不开第二套类名。视口居中的 `left: 50%`、Drawer / Toaster 的物理 `left`/`right` 放置、对话框拖拽把手、JS `style.left` 除外。RTL 像素回归：Playground `/#/visual/rs-rtl`，`pnpm test:visual`。
 - 文档站文案在 `site/i18n.ts`，**不要**把官网句子写进组件 locale。
 - 仓库规范文档中英文同步更新（`docs/*.md` 与 `docs/*.en.md`）。组件清单两份一起改。
 
@@ -457,8 +462,8 @@ Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
 | 按钮 | `resolveRsButtonVariant` / `resolveRsButtonTone` | 形态与色相 |
 | 锚点 | `hrefToAnchorId`、`flattenAnchorItems`、`pickActiveAnchorHref` | 纯函数；滚动 / ink 不导出 |
 | 尺寸 / 圆角 | `useResolvedRsComponentSize`、`rsRadiusCss` | |
-| 主题 | `applyTheme`、`themePresets` | |
-| i18n | `useRsI18n`、`createTranslator` | |
+| 主题 | `applyTheme`、`resolveThemeMode`、`readResolvedTheme`；`themePresets` 仅参考 | |
+| i18n | `useRsI18n`、`registerRsLocale`、`applyLocale` | |
 | 表单 / 日期校验 | `validateDateValue` 等 | 无 DOM |
 | 表格 | `useRsTable*`（见表格架构文） | 勿在业务再写一套 engine |
 

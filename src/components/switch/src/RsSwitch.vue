@@ -157,7 +157,7 @@ function onUpdate(checked: boolean): void {
 .rs-switch__thumb {
   position: absolute;
   top: 50%;
-  left: var(--rs-switch-pad);
+  inset-inline-start: var(--rs-switch-pad);
   display: block;
   width: var(--rs-switch-thumb);
   height: var(--rs-switch-thumb);
@@ -165,14 +165,12 @@ function onUpdate(checked: boolean): void {
   background: var(--rs-surface);
   box-shadow: var(--rs-shadow-sm);
   transform: translateY(-50%);
-  transition:
-    left var(--rs-transition-fast),
-    right var(--rs-transition-fast);
+  transition: inset-inline var(--rs-transition-fast);
 }
 
 .rs-switch--checked .rs-switch__thumb {
-  left: auto;
-  right: var(--rs-switch-pad);
+  inset-inline-start: auto;
+  inset-inline-end: var(--rs-switch-pad);
 }
 
 .rs-switch__label {

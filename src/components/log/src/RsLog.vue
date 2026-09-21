@@ -438,7 +438,11 @@ watch(
   async (count, prev) => {
     const delta = count - (prev ?? 0)
     if (liveMode.value !== 'off' && delta > 0) {
-      announcement.value = t('log.newLines', '{count} new lines', { count: delta })
+      announcement.value = t(
+        'log.newLines',
+        '{count, plural, one {# new line} other {# new lines}}',
+        { count: delta },
+      )
     }
     if (!props.follow || delta <= 0 || !stuckToBottom.value) return
     await nextTick()

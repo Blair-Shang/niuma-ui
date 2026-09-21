@@ -81,7 +81,7 @@ function selectStep(item: RsStepItem): void {
   border: 0;
   background: transparent;
   color: inherit;
-  text-align: left;
+  text-align: start;
 }
 .rs-steps__trigger:not(:disabled) {
   cursor: pointer;
@@ -133,6 +133,6 @@ function selectStep(item: RsStepItem): void {
 .rs-steps--vertical .rs-steps__separator {
   width: 1px;
   min-height: 1.5rem;
-  margin-left: 0.875rem;
+  margin-inline-start: 0.875rem;
 }
 </style>

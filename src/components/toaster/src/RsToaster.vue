@@ -2,6 +2,7 @@
 import { computed, inject } from 'vue'
 import { Toaster } from 'vue-sonner'
 import { rsConfigKey } from '../../../composables/useRsConfig'
+import { readResolvedTheme } from '../../../theme/apply'
 import type { RsToastPosition } from '../../_shared/src/overlay-utils'
 import { RS_TOAST_DEFAULT_GAP, RS_TOAST_DEFAULT_POSITION } from '../../_shared/src/overlay-utils'
 
@@ -25,14 +26,10 @@ withDefaults(
 const config = inject(rsConfigKey, null)
 
 const sonnerTheme = computed<'light' | 'dark'>(() => {
-  if (config?.theme.value) {
-    return config.theme.value === 'dark' ? 'dark' : 'light'
+  if (config?.resolvedTheme.value) {
+    return config.resolvedTheme.value
   }
-  if (typeof document !== 'undefined') {
-    const mode = document.documentElement.dataset.rsTheme
-    if (mode === 'dark' || mode === 'light') return mode
-  }
-  return 'dark'
+  return readResolvedTheme()
 })
 </script>
 
@@ -110,8 +107,7 @@ const sonnerTheme = computed<'light' | 'dark'>(() => {
 }
 
 [data-sonner-toaster].rs-toaster [data-sonner-toast].rs-toast[data-x-position='center'] {
-  left: 0;
-  right: 0;
+  inset-inline: 0;
 }
 
 .rs-toast {
@@ -236,8 +232,8 @@ const sonnerTheme = computed<'light' | 'dark'>(() => {
 .rs-toast [data-close-button].rs-toast__close {
   position: absolute;
   top: 50%;
-  right: 0.625rem;
-  left: auto;
+  inset-inline-end: 0.625rem;
+  inset-inline-start: auto;
   bottom: auto;
   z-index: 2;
   display: inline-flex;
@@ -402,7 +398,8 @@ const sonnerTheme = computed<'light' | 'dark'>(() => {
   .rs-toast {
     min-width: min(100%, 18.5rem);
     max-width: calc(100vw - 1rem);
-    padding: 0.75rem 2.125rem 0.75rem 0.8125rem;
+    padding-block: 0.75rem;
+    padding-inline: 0.8125rem 2.125rem;
     border-radius: 0.9375rem;
   }
 
@@ -412,7 +409,7 @@ const sonnerTheme = computed<'light' | 'dark'>(() => {
   }
 
   .rs-toast [data-close-button].rs-toast__close {
-    right: 0.5rem;
+    inset-inline-end: 0.5rem;
     width: 1.25rem;
     height: 1.25rem;
   }

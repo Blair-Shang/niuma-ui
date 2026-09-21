@@ -119,7 +119,7 @@ export async function resolveCodeMirrorLanguage(
 }
 
 export function isCodeMirrorLightTheme(): boolean {
-  return typeof document !== 'undefined' && document.documentElement.dataset.rsTheme === 'light'
+  return typeof document === 'undefined' || document.documentElement.dataset.rsTheme !== 'dark'
 }
 
 /** 预加载 CodeMirror 核心与目标语言包（供辅助窗口 reveal 前调用） */

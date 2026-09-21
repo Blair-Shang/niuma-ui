@@ -1,11 +1,12 @@
-import type { RsThemeMode, RsThemeTokens } from './types'
+import type { RsResolvedTheme, RsThemeTokens } from './types'
 
 /**
- * 色板参考值（与 styles.css 中的 --rs-* 保持同步，勿单独改此处）
- * 暗色：VS Code Dark Modern 灰阶 + macOS 系统色（primary / danger / success 等）
- * 亮色：macOS systemBackground / label + VS Code Light Modern 表格语义
+ * 色板参考值，**不驱动画面**。`applyTheme` 只写 `data-rs-theme`，
+ * 实际颜色只认 `styles.css` / 宿主 brand.css。改皮肤不要只改这里。
+ * 暗色：VS Code Dark Modern 灰阶 + macOS 系统色。
+ * 亮色：macOS systemBackground / label + VS Code Light Modern 表格语义。
  */
-export const themePresets: Record<RsThemeMode, RsThemeTokens> = {
+export const themePresets: Record<RsResolvedTheme, RsThemeTokens> = {
   light: {
     primary: '#007aff',
     primaryHover: '#0071eb',

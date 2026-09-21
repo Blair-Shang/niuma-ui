@@ -5,6 +5,12 @@ export {
   lucideIconCount,
   resolveLucideIcon,
 } from './lucide'
+export {
+  isRsBrandIconName,
+  rsBrandIconAccentVar,
+  rsBrandIconNames,
+} from './brand'
+export type { RsBrandIconName } from './brand'
 
 /** Playground / 文档常用图标（Lucide 全库约 1600+；kebab-case，如 `house`、`trash-2`） */
 export const rsCommonIconNames = [

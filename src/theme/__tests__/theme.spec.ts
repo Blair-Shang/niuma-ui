@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createRsConfigState } from '../../composables/useRsConfig'
-import { applyTheme } from '../apply'
+import { applyTheme, readResolvedTheme, resolveThemeMode } from '../apply'
 import { themePresets } from '../presets'
+import { themePrefAttribute } from '../types'
 import {
   RS_FONT_SIZES,
   RS_FONT_SIZE_CSS,
@@ -20,13 +21,56 @@ describe('useRsConfig / theme', () => {
     expect(zh.t('form.validate.required', { label: '邮箱' })).toBe('请填写邮箱')
     expect(en.t('form.validate.required', { label: 'Email' })).toBe('Please enter Email')
     expect(en.t('breadcrumb.label')).toBe('Breadcrumb')
+    expect(en.t('pagination.summary', { total: 1 })).toBe('1 item')
+    expect(en.t('pagination.summary', { total: 8 })).toBe('8 items')
+    expect(zh.t('pagination.summary', { total: 1 })).toBe('共 1 条')
+    expect(en.t('log.newLines', { count: 1 })).toBe('1 new line')
+    expect(en.t('log.newLines', { count: 3 })).toBe('3 new lines')
+  })
+
+  afterEach(() => {
+    document.documentElement.removeAttribute('data-rs-theme')
+    document.documentElement.removeAttribute(themePrefAttribute)
+    vi.unstubAllGlobals()
   })
 
   it('applyTheme sets data-rs-theme on element', () => {
     applyTheme('light')
     expect(document.documentElement.dataset.rsTheme).toBe('light')
+    expect(document.documentElement.getAttribute(themePrefAttribute)).toBeNull()
     applyTheme('dark')
     expect(document.documentElement.dataset.rsTheme).toBe('dark')
+  })
+
+  it('applyTheme system writes resolved light/dark and pref', () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('prefers-color-scheme: dark'),
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    applyTheme('system')
+    expect(document.documentElement.dataset.rsTheme).toBe('dark')
+    expect(document.documentElement.getAttribute(themePrefAttribute)).toBe('system')
+    expect(resolveThemeMode('system')).toBe('dark')
+  })
+
+  it('readResolvedTheme defaults to light when attribute is missing', () => {
+    expect(readResolvedTheme()).toBe('light')
+    document.documentElement.setAttribute('data-rs-theme', 'dark')
+    expect(readResolvedTheme()).toBe('dark')
+  })
+
+  it('createRsConfigState resolves system preference', () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    const cfg = createRsConfigState('system', 'en-US')
+    expect(cfg.theme.value).toBe('system')
+    expect(cfg.resolvedTheme.value).toBe('light')
   })
 
   it('exposes typography token ladders', () => {

@@ -1,6 +1,6 @@
 {
   "name": "niuma-ui",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "license": "Apache-2.0",
   "type": "module",
   "description": "Vue 3 workbench design system — Rs* components, --rs-* tokens, optional Monaco / CodeMirror / xterm",
@@ -38,6 +38,7 @@
       "default": "./dist/index.js"
     },
     "./styles.css": "./dist/styles.css",
+    "./brand-icons.css": "./dist/brand-icons.css",
     "./vite-plugins/monaco-zh-nls": {
       "types": "./dist/vite-plugins/monaco-zh-nls.d.ts",
       "import": "./dist/vite-plugins/monaco-zh-nls.js",

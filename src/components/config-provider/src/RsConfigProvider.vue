@@ -1,14 +1,19 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { createRsConfigState, provideRsConfig } from '../../../composables/useRsConfig'
-import { applyTheme } from '../../../theme/apply'
-import { defaultLocale, type RsLocale } from '../../../locale/types'
+import { applyLocale } from '../../../locale/apply'
+import { defaultLocale, type RsDirMode, type RsLocale } from '../../../locale/types'
+import { applyTheme, subscribePreferredColorScheme } from '../../../theme/apply'
 import type { RsComponentSize, RsRadius, RsThemeMode } from '../../../theme/types'
+
+defineOptions({ name: 'RsConfigProvider' })
 
 const props = withDefaults(
   defineProps<{
     theme?: RsThemeMode
     locale?: RsLocale
+    /** auto：跟 locale（ar / he 等为 rtl）；也可强制 ltr / rtl */
+    dir?: RsDirMode
     /** 全局默认控件尺寸：ssm 极小 / sm 小号 / md 中号 / lg 大号 */
     controlSize?: RsComponentSize
     /**
@@ -17,14 +22,15 @@ const props = withDefaults(
      */
     controlRadius?: RsRadius
     /**
-     * global：data-rs-theme 写到 document（默认，Portal 弹出层同步）
-     * local：写到 Provider 根节点（子树隔离，业务 CSS 可 scoped 到 .rs-app-*）
+     * global：主题与 dir 写到 document（默认，Portal 弹出层同步）
+     * local：写到 Provider 根节点
      */
     themeScope?: 'global' | 'local'
   }>(),
   {
     theme: 'light',
     locale: defaultLocale,
+    dir: 'auto',
     controlSize: 'md',
     themeScope: 'global',
   },
@@ -36,16 +42,38 @@ const config = createRsConfigState(
   props.locale,
   props.controlSize,
   props.controlRadius,
+  props.dir,
 )
 provideRsConfig(config)
 
+let stopPreferred: (() => void) | undefined
+
+function chromeTarget(): HTMLElement | undefined {
+  if (typeof document === 'undefined') return undefined
+  if (props.themeScope === 'local' && rootEl.value) {
+    return rootEl.value
+  }
+  return document.documentElement
+}
+
 function syncTheme() {
-  if (typeof document === 'undefined') return
-  const el =
-    props.themeScope === 'local' && rootEl.value
-      ? rootEl.value
-      : document.documentElement
+  const el = chromeTarget()
+  if (!el) return
   applyTheme(config.theme.value, el)
+  config.syncResolvedTheme()
+}
+
+function syncLocale() {
+  const el = chromeTarget()
+  if (!el) return
+  applyLocale(config.locale.value, config.dir.value, el)
+}
+
+function bindPreferredListener(mode: RsThemeMode) {
+  stopPreferred?.()
+  stopPreferred = undefined
+  if (mode !== 'system') return
+  stopPreferred = subscribePreferredColorScheme(syncTheme)
 }
 
 watch(
@@ -61,6 +89,12 @@ watch(
   },
 )
 watch(
+  () => props.dir,
+  (value) => {
+    if (value !== config.dir.value) config.setDir(value)
+  },
+)
+watch(
   () => props.controlSize,
   (value) => {
     if (value && value !== config.controlSize.value) config.setControlSize(value)
@@ -72,8 +106,29 @@ watch(
     if (value !== config.controlRadius.value) config.setControlRadius(value)
   },
 )
-watch(() => config.theme.value, syncTheme, { immediate: true })
-watch(() => props.themeScope, syncTheme)
+watch(
+  () => config.theme.value,
+  (mode) => {
+    syncTheme()
+    bindPreferredListener(mode)
+  },
+  { immediate: true },
+)
+watch([() => config.locale.value, () => config.dir.value], syncLocale, { immediate: true })
+watch(() => props.themeScope, () => {
+  syncTheme()
+  syncLocale()
+})
+watch(rootEl, () => {
+  if (props.themeScope === 'local') {
+    syncTheme()
+    syncLocale()
+  }
+})
+
+onBeforeUnmount(() => {
+  stopPreferred?.()
+})
 </script>
 
 <template>
@@ -84,7 +139,7 @@ watch(() => props.themeScope, syncTheme)
 
 <style scoped>
 .rs-config-provider {
-  color: var(--rs-text);
+  color: var(--rs-text-primary);
   background: var(--rs-bg);
   height: 100%;
   min-height: 0;

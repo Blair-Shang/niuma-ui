@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RsIcon from '../src/RsIcon.vue'
 import {
+  isRsBrandIconName,
   isRsIconName,
   lucideIconCount,
   resolveLucideIcon,
+  rsBrandIconAccentVar,
+  rsBrandIconNames,
   rsCommonIconNames,
 } from '../../../icons/registry'
 
@@ -254,5 +257,14 @@ describe('RsIcon', () => {
     })
     expect(wrapper.find('svg').classes()).toContain('rs-icon')
     expect(wrapper.find('svg').classes()).toContain('custom-icon')
+  })
+
+  it('marks built-in brand icons and exposes accent tokens', () => {
+    expect(rsBrandIconNames).toContain('mysql')
+    expect(isRsBrandIconName('mysql')).toBe(true)
+    expect(isRsBrandIconName('house')).toBe(false)
+    expect(rsBrandIconAccentVar('mysql')).toBe('--rs-icon-mysql-accent')
+    const wrapper = mount(RsIcon, { props: { name: 'mysql' } })
+    expect(wrapper.find('svg').classes()).toContain('rs-icon--brand')
   })
 })

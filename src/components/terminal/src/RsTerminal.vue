@@ -982,7 +982,7 @@ defineExpose(exposed)
 .rs-terminal__search {
   position: absolute;
   top: var(--rs-space-xs);
-  right: var(--rs-space-xs);
+  inset-inline-end: var(--rs-space-xs);
   z-index: 2;
   display: flex;
   align-items: center;

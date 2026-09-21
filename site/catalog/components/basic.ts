@@ -70,16 +70,25 @@ export const basicComponents: ComponentDoc[] = [
     group: 'basic',
     summary: '按名称渲染 Lucide 与业务图标。',
     description:
-      '图标组件按字符串名称渲染 Lucide（及业务注册表中的扩展图标）。尺寸优先跟随控件档位，业务不要硬编码 px，除非图标脱离控件独立展示。',
+      '图标组件按字符串名称渲染 Lucide，以及工作台内置品牌 mark（mysql、redis、postgres 等）。尺寸优先跟随控件档位，业务不要硬编码 px，除非图标脱离控件独立展示。',
     whenToUse: [
       '按钮、输入框、空状态等需要语义图标时。',
       '需要在运行时按名称切换图标，而不是每个文件静态 import 图标组件。',
+      '连接树 / 数据源需要品牌 mark 时，用内置名（见 rsBrandIconNames），不要另画一套。',
     ],
     props: [
-      { name: 'name', type: 'string', description: '图标名，Lucide kebab-case，如 plus、search。' },
+      { name: 'name', type: 'string', description: '图标名，Lucide kebab-case，或内置品牌名如 mysql。' },
       { name: 'size', type: 'number', description: '像素边长。控件内通常由父组件传入档位默认值。' },
+      { name: 'color', type: 'string', description: '覆盖颜色。品牌 mark 会写入对应 --rs-icon-*-accent。' },
+      { name: 'label', type: 'string', description: '有值时作为语义图标（role=img）；无值时装饰性。' },
     ],
-    tokens: [{ name: '--rs-icon-color', default: 'currentColor', description: '默认跟随文字色。' }],
+    tokens: [
+      { name: '--rs-icon-color', default: 'currentColor', description: 'Lucide 线标默认色。' },
+      { name: '--rs-icon-mysql-accent', default: '#4479a1 / #5a9fd4', description: 'MySQL mark。' },
+      { name: '--rs-icon-redis-accent', default: '#dc382d / #ff6f61', description: 'Redis mark。' },
+      { name: '--rs-icon-postgres-accent', default: '#336791 / #6a9ec4', description: 'PostgreSQL mark。' },
+      { name: '--rs-icon-mongodb-accent', default: '#47a248 / #5cb85c', description: 'MongoDB mark。' },
+    ],
     related: ['button', 'empty'],
   },
   {

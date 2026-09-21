@@ -48,7 +48,9 @@ const { t } = useRsI18n()
 const jumpPageInput = ref(String(page.value))
 const pageCount = computed(() => getPageCount(props.total, pageSize.value))
 const range = computed(() => getPaginationRange(page.value, pageCount.value, props.siblingCount))
-const summaryText = computed(() => t('pagination.summary', 'Total {total} items').replace('{total}', String(props.total)))
+const summaryText = computed(() =>
+  t('pagination.summary', '{total, plural, one {# item} other {# items}}', { total: props.total }),
+)
 const pageSizeSelectValue = computed({
   get: () => String(pageSize.value),
   set: (value: string) => {

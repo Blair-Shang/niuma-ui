@@ -1011,8 +1011,7 @@ defineExpose({
 .rs-tree__row--drop-after::after {
   content: '';
   position: absolute;
-  left: 0;
-  right: 0;
+  inset-inline: 0;
   height: 2px;
   background: var(--rs-tree-drop-indicator);
   pointer-events: none;

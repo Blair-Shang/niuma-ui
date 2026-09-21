@@ -8,7 +8,7 @@ Usage, when-to-use, and API live only on the docs site: [https://blair-shang.git
 
 **Contract:** the public API is named imports from the package root. `vite build` / CI resolve that entry and do not depend on rewrite plugins. `niumaUiHost` is **serve-only** (`pnpm dev`). Do not alias the package to `src/index.ts`.
 
-1. `styles.css` is standalone (tokens + reset + components) and **does not** include Tailwind. Hosts only `import 'niuma-ui/styles.css'`. If the app uses utility classes, import Tailwind in the host CSS.
+1. `styles.css` is standalone (tokens + reset + components) and **does not** include Tailwind. Hosts `import 'niuma-ui/styles.css'`. Add `import 'niuma-ui/brand-icons.css'` for data-source mark colors. If the app uses utility classes, import Tailwind in the host CSS.
 2. Enable `niumaUiHost()` (`niuma-ui/vite-plugins/niuma-ui-host`):
    - `pnpm dev` + `link:`: named imports rewrite to `src/**/*.vue`, `styles.css` points at source, components HMR.
    - `vite build` / CI: no rewrite; resolve real re-exports from `dist/index.js`.
@@ -82,6 +82,7 @@ pnpm install --no-frozen-lockfile
 
    ```ts
    import 'niuma-ui/styles.css'
+   import 'niuma-ui/brand-icons.css' // optional: official data-source mark colors
    ```
 
    Do not write `@import 'niuma-ui/src/styles.css'`.
@@ -100,8 +101,13 @@ pnpm install --no-frozen-lockfile
 
 ### Theme and brand
 
-- `RsConfigProvider` `theme` (`light` | `dark`) writes `data-rs-theme`.
+- `RsConfigProvider` `theme` is `light` | `dark` | `system`. `system` follows the OS; the DOM still gets `data-rs-theme="light|dark"`.
+- No attribute means light. Set `<html data-rs-theme="light">` (or `dark`) for first paint.
+- Colors live in CSS only. `themePresets` is a reference and does not restyle the page.
 - Override the same `--rs-*` names in host CSS. See [`src/theme/brand.example.css`](../src/theme/brand.example.css).
+- Override text with `--rs-text-primary` (do not start new overrides on `--rs-text`).
+- Brand mark colors are optional: `import 'niuma-ui/brand-icons.css'`. Without it, marks are monochrome.
+- Extra languages (host / community; this package does not ship official ja / ar packs): `registerRsLocale('ja-JP', { 'select.placeholder': '…' })`, then `locale="ja-JP"`. `t()` supports `{count, plural, one {#} other {#}}`. RTL: `dir="rtl"` or `{ dir: 'rtl' }` when registering.
 - Subsystems: `--rs-table-*`, `--rs-terminal-*`, `--rs-code-*`, `--rs-prose-*`.
 - Type scale: `--rs-font-size-*`, `--rs-font-weight-*`, `--rs-font-sans|mono|serif`.
 - JS helpers: `RS_FONT_SIZE_CSS`, `RS_FONT_WEIGHT_CSS`, `readCssLengthPx`, `readCodeFontFamily`.

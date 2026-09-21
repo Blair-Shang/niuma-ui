@@ -107,11 +107,18 @@ function niumaUiHostAlias(ctx: HostContext): Plugin {
       const styles = existsSync(join(ctx.root, 'src/styles/index.css'))
         ? join(ctx.root, 'src/styles/index.css')
         : join(ctx.root, 'src/styles.css')
+      const brandIcons = join(ctx.root, 'src/icons/style/brand-icon-tokens.css')
       const alias = [
         ...(existsSync(styles)
           ? [
               { find: '@niuma/ui/styles.css', replacement: styles },
               { find: 'niuma-ui/styles.css', replacement: styles },
+            ]
+          : []),
+        ...(existsSync(brandIcons)
+          ? [
+              { find: '@niuma/ui/brand-icons.css', replacement: brandIcons },
+              { find: 'niuma-ui/brand-icons.css', replacement: brandIcons },
             ]
           : []),
         ...dayjsAlias,

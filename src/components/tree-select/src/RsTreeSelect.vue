@@ -144,12 +144,12 @@ function onClear(): void {
 .rs-tree-select__placeholder {
   flex: 1;
   color: var(--rs-muted);
-  text-align: left;
+  text-align: start;
 }
 .rs-tree-select__value {
   flex: 1;
   overflow: hidden;
-  text-align: left;
+  text-align: start;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

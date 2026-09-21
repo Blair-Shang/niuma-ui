@@ -1,4 +1,11 @@
-export type RsThemeMode = 'dark' | 'light'
+/** 已落到 DOM 的明暗（`data-rs-theme` 只写这两个值）。 */
+export type RsResolvedTheme = 'light' | 'dark'
+
+/**
+ * 主题偏好。`system` 跟随 `prefers-color-scheme`，
+ * `applyTheme` 仍把解析结果写到 `data-rs-theme="light|dark"`。
+ */
+export type RsThemeMode = RsResolvedTheme | 'system'
 
 /**
  * 控件尺寸（由小到大）：
@@ -104,9 +111,9 @@ export const RS_FONT_WEIGHT_CSS: Record<RsFontWeight, string> = {
 }
 
 /**
- * 设计 token
- * 色彩语义：Google MD3 容器色 + 字节 Arco 中性色 + 国际 SaaS 功能色
- * 文字语义：Ant / Arco 四级（primary / secondary / tertiary / disabled）+ link / inverse
+ * 设计 token（JS 参考面，与 styles.css 同名语义对应）。
+ * 色相：primary 与功能色（danger / success / warning / info）及 container / on-container。
+ * 文字：primary / secondary / tertiary / disabled / inverse / link。
  */
 export interface RsThemeTokens {
   primary: string
@@ -121,11 +128,11 @@ export interface RsThemeTokens {
   inputBg: string
   border: string
   borderSubtle: string
-  /** 主文案（与 --rs-text / --rs-text-primary 同步） */
+  /** 主文案（--rs-text-primary） */
   text: string
-  /** 次要文案（与 --rs-muted / --rs-text-secondary 同步） */
+  /** 次要文案（--rs-text-secondary） */
   muted: string
-  /** 占位 / 三级文案（与 --rs-placeholder / --rs-text-tertiary 同步） */
+  /** 占位 / 三级文案（--rs-text-tertiary） */
   placeholder: string
   /** 禁用文案（与 --rs-text-disabled 同步） */
   textDisabled: string
@@ -147,3 +154,6 @@ export interface RsThemeTokens {
 }
 
 export const themeAttribute = 'data-rs-theme'
+
+/** 偏好为 system 时写入，便于宿主区分「用户选了暗色」和「跟着系统」。 */
+export const themePrefAttribute = 'data-rs-theme-pref'

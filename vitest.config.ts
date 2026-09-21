@@ -7,6 +7,9 @@ export default defineConfig({
   resolve: {
     alias: {
       'niuma-ui/styles.css': fileURLToPath(new URL('./src/styles/index.css', import.meta.url)),
+      'niuma-ui/brand-icons.css': fileURLToPath(
+        new URL('./src/icons/style/brand-icon-tokens.css', import.meta.url),
+      ),
       'niuma-ui': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },

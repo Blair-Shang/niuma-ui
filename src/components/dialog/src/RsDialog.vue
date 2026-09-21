@@ -772,8 +772,7 @@ defineExpose({
 }
 .rs-dialog__resize-handle--n,
 .rs-dialog__resize-handle--s {
-  left: 0.5rem;
-  right: 0.5rem;
+  inset-inline: 0.5rem;
   height: 0.5rem;
   cursor: ns-resize;
 }
