@@ -1,18 +1,17 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, type Component, watchEffect } from 'vue'
 import { useRoute } from 'vue-router'
-import { useRsConfig } from 'niuma-ui'
 import { getComponent } from '../catalog/components'
 import DocPage from '../components/DocPage.vue'
 import { useDocToc } from '../composables/doc-toc'
-import { siteText, type SiteLocale } from '../i18n'
+import { useSiteI18n } from '../composables/use-site-i18n'
 
 const demoLoaders = import.meta.glob('../demos/*.vue')
 
 const route = useRoute()
-const { locale } = useRsConfig()
+const { chrome, pair } = useSiteI18n()
 const toc = useDocToc()
-const copy = computed(() => siteText(locale.value as SiteLocale).doc)
+const copy = computed(() => chrome.value.doc)
 
 const doc = computed(() => getComponent(String(route.params.slug)))
 
@@ -30,11 +29,19 @@ watchEffect(() => {
     toc.value = []
     return
   }
+  const demoChildren = (current.demos ?? []).map((demo) => ({
+    id: demo.id,
+    title: pair(demo.title, demo.titleEn),
+  }))
   const items = [
-    { id: 'overview', title: current.titleZh },
+    { id: 'overview', title: copy.value.overview },
     { id: 'import', title: copy.value.import },
     { id: 'when-to-use', title: copy.value.whenToUse },
-    { id: 'demos', title: copy.value.demos },
+    {
+      id: 'demos',
+      title: copy.value.demos,
+      children: demoChildren.length ? demoChildren : undefined,
+    },
     { id: 'api', title: copy.value.api },
   ]
   if (current.tokens?.length) items.push({ id: 'token', title: copy.value.tokens })
@@ -47,10 +54,10 @@ watchEffect(() => {
 <template>
   <DocPage v-if="doc" :doc="doc">
     <component :is="Demo" v-if="Demo" />
-    <p v-else class="missing">该组件的交互示例正在补充，请先查阅下方 API。</p>
+    <p v-else class="missing">{{ copy.missingDemo }}</p>
   </DocPage>
   <article v-else>
-    <h1>未找到该组件</h1>
+    <h1>{{ copy.notFound }}</h1>
   </article>
 </template>
 

@@ -1,16 +1,23 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRsConfig } from 'niuma-ui'
-import { siteText, type SiteLocale } from '../i18n'
 import type { ApiRow } from '../catalog/types'
+import { useSiteI18n } from '../composables/use-site-i18n'
 
 const props = defineProps<{
   title: string
   rows: ApiRow[]
 }>()
 
-const { locale } = useRsConfig()
-const copy = computed(() => siteText(locale.value as SiteLocale).doc)
+const { chrome, pair } = useSiteI18n()
+const copy = computed(() => chrome.value.doc)
+
+function rowDesc(row: ApiRow) {
+  return pair(row.description, row.descriptionEn)
+}
+
+function rowDefault(row: ApiRow) {
+  return pair(row.default, row.defaultEn)
+}
 </script>
 
 <template>
@@ -29,10 +36,10 @@ const copy = computed(() => siteText(locale.value as SiteLocale).doc)
         <tbody>
           <tr v-for="row in props.rows" :key="row.name">
             <td><code>{{ row.name }}</code></td>
-            <td>{{ row.description }}</td>
+            <td>{{ rowDesc(row) }}</td>
             <td><code>{{ row.type }}</code></td>
             <td>
-              <code v-if="row.default">{{ row.default }}</code>
+              <code v-if="rowDefault(row)">{{ rowDefault(row) }}</code>
               <span v-else class="api-table__muted">—</span>
             </td>
           </tr>

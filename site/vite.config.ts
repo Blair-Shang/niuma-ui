@@ -53,7 +53,16 @@ export default defineConfig({
         new URL('../src/icons/style/brand-icon-tokens.css', import.meta.url),
       ),
       'niuma-ui': fileURLToPath(new URL('../src', import.meta.url)),
+      'vue-i18n': fileURLToPath(new URL('../node_modules/vue-i18n', import.meta.url)),
     },
+  },
+  optimizeDeps: {
+    include: ['vue-i18n'],
+  },
+  define: {
+    __VUE_I18N_FULL_INSTALL__: true,
+    __VUE_I18N_LEGACY_API__: false,
+    __INTLIFY_PROD_DEVTOOLS__: false,
   },
   server: {
     host: '127.0.0.1',

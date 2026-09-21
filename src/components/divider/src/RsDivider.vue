@@ -1,7 +1,14 @@
 <script setup lang="ts">
-withDefaults(
+import { computed, useId, useSlots } from 'vue'
+import { type RsDividerOrientation } from './divider-utils'
+
+defineOptions({ name: 'RsDivider' })
+
+export type { RsDividerOrientation }
+
+const props = withDefaults(
   defineProps<{
-    orientation?: 'horizontal' | 'vertical'
+    orientation?: RsDividerOrientation
     dashed?: boolean
   }>(),
   {
@@ -9,19 +16,30 @@ withDefaults(
     dashed: false,
   },
 )
+
+const slots = useSlots()
+const labelId = useId()
+const hasSlot = computed(() => Boolean(slots.default))
+const showLabel = computed(() => hasSlot.value && props.orientation === 'horizontal')
+
+const rootClass = computed(() => [
+  'rs-divider',
+  `rs-divider--${props.orientation}`,
+  {
+    'rs-divider--dashed': props.dashed,
+    'rs-divider--with-label': hasSlot.value,
+  },
+])
 </script>
 
 <template>
-  <div
-    class="rs-divider"
-    :class="[
-      `rs-divider--${orientation}`,
-      { 'rs-divider--dashed': dashed, 'rs-divider--with-label': $slots.default },
-    ]"
-    role="separator"
+  <hr
+    v-if="!showLabel"
+    :class="rootClass"
     :aria-orientation="orientation"
-  >
-    <span v-if="$slots.default && orientation === 'horizontal'" class="rs-divider__label">
+  />
+  <div v-else :class="rootClass">
+    <span :id="labelId" class="rs-divider__label">
       <slot />
     </span>
   </div>
@@ -29,6 +47,9 @@ withDefaults(
 
 <style scoped>
 .rs-divider {
+  --rs-divider-color: var(--rs-border);
+  --rs-divider-width: 1px;
+  --rs-divider-gap: var(--rs-space-md);
   flex-shrink: 0;
   box-sizing: border-box;
   border: 0;
@@ -39,37 +60,38 @@ withDefaults(
   display: flex;
   align-items: center;
   width: 100%;
-  margin: var(--rs-space-md) 0;
+  margin-block: var(--rs-divider-gap);
+  margin-inline: 0;
 }
 
-.rs-divider--horizontal:not(.rs-divider--with-label)::before {
-  content: '';
+hr.rs-divider--horizontal {
   display: block;
-  width: 100%;
-  border-top: 1px solid var(--rs-border);
+  height: 0;
+  border-block-start: var(--rs-divider-width) solid var(--rs-divider-color);
 }
 
-.rs-divider--horizontal.rs-divider--dashed:not(.rs-divider--with-label)::before {
-  border-top-style: dashed;
+hr.rs-divider--horizontal.rs-divider--dashed {
+  border-block-start-style: dashed;
 }
 
 .rs-divider--horizontal.rs-divider--with-label::before,
 .rs-divider--horizontal.rs-divider--with-label::after {
   content: '';
   flex: 1 1 auto;
-  border-top: 1px solid var(--rs-border);
+  border-block-start: var(--rs-divider-width) solid var(--rs-divider-color);
 }
 
 .rs-divider--horizontal.rs-divider--dashed.rs-divider--with-label::before,
 .rs-divider--horizontal.rs-divider--dashed.rs-divider--with-label::after {
-  border-top-style: dashed;
+  border-block-start-style: dashed;
 }
 
 .rs-divider__label {
   flex-shrink: 0;
-  padding: 0 var(--rs-space-md);
+  padding-block: 0;
+  padding-inline: var(--rs-divider-gap);
   font-size: var(--rs-font-size-xs);
-  color: var(--rs-muted);
+  color: var(--rs-text-secondary);
   white-space: nowrap;
 }
 
@@ -78,12 +100,25 @@ withDefaults(
   align-self: stretch;
   width: 0;
   min-height: 1em;
-  margin: 0 var(--rs-space-md);
-  border-inline-start: 1px solid var(--rs-border);
+  margin-block: 0;
+  margin-inline: var(--rs-divider-gap);
+  border-inline-start: var(--rs-divider-width) solid var(--rs-divider-color);
   vertical-align: middle;
 }
 
 .rs-divider--vertical.rs-divider--dashed {
   border-inline-start-style: dashed;
+}
+
+@media (forced-colors: active) {
+  hr.rs-divider--horizontal,
+  .rs-divider--horizontal.rs-divider--with-label::before,
+  .rs-divider--horizontal.rs-divider--with-label::after {
+    border-block-start-color: CanvasText;
+  }
+
+  .rs-divider--vertical {
+    border-inline-start-color: CanvasText;
+  }
 }
 </style>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   isRsButtonFilledVariant,
+  placeRsButtonTip,
   resolveRsButtonTone,
   resolveRsButtonVariant,
   supportsRsButtonTone,
@@ -27,5 +28,25 @@ describe('button-utils', () => {
     expect(supportsRsButtonTone('default')).toBe(true)
     expect(isRsButtonFilledVariant('default')).toBe(true)
     expect(isRsButtonFilledVariant('text')).toBe(false)
+  })
+
+  it('places the tip below when the viewport has room', () => {
+    const box = placeRsButtonTip(
+      { top: 80, left: 40, width: 80, height: 32 },
+      { width: 72, height: 28 },
+      { width: 800, height: 600 },
+    )
+    expect(box.top).toBe(118)
+    expect(box.left).toBeGreaterThanOrEqual(6)
+    expect(box.left + 72).toBeLessThanOrEqual(794)
+  })
+
+  it('flips the tip above when the bottom is tight', () => {
+    const box = placeRsButtonTip(
+      { top: 560, left: 40, width: 80, height: 32 },
+      { width: 72, height: 28 },
+      { width: 800, height: 600 },
+    )
+    expect(box.top).toBeLessThan(560)
   })
 })

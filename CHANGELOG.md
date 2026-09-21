@@ -6,6 +6,29 @@
 
 ## [Unreleased]
 
+## [2.0.3] - 2026-09-21
+
+### 新增
+
+- 文档站接入 vue-i18n（`site/locales`）。顶栏切语言同步 `RsConfigProvider.locale` 与 vue-i18n，并记住上次选择。只用于 site，不进组件库依赖。
+- `RsBadge`：补 `name` 与公开类型 `RsBadgeVariant`。只写 `variant` + 默认插槽时仍是原来的状态芯片。可选 `count` / `max` / `dot` / `showZero`：有插槽时为角标，无插槽时只渲染数字或点。文档站按 site README 补全 events / methods / tokens / FAQ。
+
+### 变更
+
+- 文档站演示与壳层不再用 `isEn` 二分。文案按 locale 表选取（`useSiteDemo` / `pickSitePair`），缺语言回退 en-US → zh-CN；顶栏语言按 `SITE_LOCALES` 轮换。主题仍走 `resolvedTheme` / `data-rs-theme` / token。
+- `RsTag`：补 `name`；关闭钮改用 `RsButton`（仍是 `.rs-tag__close`，props / `close` 语义与原来相同）。文档站按 site README 补全 events / methods / tokens（中英）。
+- `RsDivider`：补 `name` 与公开类型 `RsDividerOrientation`。仍是 `div[role=separator]`，`orientation` / `dashed` / 默认插槽语义不变。文档站按 site README 补全 events / methods / tokens / FAQ（中英）。
+- 文档站基础组 Avatar / Card / Container / Scrollbar：按 site README 补全中英演示、events / methods / tokens / FAQ。Scrollbar 演示可点 `scrollTop` / `getViewport`。
+- `RsIcon`：补 `name`；尺寸档位与 `RS_COMPONENT_SIZE_ICON_PX` 对齐（lg 现为 18）；抽 `icon-utils`；`spin` 尊重减少动态。文档站 Icon 用法与 Button 对齐（中英）。
+- 文档站基础组：Button 补 `iconSize` / 原生 `click` / 事件演示；Badge–Scrollbar 按源码补全 props、事件、插槽、方法（中英）。
+- `RsLink`：去掉 Reka `Primitive`，改为原生 `<a>`；补 `name`、`tone`、`icon`；样式改 scoped，并尊重减少动态。默认 `inline`（有图标才 `inline-flex`）。文档站按 site README 补 events / methods / tokens、跟正文与可感知 click。公开类型 `RsLinkTone` / `RsLinkUnderline`；helper 保持内部。不设 size / theme prop。
+
+### 修复
+
+- `RsButton`：补 `name`，loading 时拦住点击；内置 tip 用自研定位，不再提 Reka。图标在按钮内为装饰，可访问名称只走 `aria-label`。
+- `RsButton` 内置 tip 回到 `calc(var(--rs-z-modal) + 2)`，与 `RsTooltip` / Dialog 内浮层同一档，避免在对话框里被盖住。
+- `RsButton` 幽灵：未传 `bordered` 时不再被 Vue 收成 false（与 text 撞车）；hover 改为 `--rs-surface-hover` 实底，语义色再叠 14% 色相。
+
 ## [2.0.2] - 2026-09-21
 
 ### 变更

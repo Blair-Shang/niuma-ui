@@ -2,19 +2,19 @@
 import { computed, type Component } from 'vue'
 import { isRsBrandIconName, resolveLucideIcon } from '../../../icons/registry'
 import type { RsComponentSize } from '../../../theme/types'
+import {
+  buildRsIconStyle,
+  resolveRsIconPixelSize,
+  type RsIconFlip,
+} from './icon-utils'
 
-const SIZE_PRESET: Record<RsComponentSize, number> = {
-  ssm: 12,
-  sm: 14,
-  md: 16,
-  lg: 20,
-}
+defineOptions({ name: 'RsIcon' })
 
 const props = withDefaults(
   defineProps<{
-    /** Lucide 图标名（kebab-case，如 `house`、`trash-2`） */
+    /** Lucide kebab-case 名称（如 `house`、`trash-2`），或内置品牌 mark */
     name: string
-    /** 数字 px、CSS 长度或 sm / md / lg 预设 */
+    /** 数字 px、CSS 长度，或与控件同一套 ssm / sm / md / lg */
     size?: number | string | RsComponentSize
     /** 无障碍名称；有值时作为语义图标，无值时为装饰性图标 */
     label?: string
@@ -22,7 +22,7 @@ const props = withDefaults(
     /** 覆盖颜色，默认继承 currentColor */
     color?: string
     /** 水平 / 垂直 / 双向翻转 */
-    flip?: 'horizontal' | 'vertical' | 'both'
+    flip?: RsIconFlip
     /** 旋转角度（度），与 spin 不宜同时使用 */
     rotate?: number
     /** 旋转动画，适合 loader 等加载态 */
@@ -36,39 +36,18 @@ const props = withDefaults(
 
 const iconComponent = computed<Component | undefined>(() => resolveLucideIcon(props.name))
 
-const usesCustomSize = computed(() => {
-  const { size } = props
-  return typeof size === 'string' && !(size in SIZE_PRESET) && !/^\d+$/.test(size)
-})
-
-const lucideSize = computed(() => {
-  if (usesCustomSize.value) return undefined
-  const { size } = props
-  if (typeof size === 'number') return size
-  if (size in SIZE_PRESET) return SIZE_PRESET[size as RsComponentSize]
-  return Number.parseInt(String(size), 10) || SIZE_PRESET.md
-})
+const lucideSize = computed(() => resolveRsIconPixelSize(props.size))
 
 const isBrand = computed(() => isRsBrandIconName(props.name))
 
-const iconStyle = computed(() => {
-  const style: Record<string, string> = {}
-  if (props.color) style.color = props.color
-
-  const transforms: string[] = []
-  if (props.flip === 'horizontal') transforms.push('scaleX(-1)')
-  else if (props.flip === 'vertical') transforms.push('scaleY(-1)')
-  else if (props.flip === 'both') transforms.push('scale(-1)')
-  if (props.rotate) transforms.push(`rotate(${props.rotate}deg)`)
-  if (transforms.length) style.transform = transforms.join(' ')
-
-  if (usesCustomSize.value && typeof props.size === 'string') {
-    style.width = props.size
-    style.height = props.size
-  }
-
-  return Object.keys(style).length ? style : undefined
-})
+const iconStyle = computed(() =>
+  buildRsIconStyle({
+    color: props.color,
+    flip: props.flip,
+    rotate: props.rotate,
+    size: props.size,
+  }),
+)
 
 const isSemantic = computed(() => Boolean(props.label))
 </script>
@@ -101,6 +80,11 @@ const isSemantic = computed(() => Boolean(props.label))
 @keyframes rs-icon-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rs-icon--spin {
+    animation: none;
   }
 }
 </style>

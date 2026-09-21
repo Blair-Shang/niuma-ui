@@ -3,11 +3,14 @@ import { computed, nextTick, onUnmounted, ref, useId, useSlots, watch } from 'vu
 import type { RsComponentSize, RsRadius } from '../../../theme/types'
 import { RS_COMPONENT_SIZE_ICON_PX } from '../../../theme/types'
 import {
+  placeRsButtonTip,
   resolveRsButtonTone,
   resolveRsButtonVariant,
   type RsButtonTone,
   type RsButtonVariant,
 } from './button-utils'
+
+defineOptions({ name: 'RsButton' })
 import { useResolvedRsComponentSize } from '../../_shared/src/resolve-size'
 import { rsRadiusCss, useResolvedRsRadius } from '../../_shared/src/resolve-radius'
 import RsIcon from '../../icon/src/RsIcon.vue'
@@ -29,7 +32,10 @@ const props = withDefaults(
     type?: 'button' | 'submit' | 'reset'
     disabled?: boolean
     loading?: boolean
-    /** 是否显示外边框；text 变体默认无边框 */
+    /**
+     * 是否显示外边框。未传时 text / link 无边，其余有边。
+     * 默认必须是 undefined：Vue 会把未传的 Boolean 收成 false。
+     */
     bordered?: boolean
     /** 前缀图标（Lucide kebab-case 名称） */
     icon?: string
@@ -37,8 +43,8 @@ const props = withDefaults(
     /** 仅显示图标，文字通过 tooltip / slot 悬浮展示 */
     iconOnly?: boolean
     /**
-     * 悬浮提示。打开时 Teleport 到 `document.body`（对齐 WAI-ARIA APG Tooltip / Reka Portal）。
-     * 仅图标按钮时作可视提示；无障碍名称仍走 `aria-label`，避免与 tip 重复朗读。
+     * 悬浮提示。Teleport 到 `document.body`，避免被 overflow 裁切。
+     * 仅图标时作可视提示；可访问名称走 `aria-label`，避免读两遍。
      */
     tooltip?: string
     /** icon-only 时无障碍标签（与 tooltip 二选一，避免与外部 RsTooltip 重复） */
@@ -53,6 +59,7 @@ const props = withDefaults(
     loading: false,
     iconOnly: false,
     revealLabel: false,
+    bordered: undefined,
   },
 )
 
@@ -100,10 +107,11 @@ const ariaLabel = computed(() => {
   return props.ariaLabel || props.tooltip || undefined
 })
 
-/** 与 RsTooltipProvider 默认一致：避免路过按钮时闪一下 */
+/** 避免路过按钮时闪一下 */
 const TOOLTIP_DELAY_MS = 300
 
 const tipId = useId()
+const tipRef = ref<HTMLElement | null>(null)
 const tipOpen = ref(false)
 const tipStyle = ref<Record<string, string>>({})
 
@@ -123,24 +131,17 @@ function clearOpenTimer(): void {
 
 function updateTipPosition(): void {
   const el = btnRef.value
-  if (!el) return
+  if (!el || typeof window === 'undefined') return
   const rect = el.getBoundingClientRect()
-  const mid = rect.left + rect.width / 2
-  const vw = window.innerWidth
-  const gap = 6
-  let left = mid
-  let transform = 'translateX(-50%)'
-  if (mid > vw * 0.72) {
-    left = rect.right
-    transform = 'translateX(-100%)'
-  } else if (mid < vw * 0.28) {
-    left = rect.left
-    transform = 'none'
-  }
+  const tip = tipRef.value?.getBoundingClientRect()
+  const box = placeRsButtonTip(
+    { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
+    { width: tip?.width ?? 96, height: tip?.height ?? 28 },
+    { width: window.innerWidth, height: window.innerHeight },
+  )
   tipStyle.value = {
-    top: `${Math.round(rect.bottom + gap)}px`,
-    left: `${Math.round(left)}px`,
-    transform,
+    top: `${box.top}px`,
+    left: `${box.left}px`,
   }
 }
 
@@ -178,11 +179,17 @@ function bindTipFollow(on: boolean): void {
 
 function openTipNow(): void {
   if (!showFloatingText.value || props.disabled || props.loading) return
-  updateTipPosition()
   if (!tipOpen.value) {
     tipOpen.value = true
     bindTipFollow(true)
   }
+  void nextTick(() => updateTipPosition())
+}
+
+function onActivate(event: Event): void {
+  if (!props.loading) return
+  event.preventDefault()
+  event.stopImmediatePropagation()
 }
 
 function scheduleOpenTip(): void {
@@ -221,10 +228,9 @@ watch(
     if (!el) return
     if (loading) {
       await nextTick()
-      const w = el.offsetWidth
-      if (w > 0) {
-        el.style.minWidth = `${w}px`
-      }
+      if (!btnRef.value) return
+      const w = btnRef.value.offsetWidth
+      if (w > 0) btnRef.value.style.minWidth = `${w}px`
     } else {
       el.style.minWidth = ''
     }
@@ -248,6 +254,7 @@ onUnmounted(() => {
     :aria-disabled="disabled || loading || undefined"
     :aria-label="ariaLabel"
     :aria-describedby="tipDescribedBy"
+    @click.capture="onActivate"
     @mouseenter="scheduleOpenTip"
     @mouseleave="closeTip"
     @focus="onFocus"
@@ -261,7 +268,6 @@ onUnmounted(() => {
       class="rs-btn__icon"
       :name="icon"
       :size="resolvedIconSize"
-      :label="iconOnly && tooltip ? tooltip : undefined"
     />
     <span
       v-if="hasLabel && !iconOnly"
@@ -270,9 +276,10 @@ onUnmounted(() => {
     >
       <slot />
     </span>
-    <Teleport to="body">
+    <Teleport v-if="showFloatingText" to="body">
       <span
         v-if="tipOpen"
+        ref="tipRef"
         :id="tipId"
         class="rs-btn__tooltip"
         :style="tipStyle"
@@ -407,9 +414,12 @@ onUnmounted(() => {
   color: var(--rs-btn-tone, var(--rs-text));
 }
 .rs-btn--ghost:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--rs-btn-tone, var(--rs-text)) 8%, transparent);
+  background: var(--rs-surface-hover);
   border-color: var(--rs-btn-outline-border, var(--rs-border));
   color: var(--rs-btn-tone-hover, var(--rs-btn-tone, var(--rs-text)));
+}
+.rs-btn--ghost:active:not(:disabled) {
+  background: color-mix(in srgb, var(--rs-btn-tone, var(--rs-text)) 12%, var(--rs-surface-hover));
 }
 .rs-btn--borderless,
 .rs-btn--borderless:hover:not(:disabled),
@@ -491,28 +501,28 @@ onUnmounted(() => {
 .rs-btn--tone-danger {
   --rs-btn-tone: var(--rs-danger);
   --rs-btn-tone-hover: var(--rs-danger);
-  --rs-btn-tone-fg: #fff;
+  --rs-btn-tone-fg: var(--rs-text-inverse);
   --rs-btn-tone-container: var(--rs-danger-container);
   --rs-btn-tone-on-container: var(--rs-on-danger-container);
 }
 .rs-btn--tone-success {
   --rs-btn-tone: var(--rs-success, #18a058);
   --rs-btn-tone-hover: var(--rs-success, #18a058);
-  --rs-btn-tone-fg: #fff;
+  --rs-btn-tone-fg: var(--rs-text-inverse);
   --rs-btn-tone-container: var(--rs-success-container, color-mix(in srgb, var(--rs-success, #18a058) 14%, var(--rs-surface)));
   --rs-btn-tone-on-container: var(--rs-on-success-container, var(--rs-success, #18a058));
 }
 .rs-btn--tone-warning {
   --rs-btn-tone: var(--rs-warning, #f0a020);
   --rs-btn-tone-hover: var(--rs-warning, #f0a020);
-  --rs-btn-tone-fg: #fff;
+  --rs-btn-tone-fg: var(--rs-text-inverse);
   --rs-btn-tone-container: var(--rs-warning-container, color-mix(in srgb, var(--rs-warning, #f0a020) 14%, var(--rs-surface)));
   --rs-btn-tone-on-container: var(--rs-on-warning-container, var(--rs-warning, #f0a020));
 }
 .rs-btn--tone-info {
   --rs-btn-tone: var(--rs-info, #2080f0);
   --rs-btn-tone-hover: var(--rs-info, #2080f0);
-  --rs-btn-tone-fg: #fff;
+  --rs-btn-tone-fg: var(--rs-text-inverse);
   --rs-btn-tone-container: var(--rs-info-container, color-mix(in srgb, var(--rs-info, #2080f0) 14%, var(--rs-surface)));
   --rs-btn-tone-on-container: var(--rs-on-info-container, var(--rs-info, #2080f0));
 }
@@ -550,6 +560,8 @@ onUnmounted(() => {
 }
 .rs-btn--ghost:not(.rs-btn--tone-neutral):hover:not(:disabled) {
   border-color: var(--rs-btn-tone);
+  background: color-mix(in srgb, var(--rs-btn-tone) 14%, var(--rs-surface));
+  color: var(--rs-btn-tone);
 }
 
 .rs-btn__spinner {
@@ -624,6 +636,7 @@ onUnmounted(() => {
 }
 .rs-btn__tooltip {
   position: fixed;
+  /* Portal 挂 body，必须高于 Dialog/Drawer（100/101），与 RsTooltip 同一档 */
   z-index: calc(var(--rs-z-modal) + 2);
   padding: 0.25rem 0.5rem;
   border-radius: var(--rs-radius-sm);
@@ -640,6 +653,18 @@ onUnmounted(() => {
 @keyframes rs-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rs-btn,
+  .rs-btn__label--reveal {
+    transition: none;
+  }
+
+  .rs-btn__spinner-ring {
+    animation: none;
+    border-top-color: transparent;
   }
 }
 </style>

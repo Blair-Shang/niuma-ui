@@ -1,26 +1,25 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { RsButton, RsIcon, useRsConfig } from 'niuma-ui'
+import { RsButton, RsIcon } from 'niuma-ui'
 import { componentDocs } from '../catalog/components'
 import type { ComponentGroup } from '../catalog/types'
 import HomeShowcase from '../components/HomeShowcase.vue'
 import { siteConfig } from '../config'
 import { useDocToc } from '../composables/doc-toc'
-import { siteText, type SiteLocale } from '../i18n'
+import { useSiteI18n } from '../composables/use-site-i18n'
 
-const { locale } = useRsConfig()
-const copy = computed(() => siteText(locale.value as SiteLocale))
+const { chrome: copy, t } = useSiteI18n()
 const toc = useDocToc()
 const copied = ref(false)
 
-const groups: { key: ComponentGroup; to: string; icon: string; hint: string; hintEn: string }[] = [
-  { key: 'basic', to: '/components/button', icon: 'layers', hint: '按钮、标签、卡片', hintEn: 'Button, Tag, Card' },
-  { key: 'form', to: '/components/form', icon: 'text-cursor-input', hint: '表单、选择、日期', hintEn: 'Form, Select, Date' },
-  { key: 'nav', to: '/components/anchor', icon: 'compass', hint: '锚点、菜单、分栏', hintEn: 'Anchor, Menu, Split' },
-  { key: 'feedback', to: '/components/dialog', icon: 'message-circle', hint: '对话框、抽屉、提示', hintEn: 'Dialog, Drawer, Toast' },
-  { key: 'data', to: '/components/table', icon: 'table-2', hint: '表格、树、描述列表', hintEn: 'Table, Tree, Descriptions' },
-  { key: 'editor', to: '/components/code-editor', icon: 'code-2', hint: '编辑器、日志、终端', hintEn: 'Editor, Log, Terminal' },
+const groups: { key: ComponentGroup; to: string; icon: string }[] = [
+  { key: 'basic', to: '/components/button', icon: 'layers' },
+  { key: 'form', to: '/components/form', icon: 'text-cursor-input' },
+  { key: 'nav', to: '/components/anchor', icon: 'compass' },
+  { key: 'feedback', to: '/components/dialog', icon: 'message-circle' },
+  { key: 'data', to: '/components/table', icon: 'table-2' },
+  { key: 'editor', to: '/components/code-editor', icon: 'code-2' },
 ]
 
 const featureIcons = ['swatch-book', 'blend', 'accessibility', 'layout-dashboard', 'package', 'rocket'] as const
@@ -129,7 +128,7 @@ onMounted(() => {
             <RsIcon :name="item.icon" :size="18" />
           </span>
           <strong>{{ copy.groups[item.key] }}</strong>
-          <span>{{ locale === 'en-US' ? item.hintEn : item.hint }}</span>
+          <span>{{ t(`home.groupHint.${item.key}`) }}</span>
           <em>{{ counts[item.key] }}</em>
         </RouterLink>
       </div>
@@ -175,7 +174,7 @@ onMounted(() => {
 .hero h1 {
   margin: 0 0 0.75rem;
   font-size: clamp(3rem, 6.4vw, 4.35rem);
-  font-weight: 740;
+  font-weight: 700;
   letter-spacing: -0.06em;
   line-height: 0.92;
 }
@@ -184,7 +183,7 @@ onMounted(() => {
   margin: 0 0 0.95rem;
   max-width: 28rem;
   font-size: clamp(1.22rem, 2vw, 1.5rem);
-  font-weight: 560;
+  font-weight: 500;
   line-height: 1.38;
 }
 
@@ -239,7 +238,7 @@ onMounted(() => {
   background: color-mix(in srgb, var(--rs-primary) 12%, transparent);
   color: var(--rs-primary);
   font-size: 0.72rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .hero__pills {
@@ -256,7 +255,7 @@ onMounted(() => {
   background: color-mix(in srgb, var(--rs-surface) 70%, transparent);
   color: var(--rs-muted);
   font-size: 0.75rem;
-  font-weight: 550;
+  font-weight: 500;
   text-decoration: none;
 }
 
@@ -294,7 +293,7 @@ onMounted(() => {
 
 .strip strong {
   font-size: 1.02rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .block {
@@ -417,7 +416,7 @@ onMounted(() => {
   color: var(--rs-primary);
   font-style: normal;
   font-size: 0.92rem;
-  font-weight: 650;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 

@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RsIcon from '../src/RsIcon.vue'
 import {
+  buildRsIconStyle,
+  resolveRsIconPixelSize,
+  rsIconUsesCssSize,
+} from '../src/icon-utils'
+import {
   isRsBrandIconName,
   isRsIconName,
   lucideIconCount,
@@ -166,10 +171,25 @@ describe('RsIcon', () => {
     expect(wrapper.find('svg').attributes('height')).toBe('24')
   })
 
-  it.each(['sm', 'md', 'lg'] as const)('applies %s size preset', (size) => {
+  it.each(['ssm', 'sm', 'md', 'lg'] as const)('applies %s size preset', (size) => {
     const wrapper = mount(RsIcon, { props: { name: 'house', size } })
-    const expected = { sm: '14', md: '16', lg: '20' }[size]
+    const expected = { ssm: '12', sm: '14', md: '16', lg: '18' }[size]
     expect(wrapper.find('svg').attributes('width')).toBe(expected)
+  })
+
+  it('registers a public component name', () => {
+    expect(RsIcon.name ?? RsIcon.__name).toBe('RsIcon')
+  })
+
+  it('resolves size presets and CSS lengths in utils', () => {
+    expect(resolveRsIconPixelSize('md')).toBe(16)
+    expect(resolveRsIconPixelSize('lg')).toBe(18)
+    expect(resolveRsIconPixelSize(24)).toBe(24)
+    expect(resolveRsIconPixelSize('1.5rem')).toBeUndefined()
+    expect(rsIconUsesCssSize('1.5rem')).toBe(true)
+    expect(buildRsIconStyle({ flip: 'horizontal', rotate: 90 })?.transform).toBe(
+      'scaleX(-1) rotate(90deg)',
+    )
   })
 
   it('applies css length size', () => {

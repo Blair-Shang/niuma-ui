@@ -57,3 +57,28 @@ export function isRsButtonFilledVariant(variant: RsButtonVariant): boolean {
 export function supportsRsButtonTone(_variant?: RsButtonVariant): boolean {
   return true
 }
+
+export interface RsButtonTipBox {
+  top: number
+  left: number
+}
+
+/** 把内置 tip 贴到按钮：优先下方，贴边时夹进视口。供测试与 SSR 无 window 调用。 */
+export function placeRsButtonTip(
+  anchor: { top: number; left: number; width: number; height: number },
+  popup: { width: number; height: number },
+  viewport: { width: number; height: number },
+  gap = 6,
+): RsButtonTipBox {
+  const below = anchor.top + anchor.height + gap
+  const above = anchor.top - popup.height - gap
+  const top =
+    below + popup.height <= viewport.height || above < gap ? below : Math.max(gap, above)
+  const width = Math.min(popup.width, Math.max(0, viewport.width - gap * 2))
+  const preferred = anchor.left + anchor.width / 2 - width / 2
+  const maxLeft = Math.max(gap, viewport.width - width - gap)
+  return {
+    top: Math.round(top),
+    left: Math.round(Math.min(Math.max(gap, preferred), maxLeft)),
+  }
+}

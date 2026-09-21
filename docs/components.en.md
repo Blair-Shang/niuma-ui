@@ -276,8 +276,8 @@ Keep `*-utils.ts` pure and tested. Vue files bind lifecycle, events, and style.
 3. `src/index.ts`: `export { RsXxx } from './components/{slug}'`. Public types / host helpers per §4, re-exported from the same folder.
 4. `zh-CN` + `en-US` keys in `src/locale/messages.ts`.
 5. `src/components/{slug}/__tests__/RsXxx.spec.ts`.
-6. Register in `site/catalog/components/{group}.ts` (`basic` / `form` / `nav` / `feedback` / `data` / `editor`: when-to-use, API, tokens, FAQ).
-7. `site/demos/{slug}.vue` with `DocDemo` and copyable source.
+6. Register in `site/catalog/components/{group}.ts` (`basic` / `form` / `nav` / `feedback` / `data` / `editor`: when-to-use, **props / events / slots / methods**, tokens, FAQ). Bilingual and matching the source. Details: [site/README.en.md](../site/README.en.md).
+7. `site/demos/{slug}.vue` with bilingual `DocDemo`, copyable English source, and a visible result for every documented event.
 8. Update the inventory in **both** this file and [components.md](./components.md); slug matches catalog.
 9. `CHANGELOG.md` `[Unreleased]`.
 10. Optional `playground/routes.ts` — **does not** replace the site.
@@ -306,8 +306,8 @@ Stable `Rs*` components. Per-prop APIs live on the docs site. Additions must upd
 | `RsScrollbar` | Scroll area | `#/components/scrollbar` |
 | `RsLoading` | Loading indicator | `#/components/loading` |
 | `RsEmpty` | Empty state | `#/components/empty` |
-| `RsLink` | Text link | `#/components/link` |
-| `RsBadge` | Status / count | `#/components/badge` |
+| `RsLink` | Native `<a>` text link (no Reka) | `#/components/link` |
+| `RsBadge` | Status chip; optional count / dot overlay | `#/components/badge` |
 | `RsTag` / `RsDynamicTags` | Tag / editable tag group | `#/components/tag` |
 | `RsAvatar` | Avatar / fallback | `#/components/avatar` |
 | `RsLabel` | Form label | `#/components/label` |

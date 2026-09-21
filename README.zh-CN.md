@@ -82,12 +82,14 @@ import { RsConfigProvider, RsButton } from 'niuma-ui'
 
 - **组件文档（官网）**：[https://blair-shang.github.io/niuma-ui/](https://blair-shang.github.io/niuma-ui/)（源码 `site/`）
 - 本地文档站：`pnpm dev:site` → http://127.0.0.1:5181
+- **演示与 API 写法**：[site/README.md](./site/README.md)（[English](./site/README.en.md)）— catalog 必须写清 props / events / slots / methods，演示要中英对照且事件可感知
 - `playground/` 仅内部冒烟与像素回归（`pnpm dev` → :5180），不提供对外用法
 
 | 文档 | 给谁看 |
 |------|--------|
 | [docs/consumers.md](./docs/consumers.md) | 把库装进产品的人（[English](./docs/consumers.en.md)） |
 | [docs/locales.md](./docs/locales.md) | 登记第三方语言（[English](./docs/locales.en.md)） |
+| [site/README.md](./site/README.md) | 文档站演示与 API 表怎么写（[English](./site/README.en.md)） |
 | [docs/components.md](./docs/components.md) | 改本仓库的人（[English](./docs/components.en.md)） |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | PR、测试、发版（[English](./CONTRIBUTING.en.md)） |
 | [CHANGELOG.md](./CHANGELOG.md) | 版本记录 |

@@ -1,21 +1,22 @@
 html {
-  --site-header-bg: #fff;
-  --site-canvas: #f3f5f9;
-  --site-aside-bg: #eef1f6;
+  --site-header-h: 3.75rem;
+  --site-header-bg: rgb(255 255 255 / 92%);
+  --site-canvas: #fff;
+  --site-home-canvas: #f6f7fb;
+  --site-aside-bg: #fff;
   --site-article-bg: #fff;
-  --site-line: #e4e8ef;
-  --site-footer-bg: #e8ecf3;
+  --site-line: #eceef2;
+  --site-footer-bg: #f7f8fa;
+  scroll-padding-top: calc(var(--site-header-h) + 1rem);
 }
 
 html,
-body,
-#app {
-  height: 100%;
+body {
   margin: 0;
 }
 
 body {
-  overflow: hidden;
+  min-height: 100vh;
   font-family:
     var(--rs-font-sans),
     'PingFang SC',
@@ -33,5 +34,5 @@ body {
 }
 
 #app {
-  min-height: 100%;
+  min-height: 100vh;
 }

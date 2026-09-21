@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import { RsCodeBlock, useRsConfig } from 'niuma-ui'
-import { siteText, type SiteLocale } from '../i18n'
+import { RsCodeBlock } from 'niuma-ui'
 import type { ComponentDoc } from '../catalog/types'
+import { relatedComponentLabel } from '../composables/doc-nav'
+import { useSiteI18n } from '../composables/use-site-i18n'
 import ApiTable from './ApiTable.vue'
+import DocPager from './DocPager.vue'
 import TokenTable from './TokenTable.vue'
 import FaqList from './FaqList.vue'
 
@@ -12,16 +14,21 @@ const props = defineProps<{
   doc: ComponentDoc
 }>()
 
-const { locale } = useRsConfig()
-const copy = computed(() => siteText(locale.value as SiteLocale).doc)
-const isEn = computed(() => locale.value === 'en-US')
+const { locale, chrome, pair } = useSiteI18n()
+const copy = computed(() => chrome.value.doc)
 
 const importCode = computed(
   () => `import { ${props.doc.name} } from 'niuma-ui'`,
 )
 
 const heading = computed(() =>
-  isEn.value ? `${props.doc.title}` : `${props.doc.title} ${props.doc.titleZh}`,
+  pair(`${props.doc.title} ${props.doc.titleZh}`, props.doc.title),
+)
+
+const lead = computed(() => pair(props.doc.description, props.doc.descriptionEn))
+
+const whenToUse = computed(() =>
+  pair(props.doc.whenToUse, props.doc.whenToUseEn?.length ? props.doc.whenToUseEn : undefined),
 )
 </script>
 
@@ -30,7 +37,7 @@ const heading = computed(() =>
     <header class="doc-page__header">
       <p class="doc-page__name">{{ doc.name }}</p>
       <h1 id="overview" class="doc-page__title">{{ heading }}</h1>
-      <p class="doc-page__lead">{{ doc.description }}</p>
+      <p class="doc-page__lead">{{ lead }}</p>
     </header>
 
     <section id="import" class="doc-page__section">
@@ -38,10 +45,10 @@ const heading = computed(() =>
       <RsCodeBlock :code="importCode" lang="ts" />
     </section>
 
-    <section v-if="doc.whenToUse.length" id="when-to-use" class="doc-page__section">
+    <section v-if="whenToUse.length" id="when-to-use" class="doc-page__section">
       <h2 class="doc-page__h2">{{ copy.whenToUse }}</h2>
       <ul class="doc-page__list">
-        <li v-for="item in doc.whenToUse" :key="item">{{ item }}</li>
+        <li v-for="item in whenToUse" :key="item">{{ item }}</li>
       </ul>
     </section>
 
@@ -62,9 +69,7 @@ const heading = computed(() =>
 
     <section v-if="doc.tokens?.length" id="token" class="doc-page__section">
       <h2 class="doc-page__h2">{{ copy.tokens }}</h2>
-      <p class="doc-page__hint">
-        在父级或 <code>RsConfigProvider</code> 外覆盖 CSS 变量即可换肤，不必改组件。
-      </p>
+      <p class="doc-page__hint">{{ copy.tokenHint }}</p>
       <TokenTable :rows="doc.tokens" />
     </section>
 
@@ -82,10 +87,12 @@ const heading = computed(() =>
           :to="`/components/${slug}`"
           class="doc-page__related-link"
         >
-          {{ slug }}
+          {{ relatedComponentLabel(slug, locale) }}
         </RouterLink>
       </div>
     </section>
+
+    <DocPager />
   </article>
 </template>
 
@@ -107,8 +114,9 @@ const heading = computed(() =>
 
 .doc-page__title {
   margin: 0 0 var(--rs-space-sm);
+  scroll-margin-top: calc(var(--site-header-h) + 1rem);
   font-size: clamp(1.85rem, 2.6vw, 2.35rem);
-  font-weight: 680;
+  font-weight: 700;
   letter-spacing: -0.035em;
   line-height: var(--rs-line-height-tight);
   color: var(--rs-text);
@@ -128,6 +136,7 @@ const heading = computed(() =>
 
 .doc-page__h2 {
   margin: 0 0 var(--rs-space-md);
+  scroll-margin-top: calc(var(--site-header-h) + 1rem);
   font-size: var(--rs-font-size-lg);
   font-weight: 600;
   color: var(--rs-text);

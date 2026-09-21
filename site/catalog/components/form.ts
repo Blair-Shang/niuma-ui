@@ -11,7 +11,7 @@ export const formComponents: ComponentDoc[] = [
     group: 'form',
     summary: '数据录入、校验与提交。',
     description:
-      '表单是字段布局与校验的中枢。model + name 读写字段，rules 集中声明，Form.Item 负责标签、校验反馈与依赖字段。动态数组用 FormList。'
+      '表单是字段布局与校验的中枢。model + name 读写字段，rules 集中声明，Form.Item 负责标签、校验反馈与依赖字段。动态数组用 FormList。',
     whenToUse: [
       '登录、设置、新建资源等需要成组校验的场景。',
       '字段之间有依赖（dependencies）或需要 getFieldsValue / validateFields 时。',
@@ -60,7 +60,7 @@ export const formComponents: ComponentDoc[] = [
     group: 'form',
     summary: '单行文本录入与校验。',
     description:
-      '单行输入。框内 prefix / suffix（清除、字数、密码显隐在自定义 suffix 之前），框外连体 addonBefore / addonAfter。内置 rule 与 validator，可与 Form.Item name 组合。'
+      '单行输入。框内 prefix / suffix（清除、字数、密码显隐在自定义 suffix 之前），框外连体 addonBefore / addonAfter。内置 rule 与 validator，可与 Form.Item name 组合。',
     whenToUse: [
       '搜索、账号、密钥、URL 等单行文本。',
       '需要格式规则（邮箱、数字）或自定义 validator。',

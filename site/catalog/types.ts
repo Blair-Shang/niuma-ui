@@ -6,18 +6,29 @@ export interface ApiRow {
   name: string
   type: string
   default?: string
+  defaultEn?: string
   description: string
+  descriptionEn?: string
 }
 
 export interface TokenRow {
   name: string
   default: string
   description: string
+  descriptionEn?: string
 }
 
 export interface FaqItem {
   q: string
   a: string
+  qEn?: string
+  aEn?: string
+}
+
+export interface DemoTocItem {
+  id: string
+  title: string
+  titleEn: string
 }
 
 export interface GuideDoc {
@@ -50,7 +61,10 @@ export interface ComponentDoc {
   summary: string
   /** 组件介绍（企业文档首段） */
   description: string
+  descriptionEn?: string
   whenToUse: string[]
+  whenToUseEn?: string[]
+  demos?: DemoTocItem[]
   props: ApiRow[]
   events?: ApiRow[]
   slots?: ApiRow[]

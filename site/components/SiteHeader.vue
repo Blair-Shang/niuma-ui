@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { RsButton, RsIcon, useRsConfig } from 'niuma-ui'
+import { RsButton, RsIcon } from 'niuma-ui'
 import { siteConfig } from '../config'
-import { siteText, type SiteLocale } from '../i18n'
+import { siteLocaleShort } from '../i18n'
+import { useSiteI18n } from '../composables/use-site-i18n'
 import SiteSearch from './SiteSearch.vue'
 
 defineProps<{
@@ -14,9 +15,8 @@ const emit = defineEmits<{
   'update:menuOpen': [value: boolean]
 }>()
 
-const { resolvedTheme, locale, setTheme, setLocale } = useRsConfig()
+const { chrome: copy, resolvedTheme, setTheme, setSiteLocale, nextLocale } = useSiteI18n()
 const route = useRoute()
-const copy = computed(() => siteText(locale.value as SiteLocale))
 const isDocs = computed(() => route.path.startsWith('/guide') || route.path.startsWith('/components'))
 const section = computed(() => {
   if (route.path.startsWith('/guide')) return 'guide'
@@ -29,7 +29,7 @@ function toggleTheme() {
 }
 
 function toggleLocale() {
-  setLocale(locale.value === 'zh-CN' ? 'en-US' : 'zh-CN')
+  setSiteLocale(nextLocale.value)
 }
 </script>
 
@@ -88,7 +88,7 @@ function toggleLocale() {
           @click="toggleTheme"
         />
         <button type="button" class="site-header__lang" :title="copy.nav.locale" @click="toggleLocale">
-          {{ locale === 'zh-CN' ? 'EN' : '中' }}
+          {{ siteLocaleShort(nextLocale) }}
         </button>
       </div>
     </div>
@@ -97,8 +97,10 @@ function toggleLocale() {
 
 <style scoped>
 .site-header {
-  flex-shrink: 0;
+  position: sticky;
+  top: 0;
   z-index: 40;
+  height: var(--site-header-h);
   border-bottom: 1px solid var(--site-line);
   background: var(--site-header-bg);
   backdrop-filter: blur(18px);
@@ -108,7 +110,7 @@ function toggleLocale() {
   display: flex;
   align-items: center;
   gap: 1rem;
-  height: 3.75rem;
+  height: var(--site-header-h);
   padding: 0 1.25rem 0 1rem;
 }
 
@@ -160,14 +162,14 @@ function toggleLocale() {
   background: color-mix(in srgb, var(--rs-primary) 12%, transparent);
   color: var(--rs-primary);
   font-size: 0.66rem;
-  font-weight: 650;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
 .site-header__nav {
   display: flex;
   align-items: stretch;
-  height: 3.75rem;
+  height: var(--site-header-h);
   margin-inline-start: 0.35rem;
 }
 
@@ -178,7 +180,7 @@ function toggleLocale() {
   border-bottom: 2px solid transparent;
   color: var(--rs-muted);
   font-size: 0.875rem;
-  font-weight: 560;
+  font-weight: 500;
   text-decoration: none;
 }
 
@@ -198,7 +200,7 @@ function toggleLocale() {
   padding: 0.35rem 0.65rem;
   color: var(--rs-muted);
   font-size: 0.8125rem;
-  font-weight: 550;
+  font-weight: 500;
   text-decoration: none;
 }
 
@@ -216,7 +218,7 @@ function toggleLocale() {
   color: var(--rs-muted);
   font: inherit;
   font-size: 0.75rem;
-  font-weight: 650;
+  font-weight: 600;
   cursor: pointer;
 }
 

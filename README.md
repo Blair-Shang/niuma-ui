@@ -82,12 +82,14 @@ Component APIs live on the docs site. The architecture contract is for maintaine
 
 - **Component site:** [https://blair-shang.github.io/niuma-ui/](https://blair-shang.github.io/niuma-ui/) (source: `site/`)
 - Local docs: `pnpm dev:site` → http://127.0.0.1:5181
+- **How to write demos and APIs:** [site/README.en.md](./site/README.en.md) ([中文](./site/README.md)) — catalog must list props / events / slots / methods; demos are bilingual and events must be visible
 - `playground/` is internal smoke / visual regression only (`pnpm dev` → :5180). It is not usage documentation.
 
 | Doc | Audience |
 |-----|----------|
 | [docs/consumers.en.md](./docs/consumers.en.md) | People installing the library ([中文](./docs/consumers.md)) |
 | [docs/locales.en.md](./docs/locales.en.md) | Registering extra languages ([中文](./docs/locales.md)) |
+| [site/README.en.md](./site/README.en.md) | How to write site demos and API tables ([中文](./site/README.md)) |
 | [docs/components.en.md](./docs/components.en.md) | People changing this repository ([中文](./docs/components.md)) |
 | [CONTRIBUTING.en.md](./CONTRIBUTING.en.md) | PRs, tests, releases ([中文](./CONTRIBUTING.md)) |
 | [CHANGELOG.md](./CHANGELOG.md) | Release notes |

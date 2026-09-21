@@ -221,7 +221,7 @@ const rows = [
 }
 
 .window__table strong {
-  font-weight: 560;
+  font-weight: 500;
 }
 
 .window__table em {

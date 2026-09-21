@@ -1,184 +1,136 @@
-export type SiteLocale = 'zh-CN' | 'en-US'
+import { createI18n } from 'vue-i18n'
+import { enUS, zhCN, type SiteMessages } from './locales'
 
-const zh = {
-  brand: 'Niuma UI',
-  subtitle: 'Enterprise Design System',
-  nav: {
-    guide: '指南',
-    components: '组件',
-    search: '搜索',
-    searchPlaceholder: '搜索组件、指南',
-    empty: '没有匹配的页面',
-    github: 'GitHub',
-    theme: '切换主题',
-    locale: 'Language',
-    menu: '打开导航',
-    overview: '概览',
-  },
-  groups: {
-    guide: '指南',
-    basic: '通用',
-    form: '数据录入',
-    nav: '导航',
-    feedback: '反馈',
-    data: '数据展示',
-    editor: '编辑器',
-  },
-  home: {
-    kicker: 'Vue 3 · Apache 2.0',
-    title: 'Niuma UI',
-    slogan: '为控制台与桌面工作台打造的企业级组件库',
-    intro:
-      '一致的 Rs* 组件与设计 Token。覆盖表单、表格、树、对话框，以及 Monaco / 终端等专业工具面。',
-    ctaStart: '开始使用',
-    ctaComponents: '浏览组件',
-    ctaGithub: 'GitHub',
-    install: '安装',
-    previewTitle: '实时预览',
-    previewHint: '同一套 Token，明暗主题可即时切换。',
-    features: '能力',
-    featured: '组件',
-    featuredHint: '从高频控件开始，或按分类进入完整文档。',
-    stack: '技术栈',
-    oss: '开源',
-    ossBody: 'Apache License 2.0。欢迎 Issue 与 Pull Request。',
-  },
-  features: [
-    { title: 'Design Token', body: '明暗主题与品牌色走 --rs-* 变量，业务覆盖即可换肤。' },
-    { title: '形态 × 语义色', body: 'variant 管形态，tone 管色相，二者互不绑定。' },
-    { title: '无障碍', body: '底层 Reka UI，焦点、键盘与浮层行为有统一约定。' },
-    { title: '工作台密度', body: '表格、树、分栏、日志与编辑器面向运维台与桌面工具。' },
-    { title: '按需引入', body: '具名导入摇树。Monaco / 终端按路由加载，不进轻量首包。' },
-    { title: '开箱即用', body: 'Vue 3.5、TypeScript、RsConfigProvider 提供主题与语言。' },
-  ],
-  footer: {
-    product: '产品',
-    resources: '资源',
-    community: '社区',
-    guide: '指南',
-    components: '组件',
-    changelog: '更新日志',
-    license: '许可证',
-    copyright: 'Blair-Shang. Apache-2.0.',
-  },
-  doc: {
-    whenToUse: '何时使用',
-    demos: '代码演示',
-    api: 'API',
-    props: '属性',
-    events: '事件',
-    slots: '插槽',
-    methods: '方法',
-    tokens: 'Design Token',
-    faq: '常见问题',
-    related: '相关组件',
-    showCode: '显示代码',
-    hideCode: '收起代码',
-    copy: '复制',
-    copied: '已复制',
-    import: '引入',
-    name: '参数',
-    type: '类型',
-    default: '默认值',
-    desc: '说明',
-    tokenName: 'Token',
-    tokenDefault: '默认值',
-    toc: '本页目录',
-  },
+export type { SiteMessages }
+
+/**
+ * 文档站已登记的界面语言。新增语言：
+ * 1. 复制 `site/locales/en-US/` 为 `site/locales/{code}/`（nav / home / doc…）
+ * 2. 写入 SITE_LOCALES / SITE_LOCALE_SHORT / siteMessages
+ * 3. 演示 `useSiteDemo` 表补一块（未补回退 en-US）
+ */
+export const SITE_LOCALES = ['zh-CN', 'en-US'] as const
+
+export type SiteLocale = (typeof SITE_LOCALES)[number]
+
+export const SITE_LOCALE_STORAGE_KEY = 'niuma-ui-site-locale'
+
+/** 顶栏语言钮上的短标签（显示「下一个」语言）。 */
+export const SITE_LOCALE_SHORT: Record<SiteLocale, string> = {
+  'zh-CN': '中',
+  'en-US': 'EN',
 }
 
-const en: typeof zh = {
-  brand: 'Niuma UI',
-  subtitle: 'Enterprise Design System',
-  nav: {
-    guide: 'Guide',
-    components: 'Components',
-    search: 'Search',
-    searchPlaceholder: 'Search components and guides',
-    empty: 'No matching pages',
-    github: 'GitHub',
-    theme: 'Toggle theme',
-    locale: '语言',
-    menu: 'Open navigation',
-    overview: 'Overview',
-  },
-  groups: {
-    guide: 'Guide',
-    basic: 'General',
-    form: 'Data Entry',
-    nav: 'Navigation',
-    feedback: 'Feedback',
-    data: 'Data Display',
-    editor: 'Editors',
-  },
-  home: {
-    kicker: 'Vue 3 · Apache 2.0',
-    title: 'Niuma UI',
-    slogan: 'An enterprise component library for consoles and desktop workbenches',
-    intro:
-      'Consistent Rs* components and design tokens — forms, tables, trees, dialogs, plus Monaco and terminal surfaces for professional tools.',
-    ctaStart: 'Get started',
-    ctaComponents: 'Components',
-    ctaGithub: 'GitHub',
-    install: 'Install',
-    previewTitle: 'Live preview',
-    previewHint: 'The same tokens. Switch light and dark instantly.',
-    features: 'Capabilities',
-    featured: 'Components',
-    featuredHint: 'Start with high-traffic controls, or browse by category.',
-    stack: 'Stack',
-    oss: 'Open source',
-    ossBody: 'Apache License 2.0. Issues and pull requests are welcome.',
-  },
-  features: [
-    { title: 'Design tokens', body: 'Light/dark and brand color live on --rs-* variables. Override, don’t fork.' },
-    { title: 'Variant × tone', body: 'Shape and semantic color are orthogonal and can be combined independently.' },
-    { title: 'Accessible', body: 'Built on Reka UI with shared focus, keyboard, and overlay contracts.' },
-    { title: 'Workbench density', body: 'Table, tree, split pane, log, and editors for ops consoles and desktop tools.' },
-    { title: 'Tree-shakable', body: 'Named imports. Load Monaco and the terminal per route, not in the first paint.' },
-    { title: 'Ready to ship', body: 'Vue 3.5, TypeScript, and RsConfigProvider for theme and locale.' },
-  ],
-  footer: {
-    product: 'Product',
-    resources: 'Resources',
-    community: 'Community',
-    guide: 'Guide',
-    components: 'Components',
-    changelog: 'Changelog',
-    license: 'License',
-    copyright: 'Blair-Shang. Apache-2.0.',
-  },
-  doc: {
-    whenToUse: 'When to use',
-    demos: 'Examples',
-    api: 'API',
-    props: 'Props',
-    events: 'Events',
-    slots: 'Slots',
-    methods: 'Methods',
-    tokens: 'Design Token',
-    faq: 'FAQ',
-    related: 'Related',
-    showCode: 'Show code',
-    hideCode: 'Hide code',
-    copy: 'Copy',
-    copied: 'Copied',
-    import: 'Import',
-    name: 'Property',
-    type: 'Type',
-    default: 'Default',
-    desc: 'Description',
-    tokenName: 'Token',
-    tokenDefault: 'Default',
-    toc: 'On this page',
-  },
+export const siteMessages: Record<SiteLocale, SiteMessages> = {
+  'zh-CN': zhCN,
+  'en-US': enUS,
 }
 
-export const siteMessages: Record<SiteLocale, typeof zh> = {
-  'zh-CN': zh,
-  'en-US': en,
+export function isSiteLocale(value: string): value is SiteLocale {
+  return (SITE_LOCALES as readonly string[]).includes(value)
 }
 
-export function siteText(locale: SiteLocale) {
-  return siteMessages[locale] ?? zh
+export function isZhSiteLocale(locale: string): boolean {
+  return locale.toLowerCase().startsWith('zh')
+}
+
+/** 壳层语言包：精确匹配 → 同语种前缀 → en-US → zh-CN。 */
+export function resolveSiteLocale(locale: string): SiteLocale {
+  if (isSiteLocale(locale)) return locale
+  const lang = locale.split('-')[0]?.toLowerCase()
+  if (lang) {
+    const hit = SITE_LOCALES.find(
+      (code) => code.toLowerCase() === lang || code.toLowerCase().startsWith(`${lang}-`),
+    )
+    if (hit) return hit
+  }
+  return 'en-US'
+}
+
+export function nextSiteLocale(locale: string): SiteLocale {
+  const current = resolveSiteLocale(locale)
+  const index = SITE_LOCALES.indexOf(current)
+  return SITE_LOCALES[(index + 1) % SITE_LOCALES.length]
+}
+
+export function siteLocaleShort(locale: string): string {
+  return SITE_LOCALE_SHORT[resolveSiteLocale(locale)]
+}
+
+export function readStoredSiteLocale(): SiteLocale | undefined {
+  if (typeof localStorage === 'undefined') return undefined
+  try {
+    const raw = localStorage.getItem(SITE_LOCALE_STORAGE_KEY)
+    return raw && isSiteLocale(raw) ? raw : undefined
+  } catch {
+    return undefined
+  }
+}
+
+export function writeStoredSiteLocale(locale: SiteLocale): void {
+  if (typeof localStorage === 'undefined') return
+  try {
+    localStorage.setItem(SITE_LOCALE_STORAGE_KEY, locale)
+  } catch {
+    // 隐私模式写不进去时仍切换当前会话
+  }
+}
+
+function readHostLanguage(): string {
+  if (typeof navigator === 'undefined') return 'zh-CN'
+  return navigator.language || navigator.languages?.[0] || 'zh-CN'
+}
+
+export function readInitialSiteLocale(): SiteLocale {
+  return readStoredSiteLocale() ?? resolveSiteLocale(readHostLanguage())
+}
+
+/**
+ * 按当前 locale 取表。catalog / 演示局部字典走这里，禁止 `locale === 'en-US'`。
+ * 缺当前语言时：同语种 → en-US → zh-CN → 表里第一份。
+ */
+export function pickSiteRecord<T>(table: Partial<Record<string, T>>, locale: string): T {
+  const exact = table[locale]
+  if (exact != null) return exact
+  const lang = locale.split('-')[0]?.toLowerCase()
+  if (lang) {
+    const prefixed = Object.entries(table).find(
+      ([key, value]) =>
+        value != null && (key.toLowerCase() === lang || key.toLowerCase().startsWith(`${lang}-`)),
+    )
+    if (prefixed?.[1] != null) return prefixed[1]
+  }
+  if (table['en-US'] != null) return table['en-US']
+  if (table['zh-CN'] != null) return table['zh-CN']
+  const first = Object.values(table).find((value) => value != null)
+  if (first != null) return first
+  throw new Error('[niuma-ui site] empty locale table')
+}
+
+/** catalog / DocDemo 的中英成对字段。非中文回退英文（没有英文再用中文）。 */
+export function pickSitePair<T>(locale: string, zh: T, en?: T | null): T {
+  if (zh == null && en == null) return zh
+  return pickSiteRecord(
+    {
+      'zh-CN': zh,
+      'en-US': (en ?? zh) as T,
+    },
+    locale,
+  )
+}
+
+export const i18n = createI18n({
+  legacy: false,
+  globalInjection: true,
+  locale: readInitialSiteLocale(),
+  fallbackLocale: ['en-US', 'zh-CN'],
+  missingWarn: false,
+  fallbackWarn: false,
+  messages: siteMessages,
+})
+
+export function siteText(locale: string): SiteMessages {
+  const code = resolveSiteLocale(locale)
+  const pack = i18n.global.getLocaleMessage(code) as SiteMessages | undefined
+  return pack ?? siteMessages[code]
 }

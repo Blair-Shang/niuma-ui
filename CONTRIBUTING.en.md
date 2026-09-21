@@ -26,7 +26,7 @@ Requires Node.js ≥ 20, pnpm ≥ 9 in this repo, Vue ^3.5. Downstream installs 
 1. Open an Issue first for large features or breaking API changes.
 2. Keep each PR focused.
 3. Add or update `*.spec.ts` under the module’s `__tests__/` when behavior changes (components: `src/components/{slug}/__tests__/`; cross-component smoke only in `src/__tests__/`).
-4. Public usage **must** land on the docs site `site/` (catalog + `demos/{slug}.vue`). `playground/` is internal smoke / visual regression only and must not be treated as usage docs.
+4. Public usage **must** land on the docs site `site/` (catalog + `demos/{slug}.vue`). How to write it: [site/README.en.md](./site/README.en.md). `playground/` is internal smoke / visual regression only and must not be treated as usage docs.
 5. When public API, tokens, architecture, or install steps change, update:
    - [docs/components.md](./docs/components.md) and [docs/components.en.md](./docs/components.en.md)
    - [docs/consumers.md](./docs/consumers.md) / [docs/consumers.en.md](./docs/consumers.en.md)

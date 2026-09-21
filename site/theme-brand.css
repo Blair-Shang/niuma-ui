@@ -1,11 +1,12 @@
 /* 文档站品牌色 + 壳层色 */
 html[data-rs-theme='light'] {
-  --site-header-bg: rgb(255 255 255 / 94%);
-  --site-canvas: #f3f5f9;
-  --site-aside-bg: #eef1f6;
+  --site-header-bg: rgb(255 255 255 / 92%);
+  --site-canvas: #ffffff;
+  --site-home-canvas: #f6f7fb;
+  --site-aside-bg: #ffffff;
   --site-article-bg: #ffffff;
-  --site-line: #e4e8ef;
-  --site-footer-bg: #e8ecf3;
+  --site-line: #eceef2;
+  --site-footer-bg: #f7f8fa;
 }
 
 html[data-rs-theme='dark'] {

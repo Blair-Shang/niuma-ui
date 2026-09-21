@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { RsIcon, RsInput, useRsConfig } from 'niuma-ui'
+import { RsIcon, RsInput } from 'niuma-ui'
 import { searchDocs, type SiteSearchHit } from '../composables/doc-search'
-import { siteText, type SiteLocale } from '../i18n'
+import { useSiteI18n } from '../composables/use-site-i18n'
 
-const { locale } = useRsConfig()
+const { locale, chrome: copy } = useSiteI18n()
 const router = useRouter()
-const copy = computed(() => siteText(locale.value as SiteLocale))
 
 const query = ref('')
 const open = ref(false)
@@ -18,7 +17,7 @@ const shortcut = computed(() =>
   typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.platform) ? '⌘K' : 'Ctrl K',
 )
 
-const hits = computed(() => searchDocs(query.value, locale.value as SiteLocale))
+const hits = computed(() => searchDocs(query.value, locale.value))
 
 const groups = computed(() => {
   const map = new Map<string, SiteSearchHit[]>()

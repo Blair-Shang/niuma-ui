@@ -1,5 +1,6 @@
 export { RsConfigProvider } from './components/config-provider'
 export { RsBadge } from './components/badge'
+export type { RsBadgeVariant } from './components/badge'
 export { RsContainer } from './components/container'
 export { RsBreadcrumb } from './components/breadcrumb'
 export { RsAnchor } from './components/anchor'
@@ -33,6 +34,7 @@ export type {
 } from './components/dynamic-tags'
 export { RsAlert } from './components/alert'
 export { RsDivider } from './components/divider'
+export type { RsDividerOrientation } from './components/divider'
 export { RsDescriptions } from './components/descriptions'
 export { RsDescriptionsItem } from './components/descriptions'
 export type {
@@ -70,6 +72,7 @@ export {
 } from './components/input-number'
 export { RsLabel } from './components/label'
 export { RsLink } from './components/link'
+export type { RsLinkTone, RsLinkUnderline } from './components/link'
 export { RsMenu } from './components/menu'
 export { RsSelect } from './components/select'
 export { RsAutoComplete } from './components/auto-complete'

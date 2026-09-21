@@ -1,18 +1,25 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { RsButton, RsCodeBlock, useRsConfig } from 'niuma-ui'
-import { siteText, type SiteLocale } from '../i18n'
+import { RsButton, RsCodeBlock } from 'niuma-ui'
+import { useSiteI18n } from '../composables/use-site-i18n'
 
 const props = defineProps<{
   id: string
   title: string
+  titleEn?: string
   description?: string
+  descriptionEn?: string
   code?: string
   lang?: string
 }>()
 
-const { locale } = useRsConfig()
-const copy = computed(() => siteText(locale.value as SiteLocale).doc)
+const { t, pair } = useSiteI18n()
+const heading = computed(() => pair(props.title, props.titleEn))
+const lead = computed(() =>
+  props.description || props.descriptionEn
+    ? pair(props.description ?? '', props.descriptionEn)
+    : undefined,
+)
 const showCode = ref(false)
 const copied = ref(false)
 let copyTimer: ReturnType<typeof setTimeout> | undefined
@@ -38,15 +45,15 @@ async function copyCode() {
   <section :id="id" class="doc-demo">
     <header class="doc-demo__head">
       <div class="doc-demo__titles">
-        <h3 class="doc-demo__title">{{ title }}</h3>
-        <p v-if="description" class="doc-demo__desc">{{ description }}</p>
+        <h3 class="doc-demo__title">{{ heading }}</h3>
+        <p v-if="lead" class="doc-demo__desc">{{ lead }}</p>
       </div>
       <div v-if="code" class="doc-demo__actions">
         <RsButton size="sm" variant="ghost" :icon="showCode ? 'eye-off' : 'code-2'" @click="showCode = !showCode">
-          {{ showCode ? copy.hideCode : copy.showCode }}
+          {{ showCode ? t('doc.hideCode') : t('doc.showCode') }}
         </RsButton>
         <RsButton size="sm" variant="ghost" :icon="copied ? 'check' : 'copy'" @click="copyCode">
-          {{ copied ? copy.copied : copy.copy }}
+          {{ copied ? t('doc.copied') : t('doc.copy') }}
         </RsButton>
       </div>
     </header>
@@ -64,6 +71,7 @@ async function copyCode() {
   display: flex;
   flex-direction: column;
   gap: var(--rs-space-sm);
+  scroll-margin-top: calc(var(--site-header-h) + 1rem);
 }
 
 .doc-demo__head {

@@ -26,7 +26,7 @@ pnpm test:watch
 1. 大型功能或破坏性 API 变更请先开 Issue 讨论。
 2. 单个 PR 聚焦一件事。
 3. 行为变更时在对应模块的 `__tests__/` 补充或更新 `*.spec.ts`（组件跟 `src/components/{slug}/__tests__/`；跨组件冒烟才放 `src/__tests__/`）。
-4. 对外用法**必须**写在文档站 `site/`（catalog + `demos/{slug}.vue`）。`playground/` 只做内部冒烟与像素回归，禁止当作用法说明。
+4. 对外用法**必须**写在文档站 `site/`（catalog + `demos/{slug}.vue`），写法见 [site/README.md](./site/README.md)。`playground/` 只做内部冒烟与像素回归，禁止当作用法说明。
 5. 涉及公开 API、token、架构或安装步骤时同步更新：
    - [docs/components.md](./docs/components.md)（架构红线；英文 [components.en.md](./docs/components.en.md)）
    - [docs/consumers.md](./docs/consumers.md) / [docs/consumers.en.md](./docs/consumers.en.md)

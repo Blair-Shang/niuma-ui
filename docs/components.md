@@ -343,8 +343,8 @@ Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
 3. `src/index.ts` 写 `export { RsXxx } from './components/{slug}'`；公开类型 / 宿主 helper 按第 4 节筛选，从同一目录再导出。
 4. `src/locale/messages.ts` 中英 key。
 5. `src/components/{slug}/__tests__/RsXxx.spec.ts`。
-6. `site/catalog/components/{group}.ts` 登记（`basic` / `form` / `nav` / `feedback` / `data` / `editor`）：介绍、何时使用、props/events/slots、Token、FAQ。
-7. `site/demos/{slug}.vue`（`DocDemo`，可复制代码）。
+6. `site/catalog/components/{group}.ts` 登记（`basic` / `form` / `nav` / `feedback` / `data` / `editor`）：介绍、何时使用、**props / events / slots / methods**、Token、FAQ。中英与源码对齐，细则见 [site/README.md](../site/README.md)。
+7. `site/demos/{slug}.vue`（`DocDemo`，中英对照、可复制英文代码；有事件必须能点出结果）。
 8. 更新本文「组件清单」；slug 与 catalog 一致。
 9. `CHANGELOG.md` `[Unreleased]`。
 10. 交互回归可补 `playground/routes.ts`（可选，**不能代替** site）。
@@ -373,8 +373,8 @@ Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
 | `RsScrollbar` | 滚动区域 | `#/components/scrollbar` |
 | `RsLoading` | 加载指示 | `#/components/loading` |
 | `RsEmpty` | 空状态 | `#/components/empty` |
-| `RsLink` | 文字链接 | `#/components/link` |
-| `RsBadge` | 状态 / 数量徽标 | `#/components/badge` |
+| `RsLink` | 原生 `<a>` 文字链接（不包 Reka） | `#/components/link` |
+| `RsBadge` | 状态芯片；可选 count / dot 角标 | `#/components/badge` |
 | `RsTag` / `RsDynamicTags` | 标签 / 可编辑标签组 | `#/components/tag` |
 | `RsAvatar` | 头像 / 回退 | `#/components/avatar` |
 | `RsLabel` | 表单标签 | `#/components/label` |

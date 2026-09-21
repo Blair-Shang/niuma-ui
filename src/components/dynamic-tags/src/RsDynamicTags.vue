@@ -15,7 +15,7 @@ import {
 } from '../../form/src/form-rules'
 import { rsRadiusCss, useResolvedRsRadius } from '../../_shared/src/resolve-radius'
 import { useResolvedRsComponentSize } from '../../_shared/src/resolve-size'
-import type { RsTagVariant } from '../../tag/src/RsTag.vue'
+import type { RsTagVariant } from '../../tag'
 import RsIcon from '../../icon/src/RsIcon.vue'
 import RsTag from '../../tag/src/RsTag.vue'
 

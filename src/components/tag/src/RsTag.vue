@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRsI18n } from '../../../composables/useRsI18n'
-import type { RsComponentSize, RsRadius } from '../../../theme/types'
+import { RS_COMPONENT_SIZE_ICON_PX, type RsComponentSize, type RsRadius } from '../../../theme/types'
 import { rsRadiusCss, useResolvedRsRadius } from '../../_shared/src/resolve-radius'
 import { useResolvedRsComponentSize } from '../../_shared/src/resolve-size'
-import RsIcon from '../../icon/src/RsIcon.vue'
+import RsButton from '../../button/src/RsButton.vue'
+import type { RsTagVariant } from './tag-utils'
 
-export type RsTagVariant = 'default' | 'primary' | 'success' | 'warning' | 'danger' | 'info'
+defineOptions({ name: 'RsTag' })
+
+export type { RsTagVariant }
 
 const props = withDefaults(
   defineProps<{
@@ -36,6 +39,7 @@ const resolvedRadius = useResolvedRsRadius(
   () => (props.round ? 'full' : props.radius),
   'sm',
 )
+const closeIconSize = RS_COMPONENT_SIZE_ICON_PX.ssm
 
 const rootClass = computed(() => [
   'rs-tag',
@@ -64,21 +68,29 @@ function onClose(event: MouseEvent): void {
     <span class="rs-tag__content">
       <slot />
     </span>
-    <button
+    <RsButton
       v-if="closable"
-      type="button"
       class="rs-tag__close"
+      variant="text"
+      :bordered="false"
+      size="ssm"
+      radius="full"
+      icon="x"
+      :icon-size="closeIconSize"
+      icon-only
       :disabled="disabled"
       :aria-label="t('tag.close')"
       @click="onClose"
-    >
-      <RsIcon name="x" :size="12" />
-    </button>
+    />
   </span>
 </template>
 
 <style scoped>
 .rs-tag {
+  --rs-tag-pad-y-sm: 0.0625rem;
+  --rs-tag-pad-y-md: 0.125rem;
+  --rs-tag-disabled-opacity: 0.55;
+  --rs-tag-close-opacity: 0.75;
   display: inline-flex;
   align-items: center;
   gap: var(--rs-space-xs);
@@ -91,22 +103,26 @@ function onClose(event: MouseEvent): void {
 }
 
 .rs-tag--ssm {
-  padding: 0 var(--rs-space-xs);
+  padding-block: 0;
+  padding-inline: var(--rs-space-xs);
   font-size: var(--rs-font-size-xs);
 }
 
 .rs-tag--sm {
-  padding: 0.0625rem var(--rs-space-xs);
+  padding-block: var(--rs-tag-pad-y-sm);
+  padding-inline: var(--rs-space-xs);
   font-size: var(--rs-font-size-xs);
 }
 
 .rs-tag--md {
-  padding: 0.125rem var(--rs-space-sm);
+  padding-block: var(--rs-tag-pad-y-md);
+  padding-inline: var(--rs-space-sm);
   font-size: var(--rs-font-size-xs);
 }
 
 .rs-tag--lg {
-  padding: var(--rs-space-xs) var(--rs-space-sm);
+  padding-block: var(--rs-space-xs);
+  padding-inline: var(--rs-space-sm);
   font-size: var(--rs-font-size-sm);
 }
 
@@ -115,7 +131,7 @@ function onClose(event: MouseEvent): void {
 }
 
 .rs-tag--disabled {
-  opacity: 0.55;
+  opacity: var(--rs-tag-disabled-opacity);
   cursor: not-allowed;
 }
 
@@ -126,36 +142,24 @@ function onClose(event: MouseEvent): void {
 }
 
 .rs-tag__close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0;
+  min-width: 0;
+  min-height: 0;
+  width: 1em;
+  height: 1em;
   padding: 0;
-  border: 0;
-  border-radius: var(--rs-radius-full);
-  background: transparent;
   color: inherit;
-  cursor: pointer;
-  opacity: 0.75;
-  outline: none;
+  opacity: var(--rs-tag-close-opacity);
 }
 
 .rs-tag__close:hover:not(:disabled) {
   opacity: 1;
+  color: inherit;
   background: color-mix(in srgb, currentColor 12%, transparent);
-}
-
-.rs-tag__close:focus-visible {
-  box-shadow: 0 0 0 var(--rs-focus-ring-width, 2px) var(--rs-focus-ring);
-}
-
-.rs-tag__close:disabled {
-  cursor: not-allowed;
 }
 
 .rs-tag--default {
   background: var(--rs-surface-hover);
-  color: var(--rs-text);
+  color: var(--rs-text-primary);
   border: 1px solid var(--rs-border);
 }
 
@@ -187,5 +191,12 @@ function onClose(event: MouseEvent): void {
   background: var(--rs-info-container);
   color: var(--rs-on-info-container);
   border: 1px solid color-mix(in srgb, var(--rs-info) var(--rs-tag-border-alpha, 40%), transparent);
+}
+
+@media (forced-colors: active) {
+  .rs-tag {
+    border: 1px solid CanvasText;
+    forced-color-adjust: none;
+  }
 }
 </style>

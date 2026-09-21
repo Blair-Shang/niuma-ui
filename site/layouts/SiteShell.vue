@@ -1,29 +1,34 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
-import { RsAnchor, useRsConfig, type RsAnchorItem } from 'niuma-ui'
+import { RsAnchor, type RsAnchorItem } from 'niuma-ui'
 import { componentDocs } from '../catalog/components'
 import { guideDocs } from '../catalog/guides'
-import type { ComponentGroup } from '../catalog/types'
 import SiteFooter from '../components/SiteFooter.vue'
 import SiteHeader from '../components/SiteHeader.vue'
+import { componentGroupOrder } from '../composables/doc-nav'
 import { provideDocToc, type DocTocItem } from '../composables/doc-toc'
-import { siteText, type SiteLocale } from '../i18n'
+import { isZhSiteLocale, pickSitePair } from '../i18n'
+import { useSiteI18n } from '../composables/use-site-i18n'
 
-const { locale } = useRsConfig()
+const { locale, chrome: copy } = useSiteI18n()
 const route = useRoute()
 const tocItems = provideDocToc()
 const menuOpen = ref(false)
-const mainRef = ref<HTMLElement | null>(null)
 
-const copy = computed(() => siteText(locale.value as SiteLocale))
-const isEn = computed(() => locale.value === 'en-US')
+const showZhTitle = computed(() => isZhSiteLocale(locale.value))
 const isHome = computed(() => route.path === '/')
 const isDocs = computed(() => !isHome.value)
 
-const groupOrder: ComponentGroup[] = ['basic', 'form', 'nav', 'feedback', 'data', 'editor']
-
-const filteredComponents = computed(() => componentDocs)
+const groupedComponents = computed(() => {
+  return componentGroupOrder
+    .map((key) => ({
+      key,
+      title: copy.value.groups[key],
+      items: componentDocs.filter((item) => item.group === key),
+    }))
+    .filter((group) => group.items.length > 0)
+})
 
 function toAnchorItems(items: DocTocItem[]): RsAnchorItem[] {
   return items.map((item) => ({
@@ -35,27 +40,21 @@ function toAnchorItems(items: DocTocItem[]): RsAnchorItem[] {
 
 const anchorItems = computed<RsAnchorItem[]>(() => toAnchorItems(tocItems.value))
 
-function docsContainer() {
-  return mainRef.value
-}
-
-const groupedComponents = computed(() => {
-  return groupOrder
-    .map((key) => ({
-      key,
-      title: copy.value.groups[key],
-      items: filteredComponents.value.filter((item) => item.group === key),
-    }))
-    .filter((group) => group.items.length > 0)
-})
-
 watch(
   () => route.path,
   () => {
     menuOpen.value = false
-    mainRef.value?.scrollTo({ top: 0 })
+    window.scrollTo({ top: 0, left: 0 })
   },
 )
+
+watch(menuOpen, (open) => {
+  document.body.style.overflow = open ? 'hidden' : ''
+})
+
+onUnmounted(() => {
+  document.body.style.overflow = ''
+})
 </script>
 
 <template>
@@ -80,7 +79,7 @@ watch(
               class="shell__link"
               active-class="shell__link--on"
             >
-              {{ isEn ? guide.titleEn : guide.title }}
+              {{ pickSitePair(locale, guide.title, guide.titleEn) }}
             </RouterLink>
           </section>
           <section v-for="group in groupedComponents" :key="group.key" class="shell__group">
@@ -93,72 +92,66 @@ watch(
               active-class="shell__link--on"
             >
               <span class="shell__en">{{ item.title }}</span>
-              <span v-if="!isEn" class="shell__zh">{{ item.titleZh }}</span>
+              <span v-if="showZhTitle" class="shell__zh">{{ item.titleZh }}</span>
             </RouterLink>
           </section>
           <p v-if="groupedComponents.length === 0" class="shell__empty">{{ copy.nav.empty }}</p>
         </nav>
       </aside>
-      <div ref="mainRef" class="shell__main">
-        <div class="shell__article">
-          <RouterView />
-        </div>
-        <aside v-if="anchorItems.length" class="shell__toc">
-          <div class="shell__toc-sticky">
-            <p class="shell__toc-title">{{ copy.doc.toc }}</p>
-            <RsAnchor
-              :items="anchorItems"
-              :affix="false"
-              :get-container="docsContainer"
-              :change-hash="false"
-              :offset="20"
-              :target-offset="20"
-            />
-          </div>
-        </aside>
+      <div class="shell__article">
+        <RouterView />
       </div>
+      <aside v-if="anchorItems.length" class="shell__toc">
+        <p class="shell__toc-title">{{ copy.doc.toc }}</p>
+        <RsAnchor
+          :items="anchorItems"
+          :affix="false"
+          :change-hash="false"
+          :offset="80"
+          :target-offset="80"
+        />
+      </aside>
     </div>
   </div>
 </template>
 
 <style scoped>
 .shell {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
+  min-height: 100vh;
   background: var(--site-canvas, var(--rs-bg));
   color: var(--rs-text);
 }
 
 .shell__home {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
   background:
     radial-gradient(920px 460px at 8% -12%, color-mix(in srgb, var(--rs-primary) 20%, transparent), transparent 58%),
     radial-gradient(720px 380px at 96% 4%, color-mix(in srgb, var(--rs-primary) 12%, transparent), transparent 52%),
     linear-gradient(color-mix(in srgb, var(--site-line) 80%, transparent) 1px, transparent 1px),
     linear-gradient(90deg, color-mix(in srgb, var(--site-line) 80%, transparent) 1px, transparent 1px),
-    var(--site-canvas);
+    var(--site-home-canvas, var(--site-canvas));
   background-size: auto, auto, 56px 56px, 56px 56px, auto;
 }
 
 .shell__docs {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  position: relative;
-  background: var(--site-canvas);
+  display: grid;
+  grid-template-columns: 16rem minmax(0, 1fr);
+  align-items: start;
+  min-height: calc(100vh - var(--site-header-h));
+}
+
+.shell__docs:has(.shell__toc) {
+  grid-template-columns: 16rem minmax(0, 1fr) 14rem;
 }
 
 .shell__aside {
-  width: 15.25rem;
-  flex-shrink: 0;
+  position: sticky;
+  top: var(--site-header-h);
+  z-index: 30;
   display: flex;
   flex-direction: column;
+  height: calc(100vh - var(--site-header-h));
   border-right: 1px solid var(--site-line);
   background: var(--site-aside-bg);
-  z-index: 30;
 }
 
 .shell__nav {
@@ -201,7 +194,7 @@ watch(
 }
 
 .shell__link--on {
-  background: color-mix(in srgb, var(--rs-primary) 14%, var(--site-article-bg));
+  background: color-mix(in srgb, var(--rs-primary) 12%, transparent);
   color: var(--rs-primary);
   font-weight: 600;
   box-shadow: inset 2px 0 0 var(--rs-primary);
@@ -217,35 +210,21 @@ watch(
   font-size: 0.8125rem;
 }
 
-.shell__main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  overflow: auto;
-  background: var(--site-canvas);
-}
-
 .shell__article {
-  flex: 1;
   min-width: 0;
-  max-width: 52rem;
-  margin: 1rem 0 1.5rem 1rem;
-  padding: 2rem 2.4rem 3.5rem;
-  border: 1px solid var(--site-line);
-  border-radius: 0.9rem;
-  background: var(--site-article-bg);
-  box-shadow: 0 1px 0 rgb(255 255 255 / 60%) inset;
+  width: 100%;
+  max-width: 54rem;
+  margin: 0 auto;
+  padding: 2.25rem 2.75rem 4.5rem;
 }
 
 .shell__toc {
-  width: 13rem;
-  flex-shrink: 0;
-  padding: 1.35rem 1.1rem 2rem 0.85rem;
-}
-
-.shell__toc-sticky {
   position: sticky;
-  top: 1.25rem;
+  top: var(--site-header-h);
+  height: calc(100vh - var(--site-header-h));
+  overflow-y: auto;
+  padding: 1.5rem 1.15rem 2rem 0.75rem;
+  border-left: 1px solid var(--site-line);
 }
 
 .shell__toc-title {
@@ -262,17 +241,28 @@ watch(
 }
 
 @media (width < 72rem) {
+  .shell__docs,
+  .shell__docs:has(.shell__toc) {
+    grid-template-columns: 16rem minmax(0, 1fr);
+  }
+
   .shell__toc {
     display: none;
   }
 }
 
 @media (width < 56rem) {
+  .shell__docs,
+  .shell__docs:has(.shell__toc) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .shell__aside {
-    position: absolute;
-    inset-block: 0;
+    position: fixed;
+    inset-block: var(--site-header-h) 0;
     inset-inline-start: 0;
-    height: 100%;
+    width: 16rem;
+    height: auto;
     transform: translateX(-105%);
     transition: transform 0.18s ease;
     box-shadow: 0 16px 40px rgb(0 0 0 / 16%);
@@ -284,15 +274,14 @@ watch(
 
   .shell__backdrop {
     display: block;
-    position: absolute;
-    inset: 0;
+    position: fixed;
+    inset: var(--site-header-h) 0 0;
     z-index: 25;
     background: rgb(0 0 0 / 35%);
   }
 
   .shell__article {
-    margin: 0.75rem 0.75rem 1rem;
-    padding: 1.15rem 1rem 2.5rem;
+    padding: 1.25rem 1.1rem 3rem;
   }
 }
 </style>

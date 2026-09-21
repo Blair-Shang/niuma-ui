@@ -1,31 +1,34 @@
 <script setup lang="ts">
 import { computed, watchEffect } from 'vue'
 import { useRoute } from 'vue-router'
-import { RsCodeBlock, useRsConfig } from 'niuma-ui'
+import { RsCodeBlock } from 'niuma-ui'
 import { getGuide } from '../catalog/guides'
+import DocPager from '../components/DocPager.vue'
 import { useDocToc } from '../composables/doc-toc'
+import { useSiteI18n } from '../composables/use-site-i18n'
 
 const route = useRoute()
-const { locale } = useRsConfig()
+const { pair, t } = useSiteI18n()
 const toc = useDocToc()
 
 const guide = computed(() => getGuide(String(route.params.slug)))
-const isEn = computed(() => locale.value === 'en-US')
 
 const heading = computed(() => {
   if (!guide.value) return ''
-  return isEn.value ? guide.value.titleEn : guide.value.title
+  return pair(guide.value.title, guide.value.titleEn)
 })
 
 const lead = computed(() => {
   if (!guide.value) return ''
-  return isEn.value ? guide.value.descriptionEn : guide.value.description
+  return pair(guide.value.description, guide.value.descriptionEn)
 })
+
+const missing = computed(() => t('doc.guideNotFound'))
 
 watchEffect(() => {
   toc.value = (guide.value?.sections ?? []).map((section) => ({
     id: section.id,
-    title: isEn.value ? section.titleEn : section.title,
+    title: pair(section.title, section.titleEn),
   }))
 })
 </script>
@@ -38,16 +41,17 @@ watchEffect(() => {
     </header>
 
     <section v-for="section in guide.sections" :id="section.id" :key="section.id" class="guide__section">
-      <h2>{{ isEn ? section.titleEn : section.title }}</h2>
-      <p v-if="isEn ? section.bodyEn : section.body">{{ isEn ? section.bodyEn : section.body }}</p>
-      <ul v-if="(isEn ? section.bulletsEn : section.bullets)?.length">
-        <li v-for="item in (isEn ? section.bulletsEn : section.bullets)" :key="item">{{ item }}</li>
+      <h2>{{ pair(section.title, section.titleEn) }}</h2>
+      <p v-if="pair(section.body, section.bodyEn)">{{ pair(section.body, section.bodyEn) }}</p>
+      <ul v-if="pair(section.bullets, section.bulletsEn)?.length">
+        <li v-for="item in pair(section.bullets, section.bulletsEn)" :key="item">{{ item }}</li>
       </ul>
       <RsCodeBlock v-if="section.code" :code="section.code.content" :lang="section.code.lang" />
     </section>
+    <DocPager />
   </article>
   <article v-else class="guide">
-    <h1>{{ isEn ? 'Guide not found' : '未找到该指南' }}</h1>
+    <h1>{{ missing }}</h1>
   </article>
 </template>
 
@@ -60,8 +64,9 @@ watchEffect(() => {
 
 .guide__header h1 {
   margin: 0 0 var(--rs-space-sm);
+  scroll-margin-top: calc(var(--site-header-h) + 1rem);
   font-size: clamp(1.85rem, 2.6vw, 2.35rem);
-  font-weight: 680;
+  font-weight: 700;
   letter-spacing: -0.035em;
 }
 
@@ -80,6 +85,7 @@ watchEffect(() => {
 
 .guide__section h2 {
   margin: 0 0 var(--rs-space-md);
+  scroll-margin-top: calc(var(--site-header-h) + 1rem);
   font-size: var(--rs-font-size-lg);
 }
 

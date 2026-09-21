@@ -13,5 +13,13 @@
       "niuma-ui": ["./src/index.ts"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.vue", "playground/**/*.ts", "playground/**/*.vue", "vite-plugins/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.vue",
+    "playground/**/*.ts",
+    "playground/**/*.vue",
+    "site/**/*.ts",
+    "site/**/*.vue",
+    "vite-plugins/**/*.ts"
+  ]
 }

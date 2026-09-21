@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import { useRsConfig } from 'niuma-ui'
 import { siteConfig } from '../config'
-import { siteText, type SiteLocale } from '../i18n'
+import { useSiteI18n } from '../composables/use-site-i18n'
 
-const { locale } = useRsConfig()
-const copy = computed(() => siteText(locale.value as SiteLocale).footer)
+const { chrome } = useSiteI18n()
+const copy = computed(() => chrome.value.footer)
 </script>
 
 <template>

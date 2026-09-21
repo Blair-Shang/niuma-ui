@@ -8,6 +8,10 @@ async function openTooltip(wrapper: ReturnType<typeof mount>) {
 }
 
 describe('RsButton', () => {
+  it('registers the public component name', () => {
+    expect(RsButton.name).toBe('RsButton')
+  })
+
   it('renders slot', () => {
     const wrapper = mount(RsButton, {
       slots: { default: '确定' },
@@ -34,6 +38,23 @@ describe('RsButton', () => {
       props: { variant: 'ghost' },
     })
     expect(wrapper.classes()).toContain('rs-btn--ghost')
+  })
+
+  it('ghost and default keep an outline unless bordered is set', () => {
+    const ghost = mount(RsButton, { props: { variant: 'ghost' }, slots: { default: '幽灵' } })
+    const secondary = mount(RsButton, { props: { variant: 'default' }, slots: { default: '取消' } })
+    expect(ghost.classes()).not.toContain('rs-btn--borderless')
+    expect(secondary.classes()).not.toContain('rs-btn--borderless')
+    ghost.unmount()
+    secondary.unmount()
+  })
+
+  it('bordered=false removes the outline on ghost', () => {
+    const wrapper = mount(RsButton, {
+      props: { variant: 'ghost', bordered: false },
+      slots: { default: '幽灵' },
+    })
+    expect(wrapper.classes()).toContain('rs-btn--borderless')
   })
 
   it('text variant defaults to borderless + neutral tone', () => {
@@ -170,6 +191,7 @@ describe('RsButton', () => {
     expect(wrapper.element.contains(tip)).toBe(false)
     expect(tip?.parentElement).toBe(document.body)
     wrapper.unmount()
+    expect(document.body.querySelector('.rs-btn__tooltip')).toBeNull()
     vi.useRealTimers()
   })
 
@@ -184,6 +206,17 @@ describe('RsButton', () => {
     expect(btn.attributes('aria-busy')).toBe('true')
     expect(btn.find('.rs-btn__spinner-ring').exists()).toBe(true)
     expect(btn.text()).toContain('测试连接')
+  })
+
+  it('loading: blocks click so keyboard and mouse cannot resubmit', async () => {
+    const onClick = vi.fn()
+    const wrapper = mount(RsButton, {
+      props: { loading: true },
+      attrs: { onClick },
+      slots: { default: '保存' },
+    })
+    await wrapper.trigger('click')
+    expect(onClick).not.toHaveBeenCalled()
   })
 
   it('loading: locks min-width to avoid layout shift', async () => {
