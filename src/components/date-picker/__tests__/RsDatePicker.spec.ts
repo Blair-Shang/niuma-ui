@@ -106,4 +106,61 @@ describe('RsDatePicker', () => {
     expect(wrapper.find('.rs-date-picker__trigger').attributes('aria-invalid')).toBe('true')
     expect(wrapper.attributes('aria-invalid')).toBeUndefined()
   })
+
+  it('uses a native button trigger without Reka attributes', () => {
+    const wrapper = mount(RsDatePicker, { props: { modelValue: '' } })
+    const trigger = wrapper.find('.rs-date-picker__trigger')
+    expect(trigger.element.tagName).toBe('BUTTON')
+    expect(trigger.attributes('aria-haspopup')).toBe('dialog')
+    expect(trigger.attributes('data-reka-collection-item')).toBeUndefined()
+  })
+
+  it('shows formatted display independently of valueFormat', () => {
+    const wrapper = mount(RsDatePicker, {
+      props: { modelValue: '2025-06-16', format: 'MM/DD/YYYY' },
+    })
+    expect(wrapper.find('.rs-date-picker__value').text()).toBe('06/16/2025')
+  })
+
+  it('shows a clear button when clearable and valued', async () => {
+    const wrapper = mount(RsDatePicker, {
+      props: { modelValue: '2025-06-16', clearable: true },
+    })
+    expect(wrapper.find('.rs-date-picker__clear').exists()).toBe(true)
+    await wrapper.find('.rs-date-picker__clear').trigger('click')
+    expect(wrapper.emitted('clear')).toBeTruthy()
+    expect(wrapper.emitted('change')?.[0]?.[0]).toBe('')
+  })
+
+  it('closes the panel on Escape and detaches overlay listeners', async () => {
+    const wrapper = mount(RsDatePicker, {
+      props: { modelValue: '', open: true },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    expect(document.body.querySelector('.rs-date-picker__content')).not.toBeNull()
+    await wrapper.find('.rs-date-picker__trigger').trigger('keydown', { key: 'Escape' })
+    await flushPromises()
+    expect(wrapper.emitted('update:open')?.at(-1)).toEqual([false])
+    expect(document.body.querySelector('.rs-date-picker__content')).toBeNull()
+    wrapper.unmount()
+    expect(document.body.querySelector('.rs-date-picker__content')).toBeNull()
+  })
+
+  it('exposes focus and setValue', async () => {
+    const wrapper = mount(RsDatePicker, {
+      props: { modelValue: '' },
+      attachTo: document.body,
+    })
+    const vm = wrapper.vm as unknown as {
+      focus: () => void
+      setValue: (value: unknown) => void
+    }
+    vm.focus()
+    expect(document.activeElement).toBe(wrapper.find('.rs-date-picker__trigger').element)
+    vm.setValue('2025-07-01')
+    await flushPromises()
+    expect(wrapper.find('.rs-date-picker__value').text()).toBe('2025-07-01')
+    wrapper.unmount()
+  })
 })

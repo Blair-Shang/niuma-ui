@@ -9,10 +9,35 @@ export interface RsUploadValidationError {
   reason: 'accept' | 'maxSize' | 'maxCount'
 }
 
-export function formatFileSize(size: number): string {
-  if (size < 1024) return `${size} B`
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
-  return `${(size / 1024 / 1024).toFixed(1)} MB`
+export type RsUploadListType = 'text' | 'picture' | 'picture-card'
+
+export type RsUploadVariant = 'dropzone' | 'button'
+
+export type RsUploadCapture = boolean | 'user' | 'environment'
+
+export type RsUploadBeforeSelect = (
+  files: File[],
+) => boolean | File[] | Promise<boolean | File[]>
+
+export type RsUploadBeforeRemove = (
+  file: File,
+  index: number,
+) => boolean | Promise<boolean>
+
+export function formatFileSize(size: number, locale?: string): string {
+  const abs = Number.isFinite(size) ? Math.max(0, size) : 0
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'] as const
+  let value = abs
+  let unit = 0
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit += 1
+  }
+  if (unit === 0) return `${Math.round(value)} B`
+  const formatted = locale
+    ? new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value)
+    : value.toFixed(1)
+  return `${formatted} ${units[unit]}`
 }
 
 export function isFileAccepted(file: File, accept?: string): boolean {
@@ -54,17 +79,172 @@ export function removeUploadFileAt(files: readonly File[], index: number): File[
   return files.filter((_, currentIndex) => currentIndex !== index)
 }
 
-/** 触发浏览器下载指定 File / Blob */
+export function isSameUploadFile(left: Pick<File, 'name' | 'size' | 'lastModified' | 'type'>, right: Pick<File, 'name' | 'size' | 'lastModified' | 'type'>): boolean {
+  return (
+    left.name === right.name
+    && left.size === right.size
+    && left.lastModified === right.lastModified
+    && left.type === right.type
+  )
+}
+
+export function skipDuplicateUploadFiles(current: readonly File[], incoming: readonly File[]): File[] {
+  return incoming.filter((file) => !current.some((item) => isSameUploadFile(item, file)))
+}
+
+export function resolveUploadCapture(capture?: RsUploadCapture): 'user' | 'environment' | undefined {
+  if (capture === true) return 'environment'
+  if (capture === 'user' || capture === 'environment') return capture
+  return undefined
+}
+
+export function isImageUploadFile(file: Pick<File, 'name' | 'type'>): boolean {
+  if (file.type.startsWith('image/')) return true
+  return resolveUploadFileIcon(file) === 'file-image'
+}
+
+type FileSystemEntryLike = {
+  isFile: boolean
+  isDirectory: boolean
+  file?: (success: (file: File) => void, error?: (err: DOMException) => void) => void
+  createReader?: () => {
+    readEntries: (
+      success: (entries: FileSystemEntryLike[]) => void,
+      error?: (err: DOMException) => void,
+    ) => void
+  }
+}
+
+function asFileSystemEntry(item: DataTransferItem): FileSystemEntryLike | null {
+  const getter = (item as DataTransferItem & {
+    webkitGetAsEntry?: () => FileSystemEntryLike | null
+  }).webkitGetAsEntry
+  if (typeof getter !== 'function') return null
+  return getter.call(item)
+}
+
+export function droppedDataHasDirectory(data: DataTransfer | null | undefined): boolean {
+  const items = data?.items
+  if (!items?.length) return false
+  return Array.from(items).some((item) => asFileSystemEntry(item)?.isDirectory)
+}
+
+function readFileEntry(entry: FileSystemEntryLike): Promise<File | null> {
+  return new Promise((resolve) => {
+    if (!entry.file) {
+      resolve(null)
+      return
+    }
+    entry.file((file) => resolve(file), () => resolve(null))
+  })
+}
+
+function readDirectoryEntries(entry: FileSystemEntryLike): Promise<FileSystemEntryLike[]> {
+  const reader = entry.createReader?.()
+  if (!reader) return Promise.resolve([])
+  const collected: FileSystemEntryLike[] = []
+  return new Promise((resolve) => {
+    const pump = (): void => {
+      reader.readEntries((batch) => {
+        if (!batch.length) {
+          resolve(collected)
+          return
+        }
+        collected.push(...batch)
+        pump()
+      }, () => resolve(collected))
+    }
+    pump()
+  })
+}
+
+async function collectEntryFiles(entry: FileSystemEntryLike, output: File[]): Promise<void> {
+  if (entry.isFile) {
+    const file = await readFileEntry(entry)
+    if (file) output.push(file)
+    return
+  }
+  if (!entry.isDirectory) return
+  const children = await readDirectoryEntries(entry)
+  for (const child of children) {
+    await collectEntryFiles(child, output)
+  }
+}
+
+/** 读取拖入的 File。文件夹走 webkitGetAsEntry；否则回退 dataTransfer.files。 */
+export async function collectDroppedFiles(data: DataTransfer | null | undefined): Promise<File[]> {
+  if (!data) return []
+  const fromList = Array.from(data.files ?? [])
+  const items = data.items
+  if (!items?.length) return fromList
+  const entries = Array.from(items)
+    .map((item) => asFileSystemEntry(item))
+    .filter((entry): entry is FileSystemEntryLike => Boolean(entry))
+  if (!entries.length) return fromList
+  const files: File[] = []
+  for (const entry of entries) {
+    await collectEntryFiles(entry, files)
+  }
+  return files.length ? files : fromList
+}
+
+export function nextUploadPreviewUrls(
+  current: ReadonlyMap<File, string>,
+  files: readonly File[],
+  enabled: boolean,
+  createUrl: (file: Blob) => string,
+): { next: Map<File, string>; revoked: string[] } {
+  const live = new Set(files)
+  const next = new Map<File, string>()
+  const revoked: string[] = []
+  if (!enabled) {
+    revoked.push(...current.values())
+    return { next, revoked }
+  }
+  for (const [file, url] of current) {
+    if (live.has(file)) next.set(file, url)
+    else revoked.push(url)
+  }
+  for (const file of files) {
+    if (!isImageUploadFile(file) || next.has(file)) continue
+    const url = createUrl(file)
+    if (url) next.set(file, url)
+  }
+  return { next, revoked }
+}
+
+export function pruneBrokenUploadPreview(broken: ReadonlySet<File>, files: readonly File[]): Set<File> {
+  const live = new Set(files)
+  return new Set([...broken].filter((file) => live.has(file)))
+}
+
+export function createUploadObjectUrl(file: Blob): string {
+  if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') return ''
+  return URL.createObjectURL(file)
+}
+
+export function revokeUploadObjectUrl(url: string | undefined | null): void {
+  if (!url || typeof URL === 'undefined' || typeof URL.revokeObjectURL !== 'function') return
+  URL.revokeObjectURL(url)
+}
+
+/** 触发浏览器下载指定 File / Blob。无 document 时空操作。延迟 revoke，避免下载被中断。 */
 export function downloadUploadFile(file: File | Blob, filename?: string): void {
+  if (typeof document === 'undefined' || typeof URL === 'undefined') return
   const name = filename || (file instanceof File ? file.name : 'download')
-  const url = URL.createObjectURL(file)
+  const url = createUploadObjectUrl(file)
+  if (!url) return
   const link = document.createElement('a')
   link.href = url
   link.download = name
   document.body.appendChild(link)
   link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
+  link.remove()
+  if (typeof window === 'undefined') {
+    revokeUploadObjectUrl(url)
+    return
+  }
+  window.setTimeout(() => revokeUploadObjectUrl(url), 1500)
 }
 
 /** 将文本等内容还原为可回显的 File（编辑态回填） */

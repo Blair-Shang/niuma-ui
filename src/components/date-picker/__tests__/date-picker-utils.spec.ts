@@ -4,9 +4,11 @@ import {
   formatDateTimeDisplay,
   formatDateTimeValue,
   formatDateValue,
+  formatPickerDisplay,
   fromInternalPickerValue,
   parseDateTimeValue,
   parseDateValue,
+  resolveWeekStartsOn,
   toInternalPickerValue,
 } from '../src/date-picker-utils'
 import { RS_DATE_FORMAT, RS_DATETIME_FORMAT } from '../../../utils/rs-dayjs'
@@ -115,5 +117,26 @@ describe('date-picker valueFormat conversion', () => {
     expect(fromInternalPickerValue('', datetimeOpts)).toBeNull()
     expect(fromInternalPickerValue('', { valueFormat: 'timestamp', withTime: true })).toBeNull()
     expect(fromInternalPickerValue('', { valueFormat: 'string', withTime: true })).toBe('')
+  })
+})
+
+describe('date-picker display and week start', () => {
+  it('formats trigger text with a dayjs template', () => {
+    expect(formatPickerDisplay('2025-06-16', { format: 'MM/DD/YYYY' })).toBe('06/16/2025')
+    expect(formatPickerDisplay('2025-06-16 14:30:00', { format: 'YYYY/MM/DD HH:mm', withTime: true })).toBe(
+      '2025/06/16 14:30',
+    )
+    expect(formatPickerDisplay('2025-06-16')).toBe('2025-06-16')
+    expect(formatPickerDisplay('')).toBe('')
+  })
+
+  it('resolves week start from an explicit override', () => {
+    expect(resolveWeekStartsOn('zh-CN', 0)).toBe(0)
+    expect(resolveWeekStartsOn('en-US', 1)).toBe(1)
+  })
+
+  it('falls back to Sunday for en-US and Monday for zh-CN when weekInfo is missing', () => {
+    expect(resolveWeekStartsOn('en-US')).toBe(0)
+    expect(resolveWeekStartsOn('zh-CN')).toBe(1)
   })
 })

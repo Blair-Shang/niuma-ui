@@ -67,3 +67,16 @@ export function isCascaderLeaf(option: RsCascaderOption): boolean {
   if (option.isLeaf === false) return false
   return !option.children?.length
 }
+
+export function nextCascaderPath(
+  path: RsCascaderPath,
+  depth: number,
+  value: RsSelectValue,
+): RsCascaderPath {
+  return [...path.slice(0, depth), value]
+}
+
+export function popCascaderPath(path: RsCascaderPath): RsCascaderPath {
+  if (path.length <= 1) return []
+  return path.slice(0, -1)
+}

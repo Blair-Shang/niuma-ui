@@ -1,23 +1,23 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import {
+  resolveRsContainerStyle,
+  type RsContainerGap,
+  type RsContainerMaxWidth,
+  type RsContainerMaybeResponsive,
+  type RsContainerPadding,
+} from './container-utils'
 
-/** 支持的响应式断点，语义与常见 SaaS 前端一致。 */
-export type RsContainerBreakpoint = 'sm' | 'md' | 'lg' | 'xl'
+defineOptions({ name: 'RsContainer' })
 
-/** 内容区最大宽度档位，对应 `--rs-container-max-*` token。 */
-export type RsContainerMaxWidth = 'sm' | 'md' | 'lg' | 'xl' | 'full'
-
-/** 水平内边距档位，对应 `--rs-space-*` token。 */
-export type RsContainerPadding = 'none' | 'sm' | 'md' | 'lg'
-
-/** 栅格间距档位，对应 `--rs-space-*` token。 */
-export type RsContainerGap = 'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl'
-
-/** 断点映射配置，用于 maxWidth、padding、columns、gap。 */
-export type RsContainerResponsive<T> = Partial<Record<RsContainerBreakpoint, T>>
-
-/** 支持固定值或断点映射。 */
-export type RsContainerMaybeResponsive<T> = T | RsContainerResponsive<T>
+export type {
+  RsContainerBreakpoint,
+  RsContainerGap,
+  RsContainerMaxWidth,
+  RsContainerMaybeResponsive,
+  RsContainerPadding,
+  RsContainerResponsive,
+} from './container-utils'
 
 const props = withDefaults(
   defineProps<{
@@ -50,82 +50,21 @@ const props = withDefaults(
   },
 )
 
-const BREAKPOINTS: RsContainerBreakpoint[] = ['sm', 'md', 'lg', 'xl']
-
-const isResponsiveObject = <T,>(value: RsContainerMaybeResponsive<T>): value is RsContainerResponsive<T> =>
-  typeof value === 'object' && value !== null
-
-const tokenToSpaceVar: Record<RsContainerGap | RsContainerPadding, string> = {
-  none: '0',
-  xs: 'var(--rs-space-xs)',
-  sm: 'var(--rs-space-sm)',
-  md: 'var(--rs-space-md)',
-  lg: 'var(--rs-space-lg)',
-  xl: 'var(--rs-space-xl)',
-}
-
-const tokenToContainerVar: Record<RsContainerMaxWidth, string> = {
-  sm: 'var(--rs-container-max-sm)',
-  md: 'var(--rs-container-max-md)',
-  lg: 'var(--rs-container-max-lg)',
-  xl: 'var(--rs-container-max-xl)',
-  full: 'var(--rs-container-max-full)',
-}
-
 const rootClass = computed(() => [
   'rs-container',
   { 'rs-container--centered': props.centered, 'rs-container--grid': props.grid },
 ])
 
-const rootStyle = computed(() => {
-  const style: Record<string, string | number> = {}
-
-  if (props.fluid) {
-    style['--rs-container-max-current'] = 'none'
-  } else if (isResponsiveObject(props.maxWidth)) {
-    const responsiveMaxWidth = props.maxWidth as RsContainerResponsive<RsContainerMaxWidth>
-    BREAKPOINTS.forEach((bp) => {
-      const value = responsiveMaxWidth[bp]
-      if (value) style[`--rs-container-max-${bp}`] = tokenToContainerVar[value]
-    })
-  } else {
-    style['--rs-container-max-current'] = tokenToContainerVar[props.maxWidth]
-  }
-
-  if (isResponsiveObject(props.padding)) {
-    const responsivePadding = props.padding as RsContainerResponsive<RsContainerPadding>
-    BREAKPOINTS.forEach((bp) => {
-      const value = responsivePadding[bp]
-      if (value) style[`--rs-container-padding-${bp}`] = tokenToSpaceVar[value]
-    })
-  } else {
-    style['--rs-container-padding-current'] = tokenToSpaceVar[props.padding]
-  }
-
-  if (props.grid) {
-    if (isResponsiveObject(props.columns)) {
-      const responsiveColumns = props.columns as RsContainerResponsive<number>
-      BREAKPOINTS.forEach((bp) => {
-        const value = responsiveColumns[bp]
-        if (typeof value === 'number') style[`--rs-container-columns-${bp}`] = value
-      })
-    } else {
-      style['--rs-container-columns-current'] = props.columns
-    }
-
-    if (isResponsiveObject(props.gap)) {
-      const responsiveGap = props.gap as RsContainerResponsive<RsContainerGap>
-      BREAKPOINTS.forEach((bp) => {
-        const value = responsiveGap[bp]
-        if (value) style[`--rs-container-gap-${bp}`] = tokenToSpaceVar[value]
-      })
-    } else {
-      style['--rs-container-gap-current'] = tokenToSpaceVar[props.gap]
-    }
-  }
-
-  return style
-})
+const rootStyle = computed(() =>
+  resolveRsContainerStyle({
+    maxWidth: props.maxWidth,
+    padding: props.padding,
+    fluid: props.fluid,
+    grid: props.grid,
+    columns: props.columns,
+    gap: props.gap,
+  }),
+)
 </script>
 
 <template>
@@ -141,9 +80,11 @@ const rootStyle = computed(() => {
   max-width: var(--rs-container-max-current, var(--rs-container-max-lg));
   padding-inline: var(--rs-container-padding-current, var(--rs-space-md));
 }
+
 .rs-container--centered {
   margin-inline: auto;
 }
+
 .rs-container--grid {
   display: grid;
   grid-template-columns: repeat(var(--rs-container-columns-current, 12), minmax(0, 1fr));
@@ -155,6 +96,7 @@ const rootStyle = computed(() => {
     max-width: var(--rs-container-max-sm, var(--rs-container-max-current, var(--rs-container-max-lg)));
     padding-inline: var(--rs-container-padding-sm, var(--rs-container-padding-current, var(--rs-space-md)));
   }
+
   .rs-container--grid {
     grid-template-columns: repeat(
       var(--rs-container-columns-sm, var(--rs-container-columns-current, 12)),
@@ -172,6 +114,7 @@ const rootStyle = computed(() => {
       var(--rs-container-padding-sm, var(--rs-container-padding-current))
     );
   }
+
   .rs-container--grid {
     grid-template-columns: repeat(
       var(--rs-container-columns-md, var(--rs-container-columns-sm, var(--rs-container-columns-current, 12))),
@@ -192,6 +135,7 @@ const rootStyle = computed(() => {
       var(--rs-container-padding-md, var(--rs-container-padding-sm, var(--rs-container-padding-current)))
     );
   }
+
   .rs-container--grid {
     grid-template-columns: repeat(
       var(
@@ -215,6 +159,7 @@ const rootStyle = computed(() => {
       var(--rs-container-padding-lg, var(--rs-container-padding-md, var(--rs-container-padding-sm, var(--rs-container-padding-current))))
     );
   }
+
   .rs-container--grid {
     grid-template-columns: repeat(
       var(

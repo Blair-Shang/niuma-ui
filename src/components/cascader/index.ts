@@ -1,4 +1,5 @@
 export { default as RsCascader } from './src/RsCascader.vue'
+export type { RsCascaderExpose, RsCascaderInstance } from './src/RsCascader.vue'
 export type {
   RsCascaderExpandTrigger,
   RsCascaderOption,

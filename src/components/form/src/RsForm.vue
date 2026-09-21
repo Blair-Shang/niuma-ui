@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, toRef, useSlots } from 'vue'
+import { computed, onBeforeUnmount, toRef, useSlots, useTemplateRef } from 'vue'
 import type {
   RsFormErrorRender,
   RsFormErrorRenderContext,
@@ -12,7 +12,13 @@ import type {
   RsFormSize,
   RsFormValidationResult,
 } from './form-utils'
-import { cloneFormFieldValue, provideRsFormContext, resolveFieldRules } from './form-utils'
+import {
+  cloneFormFieldValue,
+  normalizeRsFormNameFilter,
+  provideRsFormContext,
+  resolveFieldRules,
+  scrollRsFormField,
+} from './form-utils'
 import type { RsFormRuleTrigger, RsFormRules, RsFormValidateMessages } from './form-rules'
 import {
   getByNamePath,
@@ -20,6 +26,27 @@ import {
   setByNamePath,
   type RsFormNamePath,
 } from './form-path'
+
+/**
+ * RsForm 模板 ref 请用此类型。
+ * 不要写 `InstanceType<typeof RsForm>`：组件实例类型过深，vue-tsc 会报 Excessive stack depth。
+ */
+export interface RsFormExpose {
+  validate: (trigger?: RsFormRuleTrigger) => Promise<RsFormValidationResult>
+  validateField: (name: string, trigger?: RsFormRuleTrigger) => Promise<RsFormFieldValidationResult>
+  clearValidation: (names?: string | string[]) => void
+  resetFields: (names?: string | string[]) => void
+  getFieldsValue: () => Record<string, unknown>
+  setFieldsValue: (values: Record<string, unknown>) => void
+  getFieldValue: (name: RsFormNamePath) => unknown
+  setFieldValue: (name: RsFormNamePath, value: unknown) => void
+  scrollToField: (name: RsFormNamePath) => void
+}
+
+/** 模板 ref 实例：expose + 根 form */
+export type RsFormInstance = RsFormExpose & { $el: HTMLFormElement }
+
+defineOptions({ name: 'RsForm' })
 
 const props = withDefaults(
   defineProps<{
@@ -68,7 +95,11 @@ const emit = defineEmits<{
 }>()
 
 const slots = useSlots()
+const formEl = useTemplateRef<HTMLFormElement>('formEl')
 const fields = new Map<symbol, RsFormFieldExpose>()
+const fieldsByName = new Map<string, RsFormFieldExpose>()
+const initialValues = new Map<symbol, unknown>()
+let mounted = true
 const disabledRef = computed(() => props.disabled)
 const labelPositionRef = computed(() => props.labelPosition)
 const labelWidthRef = computed(() => props.labelWidth)
@@ -77,16 +108,26 @@ const sizeRef = computed(() => props.size)
 const rulesRef = toRef(props, 'rules')
 const modelRef = toRef(props, 'model')
 const validateMessagesRef = computed(() => props.validateMessages)
-const initialValues = ref(new Map<symbol, unknown>())
 
 function registerField(id: symbol, field: RsFormFieldExpose): void {
   fields.set(id, field)
-  initialValues.value.set(id, cloneFormFieldValue(field.getValue()))
+  initialValues.set(id, cloneFormFieldValue(field.getValue()))
+  if (field.name && !fieldsByName.has(field.name)) {
+    fieldsByName.set(field.name, field)
+  }
 }
 
 function unregisterField(id: symbol): void {
+  const field = fields.get(id)
   fields.delete(id)
-  initialValues.value.delete(id)
+  initialValues.delete(id)
+  if (field?.name && fieldsByName.get(field.name) === field) {
+    fieldsByName.delete(field.name)
+  }
+}
+
+function findField(name: string): RsFormFieldExpose | undefined {
+  return fieldsByName.get(name)
 }
 
 function getFieldRules(name?: string) {
@@ -95,9 +136,7 @@ function getFieldRules(name?: string) {
 
 function getFieldValue(name: RsFormNamePath): unknown {
   if (modelRef.value) return getByNamePath(modelRef.value, name)
-  const key = namePathKey(name)
-  const field = Array.from(fields.values()).find((item) => item.name === key)
-  return field?.getValue()
+  return findField(namePathKey(name))?.getValue()
 }
 
 function setFieldValue(name: RsFormNamePath, value: unknown): void {
@@ -105,9 +144,7 @@ function setFieldValue(name: RsFormNamePath, value: unknown): void {
     setByNamePath(modelRef.value, name, value)
     return
   }
-  const key = namePathKey(name)
-  const field = Array.from(fields.values()).find((item) => item.name === key)
-  field?.setValue(value)
+  findField(namePathKey(name))?.setValue(value)
 }
 
 function getFieldsValue(): Record<string, unknown> {
@@ -127,12 +164,7 @@ function setFieldsValue(values: Record<string, unknown>): void {
 }
 
 function scrollToField(name: RsFormNamePath): void {
-  if (typeof document === 'undefined') return
-  const key = namePathKey(name)
-  const el = document.querySelector(`[data-rs-form-item="${CSS.escape(key)}"]`)
-  if (el instanceof HTMLElement) {
-    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-  }
+  scrollRsFormField(formEl.value, name)
 }
 
 function renderError(ctx: RsFormErrorRenderContext) {
@@ -181,6 +213,7 @@ async function validate(trigger: RsFormRuleTrigger = 'submit'): Promise<RsFormVa
     ),
   )
   const aggregated = collectResult(results)
+  if (!mounted) return aggregated
   emit('validate', aggregated)
   return aggregated
 }
@@ -190,16 +223,14 @@ async function validateField(
   name: string,
   trigger: RsFormRuleTrigger = 'submit',
 ): Promise<RsFormFieldValidationResult> {
-  const field = Array.from(fields.values()).find((item) => item.name === name)
+  const field = findField(name)
   if (!field) return { valid: true, name }
   const result = (await field.validate?.(trigger)) ?? { valid: true, name }
   return { ...result, name }
 }
 
 function clearValidation(names?: string | string[]): void {
-  const nameSet = names
-    ? new Set(Array.isArray(names) ? names : [names])
-    : null
+  const nameSet = normalizeRsFormNameFilter(names)
   fields.forEach((field) => {
     if (nameSet && (!field.name || !nameSet.has(field.name))) return
     field.clearValidation?.()
@@ -207,12 +238,10 @@ function clearValidation(names?: string | string[]): void {
 }
 
 function resetFields(names?: string | string[]): void {
-  const nameSet = names
-    ? new Set(Array.isArray(names) ? names : [names])
-    : null
+  const nameSet = normalizeRsFormNameFilter(names)
   fields.forEach((field, id) => {
     if (nameSet && (!field.name || !nameSet.has(field.name))) return
-    field.setValue(cloneFormFieldValue(initialValues.value.get(id)))
+    field.setValue(cloneFormFieldValue(initialValues.get(id)))
     field.clearValidation?.()
   })
 }
@@ -223,10 +252,18 @@ async function onSubmit(event: Event): Promise<void> {
     const result = await validate('submit')
     if (!result.valid) return
   }
+  if (!mounted) return
   emit('submit', event)
 }
 
-defineExpose({
+onBeforeUnmount(() => {
+  mounted = false
+  fields.clear()
+  fieldsByName.clear()
+  initialValues.clear()
+})
+
+defineExpose<RsFormExpose>({
   validate,
   validateField,
   clearValidation,
@@ -241,12 +278,14 @@ defineExpose({
 
 <template>
   <form
+    ref="formEl"
     class="rs-form"
     :class="[
       `rs-form--gap-${gap}`,
       `rs-form--max-${maxWidth}`,
       `rs-form--label-${labelPosition}`,
     ]"
+    novalidate
     @submit="onSubmit"
   >
     <!-- 默认插槽：表单字段；#error 不在此渲染，经 Context 注入到字段错误区 -->
@@ -256,31 +295,42 @@ defineExpose({
 
 <style scoped>
 .rs-form {
+  --rs-form-max-sm: 24rem;
+  --rs-form-max-md: 32rem;
+  --rs-form-max-lg: 48rem;
   display: flex;
   flex-direction: column;
   width: 100%;
 }
+
 .rs-form--gap-sm {
   gap: var(--rs-space-sm);
 }
+
 .rs-form--gap-md {
   gap: var(--rs-space-md);
 }
+
 .rs-form--gap-lg {
   gap: var(--rs-space-lg);
 }
+
 .rs-form--max-sm {
-  max-width: 24rem;
+  max-width: var(--rs-form-max-sm);
 }
+
 .rs-form--max-md {
-  max-width: 32rem;
+  max-width: var(--rs-form-max-md);
 }
+
 .rs-form--max-lg {
-  max-width: 48rem;
+  max-width: var(--rs-form-max-lg);
 }
+
 .rs-form--max-full {
   max-width: 100%;
 }
+
 .rs-form--max-none {
   max-width: none;
 }

@@ -34,9 +34,9 @@ const { copy } = useSiteDemo({
 
 const methodNote = computed(() => methodLog.value || copy.value.methodIdle)
 
-const fallbackCode = `<RsAvatar name="Zhang San" />
-<RsAvatar name="Jane Doe" />
-<RsAvatar name="Weak Water" />
+const fallbackCode = `<RsAvatar src="/favicon.svg" name="Jane Doe" />
+<RsAvatar src="https://invalid.niuma.invalid/missing.png" name="Jane Doe" />
+<RsAvatar name="Zhang San" />
 <RsAvatar fallback="AB" />
 <RsAvatar />`
 
@@ -82,8 +82,9 @@ function inspectAvatarRef() {
     :code="fallbackCode"
   >
     <div class="row">
+      <RsAvatar src="/favicon.svg" :name="copy.jane" />
+      <RsAvatar src="https://invalid.niuma.invalid/missing.png" :name="copy.jane" />
       <RsAvatar :name="copy.zhang" />
-      <RsAvatar :name="copy.jane" />
       <RsAvatar :name="copy.studio" />
       <RsAvatar :fallback="copy.custom" />
       <RsAvatar />

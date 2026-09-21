@@ -4,6 +4,22 @@ export interface RsMentionOption {
   label: string
   value: string
   disabled?: boolean
+  title?: string
+}
+
+export type RsMentionOptionInput = string | RsMentionOption
+
+export type RsMentionFilterOption =
+  | boolean
+  | ((query: string, option: RsMentionOption) => boolean)
+
+export function normalizeRsMentionOptions(
+  options: ReadonlyArray<RsMentionOptionInput> | undefined,
+): RsMentionOption[] {
+  if (!options?.length) return []
+  return options.map((item) =>
+    typeof item === 'string' ? { label: item, value: item } : { ...item },
+  )
 }
 
 export interface RsMentionActive {
@@ -109,6 +125,7 @@ const MIRROR_STYLE_KEYS = [
   'lineHeight',
   'whiteSpace',
   'wordWrap',
+  'direction',
 ] as const
 
 export interface RsTextareaCaretMeter {
@@ -121,7 +138,8 @@ export function createTextareaCaretMeter(): RsTextareaCaretMeter {
   let mirror: HTMLDivElement | null = null
   let marker: HTMLSpanElement | null = null
 
-  function ensure(): { mirror: HTMLDivElement; marker: HTMLSpanElement } {
+  function ensure(): { mirror: HTMLDivElement; marker: HTMLSpanElement } | null {
+    if (typeof document === 'undefined') return null
     if (mirror && marker) return { mirror, marker }
     mirror = document.createElement('div')
     mirror.setAttribute('aria-hidden', 'true')
@@ -132,7 +150,7 @@ export function createTextareaCaretMeter(): RsTextareaCaretMeter {
     s.whiteSpace = 'pre-wrap'
     s.wordWrap = 'break-word'
     s.top = '0'
-    s.left = '-9999px'
+    s.insetInlineStart = '-9999px'
     marker = document.createElement('span')
     marker.textContent = '.'
     document.body.appendChild(mirror)
@@ -140,7 +158,9 @@ export function createTextareaCaretMeter(): RsTextareaCaretMeter {
   }
 
   function measure(textarea: HTMLTextAreaElement, index: number): RsMentionCaretBox {
-    const { mirror: box, marker: caret } = ensure()
+    const nodes = ensure()
+    if (!nodes) return { top: 0, left: 0, height: 16 }
+    const { mirror: box, marker: caret } = nodes
     const style = window.getComputedStyle(textarea)
     for (const key of MIRROR_STYLE_KEYS) {
       box.style.setProperty(
@@ -148,12 +168,13 @@ export function createTextareaCaretMeter(): RsTextareaCaretMeter {
         style[key],
       )
     }
+    box.dir = textarea.dir || document.documentElement.dir || 'ltr'
     const text = textarea.value.slice(0, Math.max(0, index))
     box.textContent = text.endsWith('\n') ? `${text}\u00a0` : text
     box.appendChild(caret)
     const top = caret.offsetTop - textarea.scrollTop
     const left = caret.offsetLeft - textarea.scrollLeft
-    const height = caret.offsetHeight || parseFloat(style.lineHeight) || 16
+    const height = caret.offsetHeight || Number.parseFloat(style.lineHeight) || 16
     return { top, left, height }
   }
 
@@ -182,12 +203,17 @@ export function measureTextareaCaret(
 export function filterMentionOptions(
   options: readonly RsMentionOption[],
   query: string,
+  filterOption?: RsMentionFilterOption,
 ): RsMentionOption[] {
-  const q = query.trim().toLowerCase()
-  if (!q) return options.filter((item) => !item.disabled)
+  if (filterOption === false) return options.slice()
+  const q = query.trim()
+  if (typeof filterOption === 'function') {
+    return options.filter((item) => filterOption(q, item))
+  }
+  if (!q) return options.slice()
+  const lower = q.toLowerCase()
   return options.filter(
     (item) =>
-      !item.disabled &&
-      (item.label.toLowerCase().includes(q) || item.value.toLowerCase().includes(q)),
+      item.label.toLowerCase().includes(lower) || item.value.toLowerCase().includes(lower),
   )
 }

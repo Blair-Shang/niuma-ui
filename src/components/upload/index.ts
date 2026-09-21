@@ -1,5 +1,17 @@
 export { default as RsUpload } from './src/RsUpload.vue'
-export type { RsUploadValidationError, RsUploadValidationRules } from './src/upload-utils'
+export type {
+  RsUploadExpose,
+  RsUploadInstance,
+} from './src/RsUpload.vue'
+export type {
+  RsUploadBeforeRemove,
+  RsUploadBeforeSelect,
+  RsUploadCapture,
+  RsUploadListType,
+  RsUploadValidationError,
+  RsUploadValidationRules,
+  RsUploadVariant,
+} from './src/upload-utils'
 export {
   createUploadFileFromContent,
   downloadUploadFile,

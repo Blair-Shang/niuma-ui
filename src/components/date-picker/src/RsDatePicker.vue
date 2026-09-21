@@ -1,12 +1,23 @@
 <script setup lang="ts">
-import { computed, ref, useAttrs, useId, watch } from 'vue'
-import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from '../../_shared/src/reka'
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  ref,
+  useAttrs,
+  useId,
+  useTemplateRef,
+  watch,
+} from 'vue'
+import RsButton from '../../button/src/RsButton.vue'
 import RsCalendarGrid from '../../calendar-grid/src/RsCalendarGrid.vue'
 import RsIcon from '../../icon/src/RsIcon.vue'
 import RsTimePicker from '../../time-picker/src/RsTimePicker.vue'
 import { useRsI18n } from '../../../composables/useRsI18n'
-import { RS_COMPONENT_SIZE_ICON_PX, type RsComponentSize } from '../../../theme/types'
+import { RS_COMPONENT_SIZE_ICON_PX, type RsComponentSize, type RsRadius } from '../../../theme/types'
 import { useResolvedRsComponentSize } from '../../_shared/src/resolve-size'
+import { rsRadiusCss, useResolvedRsRadius } from '../../_shared/src/resolve-radius'
+import { placeAnchoredPopup, type RsOverlayBox } from '../../_shared/src/overlay-utils'
 import {
   isRsFormItemBoundControl,
   useRsFormContext,
@@ -23,11 +34,8 @@ import {
   EMPTY_DATE_RANGE,
   extractTimeFromDateTime,
   formatDateParts,
-  formatDateRangeLabel,
-  formatDateDisplay,
-  formatDateTimeDisplay,
   formatDateTimeParts,
-  formatDateTimeRangeLabel,
+  formatPickerDisplay,
   getNextMonth,
   getNowDateTime,
   formatTimestampValue,
@@ -41,29 +49,56 @@ import {
   parseDateTimeValue,
   parseDateValue,
   parseTimestampValue,
+  resolveDatePickerPortalTarget,
+  resolveWeekStartsOn,
   toInternalPickerValue,
   toRangeEndpointString,
+  type RsDatePickerDisabledDate,
+  type RsDatePickerGetPopupContainer,
   type RsDatePickerModelValue,
   type RsDatePickerShortcut,
   type RsDatePickerValueFormat,
   type RsDateRangeValue,
   type RsParsedDate,
+  type RsWeekStartsOn,
 } from './date-picker-utils'
-import { formatTimeParts } from '../../time-picker/src/time-picker-utils'
+import {
+  containOverlayWheel,
+  formatTimeParts,
+  isTimeColumnScrollTarget,
+} from '../../time-picker/src/time-picker-utils'
 
 export type {
+  RsDatePickerDisabledDate,
+  RsDatePickerGetPopupContainer,
   RsDatePickerModelValue,
   RsDatePickerShortcut,
   RsDatePickerValueFormat,
   RsDateRangeValue,
+  RsWeekStartsOn,
 } from './date-picker-utils'
 export type RsDatePickerLabelPosition = 'top' | 'left'
+
+export interface RsDatePickerExpose {
+  setValue: (value: unknown) => void
+  clearValidation: () => void
+  setError: (message: string) => void
+  validate: (trigger?: RsFormRuleTrigger) => Promise<{
+    valid: boolean
+    message?: string
+    name?: string
+  }>
+  focus: () => void
+  blur: () => void
+}
+
+export type RsDatePickerInstance = RsDatePickerExpose & { $el: HTMLElement }
 
 function isRangeModel(value: RsDatePickerModelValue): value is RsDateRangeValue {
   return typeof value === 'object' && value !== null && !Array.isArray(value) && ('start' in value || 'end' in value)
 }
 
-defineOptions({ inheritAttrs: false })
+defineOptions({ name: 'RsDatePicker', inheritAttrs: false })
 
 const model = defineModel<RsDatePickerModelValue>({ default: '' })
 const open = defineModel<boolean>('open', { default: false })
@@ -86,18 +121,29 @@ const props = withDefaults(
      */
     withSeconds?: boolean
     /**
-     * 绑定值格式（展示仍为墙钟）。
+     * 绑定值格式（展示仍为墙钟，除非另传 format）。
      * string：YYYY-MM-DD[/ HH:mm:ss]；timestamp：毫秒；iso：本地偏移 RFC3339；
      * 亦可传入 dayjs 模板（对齐 Element Plus value-format）。
      */
     valueFormat?: RsDatePickerValueFormat
+    /** 触发器展示模板（dayjs）。与 valueFormat 分离，默认墙钟。 */
+    format?: string
     labelPosition?: RsDatePickerLabelPosition
     /** 底部快捷选项（有值时替代「今天/现在」链接） */
     shortcuts?: RsDatePickerShortcut[]
     size?: RsComponentSize
+    radius?: RsRadius
     id?: string
     invalid?: boolean
     showValidateMessage?: boolean
+    clearable?: boolean
+    readonly?: boolean
+    ariaLabel?: string
+    /** 一周起始。未传跟 locale（en-US 周日，zh-CN 周一） */
+    weekStartsOn?: RsWeekStartsOn
+    disabledDates?: string[]
+    disabledDate?: RsDatePickerDisabledDate
+    getPopupContainer?: RsDatePickerGetPopupContainer
   }>(),
   {
     disabled: false,
@@ -107,17 +153,34 @@ const props = withDefaults(
     valueFormat: 'string',
     labelPosition: 'top',
     showValidateMessage: true,
+    clearable: false,
+    readonly: false,
+    disabledDates: () => [],
   },
 )
 
-const fieldId = useId()
+const emit = defineEmits<{
+  change: [value: RsDatePickerModelValue]
+  openChange: [open: boolean]
+  clear: []
+  focus: []
+  blur: []
+}>()
+
+const fallbackId = useId()
+const panelId = useId()
 const attrs = useAttrs()
-const { t } = useRsI18n()
+const { t, locale } = useRsI18n()
 const resolvedSize = useResolvedRsComponentSize(() => props.size)
+const resolvedRadius = useResolvedRsRadius(() => props.radius, 'sm')
 const triggerIconSize = computed(() => RS_COMPONENT_SIZE_ICON_PX[resolvedSize.value])
+const clearIconSize = computed(() => Math.max(12, triggerIconSize.value - 2))
 /** withTime 默认带秒；显式 withSeconds 优先（勿与 prop 同名，避免模板取到未传 prop） */
 const resolvedWithSeconds = computed(() =>
   props.withSeconds !== undefined ? props.withSeconds : props.withTime,
+)
+const resolvedWeekStartsOn = computed(() =>
+  resolveWeekStartsOn(locale.value, props.weekStartsOn),
 )
 const formContext = useRsFormContext()
 const formItem = useRsFormItemContext()
@@ -132,17 +195,28 @@ const isInvalid = computed(() =>
       (!boundToItem.value && autoMessage.value),
   ),
 )
-const triggerId = computed(() => props.id || fieldId)
+const triggerId = computed(() => props.id || fallbackId)
 const visibleMessage = computed(() =>
   boundToItem.value || props.showValidateMessage === false ? '' : autoMessage.value,
 )
+const resolvedDisabled = computed(
+  () => props.disabled || Boolean(formContext?.disabled.value),
+)
+const canInteract = computed(() => !resolvedDisabled.value && !props.readonly)
 
-const viewYear = ref(getTodayDate().year)
-const viewMonth = ref(getTodayDate().month)
-const startViewYear = ref(getTodayDate().year)
-const startViewMonth = ref(getTodayDate().month)
-const endViewYear = ref(getTodayDate().year)
-const endViewMonth = ref(getTodayDate().month)
+const rootRef = useTemplateRef<HTMLElement>('rootRef')
+const triggerRef = useTemplateRef<HTMLButtonElement>('triggerRef')
+const contentRef = useTemplateRef<HTMLElement>('contentRef')
+const panelTheme = ref<string | undefined>()
+const popup = ref<RsOverlayBox>({ top: 0, left: 0, width: 0, placement: 'bottom' })
+
+const todaySeed = getTodayDate()
+const viewYear = ref(todaySeed.year)
+const viewMonth = ref(todaySeed.month)
+const startViewYear = ref(todaySeed.year)
+const startViewMonth = ref(todaySeed.month)
+const endViewYear = ref(todaySeed.year)
+const endViewMonth = ref(todaySeed.month)
 
 const draftDate = ref<RsParsedDate | null>(null)
 const draftStart = ref<RsParsedDate | null>(null)
@@ -214,12 +288,20 @@ const isEmpty = computed(() =>
   props.range ? isDateRangeEmpty(rangeModel.value) : !singleModel.value,
 )
 
+const displayOptions = computed(() => ({
+  format: props.format,
+  withTime: props.withTime,
+}))
+
 const displayValue = computed(() => {
   if (props.range) {
-    const formatted = props.withTime
-      ? formatDateTimeRangeLabel(rangeModel.value, t('datePicker.separator'))
-      : formatDateRangeLabel(rangeModel.value, t('datePicker.separator'))
-    if (formatted) return formatted
+    const start = formatPickerDisplay(rangeModel.value.start, displayOptions.value)
+    const end = formatPickerDisplay(rangeModel.value.end, displayOptions.value)
+    if (start || end) {
+      const separator = t('datePicker.separator')
+      if (start && end) return `${start}${separator}${end}`
+      return start || end
+    }
     if (props.placeholder) return props.placeholder
     return props.withTime ? t('dateTimePicker.rangePlaceholder') : t('datePicker.rangePlaceholder')
   }
@@ -228,15 +310,31 @@ const displayValue = computed(() => {
     return props.placeholder ?? (props.withTime ? t('dateTimePicker.placeholder') : t('datePicker.placeholder'))
   }
 
-  return props.withTime
-    ? formatDateTimeDisplay(singleModel.value)
-    : formatDateDisplay(singleModel.value)
+  return formatPickerDisplay(singleModel.value, displayOptions.value)
 })
 
 const triggerIcon = computed(() => {
   if (props.range || props.withTime) return 'calendar-clock'
   return 'calendar-days'
 })
+
+const showClear = computed(
+  () => props.clearable && !isEmpty.value && canInteract.value,
+)
+
+const portalTarget = computed(() =>
+  resolveDatePickerPortalTarget(props.getPopupContainer, triggerRef.value),
+)
+
+const panelStyle = computed(() => ({
+  top: `${popup.value.top}px`,
+  left: `${popup.value.left}px`,
+  '--rs-date-picker-radius': rsRadiusCss(resolvedRadius.value),
+}))
+
+const rootStyle = computed(() => ({
+  '--rs-date-picker-radius': rsRadiusCss(resolvedRadius.value),
+}))
 
 function currentTimeValue(): string {
   const now = getNowDateTime()
@@ -364,6 +462,10 @@ function syncDraftFromModel(): void {
   syncSingleDraft()
 }
 
+function emitChange(): void {
+  emit('change', model.value)
+}
+
 function confirmSingleSelection(): void {
   if (!draftDate.value) return
 
@@ -372,6 +474,7 @@ function confirmSingleSelection(): void {
     if (!combined) return
     singleModel.value = combined
     open.value = false
+    emitChange()
     return
   }
 
@@ -386,6 +489,7 @@ function confirmSingleSelection(): void {
 
   singleModel.value = formatDateParts(draftDate.value)
   open.value = false
+  emitChange()
 }
 
 function confirmRangeSelection(): void {
@@ -398,6 +502,7 @@ function confirmRangeSelection(): void {
     if (!isDateRangeOrdered({ start, end })) return
     rangeModel.value = { start, end }
     open.value = false
+    emitChange()
     return
   }
 
@@ -420,6 +525,7 @@ function confirmRangeSelection(): void {
 
   rangeModel.value = { start, end }
   open.value = false
+  emitChange()
 }
 
 function confirmSelection(): void {
@@ -431,7 +537,7 @@ function confirmSelection(): void {
 }
 
 function applyShortcut(shortcut: RsDatePickerShortcut): void {
-  if (props.disabled) return
+  if (!canInteract.value) return
   const normalized = normalizeShortcutValue(shortcut.value(), { withTime: props.withTime })
   if (!normalized) return
 
@@ -442,12 +548,14 @@ function applyShortcut(shortcut: RsDatePickerShortcut): void {
     if (!isDateRangeOrdered(rangeValue)) return
     rangeModel.value = rangeValue
     open.value = false
+    emitChange()
     return
   }
 
   if (typeof normalized !== 'string') return
   singleModel.value = normalized
   open.value = false
+  emitChange()
 }
 
 function clearSelection(): void {
@@ -466,6 +574,8 @@ function clearSelection(): void {
     if (props.withTime) draftTime.value = currentTimeValue()
   }
   open.value = false
+  emit('clear')
+  emitChange()
 }
 
 function selectToday(): void {
@@ -562,6 +672,136 @@ function setFieldValue(value: unknown): void {
   model.value = value == null ? '' : (value as RsDatePickerModelValue)
 }
 
+function focus(): void {
+  triggerRef.value?.focus()
+}
+
+function blur(): void {
+  triggerRef.value?.blur()
+}
+
+function toggleOpen(): void {
+  if (!canInteract.value) return
+  open.value = !open.value
+}
+
+function onTriggerKeydown(event: KeyboardEvent): void {
+  if (!canInteract.value || event.isComposing) return
+  if (event.key === 'Escape' && open.value) {
+    event.preventDefault()
+    open.value = false
+    return
+  }
+  if (open.value) return
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault()
+    open.value = true
+  }
+}
+
+function syncPanelTheme(): void {
+  const el = triggerRef.value ?? rootRef.value
+  if (!el) {
+    panelTheme.value = undefined
+    return
+  }
+  const themed = el.closest('[data-rs-theme]')
+  panelTheme.value = themed instanceof HTMLElement ? themed.dataset.rsTheme : undefined
+}
+
+function placePopup(): void {
+  const trigger = triggerRef.value
+  const content = contentRef.value
+  if (!trigger || !open.value || typeof window === 'undefined') return
+  const anchor = trigger.getBoundingClientRect()
+  const measured = content?.getBoundingClientRect()
+  const prefWidth = props.range
+    ? Math.max(anchor.width, measured?.width || Math.min(42 * 16, window.innerWidth - 32))
+    : Math.max(anchor.width, measured?.width || Math.min(20 * 16, window.innerWidth - 32))
+  popup.value = placeAnchoredPopup(
+    { top: anchor.top, left: anchor.left, height: anchor.height, width: anchor.width },
+    { width: prefWidth, height: measured?.height || 320 },
+    { width: window.innerWidth, height: window.innerHeight },
+    6,
+  )
+}
+
+let frame = 0
+let overlayBound = false
+let openWatchReady = false
+let panelResize: ResizeObserver | undefined
+
+function requestPlace(): void {
+  if (typeof window === 'undefined') return
+  if (frame) return
+  frame = window.requestAnimationFrame(() => {
+    frame = 0
+    placePopup()
+  })
+}
+
+function onDocPointerDown(event: PointerEvent): void {
+  const target = event.target
+  if (!(target instanceof Node)) return
+  if (rootRef.value?.contains(target)) return
+  if (contentRef.value?.contains(target)) return
+  if (target instanceof Element) {
+    if (target.closest('.rs-time-picker__content')) return
+  }
+  open.value = false
+}
+
+function onWindowChange(event?: Event): void {
+  if (!open.value) return
+  if (event?.type === 'scroll' && isTimeColumnScrollTarget(event.target)) return
+  requestPlace()
+}
+
+function attachPanelObserver(): void {
+  if (typeof ResizeObserver === 'undefined') return
+  panelResize?.disconnect()
+  if (!contentRef.value) return
+  panelResize = new ResizeObserver(() => requestPlace())
+  panelResize.observe(contentRef.value)
+}
+
+function attachPanelWheel(): void {
+  contentRef.value?.addEventListener('wheel', containOverlayWheel, { passive: false })
+}
+
+function detachPanelWheel(): void {
+  contentRef.value?.removeEventListener('wheel', containOverlayWheel)
+}
+
+function attachOverlay(): void {
+  if (overlayBound || typeof window === 'undefined') return
+  overlayBound = true
+  if (typeof document !== 'undefined') {
+    document.addEventListener('pointerdown', onDocPointerDown)
+  }
+  window.addEventListener('resize', onWindowChange)
+  window.addEventListener('scroll', onWindowChange, true)
+}
+
+function detachOverlay(): void {
+  detachPanelWheel()
+  panelResize?.disconnect()
+  panelResize = undefined
+  if (frame && typeof window !== 'undefined') {
+    window.cancelAnimationFrame(frame)
+    frame = 0
+  }
+  if (!overlayBound) return
+  overlayBound = false
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('pointerdown', onDocPointerDown)
+  }
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', onWindowChange)
+    window.removeEventListener('scroll', onWindowChange, true)
+  }
+}
+
 async function runValidate(trigger: RsFormRuleTrigger = 'submit') {
   const formRules = formContext?.getFieldRules(props.name) ?? []
   const localRules = buildLocalInputRules({ required: props.required })
@@ -588,181 +828,258 @@ useRsFormField(() => ({
   },
 }))
 
-defineExpose({
+defineExpose<RsDatePickerExpose>({
   setValue: setFieldValue,
   clearValidation,
+  setError: (message: string) => {
+    autoMessage.value = message
+  },
   validate: runValidate,
+  focus,
+  blur,
 })
 
-watch(open, (isOpen) => {
-  if (isOpen) syncDraftFromModel()
-  // 关闭面板后按 change 触发校验（对齐选择类控件）
-  if (!isOpen && props.name) void runValidate('change')
+watch(
+  open,
+  (isOpen) => {
+    const skipEvent = !openWatchReady
+    openWatchReady = true
+    if (typeof document === 'undefined' || typeof window === 'undefined') return
+    if (isOpen) {
+      if (!canInteract.value) {
+        open.value = false
+        return
+      }
+      syncDraftFromModel()
+      syncPanelTheme()
+      attachOverlay()
+      void nextTick(() => {
+        requestPlace()
+        attachPanelObserver()
+        attachPanelWheel()
+      })
+      if (!skipEvent) emit('openChange', true)
+      return
+    }
+    detachOverlay()
+    if (!skipEvent) {
+      emit('openChange', false)
+      if (props.name) void runValidate('change')
+    }
+  },
+  { immediate: true },
+)
+
+watch(resolvedDisabled, (disabled) => {
+  if (disabled && open.value) open.value = false
 })
+
+onBeforeUnmount(detachOverlay)
 </script>
 
 <template>
-  <div class="rs-field" :class="`rs-field--label-${labelPosition}`">
-    <span v-if="label" class="rs-field__label">
-      <label v-if="labelPosition === 'left'" :for="fieldId">{{ label }}</label>
-      <template v-else>{{ label }}</template>
+  <div
+    ref="rootRef"
+    class="rs-field"
+    :class="[`rs-field--label-${labelPosition}`, { 'rs-date-picker-wrap--clearable': showClear }]"
+    :style="rootStyle"
+  >
+    <label v-if="label" class="rs-field__label" :for="triggerId">
+      {{ label }}
       <span v-if="required" class="rs-field__required" aria-hidden="true">*</span>
-    </span>
+    </label>
 
     <div class="rs-date-picker" :class="`rs-date-picker--${resolvedSize}`">
-      <PopoverRoot v-model:open="open">
-        <PopoverTrigger
-          v-bind="attrs"
-          :id="triggerId"
-          type="button"
-          class="rs-date-picker__trigger"
-          :class="{
-            'rs-date-picker__trigger--placeholder': isEmpty,
-            'rs-date-picker__trigger--invalid': isInvalid,
-          }"
-          :disabled="disabled"
-          :aria-invalid="isInvalid || undefined"
-        >
-          <span class="rs-date-picker__leading">
-            <RsIcon :name="triggerIcon" :size="triggerIconSize" class="rs-date-picker__icon" />
-            <span class="rs-date-picker__value">{{ displayValue }}</span>
-          </span>
-          <RsIcon name="chevron-down" :size="triggerIconSize" class="rs-date-picker__chevron" />
-        </PopoverTrigger>
+      <button
+        v-bind="attrs"
+        :id="triggerId"
+        ref="triggerRef"
+        type="button"
+        class="rs-date-picker__trigger"
+        :class="{
+          'rs-date-picker__trigger--placeholder': isEmpty,
+          'rs-date-picker__trigger--invalid': isInvalid,
+        }"
+        :disabled="resolvedDisabled"
+        :aria-invalid="isInvalid || undefined"
+        :aria-label="ariaLabel"
+        aria-haspopup="dialog"
+        :aria-expanded="open ? 'true' : 'false'"
+        :aria-controls="open ? panelId : undefined"
+        :aria-readonly="readonly || undefined"
+        @click="toggleOpen"
+        @keydown="onTriggerKeydown"
+        @focus="emit('focus')"
+        @blur="emit('blur')"
+      >
+        <span class="rs-date-picker__leading">
+          <RsIcon :name="triggerIcon" :size="triggerIconSize" class="rs-date-picker__icon" aria-hidden="true" />
+          <span class="rs-date-picker__value">{{ displayValue }}</span>
+        </span>
+        <RsIcon name="chevron-down" :size="triggerIconSize" class="rs-date-picker__chevron" aria-hidden="true" />
+      </button>
+      <RsButton
+        v-if="showClear"
+        class="rs-date-picker__clear"
+        variant="text"
+        :bordered="false"
+        size="ssm"
+        radius="full"
+        icon="x"
+        :icon-size="clearIconSize"
+        icon-only
+        :aria-label="withTime ? t('dateTimePicker.clear') : t('datePicker.clear')"
+        @pointerdown.stop
+        @click.stop="clearSelection"
+      />
+    </div>
 
-        <PopoverPortal>
-          <PopoverContent
-            class="rs-date-picker__content"
-            :class="{ 'rs-date-picker__content--range': range }"
-            :side-offset="6"
-            align="start"
-          >
-            <div v-if="open" class="rs-date-picker__panel">
-              <template v-if="range">
-                <div class="rs-date-picker__range-grid">
-                  <section class="rs-date-picker__range-pane">
-                    <span class="rs-date-picker__pane-title">
-                      {{ withTime ? t('dateTimePicker.rangeStart') : t('datePicker.rangeStart') }}
-                    </span>
-                    <RsCalendarGrid
-                      v-model:view-year="startViewYear"
-                      v-model:view-month="startViewMonth"
-                      :selected="draftStart"
-                      :range-start="draftStart"
-                      :range-end="draftEnd"
-                      :min-date="minDate"
-                      :max-date="startMaxDate"
-                      @select="handleStartSelect"
-                    />
-                    <div v-if="withTime" class="rs-date-picker__time-row">
-                      <span class="rs-date-picker__time-label">{{ t('dateTimePicker.time') }}</span>
-                      <RsTimePicker
-                        v-model="draftStartTime"
-                        class="rs-date-picker__time-picker"
-                        embedded
-                        :size="resolvedSize"
-                        :with-seconds="resolvedWithSeconds"
-                        :disabled="!draftStart || disabled"
-                      />
-                    </div>
-                  </section>
-
-                  <section class="rs-date-picker__range-pane">
-                    <span class="rs-date-picker__pane-title">
-                      {{ withTime ? t('dateTimePicker.rangeEnd') : t('datePicker.rangeEnd') }}
-                    </span>
-                    <RsCalendarGrid
-                      v-model:view-year="endViewYear"
-                      v-model:view-month="endViewMonth"
-                      :selected="draftEnd"
-                      :range-start="draftStart"
-                      :range-end="draftEnd"
-                      :min-date="endMinDate"
-                      :max-date="maxDate"
-                      @select="handleEndSelect"
-                    />
-                    <div v-if="withTime" class="rs-date-picker__time-row">
-                      <span class="rs-date-picker__time-label">{{ t('dateTimePicker.time') }}</span>
-                      <RsTimePicker
-                        v-model="draftEndTime"
-                        class="rs-date-picker__time-picker"
-                        embedded
-                        :size="resolvedSize"
-                        :with-seconds="resolvedWithSeconds"
-                        :disabled="!draftEnd || disabled"
-                      />
-                    </div>
-                  </section>
-                </div>
-              </template>
-
-              <template v-else>
+    <Teleport :to="portalTarget">
+      <div
+        v-if="open && canInteract"
+        :id="panelId"
+        ref="contentRef"
+        class="rs-date-picker__content"
+        :class="{ 'rs-date-picker__content--range': range }"
+        :data-placement="popup.placement"
+        :data-rs-theme="panelTheme"
+        :style="panelStyle"
+        role="dialog"
+        :aria-label="label || ariaLabel || (withTime ? t('dateTimePicker.placeholder') : t('datePicker.placeholder'))"
+      >
+        <div class="rs-date-picker__panel">
+          <template v-if="range">
+            <div class="rs-date-picker__range-grid">
+              <section class="rs-date-picker__range-pane">
+                <span class="rs-date-picker__pane-title">
+                  {{ withTime ? t('dateTimePicker.rangeStart') : t('datePicker.rangeStart') }}
+                </span>
                 <RsCalendarGrid
-                  v-model:view-year="viewYear"
-                  v-model:view-month="viewMonth"
-                  :selected="draftDate"
+                  v-model:view-year="startViewYear"
+                  v-model:view-month="startViewMonth"
+                  :selected="draftStart"
+                  :range-start="draftStart"
+                  :range-end="draftEnd"
                   :min-date="minDate"
-                  :max-date="maxDate"
-                  @select="handleDateSelect"
+                  :max-date="startMaxDate"
+                  :disabled-dates="disabledDates"
+                  :disabled-date="disabledDate"
+                  :week-starts-on="resolvedWeekStartsOn"
+                  @select="handleStartSelect"
                 />
                 <div v-if="withTime" class="rs-date-picker__time-row">
                   <span class="rs-date-picker__time-label">{{ t('dateTimePicker.time') }}</span>
                   <RsTimePicker
-                    v-model="draftTime"
+                    v-model="draftStartTime"
                     class="rs-date-picker__time-picker"
                     embedded
                     :size="resolvedSize"
                     :with-seconds="resolvedWithSeconds"
-                    :disabled="!draftDate || disabled"
+                    :disabled="!draftStart || resolvedDisabled"
                   />
                 </div>
-              </template>
+              </section>
 
-              <footer class="rs-date-picker__footer">
-                <div class="rs-date-picker__footer-start">
-                  <div v-if="shortcuts?.length" class="rs-date-picker__shortcuts">
-                    <button
-                      v-for="item in shortcuts"
-                      :key="item.label"
-                      type="button"
-                      class="rs-date-picker__shortcut"
-                      :disabled="disabled"
-                      @click="applyShortcut(item)"
-                    >
-                      {{ item.label }}
-                    </button>
-                  </div>
-                  <button v-else type="button" class="rs-date-picker__link" @click="selectToday">
-                    {{
-                      range
-                        ? withTime
-                          ? t('dateTimePicker.now')
-                          : t('datePicker.rangeToday')
-                        : withTime
-                          ? t('dateTimePicker.now')
-                          : t('datePicker.today')
-                    }}
-                  </button>
+              <section class="rs-date-picker__range-pane">
+                <span class="rs-date-picker__pane-title">
+                  {{ withTime ? t('dateTimePicker.rangeEnd') : t('datePicker.rangeEnd') }}
+                </span>
+                <RsCalendarGrid
+                  v-model:view-year="endViewYear"
+                  v-model:view-month="endViewMonth"
+                  :selected="draftEnd"
+                  :range-start="draftStart"
+                  :range-end="draftEnd"
+                  :min-date="endMinDate"
+                  :max-date="maxDate"
+                  :disabled-dates="disabledDates"
+                  :disabled-date="disabledDate"
+                  :week-starts-on="resolvedWeekStartsOn"
+                  @select="handleEndSelect"
+                />
+                <div v-if="withTime" class="rs-date-picker__time-row">
+                  <span class="rs-date-picker__time-label">{{ t('dateTimePicker.time') }}</span>
+                  <RsTimePicker
+                    v-model="draftEndTime"
+                    class="rs-date-picker__time-picker"
+                    embedded
+                    :size="resolvedSize"
+                    :with-seconds="resolvedWithSeconds"
+                    :disabled="!draftEnd || resolvedDisabled"
+                  />
                 </div>
-                <div class="rs-date-picker__actions">
-                  <button type="button" class="rs-date-picker__ghost" @click="clearSelection">
-                    {{ withTime ? t('dateTimePicker.clear') : t('datePicker.clear') }}
-                  </button>
-                  <button
-                    type="button"
-                    class="rs-date-picker__confirm"
-                    :disabled="range ? !draftStart || !draftEnd : !draftDate || (withTime && !draftTime)"
-                    @click="confirmSelection"
-                  >
-                    {{ t('datePicker.confirm') }}
-                  </button>
-                </div>
-              </footer>
+              </section>
             </div>
-          </PopoverContent>
-        </PopoverPortal>
-      </PopoverRoot>
-    </div>
+          </template>
+
+          <template v-else>
+            <RsCalendarGrid
+              v-model:view-year="viewYear"
+              v-model:view-month="viewMonth"
+              :selected="draftDate"
+              :min-date="minDate"
+              :max-date="maxDate"
+              :disabled-dates="disabledDates"
+              :disabled-date="disabledDate"
+              :week-starts-on="resolvedWeekStartsOn"
+              @select="handleDateSelect"
+            />
+            <div v-if="withTime" class="rs-date-picker__time-row">
+              <span class="rs-date-picker__time-label">{{ t('dateTimePicker.time') }}</span>
+              <RsTimePicker
+                v-model="draftTime"
+                class="rs-date-picker__time-picker"
+                embedded
+                :size="resolvedSize"
+                :with-seconds="resolvedWithSeconds"
+                :disabled="!draftDate || resolvedDisabled"
+              />
+            </div>
+          </template>
+
+          <footer class="rs-date-picker__footer">
+            <div class="rs-date-picker__footer-start">
+              <div v-if="shortcuts?.length" class="rs-date-picker__shortcuts">
+                <button
+                  v-for="(item, index) in shortcuts"
+                  :key="`${item.label}-${index}`"
+                  type="button"
+                  class="rs-date-picker__shortcut"
+                  :disabled="resolvedDisabled"
+                  @click="applyShortcut(item)"
+                >
+                  {{ item.label }}
+                </button>
+              </div>
+              <button v-else type="button" class="rs-date-picker__link" @click="selectToday">
+                {{
+                  range
+                    ? withTime
+                      ? t('dateTimePicker.now')
+                      : t('datePicker.rangeToday')
+                    : withTime
+                      ? t('dateTimePicker.now')
+                      : t('datePicker.today')
+                }}
+              </button>
+            </div>
+            <div class="rs-date-picker__actions">
+              <button type="button" class="rs-date-picker__ghost" @click="clearSelection">
+                {{ withTime ? t('dateTimePicker.clear') : t('datePicker.clear') }}
+              </button>
+              <button
+                type="button"
+                class="rs-date-picker__confirm"
+                :disabled="range ? !draftStart || !draftEnd : !draftDate || (withTime && !draftTime)"
+                @click="confirmSelection"
+              >
+                {{ t('datePicker.confirm') }}
+              </button>
+            </div>
+          </footer>
+        </div>
+      </div>
+    </Teleport>
 
     <p v-if="visibleMessage" class="rs-date-picker-field__error" role="alert">
       {{ visibleMessage }}
@@ -773,7 +1090,20 @@ watch(open, (isOpen) => {
 
 <style scoped>
 .rs-date-picker {
+  position: relative;
   width: 100%;
+}
+.rs-date-picker-wrap--clearable .rs-date-picker__trigger {
+  padding-inline-end: calc(var(--rs-space-md) + 2.25rem);
+}
+.rs-date-picker-wrap--clearable .rs-date-picker--ssm .rs-date-picker__trigger {
+  padding-inline-end: calc(var(--rs-space-xs) + 2rem);
+}
+.rs-date-picker-wrap--clearable .rs-date-picker--sm .rs-date-picker__trigger {
+  padding-inline-end: calc(var(--rs-space-sm) + 2rem);
+}
+.rs-date-picker-wrap--clearable .rs-date-picker--lg .rs-date-picker__trigger {
+  padding-inline-end: calc(var(--rs-space-lg) + 2.25rem);
 }
 .rs-date-picker__trigger {
   display: inline-flex;
@@ -786,7 +1116,7 @@ watch(open, (isOpen) => {
   min-height: var(--rs-control-height-md);
   padding: 0 var(--rs-space-md);
   border: 1px solid var(--rs-input-border, var(--rs-border));
-  border-radius: var(--rs-radius-sm);
+  border-radius: var(--rs-date-picker-radius, var(--rs-radius-sm));
   background: var(--rs-input-bg);
   color: var(--rs-text);
   font: inherit;
@@ -831,25 +1161,32 @@ watch(open, (isOpen) => {
     0 0 0 var(--rs-focus-ring-width, 2px) var(--rs-focus-ring);
 }
 .rs-date-picker__trigger:disabled {
-  opacity: 0.38;
+  opacity: var(--rs-date-picker-disabled-opacity, 0.38);
   cursor: not-allowed;
 }
 .rs-date-picker__trigger--placeholder .rs-date-picker__value {
   color: var(--rs-placeholder);
 }
 .rs-date-picker__trigger--invalid {
-  border-color: var(--rs-danger, var(--rs-color-danger, #dc2626));
+  border-color: var(--rs-danger, var(--rs-color-danger));
 }
 .rs-date-picker__trigger--invalid:focus-visible {
-  border-color: var(--rs-danger, var(--rs-color-danger, #dc2626));
+  border-color: var(--rs-danger, var(--rs-color-danger));
   box-shadow:
     var(--rs-input-shadow, none),
     0 0 0 var(--rs-focus-ring-width, 2px)
-      color-mix(in srgb, var(--rs-danger, #dc2626) 14%, transparent);
+      color-mix(in srgb, var(--rs-danger) 14%, transparent);
+}
+.rs-date-picker__clear {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: var(--rs-space-xs);
+  z-index: 1;
+  transform: translateY(-50%);
 }
 .rs-date-picker-field__error {
   margin: var(--rs-space-xs) 0 0;
-  color: var(--rs-danger, var(--rs-color-danger, #dc2626));
+  color: var(--rs-danger, var(--rs-color-danger));
   font-size: var(--rs-font-size-xs);
   line-height: var(--rs-line-height-tight);
 }
@@ -870,164 +1207,5 @@ watch(open, (isOpen) => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-</style>
-
-<style>
-.rs-date-picker__content {
-  /* 高于 RsDialog，避免在对话框内被遮挡 */
-  z-index: calc(var(--rs-z-modal) + 2);
-  padding: 0.75rem;
-  border: 1px solid var(--rs-border);
-  border-radius: var(--rs-radius);
-  background: var(--rs-surface-elevated);
-  box-shadow: var(--rs-shadow-lg);
-  outline: none;
-  /* 允许页脚/时间行完整展示，避免被裁切 */
-  overflow: visible;
-}
-.rs-date-picker__content--range {
-  width: min(42rem, calc(100vw - 2rem));
-}
-.rs-date-picker__content:not(.rs-date-picker__content--range) {
-  width: min(20rem, calc(100vw - 2rem));
-}
-.rs-date-picker__panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rs-space-sm);
-  overflow: visible;
-}
-.rs-date-picker__range-grid {
-  display: grid;
-  gap: 0.75rem;
-}
-@media (min-width: 40rem) {
-  .rs-date-picker__range-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-.rs-date-picker__range-pane {
-  display: flex;
-  flex-direction: column;
-  gap: var(--rs-space-sm);
-  padding: 0.5rem;
-  border: 1px solid var(--rs-border-subtle);
-  border-radius: var(--rs-radius-sm);
-  background: color-mix(in srgb, var(--rs-surface) 72%, transparent);
-}
-.rs-date-picker__pane-title {
-  font-size: var(--rs-font-size-xs);
-  font-weight: var(--rs-font-weight-semibold);
-  color: var(--rs-muted);
-}
-.rs-date-picker__footer {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--rs-space-sm);
-  margin-top: var(--rs-space-xs);
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--rs-border-subtle);
-  background: var(--rs-surface-elevated);
-}
-.rs-date-picker__footer-start {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  min-width: 0;
-}
-.rs-date-picker__shortcuts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-  align-items: center;
-}
-.rs-date-picker__shortcut {
-  padding: 0.125rem 0.5rem;
-  border: 1px solid var(--rs-border);
-  border-radius: var(--rs-radius-xs);
-  background: transparent;
-  color: var(--rs-text);
-  font-size: var(--rs-font-size-xs);
-  line-height: 1.5;
-  cursor: pointer;
-  transition:
-    border-color var(--rs-transition-fast),
-    color var(--rs-transition-fast),
-    background var(--rs-transition-fast);
-}
-.rs-date-picker__shortcut:hover:not(:disabled) {
-  border-color: var(--rs-primary);
-  color: var(--rs-primary);
-  background: color-mix(in srgb, var(--rs-primary) 8%, transparent);
-}
-.rs-date-picker__shortcut:disabled {
-  opacity: 0.38;
-  cursor: not-allowed;
-}
-.rs-date-picker__link {
-  border: 0;
-  background: transparent;
-  color: var(--rs-primary);
-  font-size: var(--rs-font-size-xs);
-  cursor: pointer;
-}
-.rs-date-picker__link:hover {
-  text-decoration: underline;
-}
-.rs-date-picker__actions {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--rs-space-xs);
-}
-.rs-date-picker__ghost,
-.rs-date-picker__confirm {
-  border: 0;
-  border-radius: var(--rs-radius-sm);
-  padding: 0.375rem 0.625rem;
-  font-size: var(--rs-font-size-xs);
-  cursor: pointer;
-}
-.rs-date-picker__ghost {
-  background: transparent;
-  color: var(--rs-muted);
-}
-.rs-date-picker__ghost:hover {
-  background: var(--rs-surface-hover);
-  color: var(--rs-text);
-}
-.rs-date-picker__confirm {
-  background: var(--rs-primary);
-  color: var(--rs-primary-foreground);
-}
-.rs-date-picker__confirm:hover:not(:disabled) {
-  opacity: 0.92;
-}
-.rs-date-picker__confirm:disabled {
-  opacity: 0.38;
-  cursor: not-allowed;
-}
-.rs-date-picker__time-row {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: var(--rs-space-sm);
-  padding-top: var(--rs-space-sm);
-  border-top: 1px solid var(--rs-border-subtle);
-  background: var(--rs-surface-elevated);
-}
-.rs-date-picker__time-label {
-  flex-shrink: 0;
-  font-size: var(--rs-font-size-xs);
-  font-weight: var(--rs-font-weight-medium);
-  color: var(--rs-muted);
-}
-.rs-date-picker__time-picker {
-  flex: 1;
-  min-width: 0;
 }
 </style>

@@ -51,6 +51,21 @@ describe('input-number-utils', () => {
 })
 
 describe('RsInputNumber', () => {
+  it('registers the public component name', () => {
+    expect(RsInputNumber.name).toBe('RsInputNumber')
+  })
+
+  it('forwards attrs onto the native spinbutton', () => {
+    const wrapper = mount(RsInputNumber, {
+      attrs: { 'data-testid': 'port', class: 'host-class' },
+    })
+    const input = wrapper.find('input')
+    expect(input.attributes('data-testid')).toBe('port')
+    expect(input.classes()).toContain('host-class')
+    expect(input.attributes('role')).toBe('spinbutton')
+    expect(wrapper.find('.rs-input-number').exists()).toBe(true)
+  })
+
   function mountNumber(props: Record<string, unknown> = {}) {
     const state = { value: (props.modelValue ?? null) as unknown }
     const wrapper = mount(RsInputNumber, {
@@ -106,6 +121,36 @@ describe('RsInputNumber', () => {
     expect(state.value).toBe(7)
     await input.trigger('keydown', { key: 'ArrowDown' })
     expect(state.value).toBe(5)
+  })
+
+  it('ignores arrow and Enter while IME is composing', async () => {
+    const { wrapper, state } = mountNumber({ modelValue: 5, step: 2, keyboard: true })
+    const input = wrapper.find('input')
+    await input.trigger('keydown', { key: 'ArrowUp', isComposing: true })
+    expect(state.value).toBe(5)
+    await input.trigger('keydown', { key: 'Enter', isComposing: true })
+    expect(state.value).toBe(5)
+  })
+
+  it('exposes focus, blur, commit, setValue, and step', async () => {
+    const { wrapper, state } = mountNumber({ modelValue: 3, step: 1 })
+    const exposed = wrapper.vm as unknown as {
+      focus: () => void
+      blur: () => void
+      commit: () => void
+      setValue: (value: unknown) => void
+      step: (direction: 1 | -1) => void
+    }
+    exposed.setValue(8)
+    await nextTick()
+    expect(state.value).toBe(8)
+    exposed.step(1)
+    await nextTick()
+    expect(state.value).toBe(9)
+    expect(typeof exposed.focus).toBe('function')
+    expect(typeof exposed.blur).toBe('function')
+    expect(typeof exposed.commit).toBe('function')
+    wrapper.unmount()
   })
 
   it('ignores wheel when changeOnWheel is off', async () => {

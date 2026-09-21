@@ -4,6 +4,8 @@ import { useRsI18n } from '../../../composables/useRsI18n'
 import type { RsComponentSize, RsRadius } from '../../../theme/types'
 import { useResolvedRsComponentSize } from '../../_shared/src/resolve-size'
 import { rsRadiusCss, useResolvedRsRadius } from '../../_shared/src/resolve-radius'
+import { normalizeRsInputValue } from '../../input/src/input-utils'
+import type { RsInputRule, RsInputValidateTrigger } from '../../input/src/input-rules'
 import {
   isRsFormItemBoundControl,
   useRsFormContext,
@@ -16,17 +18,17 @@ import {
   runFormFieldRules,
   type RsFormRuleTrigger,
 } from '../../form/src/form-rules'
-import type { RsInputRule, RsInputValidateTrigger } from '../../input/src/input-rules'
+import RsVNodeHost from '../../vnode-host/src/RsVNodeHost.vue'
 import RsIcon from '../../icon/src/RsIcon.vue'
-
-/** 原生 resize；autosize 开启时强制 none，与 Element Plus 一致。 */
-export type RsTextareaResize = 'none' | 'horizontal' | 'vertical' | 'both'
-
-/**
- * 自适应高度。true 从 rows 起往下长；对象可锁 minRows / maxRows。
- * 对齐 Ant Design autoSize、Element Plus autosize。
- */
-export type RsTextareaAutosize = boolean | { minRows?: number; maxRows?: number }
+import {
+  applyTextareaAutosize,
+  resolveRsTextareaAutosizeSpec,
+  resolveRsTextareaDisplayRows,
+  resolveRsTextareaResize,
+  isRsTextareaAutosizeEnabled,
+  type RsTextareaAutosize,
+  type RsTextareaResize,
+} from './textarea-utils'
 
 /**
  * RsTextarea 模板 ref 请用此类型。
@@ -44,17 +46,19 @@ export interface RsTextareaExpose {
 /** 模板 ref 实例：expose + 根节点 */
 export type RsTextareaInstance = RsTextareaExpose & { $el: HTMLElement }
 
-defineOptions({ inheritAttrs: false })
+export type { RsTextareaAutosize, RsTextareaResize }
+
+defineOptions({ name: 'RsTextarea', inheritAttrs: false })
 
 const { t } = useRsI18n()
 
 const model = defineModel<string>({
   default: '',
   get(value) {
-    return value == null ? '' : String(value)
+    return normalizeRsInputValue(value)
   },
   set(value) {
-    return value == null ? '' : String(value)
+    return normalizeRsInputValue(value)
   },
 })
 
@@ -134,6 +138,15 @@ const displayMessage = computed(() => {
   if (props.showValidateMessage && autoInvalid.value) return autoMessage.value
   return ''
 })
+const errorSlotProps = computed(() => ({
+  name: props.name,
+  message: displayMessage.value,
+  value: model.value,
+}))
+const formErrorContent = computed(() => {
+  if (!displayMessage.value || !formContext?.renderError) return null
+  return formContext.renderError(errorSlotProps.value)
+})
 const isInvalid = computed(() => {
   if (boundToItem.value) return Boolean(formItem?.invalid.value || props.invalid)
   return props.invalid || autoInvalid.value
@@ -155,14 +168,10 @@ const fieldStyle = computed(() => {
   return { '--rs-field-label-width': labelWidth } as Record<string, string>
 })
 
-const autosizeEnabled = computed(() => Boolean(props.autosize))
-const autosizeSpec = computed(() =>
-  typeof props.autosize === 'object' && props.autosize ? props.autosize : {},
-)
-const displayRows = computed(() => autosizeSpec.value.minRows ?? props.rows)
-const resolvedResize = computed<RsTextareaResize>(() =>
-  autosizeEnabled.value ? 'none' : props.resize,
-)
+const autosizeEnabled = computed(() => isRsTextareaAutosizeEnabled(props.autosize))
+const autosizeSpec = computed(() => resolveRsTextareaAutosizeSpec(props.autosize))
+const displayRows = computed(() => resolveRsTextareaDisplayRows(props.autosize, props.rows))
+const resolvedResize = computed(() => resolveRsTextareaResize(props.resize, props.autosize))
 
 const countText = computed(() => {
   const n = model.value.length
@@ -173,54 +182,20 @@ const countLimitReached = computed(
 )
 const showClearButton = computed(
   () =>
-    props.clearable &&
-    !resolvedDisabled.value &&
-    !props.readonly &&
-    model.value.length > 0,
+    props.clearable && !resolvedDisabled.value && !props.readonly && model.value.length > 0,
 )
 
-function parseLineHeight(el: HTMLTextAreaElement): number {
-  const style = getComputedStyle(el)
-  const lh = Number.parseFloat(style.lineHeight)
-  if (Number.isFinite(lh) && lh > 0) return lh
-  const fs = Number.parseFloat(style.fontSize) || 14
-  return fs * 1.5
-}
-
-function autosizePadding(el: HTMLTextAreaElement): number {
-  const style = getComputedStyle(el)
-  const pad = Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom)
-  if (style.boxSizing !== 'border-box') return 0
-  const border = Number.parseFloat(style.borderTopWidth) + Number.parseFloat(style.borderBottomWidth)
-  return (Number.isFinite(pad) ? pad : 0) + (Number.isFinite(border) ? border : 0)
-}
-
 function adjustHeight(): void {
-  const el = textareaRef.value
-  if (!el) return
-  if (!autosizeEnabled.value) {
-    el.style.height = ''
-    el.style.overflowY = ''
-    return
-  }
-  el.style.height = 'auto'
-  el.style.overflowY = 'hidden'
-  const lineHeight = parseLineHeight(el)
-  const extra = autosizePadding(el)
-  const minRows = autosizeSpec.value.minRows ?? props.rows
-  const maxRows = autosizeSpec.value.maxRows
-  const min = lineHeight * minRows + extra
-  const max = maxRows != null ? lineHeight * maxRows + extra : undefined
-  let height = el.scrollHeight
-  if (height < min) height = min
-  if (max != null && height > max) {
-    height = max
-    el.style.overflowY = 'auto'
-  }
-  el.style.height = `${height}px`
+  applyTextareaAutosize(textareaRef.value, {
+    enabled: autosizeEnabled.value,
+    minRows: autosizeSpec.value.minRows ?? props.rows,
+    maxRows: autosizeSpec.value.maxRows,
+  })
 }
 
 function scheduleAdjustHeight(): void {
+  const el = textareaRef.value
+  if (!autosizeEnabled.value && !el?.style.height) return
   void nextTick(adjustHeight)
 }
 
@@ -251,7 +226,7 @@ function setError(message: string): void {
 }
 
 function setValue(value: unknown): void {
-  model.value = String(value ?? '')
+  model.value = normalizeRsInputValue(value)
   scheduleAdjustHeight()
 }
 
@@ -294,6 +269,10 @@ function onBlur(event: FocusEvent): void {
     void runValidate('blur')
   }
   emit('blur', event)
+}
+
+function onFocus(event: FocusEvent): void {
+  emit('focus', event)
 }
 
 function onKeydown(event: KeyboardEvent): void {
@@ -350,7 +329,9 @@ defineExpose<RsTextareaExpose>({
     class="rs-field"
     :class="[
       `rs-field--label-${resolvedLabelPosition}`,
-      resolvedLabelPosition === 'left' && resolvedLabelAlign === 'end' ? 'rs-field--label-align-end' : undefined,
+      resolvedLabelPosition === 'left' && resolvedLabelAlign === 'end'
+        ? 'rs-field--label-align-end'
+        : undefined,
       `rs-input-field--${resolvedSize}`,
     ]"
     :style="[fieldStyle, radiusStyle]"
@@ -392,7 +373,7 @@ defineExpose<RsTextareaExpose>({
           @compositionend="onCompositionEnd"
           @keydown="onKeydown"
           @blur="onBlur"
-          @focus="emit('focus', $event)"
+          @focus="onFocus"
         />
         <button
           v-if="showClearButton"
@@ -417,7 +398,13 @@ defineExpose<RsTextareaExpose>({
         </span>
       </div>
       <p v-if="displayMessage" :id="errorId" class="rs-field__error" role="alert">
-        <slot name="error" :message="displayMessage">{{ displayMessage }}</slot>
+        <slot name="error" v-bind="errorSlotProps">
+          <RsVNodeHost
+            v-if="formErrorContent !== null && formErrorContent !== undefined"
+            :content="formErrorContent"
+          />
+          <template v-else>{{ displayMessage }}</template>
+        </slot>
       </p>
       <span v-if="hint" class="rs-field__hint">{{ hint }}</span>
     </div>

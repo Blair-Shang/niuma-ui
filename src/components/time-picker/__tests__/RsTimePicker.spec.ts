@@ -94,4 +94,55 @@ describe('RsTimePicker', () => {
     expect(wrapper.find('.rs-time-picker__trigger').attributes('aria-invalid')).toBe('true')
     expect(wrapper.attributes('aria-invalid')).toBeUndefined()
   })
+
+  it('uses a native button trigger without Reka attributes', () => {
+    const wrapper = mount(RsTimePicker, { props: { modelValue: '' } })
+    const trigger = wrapper.find('.rs-time-picker__trigger')
+    expect(trigger.element.tagName).toBe('BUTTON')
+    expect(trigger.attributes('aria-haspopup')).toBe('dialog')
+    expect(trigger.attributes('data-reka-collection-item')).toBeUndefined()
+  })
+
+  it('shows a 12-hour locale label without changing v-model', () => {
+    const wrapper = mount(RsTimePicker, {
+      props: { modelValue: '14:30', hourCycle: 12 },
+    })
+    const text = wrapper.find('.rs-time-picker__value').text()
+    expect(text).not.toBe('14:30')
+    expect(text.toLowerCase()).toMatch(/2:30|14:30|pm|下午/)
+  })
+
+  it('shows a clear button when clearable and valued', async () => {
+    const wrapper = mount(RsTimePicker, {
+      props: { modelValue: '14:30', clearable: true },
+    })
+    expect(wrapper.find('.rs-time-picker__clear').exists()).toBe(true)
+    await wrapper.find('.rs-time-picker__clear').trigger('click')
+    expect(wrapper.emitted('clear')).toBeTruthy()
+    expect(wrapper.emitted('change')?.[0]?.[0]).toBe('')
+  })
+
+  it('closes the panel on Escape and unmounts the overlay', async () => {
+    const wrapper = mount(RsTimePicker, {
+      props: { modelValue: '', open: true },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    expect(document.body.querySelector('.rs-time-picker__content')).not.toBeNull()
+    await wrapper.find('.rs-time-picker__trigger').trigger('keydown', { key: 'Escape' })
+    await flushPromises()
+    expect(wrapper.emitted('update:open')?.at(-1)).toEqual([false])
+    expect(document.body.querySelector('.rs-time-picker__content')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('renders AM/PM column when hourCycle is 12 and open', async () => {
+    const wrapper = mount(RsTimePicker, {
+      props: { modelValue: '14:30', hourCycle: 12, open: true },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    expect(document.body.querySelector('[data-unit="period"]')).not.toBeNull()
+    wrapper.unmount()
+  })
 })

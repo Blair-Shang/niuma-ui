@@ -11,11 +11,25 @@ import {
   optionDisplayLabel,
   packSelectModel,
   restoreSelectValue,
+  selectContains,
   sortSelectOptions,
   splitByTokenSeparators,
   toComboboxValue,
   RS_SELECT_EMPTY_VALUE,
 } from '../src/select-utils'
+
+async function pickItem(wrapper: ReturnType<typeof mount>, token: string) {
+  if (!document.body.querySelector('.rs-select__content')) {
+    await wrapper.find('.rs-select__trigger').trigger('click')
+    await flushPromises()
+  }
+  const el = document.body.querySelector(
+    `.rs-select__item[data-value="${token}"]`,
+  ) as HTMLElement | null
+  expect(el).toBeTruthy()
+  el!.click()
+  await flushPromises()
+}
 
 describe('RsSelect', () => {
   const options = [
@@ -53,11 +67,12 @@ describe('RsSelect', () => {
     ]
     const wrapper = mount(RsSelect, {
       props: { options: numeric, modelValue: 0 },
+      attachTo: document.body,
     })
     expect(wrapper.find('.rs-select__single-label').text()).toBe('静态配置')
-    const root = wrapper.getComponent({ name: 'ComboboxRoot' })
-    await root.vm.$emit('update:modelValue', '1')
+    await pickItem(wrapper, '1')
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([1])
+    wrapper.unmount()
   })
 
   it('collapses overflow tags with maxTagCount', () => {
@@ -109,13 +124,14 @@ describe('RsSelect', () => {
     expect(wrapper.find('.rs-select__placeholder').text()).toBe('Select')
   })
 
-  it('forwards v-model through Reka ComboboxRoot', async () => {
+  it('forwards v-model when an option is picked', async () => {
     const wrapper = mount(RsSelect, {
       props: { options, modelValue: '' },
+      attachTo: document.body,
     })
-    const root = wrapper.getComponent({ name: 'ComboboxRoot' })
-    await root.vm.$emit('update:modelValue', 'claude')
+    await pickItem(wrapper, 'claude')
     expect(wrapper.emitted('update:modelValue')?.[0]).toEqual(['claude'])
+    wrapper.unmount()
   })
 
   it('shows selected option label in single mode', () => {
@@ -131,7 +147,7 @@ describe('RsSelect', () => {
     })
     expect(wrapper.find('.rs-select').classes()).toContain('rs-select--multiple')
     expect(wrapper.find('.rs-select__tag').text()).toContain('GPT-4o')
-    expect(wrapper.getComponent({ name: 'ComboboxRoot' }).props('multiple')).toBe(true)
+    expect(wrapper.find('.rs-select__value--multiple').exists()).toBe(true)
   })
 
   it('accumulates values when parent template binds :multiple="true"', async () => {
@@ -141,13 +157,12 @@ describe('RsSelect', () => {
       setup: () => ({ models, options }),
       template: '<RsSelect v-model="models" :multiple="true" :options="options" />',
     })
-    const wrapper = mount(Parent)
+    const wrapper = mount(Parent, { attachTo: document.body })
     expect(wrapper.find('.rs-select').classes()).toContain('rs-select--multiple')
     expect(wrapper.find('.rs-select__tag').text()).toContain('GPT-4o')
-    const root = wrapper.getComponent({ name: 'ComboboxRoot' })
-    expect(root.props('multiple')).toBe(true)
-    await root.vm.$emit('update:modelValue', ['gpt-4o', 'claude'])
+    await pickItem(wrapper, 'claude')
     expect(models.value).toEqual(['gpt-4o', 'claude'])
+    wrapper.unmount()
   })
 
   it('accumulates values when parent template uses a bare multiple attribute', async () => {
@@ -157,13 +172,12 @@ describe('RsSelect', () => {
       setup: () => ({ models, options }),
       template: '<RsSelect v-model="models" multiple :options="options" />',
     })
-    const wrapper = mount(Parent)
+    const wrapper = mount(Parent, { attachTo: document.body })
     expect(wrapper.find('.rs-select').classes()).toContain('rs-select--multiple')
     expect(wrapper.find('.rs-select__tag').text()).toContain('GPT-4o')
-    const root = wrapper.getComponent({ name: 'ComboboxRoot' })
-    expect(root.props('multiple')).toBe(true)
-    await root.vm.$emit('update:modelValue', ['gpt-4o', 'claude'])
+    await pickItem(wrapper, 'claude')
     expect(models.value).toEqual(['gpt-4o', 'claude'])
+    wrapper.unmount()
   })
 
   it('applies modifier classes for multiple and searchable', () => {
@@ -219,10 +233,11 @@ describe('RsSelect', () => {
     ]
     const wrapper = mount(RsSelect, {
       props: { options: withEmpty, modelValue: 'claude', clearable: true },
+      attachTo: document.body,
     })
-    const root = wrapper.getComponent({ name: 'ComboboxRoot' })
-    await root.vm.$emit('update:modelValue', '__rs_select_empty__')
+    await pickItem(wrapper, RS_SELECT_EMPTY_VALUE)
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([''])
+    wrapper.unmount()
   })
 
   it('supports multiple mode tags', () => {
@@ -247,6 +262,18 @@ describe('RsSelect', () => {
     })
     await wrapper.find('.rs-select__tag-remove').trigger('click')
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([['claude']])
+  })
+
+  it('focus expose focuses the trigger', async () => {
+    const wrapper = mount(RsSelect, {
+      props: { options, modelValue: '' },
+      attachTo: document.body,
+    })
+    const exposed = wrapper.vm as { focus: () => void }
+    exposed.focus()
+    await flushPromises()
+    expect(document.activeElement).toBe(wrapper.find('.rs-select__trigger').element)
+    wrapper.unmount()
   })
 
   it('setValue via defineExpose updates model', async () => {
@@ -329,12 +356,24 @@ describe('RsSelect', () => {
     wrapper.unmount()
   })
 
-  it('enables manual filter when remote', () => {
+  it('does not local-filter when remote', async () => {
     const wrapper = mount(RsSelect, {
       props: { options, modelValue: '', searchable: true, remote: true },
+      attachTo: document.body,
     })
-    const root = wrapper.getComponent({ name: 'ComboboxRoot' })
-    expect(root.props('ignoreFilter')).toBe(true)
+    await wrapper.find('.rs-select__trigger').trigger('click')
+    await flushPromises()
+    const input = document.querySelector('.rs-select__search') as HTMLInputElement | null
+    expect(input).toBeTruthy()
+    input!.value = 'zzz'
+    input!.dispatchEvent(new Event('input', { bubbles: true }))
+    await flushPromises()
+    const labels = [...document.querySelectorAll('.rs-select__item-label')].map(
+      (el) => el.textContent?.trim() ?? '',
+    )
+    expect(labels).toContain('GPT-4o')
+    expect(labels).toContain('Claude')
+    wrapper.unmount()
   })
 
   it('enables manual filter when searchable so query hides non-matches', async () => {
@@ -353,9 +392,6 @@ describe('RsSelect', () => {
       },
       attachTo: document.body,
     })
-    const root = wrapper.getComponent({ name: 'ComboboxRoot' })
-    expect(root.props('ignoreFilter')).toBe(true)
-
     await wrapper.find('.rs-select__trigger').trigger('click')
     await flushPromises()
     const input = document.querySelector('.rs-select__search') as HTMLInputElement | null
@@ -477,13 +513,14 @@ describe('RsSelect', () => {
     ]
     const wrapper = mount(RsSelect, {
       props: { options: numeric, modelValue: '', labelInValue: true },
+      attachTo: document.body,
     })
     expect(wrapper.find('.rs-select__placeholder').exists()).toBe(true)
-    const root = wrapper.getComponent({ name: 'ComboboxRoot' })
-    await root.vm.$emit('update:modelValue', '0')
+    await pickItem(wrapper, '0')
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([
       { label: '静态配置', value: 0 },
     ])
+    wrapper.unmount()
   })
 
   it('echoes labelInValue snapshot for number 0', () => {
@@ -504,24 +541,25 @@ describe('RsSelect', () => {
   it('packs labelInValue arrays in multiple mode', async () => {
     const wrapper = mount(RsSelect, {
       props: { options, modelValue: [], multiple: true, labelInValue: true },
+      attachTo: document.body,
     })
-    const root = wrapper.getComponent({ name: 'ComboboxRoot' })
-    await root.vm.$emit('update:modelValue', ['gpt-4o'])
+    await pickItem(wrapper, 'gpt-4o')
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([
       [{ label: 'GPT-4o', value: 'gpt-4o' }],
     ])
+    wrapper.unmount()
   })
 
   it('emits select, deselect and clear', async () => {
     const wrapper = mount(RsSelect, {
       props: { options, modelValue: '', clearable: true },
+      attachTo: document.body,
     })
-    const root = wrapper.getComponent({ name: 'ComboboxRoot' })
-    await root.vm.$emit('update:modelValue', 'claude')
+    await pickItem(wrapper, 'claude')
     expect(wrapper.emitted('select')?.at(-1)?.[0]).toBe('claude')
 
     await wrapper.setProps({ modelValue: 'claude' })
-    await root.vm.$emit('update:modelValue', 'gpt-4o')
+    await pickItem(wrapper, 'gpt-4o')
     expect(wrapper.emitted('deselect')?.at(-1)?.[0]).toBe('claude')
     expect(wrapper.emitted('select')?.at(-1)?.[0]).toBe('gpt-4o')
 
@@ -529,6 +567,7 @@ describe('RsSelect', () => {
     await wrapper.find('.rs-select__clear').trigger('click')
     expect(wrapper.emitted('clear')).toHaveLength(1)
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([''])
+    wrapper.unmount()
   })
 
   it('truncates tag text with maxTagTextLength', () => {
@@ -568,6 +607,37 @@ describe('RsSelect', () => {
       props: { options, modelValue: '', showArrow: false },
     })
     expect(wrapper.find('.rs-select__suffix').exists()).toBe(false)
+  })
+
+  it('stamps data-rs-theme from the trigger ancestor onto the panel', async () => {
+    const Host = defineComponent({
+      components: { RsSelect },
+      setup: () => ({ options }),
+      template: '<div data-rs-theme="dark"><RsSelect :options="options" model-value="" /></div>',
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await wrapper.find('.rs-select__trigger').trigger('click')
+    await flushPromises()
+    const content = document.body.querySelector('.rs-select__content')
+    expect(content?.getAttribute('data-rs-theme')).toBe('dark')
+    wrapper.unmount()
+  })
+
+  it('highlights an option on pointer hover', async () => {
+    const wrapper = mount(RsSelect, {
+      props: { options, modelValue: '' },
+      attachTo: document.body,
+    })
+    await wrapper.find('.rs-select__trigger').trigger('click')
+    await flushPromises()
+    const claude = document.body.querySelector(
+      '.rs-select__item[data-value="claude"]',
+    ) as HTMLElement | null
+    expect(claude).toBeTruthy()
+    claude!.dispatchEvent(new PointerEvent('pointerover', { bubbles: true }))
+    await flushPromises()
+    expect(claude!.hasAttribute('data-highlighted')).toBe(true)
+    wrapper.unmount()
   })
 
   it('sorts options with filterSort', async () => {
@@ -660,11 +730,12 @@ describe('RsSelect', () => {
         modelValue: 0,
         fieldNames: { label: 'name', value: 'id' },
       },
+      attachTo: document.body,
     })
     expect(wrapper.find('.rs-select__single-label').text()).toBe('静态配置')
-    const root = wrapper.getComponent({ name: 'ComboboxRoot' })
-    await root.vm.$emit('update:modelValue', '1')
+    await pickItem(wrapper, '1')
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([1])
+    wrapper.unmount()
   })
 
   it('shows optionLabelProp on the trigger', () => {
@@ -769,6 +840,12 @@ describe('select-utils', () => {
     expect(toComboboxValue(0)).toBe('0')
     expect(fromComboboxValue(RS_SELECT_EMPTY_VALUE)).toBe('')
     expect(fromComboboxValue('claude')).toBe('claude')
+  })
+
+  it('selectContains is case-insensitive', () => {
+    expect(selectContains('NVARCHAR', 'nva')).toBe(true)
+    expect(selectContains('INT', 'nva')).toBe(false)
+    expect(selectContains('Claude', '')).toBe(true)
   })
 
   it('restoreSelectValue keeps option number type', () => {

@@ -6,4 +6,4 @@ export type {
   RsContainerMaybeResponsive,
   RsContainerPadding,
   RsContainerResponsive,
-} from './src/RsContainer.vue'
+} from './src/container-utils'

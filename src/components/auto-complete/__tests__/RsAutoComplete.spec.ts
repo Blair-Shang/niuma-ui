@@ -1,8 +1,12 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest'
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { nextTick } from 'vue'
+import { defineComponent, h, nextTick } from 'vue'
+import RsForm from '../../form/src/RsForm.vue'
 import RsAutoComplete from '../src/RsAutoComplete.vue'
-import { filterSelectOptions } from '../../select/src/select-utils'
+import {
+  filterRsAutoCompleteOptions,
+  normalizeRsAutoCompleteOptions,
+} from '../src/auto-complete-utils'
 
 function mockRect(el: Element, box: { top: number; left: number; width: number; height: number }) {
   Object.defineProperty(el, 'getBoundingClientRect', {
@@ -18,6 +22,20 @@ function mockRect(el: Element, box: { top: number; left: number; width: number; 
   })
 }
 
+describe('auto-complete-utils', () => {
+  it('normalizes strings and filters locally', () => {
+    const options = normalizeRsAutoCompleteOptions(['GPT-4o', { label: 'Claude', value: 'Claude' }])
+    expect(options).toEqual([
+      { label: 'GPT-4o', value: 'GPT-4o' },
+      { label: 'Claude', value: 'Claude' },
+    ])
+    expect(filterRsAutoCompleteOptions(options, 'cla', true)).toEqual([
+      { label: 'Claude', value: 'Claude' },
+    ])
+    expect(filterRsAutoCompleteOptions(options, 'cla', false)).toHaveLength(2)
+  })
+})
+
 describe('RsAutoComplete', () => {
   beforeEach(() => {
     HTMLElement.prototype.scrollIntoView = () => {}
@@ -27,16 +45,15 @@ describe('RsAutoComplete', () => {
     document.body.innerHTML = ''
   })
 
-  it('filters options as the user types', () => {
-    const filtered = filterSelectOptions(
-      [
-        { label: 'GPT-4o', value: 'GPT-4o' },
-        { label: 'Claude', value: 'Claude' },
-      ],
-      'cla',
-      (text, q) => text.toLowerCase().includes(q.toLowerCase()),
-    )
-    expect(filtered).toEqual([{ label: 'Claude', value: 'Claude' }])
+  it('registers the public name and stays native', () => {
+    expect(RsAutoComplete.name).toBe('RsAutoComplete')
+    const wrapper = mount(RsAutoComplete, {
+      props: { options: ['A'] },
+      attachTo: document.body,
+    })
+    expect(wrapper.find('input').attributes('role')).toBe('combobox')
+    expect(wrapper.html().toLowerCase()).not.toContain('reka')
+    wrapper.unmount()
   })
 
   it('clears the value', async () => {
@@ -46,6 +63,7 @@ describe('RsAutoComplete', () => {
     })
     await wrapper.find('.rs-auto-complete__clear').trigger('click')
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([''])
+    expect(wrapper.emitted('clear')).toBeTruthy()
     wrapper.unmount()
   })
 
@@ -77,7 +95,7 @@ describe('RsAutoComplete', () => {
     wrapper.unmount()
   })
 
-  it('highlights the query with a span instead of mark', async () => {
+  it('renders a native select list with option elements', async () => {
     const wrapper = mount(RsAutoComplete, {
       props: { options: ['DeepSeek', 'Claude'], modelValue: 'd', open: true },
       attachTo: document.body,
@@ -85,8 +103,70 @@ describe('RsAutoComplete', () => {
     await wrapper.find('.rs-auto-complete__input').trigger('focus')
     await nextTick()
     const list = document.body.querySelector('.rs-auto-complete__list')
-    expect(list?.querySelector('mark')).toBeNull()
-    expect(list?.querySelector('.rs-auto-complete__mark')?.textContent).toBe('D')
+    expect(list?.tagName).toBe('SELECT')
+    const options = [...(list?.querySelectorAll('option') ?? [])].map((el) => el.textContent?.trim())
+    expect(options).toContain('DeepSeek')
+    expect(list?.querySelector('[role="listbox"]')).toBeNull()
+    expect(list?.querySelector('[role="option"]')).toBeNull()
     wrapper.unmount()
+  })
+
+  it('writes name and exposes focus / blur', async () => {
+    const wrapper = mount(RsAutoComplete, {
+      props: { options: ['A'], name: 'model' },
+      attachTo: document.body,
+    })
+    expect(wrapper.find('input').attributes('name')).toBe('model')
+    const exposed = wrapper.vm as unknown as { focus: () => void; blur: () => void }
+    expect(typeof exposed.focus).toBe('function')
+    expect(typeof exposed.blur).toBe('function')
+    exposed.focus()
+    await nextTick()
+    expect(document.activeElement).toBe(wrapper.find('input').element)
+    wrapper.unmount()
+  })
+
+  it('stamps data-rs-theme from the field ancestor onto the list', async () => {
+    const Host = defineComponent({
+      components: { RsAutoComplete },
+      template:
+        '<div data-rs-theme="dark"><RsAutoComplete :options="[\'Alice\']" /></div>',
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await wrapper.find('.rs-auto-complete__input').trigger('focus')
+    await nextTick()
+    const list = document.body.querySelector('.rs-auto-complete__list')
+    expect(list?.getAttribute('data-rs-theme')).toBe('dark')
+    wrapper.unmount()
+  })
+
+  it('inherits Form.disabled', () => {
+    const wrapper = mount(RsForm, {
+      props: { disabled: true },
+      slots: {
+        default: () => h(RsAutoComplete, { options: ['A'] }),
+      },
+      attachTo: document.body,
+    })
+    expect(wrapper.find('input').attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it('debounces search and skips local filter when filterOption is false', async () => {
+    vi.useFakeTimers()
+    const wrapper = mount(RsAutoComplete, {
+      props: {
+        options: ['Alpha', 'Beta'],
+        filterOption: false,
+        debounce: 80,
+      },
+      attachTo: document.body,
+    })
+    await wrapper.find('input').setValue('zzz')
+    expect(wrapper.emitted('search')).toBeFalsy()
+    await vi.advanceTimersByTimeAsync(80)
+    expect(wrapper.emitted('search')?.at(-1)).toEqual(['zzz'])
+    wrapper.unmount()
+    vi.useRealTimers()
   })
 })

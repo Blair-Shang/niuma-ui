@@ -5,6 +5,7 @@ import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 
 const value = ref('')
+const keys = ref<string[]>([])
 const nodes: RsTreeNode[] = [
   {
     key: 'db',
@@ -20,9 +21,13 @@ const nodes: RsTreeNode[] = [
 
 <template>
   <DemoPage title="RsTreeSelect" test-file="RsTreeSelect.spec.ts">
-    <DemoBlock title="树选择（面板内搜索）">
+    <DemoBlock title="单选 / 搜索">
       <RsTreeSelect v-model="value" allow-clear searchable :tree-data="nodes" placeholder="选择节点" />
       <p>当前：{{ value || '—' }}</p>
+    </DemoBlock>
+    <DemoBlock title="勾选">
+      <RsTreeSelect v-model="keys" checkable allow-clear :tree-data="nodes" placeholder="勾选节点" />
+      <p>当前：{{ keys.join(', ') || '—' }}</p>
     </DemoBlock>
   </DemoPage>
 </template>

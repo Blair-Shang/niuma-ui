@@ -105,10 +105,16 @@ export type RsSelectResolvedModel<
       : Value | Value[] | ''
 
 /**
- * Reka ComboboxItem 禁止 value 为空串（空串表示未选中 / placeholder）。
- * 选项若传入 value: ''，对内映射为此哨兵，避免崩溃；对外读写仍为 ''。
+ * 选项 value 为空串时，对内映射为此哨兵（空串对外仍表示「未选」）。
+ * 读写 v-model 时再还原成 ''。
  */
 export const RS_SELECT_EMPTY_VALUE = '__rs_select_empty__'
+
+/** 本地过滤：大小写不敏感包含。宿主要做 locale 匹配请传 filterOption。 */
+export function selectContains(text: string, search: string): boolean {
+  if (!search) return true
+  return text.toLowerCase().includes(search.toLowerCase())
+}
 
 /**
  * Vue 对泛型 boolean prop 不会按 Boolean 收口。

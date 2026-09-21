@@ -77,4 +77,12 @@ describe('RsDateTimePicker', () => {
     })
     expect(wrapper.find('.rs-date-picker__trigger').attributes('disabled')).toBeDefined()
   })
+
+  it('forwards clear from the nested DatePicker', async () => {
+    const wrapper = mount(RsDateTimePicker, {
+      props: { modelValue: '2025-06-16 14:30', clearable: true },
+    })
+    await wrapper.find('.rs-date-picker__clear').trigger('click')
+    expect(wrapper.emitted('clear')).toBeTruthy()
+  })
 })

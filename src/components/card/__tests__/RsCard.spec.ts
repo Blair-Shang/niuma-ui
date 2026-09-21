@@ -1,8 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RsCard from '../src/RsCard.vue'
+import {
+  hasRsCardHeader,
+  resolveRsCardAs,
+  resolveRsCardSize,
+  resolveRsCardVariant,
+} from '../src/card-utils'
 
 describe('RsCard', () => {
+  it('registers the public component name', () => {
+    expect(RsCard.name).toBe('RsCard')
+  })
+
   it('renders default slot in body', () => {
     const wrapper = mount(RsCard, {
       slots: { default: '<p>正文</p>' },
@@ -22,6 +32,23 @@ describe('RsCard', () => {
       slots: { default: '内容' },
     })
     expect(wrapper.element.tagName).toBe('ARTICLE')
+  })
+
+  it('falls back to section when as is empty', () => {
+    const wrapper = mount(RsCard, {
+      props: { as: '  ' },
+      slots: { default: '内容' },
+    })
+    expect(wrapper.element.tagName).toBe('SECTION')
+  })
+
+  it('keeps the raw variant class like the original markup', () => {
+    const wrapper = mount(RsCard, {
+      props: { variant: 'legacy' as never },
+      slots: { default: '内容' },
+    })
+    expect(wrapper.classes()).toContain('rs-card--legacy')
+    expect(wrapper.classes()).not.toContain('rs-card--grouped')
   })
 
   it('renders title and description in header', () => {
@@ -254,3 +281,32 @@ describe('RsCard', () => {
     expect(wrapper.find('.rs-card__footer').exists()).toBe(true)
   })
 })
+
+describe('card-utils', () => {
+  it('resolves known and unknown variants', () => {
+    expect(resolveRsCardVariant('outlined')).toBe('outlined')
+    expect(resolveRsCardVariant(undefined)).toBe('grouped')
+    expect(resolveRsCardVariant('nope' as never)).toBe('grouped')
+  })
+
+  it('resolves known and unknown sizes', () => {
+    expect(resolveRsCardSize('lg')).toBe('lg')
+    expect(resolveRsCardSize(undefined)).toBe('md')
+    expect(resolveRsCardSize('nope' as never)).toBe('md')
+  })
+
+  it('resolves the root tag and empty as', () => {
+    expect(resolveRsCardAs('article')).toBe('article')
+    expect(resolveRsCardAs(undefined)).toBe('section')
+    expect(resolveRsCardAs('  ')).toBe('section')
+  })
+
+  it('detects header from title, description, or slots', () => {
+    expect(hasRsCardHeader({})).toBe(false)
+    expect(hasRsCardHeader({ title: '连接信息' })).toBe(true)
+    expect(hasRsCardHeader({ description: '主机' })).toBe(true)
+    expect(hasRsCardHeader({ header: true })).toBe(true)
+    expect(hasRsCardHeader({ actions: true })).toBe(true)
+  })
+})
+

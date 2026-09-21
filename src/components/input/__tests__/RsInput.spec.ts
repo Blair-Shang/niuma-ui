@@ -3,10 +3,18 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { h } from 'vue'
 import RsConfigProvider from '../../config-provider/src/RsConfigProvider.vue'
 import RsInput from '../src/RsInput.vue'
+import type { RsInputExpose } from '../src/RsInput.vue'
 import {
   runInputValidation,
   validateInputRule,
 } from '../src/input-rules'
+import {
+  hasRsInputAddonAfterContent,
+  normalizeRsInputValue,
+  resolveRsInputAutocomplete,
+  resolveRsInputControlType,
+  resolveRsInputType,
+} from '../src/input-utils'
 
 describe('input-rules', () => {
   it('validates email rule', () => {
@@ -28,7 +36,57 @@ describe('input-rules', () => {
   })
 })
 
+describe('input-utils', () => {
+  it('normalizes model values to string', () => {
+    expect(normalizeRsInputValue(null)).toBe('')
+    expect(normalizeRsInputValue(256)).toBe('256')
+  })
+
+  it('resolves autocomplete and password visibility type', () => {
+    expect(resolveRsInputAutocomplete(undefined, 'text')).toBe('off')
+    expect(resolveRsInputAutocomplete(undefined, 'password')).toBe('new-password')
+    expect(resolveRsInputAutocomplete('username', 'text')).toBe('username')
+    expect(resolveRsInputControlType('password', true)).toBe('text')
+    expect(resolveRsInputControlType('search', false)).toBe('search')
+    expect(resolveRsInputType('email')).toBe('email')
+    expect(resolveRsInputType('unknown')).toBe('text')
+    expect(hasRsInputAddonAfterContent(false, '.com')).toBe(true)
+    expect(hasRsInputAddonAfterContent(false, '')).toBe(false)
+  })
+})
+
 describe('RsInput', () => {
+  it('registers the public component name', () => {
+    expect(RsInput.name).toBe('RsInput')
+  })
+
+  it('renders a native input without Reka', () => {
+    const wrapper = mount(RsInput, { props: { modelValue: '' } })
+    expect(wrapper.find('input').element.tagName).toBe('INPUT')
+    expect(wrapper.html().toLowerCase()).not.toContain('reka')
+  })
+
+  it('exposes validate, setValue, setError and clearValidation', async () => {
+    const wrapper = mount(RsInput, {
+      props: { modelValue: '', required: true },
+    })
+    const exposed = wrapper.vm as unknown as RsInputExpose
+    expect(await exposed.validate()).toBe(false)
+    await flushPromises()
+    expect(wrapper.find('.rs-input-field__error').exists()).toBe(true)
+
+    exposed.setValue('ok')
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['ok'])
+
+    exposed.setError('manual')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.rs-input-field__error').text()).toBe('manual')
+
+    exposed.clearValidation()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.rs-input-field__error').exists()).toBe(false)
+  })
+
   it('emits update:modelValue on input', async () => {
     const wrapper = mount(RsInput, { props: { modelValue: '' } })
     await wrapper.find('input').setValue('world')

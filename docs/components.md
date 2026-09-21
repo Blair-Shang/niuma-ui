@@ -375,9 +375,9 @@ Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
 | `RsEmpty` | 空状态 | `#/components/empty` |
 | `RsLink` | 原生 `<a>` 文字链接（不包 Reka） | `#/components/link` |
 | `RsBadge` | 状态芯片；可选 count / dot 角标 | `#/components/badge` |
-| `RsTag` / `RsDynamicTags` | 标签 / 可编辑标签组 | `#/components/tag` |
-| `RsAvatar` | 头像 / 回退 | `#/components/avatar` |
-| `RsLabel` | 表单标签 | `#/components/label` |
+| `RsTag` | 标签芯片 | `#/components/tag` |
+| `RsAvatar` | 头像 / 回退（原生 img，不包 Reka） | `#/components/avatar` |
+| `RsLabel` | 表单标签（原生 label，不包 Reka） | `#/components/label` |
 | `RsCard` / `RsStatCard` | 内容卡 / 指标卡 | `#/components/card` |
 | `RsDivider` | 分隔线 | `#/components/divider` |
 | `RsAlert` | 反馈提示条 | `#/components/alert` |
@@ -391,26 +391,28 @@ Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
 | `RsButton` | `variant` × `tone`、加载、仅图标 | `#/components/button` |
 | `RsCheckbox` | 复选框 | `#/components/checkbox` |
 | `RsSwitch` | `checkedValue` / `uncheckedValue` | `#/components/switch` |
-| `RsRadio` / `RsRadioItem` | 单选分组 | `#/components/radio` |
-| `RsInput` | 校验；prefix/suffix；addonBefore/After | `#/components/input` |
+| `RsRadio` / `RsRadioItem` | 原生 radiogroup；`change` | `#/components/radio` |
+| `RsInput` | 原生 input；校验；prefix/suffix；addon；`validate` / `setValue` | `#/components/input` |
+| `RsTextarea` | 原生 textarea；autosize；`focus` / `validate` | `#/components/textarea` |
 | `RsInputNumber` | 数字输入 | `#/components/input-number` |
-| `RsSelect` | 搜索 / 创建 / 远程 / `maxTagCount` | `#/components/select` |
-| `RsAutoComplete` | APG Combobox | `#/components/auto-complete` |
+| `RsSelect` | 原生 combobox；搜索 / 创建 / 远程 / `maxTagCount` | `#/components/select` |
+| `RsAutoComplete` | 原生 combobox；自由输入；`search` / `focus` | `#/components/auto-complete` |
 | `RsCascader` | 多列级联 | `#/components/cascader` |
-| `RsTreeSelect` | 复用 `RsTree` | `#/components/tree-select` |
-| `RsMentions` | `@` 提及 | `#/components/mentions` |
-| `RsUpload` | 文件选择与校验辅助 | `#/components/upload` |
+| `RsTreeSelect` | 复用 `RsTree`；原生 button + Teleport，不包 Reka | `#/components/tree-select` |
+| `RsMentions` | 原生 textarea combobox；插入符浮层；不包 Reka | `#/components/mentions` |
+| `RsDynamicTags` | 原生 fieldset + input；可增删短文本；不包 Reka | `#/components/dynamic-tags` |
+| `RsUpload` | 原生 file input；拖拽 / 粘贴 / 目录；不包 Reka；无存储协议 | `#/components/upload` |
 | `RsForm` / `RsFormItem` / `RsFormList` | 表单、字段注册、数组字段 | `#/components/form` |
 | `RsFieldset` | `fieldset`/`legend`，不是 Card | `#/components/fieldset` |
-| `RsDatePicker` / `RsDateTimePicker` / `RsTimePicker` | 日期时间 | `#/components/date-picker` |
-| `RsCalendarGrid` / `RsTimePickerColumns` | 日历 / 时间列原语 | `#/components/calendar-grid` |
+| `RsDatePicker` / `RsDateTimePicker` / `RsTimePicker` | 日期时间；DatePicker / TimePicker 原生 button + Teleport，不包 Reka | `#/components/date-picker` `#/components/datetime-picker` `#/components/time-picker` |
+| `RsCalendarGrid` / `RsTimePickerColumns` | 日历 / 时间列原语；CalendarGrid 原生 table + button，不包 Reka | `#/components/calendar-grid` |
 
 ### 导航与布局
 
 | 组件 | 说明 | 文档站 |
 |------|------|--------|
-| `RsBreadcrumb` | 面包屑 | `#/components/breadcrumb` |
-| `RsAnchor` | 页内目录；Hash 路由须 `changeHash=false` | `#/components/anchor` |
+| `RsBreadcrumb` | 面包屑；原生 nav + ol，不包 Reka | `#/components/breadcrumb` |
+| `RsAnchor` | 页内目录；原生 nav，不包 Reka；Hash 路由须 `changeHash=false` | `#/components/anchor` |
 | `RsToolbar` | 工具条 | `#/components/toolbar` |
 | `RsTabs` | 关闭 / 重命名 / 溢出 | `#/components/tabs` |
 | `RsSteps` | 步骤条 | `#/components/steps` |
@@ -464,7 +466,7 @@ Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
 | 尺寸 / 圆角 | `useResolvedRsComponentSize`、`rsRadiusCss` | |
 | 主题 | `applyTheme`、`resolveThemeMode`、`readResolvedTheme`；`themePresets` 仅参考 | |
 | i18n | `useRsI18n`、`registerRsLocale`、`applyLocale`、`resolveHostLocale`、`resolveDirMode`、`rsLocaleMessageKeys` | |
-| 表单 / 日期校验 | `validateDateValue` 等 | 无 DOM |
+| 表单 / 日期校验 | `validateDateValue`、`formatPickerDisplay`、`resolveWeekStartsOn` 等 | 无 DOM |
 | 表格 | `useRsTable*`（见表格架构文） | 勿在业务再写一套 engine |
 
 ---

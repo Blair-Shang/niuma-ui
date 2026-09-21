@@ -4,7 +4,14 @@ export type { RsBadgeVariant } from './components/badge'
 export { RsContainer } from './components/container'
 export { RsBreadcrumb } from './components/breadcrumb'
 export { RsAnchor } from './components/anchor'
-export type { RsAnchorFlatItem, RsAnchorItem } from './components/anchor'
+export type {
+  RsAnchorDirection,
+  RsAnchorExpose,
+  RsAnchorFlatItem,
+  RsAnchorInstance,
+  RsAnchorItem,
+  RsAnchorScrollBehavior,
+} from './components/anchor'
 export {
   flattenAnchorItems,
   hrefToAnchorId,
@@ -20,16 +27,20 @@ export {
   supportsRsButtonTone,
 } from './components/button'
 export { RsCheckbox } from './components/checkbox'
+export type { RsCheckboxExpose, RsCheckboxInstance } from './components/checkbox'
 export { RsSwitch } from './components/switch'
-export type { RsSwitchValue } from './components/switch'
+export type { RsSwitchExpose, RsSwitchInstance, RsSwitchValue } from './components/switch'
 export { RsRadio } from './components/radio'
 export { RsRadioItem } from './components/radio'
-export type { RsRadioValue } from './components/radio'
+export type { RsRadioOrientation, RsRadioValue } from './components/radio'
 export { RsTag } from './components/tag'
 export type { RsTagVariant } from './components/tag'
 export { RsDynamicTags } from './components/dynamic-tags'
 export type {
+  RsDynamicTagsExpose,
   RsDynamicTagsInputMode,
+  RsDynamicTagsInstance,
+  RsDynamicTagsParse,
   RsDynamicTagsRejectReason,
 } from './components/dynamic-tags'
 export { RsAlert } from './components/alert'
@@ -48,7 +59,7 @@ export type { RsLoadingBarApi } from './composables/useRsLoadingBar'
 export { RsDropdown } from './components/dropdown'
 export { RsIcon } from './components/icon'
 export { RsInput } from './components/input'
-export type { RsInputExpose, RsInputInstance } from './components/input'
+export type { RsInputExpose, RsInputInstance, RsInputType } from './components/input'
 export { RsTextarea } from './components/textarea'
 export type {
   RsTextareaAutosize,
@@ -57,7 +68,11 @@ export type {
   RsTextareaResize,
 } from './components/textarea'
 export { RsInputNumber } from './components/input-number'
-export type { RsInputNumberValue } from './components/input-number'
+export type {
+  RsInputNumberExpose,
+  RsInputNumberInstance,
+  RsInputNumberValue,
+} from './components/input-number'
 export {
   clampNumber,
   formatNumberValue,
@@ -75,12 +90,30 @@ export { RsLink } from './components/link'
 export type { RsLinkTone, RsLinkUnderline } from './components/link'
 export { RsMenu } from './components/menu'
 export { RsSelect } from './components/select'
+export type { RsSelectExpose, RsSelectInstance } from './components/select'
 export { RsAutoComplete } from './components/auto-complete'
+export type {
+  RsAutoCompleteExpose,
+  RsAutoCompleteInstance,
+  RsAutoCompleteFilterOption,
+  RsAutoCompleteOption,
+  RsAutoCompleteOptionInput,
+} from './components/auto-complete'
 export { RsCascader } from './components/cascader'
+export type { RsCascaderExpose, RsCascaderInstance } from './components/cascader'
 export { RsTreeSelect } from './components/tree-select'
+export type {
+  RsTreeSelectExpose,
+  RsTreeSelectGetPopupContainer,
+  RsTreeSelectInstance,
+  RsTreeSelectModelValue,
+  RsTreeSelectShowCheckedStrategy,
+} from './components/tree-select'
 export { RsMentions } from './components/mentions'
+export type { RsMentionsExpose, RsMentionsInstance } from './components/mentions'
 export { RsScrollbar } from './components/scrollbar'
 export { RsAvatar } from './components/avatar'
+export type { RsAvatarShape, RsAvatarSize, RsAvatarTone } from './components/avatar'
 export { RsCard } from './components/card'
 export type { RsCardSize, RsCardVariant } from './components/card'
 export { RsEmpty } from './components/empty'
@@ -152,6 +185,12 @@ export { RsDatePicker } from './components/date-picker'
 export { RsDateTimePicker } from './components/date-picker'
 export { RsTimePicker } from './components/time-picker'
 export { RsCalendarGrid } from './components/calendar-grid'
+export type {
+  RsCalendarCell,
+  RsCalendarGridCellSlot,
+  RsCalendarGridExpose,
+  RsCalendarGridInstance,
+} from './components/calendar-grid'
 export { RsTimePickerColumns } from './components/time-picker'
 export { RsSidebar } from './components/sidebar'
 export { RsSidebarGroup } from './components/sidebar'
@@ -165,6 +204,15 @@ export { RsPagination } from './components/pagination'
 export type { RsPaginationSize } from './components/pagination'
 export { RsTree } from './components/tree'
 export { RsUpload } from './components/upload'
+export type {
+  RsUploadBeforeRemove,
+  RsUploadBeforeSelect,
+  RsUploadCapture,
+  RsUploadExpose,
+  RsUploadInstance,
+  RsUploadListType,
+  RsUploadVariant,
+} from './components/upload'
 export { RsVirtualList } from './components/virtual-list'
 export { RsCodeEditor } from './components/code-editor'
 export { RsMonacoEditor } from './components/monaco-editor'
@@ -313,7 +361,9 @@ export type {
 export type {
   RsMentionActive,
   RsMentionCaretBox,
+  RsMentionFilterOption,
   RsMentionOption,
+  RsMentionOptionInput,
   RsMentionPopupBox,
 } from './components/mentions'
 export {
@@ -347,6 +397,7 @@ export type {
   RsFormValidateStatus,
   RsFormValidationResult,
 } from './components/form'
+export type { RsFormExpose, RsFormInstance } from './components/form'
 export {
   cloneFormFieldValue,
   isRsFormItemBoundControl,
@@ -743,6 +794,11 @@ export {
   resolveCodeEditorTheme,
 } from './components/code-editor'
 export type {
+  RsDatePickerDisabledDate,
+  RsDatePickerExpose,
+  RsDatePickerGetPopupContainer,
+  RsDatePickerInstance,
+  RsDatePickerLabelPosition,
   RsDatePickerModelValue,
   RsDatePickerShortcut,
   RsDatePickerTimestampRange,
@@ -750,8 +806,13 @@ export type {
   RsDatePickerValueFormat,
   RsDatePickerValueFormatPreset,
   RsDateRangeValue,
+  RsDateTimePickerExpose,
+  RsDateTimePickerInstance,
+  RsDateTimePickerLabelPosition,
+  RsDateTimeRangeValue,
   RsParsedDate,
   RsParsedDateTime,
+  RsWeekStartsOn,
 } from './components/date-picker'
 export {
   EMPTY_DATE_RANGE,
@@ -761,12 +822,14 @@ export {
   formatDateTimeDisplay,
   formatDateTimeValue,
   formatDateValue,
+  formatPickerDisplay,
   fromInternalPickerValue,
   isDateRangeEmpty,
   isDateRangeOrdered,
   isDateTimeRangeOrdered,
   parseDateTimeValue,
   parseDateValue,
+  resolveWeekStartsOn,
   RS_DATE_PICKER_VALUE_FORMAT_PRESETS,
   toInternalPickerValue,
   toRangeEndpointString,
@@ -782,11 +845,26 @@ export {
   looksLikeIsoDateTimeWithTz,
   parseLocalDateTimeToUtcIso,
 } from './utils/iso-local-datetime'
-export type { RsParsedTime, RsTimeRangeValue, RsTimeUnit, RsTimeUnitOption } from './components/time-picker'
+export type {
+  RsParsedTime,
+  RsTimePickerDisabledTime,
+  RsTimePickerExpose,
+  RsTimePickerGetPopupContainer,
+  RsTimePickerHourCycle,
+  RsTimePickerInstance,
+  RsTimePickerLabelPosition,
+  RsTimePickerModelValue,
+  RsTimePickerShortcut,
+  RsTimeRangeValue,
+  RsTimeUnit,
+  RsTimeUnitOption,
+} from './components/time-picker'
 export {
   EMPTY_TIME_RANGE,
+  TIME_HOUR12_OPTIONS,
   TIME_HOUR_OPTIONS,
   TIME_SECOND_OPTIONS,
+  formatTimeDisplay,
   formatTimeFromParts,
   formatTimeParts,
   formatTimeRangeDisplay,
@@ -798,6 +876,8 @@ export {
   isTimeWithinBounds,
   parseTimeValue,
   scrollTimeColumnToValue,
+  toHour12,
+  toHour24,
 } from './components/time-picker'
 export type {
   RsDateTimeValidationError,

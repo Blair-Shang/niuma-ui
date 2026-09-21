@@ -31,6 +31,11 @@ const fieldsetApi: DemoApiRow[] = [
   { name: 'disabled', type: 'boolean', default: 'false', description: '禁用整组；在 RsForm disabled 内也会跟上' },
   { name: 'size', type: "'sm' | 'md'", default: "'md'", description: '密度。对话框用 sm' },
   { name: 'name', type: 'string', description: '原生 fieldset name' },
+  { name: 'form', type: 'string', description: '关联外部 form id' },
+  { name: 'id', type: 'string', description: '根 fieldset id' },
+  { name: 'required', type: 'boolean', default: 'false', description: '组名旁必填星号' },
+  { name: 'invalid', type: 'boolean', default: 'false', description: '组级失败描边' },
+  { name: 'error', type: 'string', description: '组级错误文案' },
   { name: 'borderStyle', type: "'solid' | 'dashed' | 'dotted'", default: "'solid'", description: '边框线型' },
   { name: 'borderTone', type: "'default' | 'subtle' | 'faded'", default: "'default'", description: '边框浓度；faded 虚化' },
   { name: 'titleWeight', type: "'regular' | 'medium' | 'semibold' | 'bold'", default: "'semibold'", description: '标题字重（清晰度）' },
@@ -39,6 +44,7 @@ const fieldsetApi: DemoApiRow[] = [
   { name: '#legend', type: 'slot', description: '自定义标题' },
   { name: '#tooltip', type: 'slot', description: '自定义 tip 内容' },
   { name: '#extra', type: 'slot', description: '标题右侧附加（数量、状态）' },
+  { name: '#error', type: 'slot', description: '自定义组错误' },
   { name: 'default', type: 'slot', description: '分组内容' },
 ]
 
@@ -349,11 +355,21 @@ async function runValidate(): Promise<void> {
 
     <DemoBlock title="单选分组（fieldset 经典场景）">
       <p class="hint">协议一组选项，legend 是组名。这是 HTML fieldset 的原始用途。</p>
-      <RsFieldset legend="传输协议" tooltip="决定远程推送使用的通道" name="protocol" size="sm">
+      <RsFieldset legend="传输协议" tooltip="决定远程推送使用的通道" name="protocol" required size="sm">
         <RsRadio v-model="protocol" orientation="vertical">
           <RsRadioItem value="ftp">FTP</RsRadioItem>
           <RsRadioItem value="sftp">SFTP</RsRadioItem>
           <RsRadioItem value="ssh">SSH</RsRadioItem>
+        </RsRadio>
+      </RsFieldset>
+    </DemoBlock>
+
+    <DemoBlock title="组级必填 / 错误">
+      <p class="hint">required 只画星号。invalid / error 是组级展示，不代替 Form.validate。</p>
+      <RsFieldset legend="传输协议" required invalid error="请选择一种协议" size="sm">
+        <RsRadio v-model="protocol" orientation="vertical">
+          <RsRadioItem value="ftp">FTP</RsRadioItem>
+          <RsRadioItem value="sftp">SFTP</RsRadioItem>
         </RsRadio>
       </RsFieldset>
     </DemoBlock>

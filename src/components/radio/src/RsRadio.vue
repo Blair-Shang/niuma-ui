@@ -1,9 +1,19 @@
 <script setup lang="ts">
-import { computed, provide } from 'vue'
+import { computed, provide, useId } from 'vue'
 import type { RsComponentSize } from '../../../theme/types'
-import { RadioGroupRoot } from '../../_shared/src/reka'
-import { RS_RADIO_GROUP_KEY, type RsRadioValue } from './radio-utils'
 import { useResolvedRsComponentSize } from '../../_shared/src/resolve-size'
+import { useRsFormContext } from '../../form/src/form-utils'
+import {
+  isRsRadioValueEqual,
+  resolveRsRadioOrientation,
+  RS_RADIO_GROUP_KEY,
+  type RsRadioOrientation,
+  type RsRadioValue,
+} from './radio-utils'
+
+defineOptions({ name: 'RsRadio' })
+
+export type { RsRadioOrientation, RsRadioValue }
 
 const model = defineModel<RsRadioValue | undefined>({ default: undefined })
 
@@ -12,7 +22,9 @@ const props = withDefaults(
     disabled?: boolean
     size?: RsComponentSize
     name?: string
-    orientation?: 'horizontal' | 'vertical'
+    orientation?: RsRadioOrientation
+    /** 无障碍组名。选项文案不够说明整组时再传。 */
+    ariaLabel?: string
   }>(),
   {
     disabled: false,
@@ -24,41 +36,55 @@ const emit = defineEmits<{
   change: [value: RsRadioValue]
 }>()
 
+const formContext = useRsFormContext()
+const groupId = useId()
 const resolvedSize = useResolvedRsComponentSize(() => props.size)
-
-provide(RS_RADIO_GROUP_KEY, {
-  size: resolvedSize,
-})
+const resolvedDisabled = computed(
+  () => props.disabled || Boolean(formContext?.disabled.value),
+)
+const resolvedOrientation = computed(() => resolveRsRadioOrientation(props.orientation))
+const resolvedName = computed(() => props.name || groupId)
 
 const rootClass = computed(() => [
   'rs-radio-group',
-  `rs-radio-group--${props.orientation}`,
+  `rs-radio-group--${resolvedOrientation.value}`,
   `rs-radio-group--${resolvedSize.value}`,
-  { 'rs-radio-group--disabled': props.disabled },
+  { 'rs-radio-group--disabled': resolvedDisabled.value },
 ])
 
-function onUpdate(value: RsRadioValue): void {
+function select(value: RsRadioValue): void {
+  if (resolvedDisabled.value) return
+  if (isRsRadioValueEqual(model.value, value)) return
   model.value = value
   emit('change', value)
 }
+
+provide(RS_RADIO_GROUP_KEY, {
+  size: resolvedSize,
+  disabled: resolvedDisabled,
+  name: resolvedName,
+  isChecked: (value) => isRsRadioValueEqual(model.value, value),
+  select,
+})
 </script>
 
 <template>
-  <RadioGroupRoot
+  <div
+    role="radiogroup"
     :class="rootClass"
-    :model-value="model as string | number | undefined"
-    :disabled="disabled"
-    :name="name"
-    :orientation="orientation"
-    @update:model-value="onUpdate($event as RsRadioValue)"
+    :aria-orientation="resolvedOrientation"
+    :aria-disabled="resolvedDisabled || undefined"
+    :aria-label="ariaLabel"
   >
     <slot />
-  </RadioGroupRoot>
+  </div>
 </template>
 
-<style>
+<style scoped>
 .rs-radio-group {
-  display: inline-flex;
+  display: flex;
+  width: max-content;
+  max-width: 100%;
   gap: var(--rs-space-md);
   color: var(--rs-text);
 }
@@ -75,7 +101,6 @@ function onUpdate(value: RsRadioValue): void {
 }
 
 .rs-radio-group--disabled {
-  opacity: 0.55;
   cursor: not-allowed;
 }
 </style>

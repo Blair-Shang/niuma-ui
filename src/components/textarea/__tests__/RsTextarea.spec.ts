@@ -2,8 +2,53 @@ import { describe, expect, it } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import RsTextarea from '../src/RsTextarea.vue'
 import type { RsTextareaExpose } from '../src/RsTextarea.vue'
+import {
+  isRsTextareaAutosizeEnabled,
+  resolveRsTextareaDisplayRows,
+  resolveRsTextareaResize,
+} from '../src/textarea-utils'
+
+describe('textarea-utils', () => {
+  it('forces resize none when autosize is on', () => {
+    expect(resolveRsTextareaResize('both', true)).toBe('none')
+    expect(resolveRsTextareaResize('both', false)).toBe('both')
+    expect(resolveRsTextareaDisplayRows({ minRows: 4 }, 2)).toBe(4)
+    expect(isRsTextareaAutosizeEnabled(false)).toBe(false)
+  })
+})
 
 describe('RsTextarea', () => {
+  it('registers the public component name', () => {
+    expect(RsTextarea.name).toBe('RsTextarea')
+  })
+
+  it('renders a native textarea without Reka', () => {
+    const wrapper = mount(RsTextarea, { props: { modelValue: '' } })
+    expect(wrapper.find('textarea').element.tagName).toBe('TEXTAREA')
+    expect(wrapper.html().toLowerCase()).not.toContain('reka')
+  })
+
+  it('exposes validate, setValue, setError and clearValidation', async () => {
+    const wrapper = mount(RsTextarea, {
+      props: { modelValue: '', required: true },
+    })
+    const exposed = wrapper.vm as unknown as RsTextareaExpose
+    expect(await exposed.validate()).toBe(false)
+    await flushPromises()
+    expect(wrapper.find('.rs-field__error').exists()).toBe(true)
+
+    exposed.setValue('ok')
+    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['ok'])
+
+    exposed.setError('manual')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.rs-field__error').text()).toBe('manual')
+
+    exposed.clearValidation()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.rs-field__error').exists()).toBe(false)
+  })
+
   it('emits update:modelValue on input', async () => {
     const wrapper = mount(RsTextarea, { props: { modelValue: '' } })
     await wrapper.find('textarea').setValue('hello')

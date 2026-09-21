@@ -159,6 +159,56 @@ function resetPath() {
         />
       </header>
     </DemoBlock>
+
+    <DemoBlock title="自定义分隔符 / 图标 / 禁用">
+      <div class="stack">
+        <RsBreadcrumb
+          separator="/"
+          :items="[
+            { label: 'Docs', href: '#' },
+            { label: 'Components', href: '#' },
+            { label: 'Breadcrumb' },
+          ]"
+        />
+        <RsBreadcrumb
+          :items="[
+            { label: '首页', href: '#', icon: 'house' },
+            { label: '已归档', href: '#', disabled: true },
+            { label: '详情' },
+          ]"
+        />
+      </div>
+    </DemoBlock>
+
+    <DemoBlock title="maxItems 折叠">
+      <p class="hint">超过 3 项时中间收成省略号，点击展开。</p>
+      <RsBreadcrumb
+        :max-items="3"
+        :items="[
+          { label: '组织', href: '#' },
+          { label: '团队', href: '#' },
+          { label: '项目', href: '#' },
+          { label: '迭代', href: '#' },
+          { label: '任务 #1284' },
+        ]"
+      />
+    </DemoBlock>
+
+    <DemoBlock title="插槽与 click">
+      <RsBreadcrumb
+        :items="[
+          { label: '首页', href: '#' },
+          { label: '应用广场', href: '#' },
+          { label: '小说续写' },
+        ]"
+        @click="(item, event) => event.preventDefault()"
+      >
+        <template #item="{ item, isCurrent }">
+          {{ isCurrent ? '●' : '○' }} {{ item.label }}
+        </template>
+        <template #separator>·</template>
+      </RsBreadcrumb>
+    </DemoBlock>
   </DemoPage>
 </template>
 
@@ -217,5 +267,10 @@ function resetPath() {
   margin: 0.25rem 0 0;
   font-size: var(--rs-font-size-sm);
   color: var(--rs-muted);
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 </style>

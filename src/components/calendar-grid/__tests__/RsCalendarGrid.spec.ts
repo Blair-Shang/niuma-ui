@@ -87,6 +87,25 @@ describe('RsCalendarGrid', () => {
     prev.unmount()
   })
 
+  it('starts the week on Sunday when weekStartsOn is 0', () => {
+    const wrapper = mount(RsCalendarGrid, {
+      props: { viewYear: 2025, viewMonth: 6, weekStartsOn: 0 },
+    })
+    expect(wrapper.findAll('.rs-calendar-grid__cell')[0]?.text()).toBe('1')
+  })
+
+  it('disables a date when disabledDate returns true', () => {
+    const wrapper = mount(RsCalendarGrid, {
+      props: {
+        viewYear: 2025,
+        viewMonth: 6,
+        disabledDate: (date) => date.day === 16,
+      },
+    })
+    const cell = wrapper.findAll('.rs-calendar-grid__cell').find((btn) => btn.text() === '16')
+    expect(cell?.attributes('disabled')).toBeDefined()
+  })
+
   it('highlights range between start and end', () => {
     const wrapper = mount(RsCalendarGrid, {
       props: {
@@ -97,5 +116,84 @@ describe('RsCalendarGrid', () => {
       },
     })
     expect(wrapper.findAll('.rs-calendar-grid__cell--in-range').length).toBeGreaterThan(0)
+  })
+
+  it('does not import or render reka-ui', () => {
+    const wrapper = mount(RsCalendarGrid, {
+      props: { viewYear: 2025, viewMonth: 6 },
+    })
+    expect(wrapper.html().toLowerCase()).not.toContain('reka')
+    expect(wrapper.find('table.rs-calendar-grid__table').exists()).toBe(true)
+  })
+
+  it('registers the Vue component name', () => {
+    const wrapper = mount(RsCalendarGrid, {
+      props: { viewYear: 2025, viewMonth: 6 },
+    })
+    expect(wrapper.vm.$options.name).toBe('RsCalendarGrid')
+  })
+
+  it('moves focus with arrow keys and selects with Enter', async () => {
+    const wrapper = mount(RsCalendarGrid, {
+      props: {
+        viewYear: 2025,
+        viewMonth: 6,
+        selected: { year: 2025, month: 6, day: 16 },
+      },
+      attachTo: document.body,
+    })
+    await wrapper.find('.rs-calendar-grid__table').trigger('keydown', { key: 'ArrowRight' })
+    await wrapper.find('.rs-calendar-grid__table').trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('select')?.[0]?.[0]).toEqual({ year: 2025, month: 6, day: 17 })
+    wrapper.unmount()
+  })
+
+  it('disables the whole grid and inherits no select', async () => {
+    const wrapper = mount(RsCalendarGrid, {
+      props: { viewYear: 2025, viewMonth: 6, disabled: true },
+    })
+    expect(wrapper.find('.rs-calendar-grid--disabled').exists()).toBe(true)
+    expect(wrapper.find('.rs-calendar-grid__nav--next-month').attributes('disabled')).toBeDefined()
+    await wrapper.findAll('.rs-calendar-grid__cell')[10]?.trigger('click')
+    expect(wrapper.emitted('select')).toBeUndefined()
+  })
+
+  it('hides adjacent-month days when showOutside is false', () => {
+    const wrapper = mount(RsCalendarGrid, {
+      props: { viewYear: 2025, viewMonth: 6, showOutside: false },
+    })
+    expect(wrapper.find('.rs-calendar-grid__cell--outside').exists()).toBe(false)
+    expect(wrapper.findAll('.rs-calendar-grid__cell').length).toBeLessThan(42)
+  })
+
+  it('renders ISO week numbers', () => {
+    const wrapper = mount(RsCalendarGrid, {
+      props: { viewYear: 2025, viewMonth: 6, showWeekNumbers: true, weekStartsOn: 1 },
+    })
+    expect(wrapper.findAll('thead th')).toHaveLength(8)
+    expect(wrapper.findAll('.rs-calendar-grid__week-num').length).toBe(6)
+  })
+
+  it('exposes focus and goToToday', async () => {
+    const wrapper = mount(RsCalendarGrid, {
+      props: { viewYear: 2024, viewMonth: 1 },
+      attachTo: document.body,
+    })
+    const vm = wrapper.vm as unknown as { focus: () => void; goToToday: () => void }
+    vm.goToToday()
+    await wrapper.vm.$nextTick()
+    const today = new Date()
+    expect(wrapper.emitted('update:viewYear')?.at(-1)).toEqual([today.getFullYear()])
+    expect(wrapper.emitted('update:viewMonth')?.at(-1)).toEqual([today.getMonth() + 1])
+    vm.focus()
+    wrapper.unmount()
+  })
+
+  it('marks today with aria-current=date', () => {
+    const now = new Date()
+    const wrapper = mount(RsCalendarGrid, {
+      props: { viewYear: now.getFullYear(), viewMonth: now.getMonth() + 1 },
+    })
+    expect(wrapper.find('[aria-current="date"]').exists()).toBe(true)
   })
 })

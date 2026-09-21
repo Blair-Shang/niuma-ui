@@ -217,3 +217,43 @@ export function resolveFieldRules(
   if (!name || !rules) return []
   return normalizeFormRules(rules[name])
 }
+
+/** clearValidation / resetFields 的 names 过滤。不传则清全部。 */
+export function normalizeRsFormNameFilter(names?: string | string[]): Set<string> | null {
+  if (!names) return null
+  return new Set(Array.isArray(names) ? names : [names])
+}
+
+export function escapeRsFormSelectorValue(value: string): string {
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+    return CSS.escape(value)
+  }
+  return value.replace(/["\\]/g, (ch) => `\\${ch}`)
+}
+
+export function prefersRsReducedMotion(): boolean {
+  return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+/** 在本表根内找 data-rs-form-item，避免两张同名字段的表滚错。 */
+export function queryRsFormItem(
+  root: ParentNode | null | undefined,
+  name: RsFormNamePath,
+): HTMLElement | null {
+  if (!root || typeof root.querySelector !== 'function') return null
+  const key = namePathKey(name)
+  const el = root.querySelector(`[data-rs-form-item="${escapeRsFormSelectorValue(key)}"]`)
+  return el instanceof HTMLElement ? el : null
+}
+
+export function scrollRsFormField(
+  root: ParentNode | null | undefined,
+  name: RsFormNamePath,
+): void {
+  const el = queryRsFormItem(root, name)
+  if (!el) return
+  el.scrollIntoView({
+    block: 'nearest',
+    behavior: prefersRsReducedMotion() ? 'auto' : 'smooth',
+  })
+}

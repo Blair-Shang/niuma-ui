@@ -1,9 +1,24 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
-import { defineComponent, nextTick } from 'vue'
-import RsSwitch from '../src/RsSwitch.vue'
+import { defineComponent, nextTick, ref } from 'vue'
+import RsForm from '../../form/src/RsForm.vue'
+import RsSwitch, { type RsSwitchExpose } from '../src/RsSwitch.vue'
 
 describe('RsSwitch', () => {
+  it('registers the public component name', () => {
+    expect(RsSwitch.name).toBe('RsSwitch')
+  })
+
+  it('uses a native switch checkbox, not a button root', () => {
+    const wrapper = mount(RsSwitch)
+    const input = wrapper.find('input.rs-switch__input')
+    expect(input.element.tagName).toBe('INPUT')
+    expect(input.attributes('type')).toBe('checkbox')
+    expect(input.attributes('role')).toBe('switch')
+    expect(wrapper.find('button').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
   it('toggles v-model on click', async () => {
     const Host = defineComponent({
       components: { RsSwitch },
@@ -70,5 +85,35 @@ describe('RsSwitch', () => {
     await wrapper.find('.rs-switch__root').trigger('click')
     expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([1])
     expect(wrapper.emitted('change')?.[0]).toEqual([1])
+    wrapper.unmount()
+  })
+
+  it('inherits Form.disabled and does not toggle', async () => {
+    const wrapper = mount(RsForm, {
+      props: { disabled: true },
+      slots: { default: '<RsSwitch />' },
+      global: { components: { RsSwitch } },
+    })
+    await nextTick()
+    expect(wrapper.find('.rs-switch--disabled').exists()).toBe(true)
+    await wrapper.find('.rs-switch__root').trigger('click')
+    expect(wrapper.find('.rs-switch--checked').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('exposes focus on the inner checkbox', async () => {
+    const Host = defineComponent({
+      components: { RsSwitch },
+      setup() {
+        const switchRef = ref<RsSwitchExpose | null>(null)
+        return { switchRef }
+      },
+      template: '<RsSwitch ref="switchRef" />',
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await nextTick()
+    wrapper.vm.switchRef!.focus()
+    expect(document.activeElement).toBe(wrapper.find('input.rs-switch__input').element)
+    wrapper.unmount()
   })
 })

@@ -154,12 +154,102 @@ html {
   --rs-menu-item-active-weight: var(--rs-font-weight-medium);
 
   /*
+   * Anchor（页内目录）。颜色走主题 token 别名，随 data-rs-theme。
+   */
+  --rs-anchor-min-width: 8.5rem;
+  --rs-anchor-gap: 0.7rem;
+  --rs-anchor-rail-width: 2px;
+  --rs-anchor-indent: 0.75rem;
+  --rs-anchor-link-pad-block: 0.28rem;
+  --rs-anchor-link-pad-inline: 0.7rem;
+  --rs-anchor-affix-top: var(--rs-space-lg);
+  --rs-anchor-rail: color-mix(in srgb, var(--rs-border-subtle) 88%, var(--rs-text-secondary));
+  --rs-anchor-ink: var(--rs-primary);
+  --rs-anchor-ink-ring: color-mix(in srgb, var(--rs-primary) 18%, transparent);
+  --rs-anchor-link: var(--rs-text-secondary);
+  --rs-anchor-link-hover: var(--rs-text-primary);
+  --rs-anchor-link-active: var(--rs-primary);
+  --rs-anchor-link-active-weight: var(--rs-font-weight-semibold);
+  --rs-anchor-link-active-bg: color-mix(in srgb, var(--rs-primary) 10%, transparent);
+  --rs-anchor-disabled-opacity: 0.45;
+
+  /*
+   * Breadcrumb（跨页层级）。尺寸静态；颜色在主题块内，随 data-rs-theme。
+   */
+  --rs-breadcrumb-gap: var(--rs-space-xs);
+  --rs-breadcrumb-item-gap: var(--rs-space-xs);
+  --rs-breadcrumb-link-pad-block: calc(var(--rs-space-xs) / 2);
+  --rs-breadcrumb-link-pad-inline: var(--rs-space-xs);
+  --rs-breadcrumb-font-size: var(--rs-font-size-sm);
+  --rs-breadcrumb-current-weight: var(--rs-font-weight-medium);
+  --rs-breadcrumb-disabled-opacity: 0.45;
+
+  /*
    * 表单标签（RsLabel / .rs-field__label 共用）
    * 默认对齐 Ant Form：与正文同档 14px；颜色在主题块内。
    */
   --rs-label-font-size: var(--rs-font-size-sm);
   --rs-label-font-weight: var(--rs-font-weight-medium);
   --rs-label-line-height: var(--rs-line-height-normal);
+  --rs-label-gap: var(--rs-space-xs);
+  --rs-label-mark-gap: calc(var(--rs-space-xs) / 2);
+  --rs-label-disabled-opacity: 0.5;
+
+  /*
+   * Fieldset（表单分区）。颜色走主题 token 的别名，随 data-rs-theme。
+   * Dialog / Drawer 可覆盖 --rs-fieldset-legend-bg，让 legend 盖住表面边框。
+   */
+  --rs-fieldset-radius: var(--rs-radius-sm);
+  --rs-fieldset-gap: var(--rs-space-md);
+  --rs-fieldset-gap-sm: var(--rs-space-sm);
+  --rs-fieldset-border: var(--rs-border);
+  --rs-fieldset-border-subtle: var(--rs-border-subtle);
+  --rs-fieldset-border-faded: color-mix(in srgb, var(--rs-border) 42%, transparent);
+  --rs-fieldset-border-invalid: var(--rs-danger);
+  --rs-fieldset-legend-bg: var(--rs-surface);
+  --rs-fieldset-title: var(--rs-text);
+  --rs-fieldset-title-strong: var(--rs-text-primary);
+  --rs-fieldset-title-muted: var(--rs-muted);
+  --rs-fieldset-hint: var(--rs-muted);
+  --rs-fieldset-error: var(--rs-danger);
+
+  /*
+   * Upload。颜色走主题 token 的别名，随 data-rs-theme。
+   * 尺寸档位在组件根上改 --rs-upload-dropzone-min-height / icon-box / card-size。
+   */
+  --rs-upload-gap: var(--rs-space-md);
+  --rs-upload-radius: var(--rs-radius);
+  --rs-upload-border: var(--rs-border);
+  --rs-upload-border-active: color-mix(in srgb, var(--rs-primary) 55%, var(--rs-border));
+  --rs-upload-bg: color-mix(in srgb, var(--rs-surface) 82%, var(--rs-bg));
+  --rs-upload-bg-active: color-mix(in srgb, var(--rs-primary) 6%, var(--rs-surface));
+  --rs-upload-dropzone-min-height-md: 8.5rem;
+  --rs-upload-icon-box-md: 3rem;
+  --rs-upload-card-size-md: 6.5rem;
+  --rs-upload-file-icon-size: 2rem;
+  --rs-upload-action-size: 1.75rem;
+  --rs-upload-disabled-opacity: 0.38;
+
+  /*
+   * CalendarGrid。颜色走主题 token 的别名，随 data-rs-theme。
+   * 格子高度跟 --rs-control-height-*，圆角由组件 radius 写入 --rs-calendar-grid-radius。
+   */
+  --rs-calendar-grid-gap: var(--rs-space-sm);
+  --rs-calendar-grid-cell-gap: calc(var(--rs-space-xs) / 2);
+  --rs-calendar-grid-week-col: var(--rs-control-height-sm);
+  --rs-calendar-grid-title: var(--rs-text-primary);
+  --rs-calendar-grid-nav: var(--rs-text-secondary);
+  --rs-calendar-grid-nav-hover: var(--rs-surface-hover);
+  --rs-calendar-grid-weekday: var(--rs-text-secondary);
+  --rs-calendar-grid-week: var(--rs-text-tertiary);
+  --rs-calendar-grid-day: var(--rs-text-primary);
+  --rs-calendar-grid-day-outside: var(--rs-text-tertiary);
+  --rs-calendar-grid-day-hover: var(--rs-item-hover);
+  --rs-calendar-grid-today: var(--rs-primary);
+  --rs-calendar-grid-selected: var(--rs-primary);
+  --rs-calendar-grid-selected-fg: var(--rs-primary-foreground);
+  --rs-calendar-grid-in-range: color-mix(in srgb, var(--rs-primary) 12%, transparent);
+  --rs-calendar-grid-disabled-opacity: 0.38;
 
   /* Lucide / 线性图标。品牌 mark 色在可选 niuma-ui/brand-icons.css */
   --rs-icon-color: currentColor;
@@ -262,6 +352,11 @@ html {
   --rs-muted: var(--rs-text-secondary);
   --rs-placeholder: var(--rs-text-tertiary);
   --rs-label-color: var(--rs-text-primary);
+  --rs-breadcrumb-link: var(--rs-text-secondary);
+  --rs-breadcrumb-link-hover: var(--rs-primary);
+  --rs-breadcrumb-link-hover-bg: var(--rs-surface-hover);
+  --rs-breadcrumb-current: var(--rs-text-primary);
+  --rs-breadcrumb-sep: var(--rs-text-secondary);
   --rs-danger: #ff453a;
   --rs-danger-container: #3b1210;
   --rs-on-danger-container: #ff8a84;
@@ -319,6 +414,7 @@ html {
   --rs-dynamic-tags-gap: var(--rs-space-xs);
   --rs-dynamic-tags-padding: var(--rs-space-xs);
   --rs-dynamic-tags-trigger-border: var(--rs-border);
+  --rs-dynamic-tags-disabled-opacity: 0.38;
 
   /* ── Menu（侧栏 / 导航；业务可在父级覆盖，无需 :deep）── */
   --rs-menu-item-fg: var(--rs-muted);
@@ -365,6 +461,18 @@ html {
     0 2px 6px rgb(0 0 0 / 0.28);
   --rs-card-glass-bg: rgb(31 31 31 / 0.72);
   --rs-card-glass-border: rgb(255 255 255 / 0.1);
+  --rs-card-grouped-bg: var(--rs-card-body-bg);
+  --rs-card-grouped-body-bg: var(--rs-card-body-bg);
+  --rs-card-grouped-filter: none;
+  --rs-card-header-inset: inset 0 1px 0 rgb(255 255 255 / 0.05);
+  --rs-card-glass-shadow:
+    0 0 0 0.5px rgb(255 255 255 / 0.12),
+    0 8px 24px rgb(0 0 0 / 0.12);
+  --rs-card-glass-shadow-elevated:
+    0 0 0 0.5px rgb(255 255 255 / 0.14),
+    0 12px 32px rgb(0 0 0 / 0.18);
+  --rs-card-glass-header-bg: rgb(255 255 255 / 0.04);
+  --rs-card-glass-header-inset: inset 0 1px 0 rgb(255 255 255 / 0.08);
 
   /* ── Terminal（macOS Terminal.app 风格：柔和 ANSI + 可读斑马纹）── */
   --rs-terminal-shell-bg: #141416;
@@ -507,6 +615,11 @@ html {
   --rs-muted: var(--rs-text-secondary);
   --rs-placeholder: var(--rs-text-tertiary);
   --rs-label-color: var(--rs-text-primary);
+  --rs-breadcrumb-link: var(--rs-text-secondary);
+  --rs-breadcrumb-link-hover: var(--rs-primary);
+  --rs-breadcrumb-link-hover-bg: var(--rs-surface-hover);
+  --rs-breadcrumb-current: var(--rs-text-primary);
+  --rs-breadcrumb-sep: var(--rs-text-secondary);
   --rs-danger: #ff3b30;
   --rs-danger-container: #ffe5e3;
   --rs-on-danger-container: #c41e16;
@@ -562,6 +675,7 @@ html {
   --rs-dynamic-tags-gap: var(--rs-space-xs);
   --rs-dynamic-tags-padding: var(--rs-space-xs);
   --rs-dynamic-tags-trigger-border: var(--rs-border);
+  --rs-dynamic-tags-disabled-opacity: 0.38;
 
   /* ── Menu（侧栏 / 导航；业务可在父级覆盖，无需 :deep）── */
   --rs-menu-item-fg: var(--rs-muted);
@@ -608,6 +722,18 @@ html {
     0 2px 6px rgb(0 0 0 / 0.08);
   --rs-card-glass-bg: rgb(255 255 255 / 0.72);
   --rs-card-glass-border: rgb(255 255 255 / 0.55);
+  --rs-card-grouped-bg: color-mix(in srgb, var(--rs-card-body-bg) 94%, transparent);
+  --rs-card-grouped-body-bg: transparent;
+  --rs-card-grouped-filter: blur(20px) saturate(150%);
+  --rs-card-header-inset: inset 0 1px 0 rgb(255 255 255 / 0.75);
+  --rs-card-glass-shadow:
+    0 0 0 0.5px rgb(255 255 255 / 0.6),
+    0 8px 24px rgb(0 0 0 / 0.08);
+  --rs-card-glass-shadow-elevated:
+    0 0 0 0.5px rgb(255 255 255 / 0.7),
+    0 12px 32px rgb(0 0 0 / 0.1);
+  --rs-card-glass-header-bg: rgb(255 255 255 / 0.35);
+  --rs-card-glass-header-inset: inset 0 1px 0 rgb(255 255 255 / 0.8);
 
   /* ── Terminal（macOS Terminal.app 亮色：systemBackground + 浅灰斑马纹）── */
   --rs-terminal-shell-bg: #ececf0;
@@ -712,6 +838,26 @@ html {
     --rs-shadow-sm: none;
     --rs-shadow: none;
     --rs-shadow-lg: none;
+    --rs-card-border: CanvasText;
+    --rs-card-separator: CanvasText;
+    --rs-card-header-bg: Canvas;
+    --rs-card-body-bg: Canvas;
+    --rs-card-title-fg: CanvasText;
+    --rs-card-description-fg: GrayText;
+    --rs-card-shadow: none;
+    --rs-card-shadow-elevated: none;
+    --rs-card-filled-bg: Canvas;
+    --rs-card-filled-elevated-shadow: none;
+    --rs-card-glass-bg: Canvas;
+    --rs-card-glass-border: CanvasText;
+    --rs-card-grouped-bg: Canvas;
+    --rs-card-grouped-body-bg: Canvas;
+    --rs-card-grouped-filter: none;
+    --rs-card-header-inset: none;
+    --rs-card-glass-shadow: none;
+    --rs-card-glass-shadow-elevated: none;
+    --rs-card-glass-header-bg: Canvas;
+    --rs-card-glass-header-inset: none;
   }
 }
 
@@ -790,9 +936,8 @@ code {
   z-index: calc(var(--rs-z-modal) + 2);
   box-sizing: border-box;
   width: max-content;
-  min-width: var(--reka-combobox-trigger-width, var(--reka-popper-anchor-width));
+  min-width: var(--rs-select-trigger-width, 8rem);
   max-width: min(24rem, calc(100vw - 1rem));
-  max-height: var(--reka-combobox-content-available-height);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -806,27 +951,172 @@ code {
 }
 
 .rs-select__content--match-trigger {
-  width: var(--reka-combobox-trigger-width, var(--reka-popper-anchor-width));
+  width: var(--rs-select-trigger-width);
   max-width: none;
 }
 
-/* Popper 外层：默认允许随内容变宽；等宽模式锁死为触发器宽度 */
-/* z-index 提升到 modal 之上，避免在 RsDialog 内被对话框遮挡 */
-[data-reka-popper-content-wrapper]:has(> .rs-select__content) {
+/*
+ * DatePicker 面板 Teleport 到 body，不能依赖触发器祖先上的自定义变量。
+ * 尺寸默认写在面板自己身上；主题跟 data-rs-theme（深色岛复制到面板）。
+ */
+.rs-date-picker__content {
+  --rs-date-picker-single-w: 20rem;
+  --rs-date-picker-range-w: 42rem;
+  position: fixed;
   z-index: calc(var(--rs-z-modal) + 2);
-  width: max-content;
-  min-width: var(--reka-popper-anchor-width);
-  max-width: min(24rem, calc(100vw - 1rem));
+  box-sizing: border-box;
+  width: min(var(--rs-date-picker-single-w), calc(100vw - 2rem));
+  padding: var(--rs-space-md);
+  overflow: visible;
+  overscroll-behavior: contain;
+  border: 1px solid var(--rs-dialog-border, var(--rs-border));
+  border-radius: var(--rs-date-picker-radius, var(--rs-radius));
+  background: var(--rs-surface-elevated);
+  box-shadow: var(--rs-shadow-lg);
+  color: var(--rs-text);
+  color-scheme: inherit;
+  outline: none;
 }
-
-[data-reka-popper-content-wrapper]:has(> .rs-select__content--match-trigger) {
-  width: var(--reka-popper-anchor-width);
-  min-width: var(--reka-popper-anchor-width);
-  max-width: none;
+.rs-date-picker__content--range {
+  width: min(var(--rs-date-picker-range-w), calc(100vw - 2rem));
 }
-
-[data-reka-popper-content-wrapper]:has(> .rs-date-picker__content) {
-  z-index: calc(var(--rs-z-modal) + 2);
+.rs-date-picker__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rs-space-sm);
+  overflow: visible;
+}
+.rs-date-picker__range-grid {
+  display: grid;
+  gap: var(--rs-space-md);
+}
+@media (min-width: 40rem) {
+  .rs-date-picker__range-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.rs-date-picker__range-pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rs-space-sm);
+  padding: var(--rs-space-sm);
+  border: 1px solid var(--rs-border-subtle);
+  border-radius: var(--rs-radius-sm);
+  background: color-mix(in srgb, var(--rs-surface) 72%, transparent);
+}
+.rs-date-picker__pane-title {
+  font-size: var(--rs-font-size-xs);
+  font-weight: var(--rs-font-weight-semibold);
+  color: var(--rs-muted);
+}
+.rs-date-picker__footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rs-space-sm);
+  margin-block-start: var(--rs-space-xs);
+  padding-block-start: var(--rs-space-md);
+  border-block-start: 1px solid var(--rs-border-subtle);
+  background: var(--rs-surface-elevated);
+}
+.rs-date-picker__footer-start {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+}
+.rs-date-picker__shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rs-space-xs);
+  align-items: center;
+}
+.rs-date-picker__shortcut {
+  padding: calc(var(--rs-space-xs) / 2) var(--rs-space-sm);
+  border: 1px solid var(--rs-border);
+  border-radius: var(--rs-radius-xs);
+  background: transparent;
+  color: var(--rs-text);
+  font-size: var(--rs-font-size-xs);
+  line-height: var(--rs-line-height-tight);
+  cursor: pointer;
+  transition:
+    border-color var(--rs-transition-fast),
+    color var(--rs-transition-fast),
+    background var(--rs-transition-fast);
+}
+.rs-date-picker__shortcut:hover:not(:disabled) {
+  border-color: var(--rs-primary);
+  color: var(--rs-primary);
+  background: color-mix(in srgb, var(--rs-primary) 8%, transparent);
+}
+.rs-date-picker__shortcut:disabled {
+  opacity: var(--rs-date-picker-disabled-opacity, 0.38);
+  cursor: not-allowed;
+}
+.rs-date-picker__link {
+  border: 0;
+  background: transparent;
+  color: var(--rs-primary);
+  font-size: var(--rs-font-size-xs);
+  cursor: pointer;
+}
+.rs-date-picker__link:hover {
+  text-decoration: underline;
+}
+.rs-date-picker__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rs-space-xs);
+}
+.rs-date-picker__ghost,
+.rs-date-picker__confirm {
+  border: 0;
+  border-radius: var(--rs-radius-sm);
+  padding: var(--rs-space-xs) var(--rs-space-sm);
+  font-size: var(--rs-font-size-xs);
+  cursor: pointer;
+}
+.rs-date-picker__ghost {
+  background: transparent;
+  color: var(--rs-muted);
+}
+.rs-date-picker__ghost:hover {
+  background: var(--rs-surface-hover);
+  color: var(--rs-text);
+}
+.rs-date-picker__confirm {
+  background: var(--rs-primary);
+  color: var(--rs-primary-foreground);
+}
+.rs-date-picker__confirm:hover:not(:disabled) {
+  opacity: 0.92;
+}
+.rs-date-picker__confirm:disabled {
+  opacity: var(--rs-date-picker-disabled-opacity, 0.38);
+  cursor: not-allowed;
+}
+.rs-date-picker__time-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--rs-space-sm);
+  padding-block-start: var(--rs-space-sm);
+  border-block-start: 1px solid var(--rs-border-subtle);
+  background: var(--rs-surface-elevated);
+}
+.rs-date-picker__time-label {
+  flex-shrink: 0;
+  font-size: var(--rs-font-size-xs);
+  font-weight: var(--rs-font-weight-medium);
+  color: var(--rs-muted);
+}
+.rs-date-picker__time-picker {
+  flex: 1;
+  min-width: 0;
 }
 
 /* ContextMenu：Dialog 内表格右键菜单 Portal 后须高于 modal */
@@ -835,9 +1125,144 @@ code {
   z-index: calc(var(--rs-z-modal) + 2);
 }
 
-/* 日期面板内嵌时间选择：wrapper 也须高于日期面板，否则 portal 后仍被日历盖住 */
-[data-reka-popper-content-wrapper]:has(> .rs-time-picker__content--embedded) {
+/*
+ * TimePicker 面板 Teleport 到 body。
+ * 独立面板跟 DatePicker 同一档（modal+2）；嵌在日期面板里再高一档。
+ */
+.rs-time-picker__content {
+  --rs-time-picker-single-w: 18rem;
+  --rs-time-picker-range-w: 28rem;
+  position: fixed;
+  z-index: calc(var(--rs-z-modal) + 2);
+  box-sizing: border-box;
+  width: min(var(--rs-time-picker-single-w), calc(100vw - 2rem));
+  padding: var(--rs-space-md);
+  overflow: visible;
+  overscroll-behavior: contain;
+  border: 1px solid var(--rs-dialog-border, var(--rs-border));
+  border-radius: var(--rs-time-picker-radius, var(--rs-radius));
+  background: var(--rs-surface-elevated);
+  box-shadow: var(--rs-shadow-lg);
+  color: var(--rs-text);
+  color-scheme: inherit;
+  outline: none;
+}
+.rs-time-picker__content--range {
+  width: min(var(--rs-time-picker-range-w), calc(100vw - 2rem));
+}
+.rs-time-picker__content--embedded {
   z-index: calc(var(--rs-z-modal) + 3);
+}
+.rs-time-picker__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rs-space-sm);
+}
+.rs-time-picker__range-grid {
+  display: grid;
+  gap: var(--rs-space-md);
+}
+@media (min-width: 40rem) {
+  .rs-time-picker__range-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.rs-time-picker__range-pane {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--rs-space-sm);
+  padding: var(--rs-space-sm);
+  border: 1px solid var(--rs-border-subtle);
+  border-radius: var(--rs-radius-sm);
+  background: color-mix(in srgb, var(--rs-surface) 72%, transparent);
+}
+.rs-time-picker__pane-title {
+  font-size: var(--rs-font-size-xs);
+  font-weight: var(--rs-font-weight-semibold);
+  color: var(--rs-muted);
+}
+.rs-time-picker__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rs-space-sm);
+  margin-block-start: var(--rs-space-xs);
+  padding-block-start: var(--rs-space-md);
+  border-block-start: 1px solid var(--rs-border-subtle);
+}
+.rs-time-picker__footer-start {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+}
+.rs-time-picker__shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rs-space-xs);
+  align-items: center;
+}
+.rs-time-picker__shortcut {
+  padding: calc(var(--rs-space-xs) / 2) var(--rs-space-sm);
+  border: 1px solid var(--rs-border);
+  border-radius: var(--rs-radius-xs);
+  background: transparent;
+  color: var(--rs-text);
+  font-size: var(--rs-font-size-xs);
+  line-height: var(--rs-line-height-tight);
+  cursor: pointer;
+}
+.rs-time-picker__shortcut:hover:not(:disabled) {
+  border-color: var(--rs-primary);
+  color: var(--rs-primary);
+  background: color-mix(in srgb, var(--rs-primary) 8%, transparent);
+}
+.rs-time-picker__shortcut:disabled {
+  opacity: var(--rs-time-picker-disabled-opacity, 0.38);
+  cursor: not-allowed;
+}
+.rs-time-picker__link {
+  border: 0;
+  background: transparent;
+  color: var(--rs-primary);
+  font-size: var(--rs-font-size-xs);
+  cursor: pointer;
+}
+.rs-time-picker__link:hover {
+  text-decoration: underline;
+}
+.rs-time-picker__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rs-space-xs);
+}
+.rs-time-picker__ghost,
+.rs-time-picker__confirm {
+  border: 0;
+  border-radius: var(--rs-radius-sm);
+  padding: var(--rs-space-xs) var(--rs-space-sm);
+  font-size: var(--rs-font-size-xs);
+  cursor: pointer;
+}
+.rs-time-picker__ghost {
+  background: transparent;
+  color: var(--rs-muted);
+}
+.rs-time-picker__ghost:hover {
+  background: var(--rs-surface-hover);
+  color: var(--rs-text);
+}
+.rs-time-picker__confirm {
+  background: var(--rs-primary);
+  color: var(--rs-primary-foreground);
+}
+.rs-time-picker__confirm:hover:not(:disabled) {
+  opacity: 0.92;
+}
+.rs-time-picker__confirm:disabled {
+  opacity: var(--rs-time-picker-disabled-opacity, 0.38);
+  cursor: not-allowed;
 }
 
 .rs-select__search-bar {
@@ -926,10 +1351,7 @@ code {
 
 .rs-select__viewport {
   overflow-y: auto;
-  max-height: min(
-    var(--rs-select-list-height, 256px),
-    var(--reka-combobox-content-available-height, 256px)
-  );
+  max-height: var(--rs-select-list-height, 256px);
   padding: 0 var(--rs-space-xs) var(--rs-space-xs);
 }
 
@@ -1012,8 +1434,12 @@ code {
   color: var(--rs-primary);
 }
 
-/* 虚拟列表项由 Reka 绝对定位，需显式拉满宽度 */
-[data-reka-virtualizer] .rs-select__item {
+.rs-select__virtual {
+  position: relative;
+  width: 100%;
+}
+
+.rs-select__virtual .rs-select__item {
   width: 100%;
 }
 
@@ -1029,6 +1455,16 @@ code {
 .rs-select__item[data-disabled] {
   opacity: 0.38;
   cursor: not-allowed;
+}
+
+@media (hover: hover) {
+  .rs-select__item:hover:not([data-disabled]) {
+    background: var(--rs-item-hover);
+  }
+
+  .rs-select__item[data-state='checked']:hover:not([data-disabled]) {
+    background: color-mix(in srgb, var(--rs-primary) 18%, transparent);
+  }
 }
 
 /* 面板 Portal 在 body，尺寸只能跟 content 档位，不能跟 .rs-select--sm */
@@ -1088,164 +1524,92 @@ code {
   padding-top: 0.25rem;
 }
 
-.rs-auto-complete {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  width: 100%;
-  max-width: 100%;
+/*
+ * TreeSelect 面板 Teleport 到 body，不能依赖触发器祖先上的自定义变量。
+ * 尺寸默认写在面板自己身上；主题跟 data-rs-theme（深色岛复制到面板）。
+ */
+.rs-tree-select__panel {
+  --rs-tree-select-min-width: 12rem;
+  --rs-tree-select-panel-max-h: 18rem;
+  z-index: calc(var(--rs-z-modal) + 2);
   box-sizing: border-box;
-  vertical-align: middle;
-}
-
-.rs-auto-complete__input {
-  box-sizing: border-box;
-  width: 100%;
-  height: var(--rs-control-height-md);
-  padding: 0 var(--rs-space-md);
-  border: 1px solid var(--rs-input-border, var(--rs-border));
-  border-radius: var(--rs-select-radius, var(--rs-radius-sm));
-  background: var(--rs-input-bg);
+  min-width: var(--rs-tree-select-min-width);
+  max-width: min(24rem, calc(100vw - 1rem));
+  padding: var(--rs-space-xs);
+  overflow: hidden;
+  border: 1px solid var(--rs-dialog-border, var(--rs-border));
+  border-radius: var(--rs-tree-select-radius, var(--rs-radius));
+  background: var(--rs-surface-elevated);
+  box-shadow: var(--rs-shadow-lg);
   color: var(--rs-text);
-  font-family: inherit;
+  color-scheme: inherit;
   font-size: var(--rs-font-size-sm);
   line-height: var(--rs-line-height-tight);
   outline: none;
-  box-shadow: var(--rs-input-shadow, none);
-  transition:
-    border-color var(--rs-transition-fast),
-    box-shadow var(--rs-transition-fast),
-    background var(--rs-transition-fast);
 }
 
-.rs-auto-complete--sm .rs-auto-complete__input {
-  height: var(--rs-control-height-sm);
-  padding: 0 var(--rs-space-sm);
+.rs-tree-select__panel--match-trigger {
+  width: var(--rs-tree-select-trigger-width);
+  max-width: none;
+}
+
+.rs-tree-select__header,
+.rs-tree-select__footer {
+  padding: var(--rs-space-xs) var(--rs-space-sm);
+  color: var(--rs-text-secondary);
   font-size: var(--rs-font-size-xs);
 }
 
-.rs-auto-complete--lg .rs-auto-complete__input {
-  height: var(--rs-control-height-lg);
-  padding: 0 var(--rs-space-lg);
-  font-size: var(--rs-font-size-base);
+.rs-tree-select__search-wrap {
+  position: relative;
+  margin-block-end: var(--rs-space-xs);
 }
 
-.rs-auto-complete--clearable .rs-auto-complete__input {
-  padding-inline-end: calc(var(--rs-space-md) + 1.25rem);
+.rs-tree-select__search-icon {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: var(--rs-space-sm);
+  color: var(--rs-text-tertiary);
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 
-.rs-auto-complete__input::placeholder {
+.rs-tree-select__search {
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--rs-control-height-sm);
+  padding-block: 0;
+  padding-inline: calc(var(--rs-space-sm) + 1rem) var(--rs-space-sm);
+  border: 1px solid var(--rs-input-border, var(--rs-border));
+  border-radius: var(--rs-radius-sm);
+  background: var(--rs-input-bg);
+  color: var(--rs-text);
+  font: inherit;
+  font-size: var(--rs-font-size-sm);
+  box-shadow: var(--rs-input-shadow, none);
+}
+
+.rs-tree-select__search::placeholder {
   color: var(--rs-placeholder);
 }
 
-.rs-auto-complete__input:hover:not(:disabled) {
-  border-color: var(--rs-input-border-hover, var(--rs-border));
-}
-
-.rs-auto-complete__input:focus {
+.rs-tree-select__search:focus-visible {
+  outline: none;
   border-color: var(--rs-focus-border, var(--rs-primary));
-  background: var(--rs-input-bg);
   box-shadow:
     var(--rs-input-shadow, none),
     0 0 0 var(--rs-focus-ring-width, 2px) var(--rs-focus-ring);
 }
 
-.rs-auto-complete__input:disabled {
-  opacity: 0.38;
-  cursor: not-allowed;
-  background: var(--rs-surface-hover);
-}
-
-.rs-auto-complete__clear {
-  position: absolute;
-  top: 50%;
-  inset-inline-end: var(--rs-space-sm);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
-  padding: 0;
-  border: 0;
-  border-radius: var(--rs-radius-xs);
-  background: transparent;
-  color: var(--rs-muted);
-  transform: translateY(-50%);
-  cursor: pointer;
-}
-
-.rs-auto-complete__clear:hover {
-  color: var(--rs-text);
-  background: var(--rs-item-hover);
-}
-
-.rs-auto-complete__list {
-  z-index: calc(var(--rs-z-modal) + 2);
-  box-sizing: border-box;
-  min-width: 8rem;
-  max-width: min(24rem, calc(100vw - 1rem));
-  max-height: 16rem;
-  margin: 0;
-  padding: var(--rs-space-xs);
+.rs-tree-select__tree {
+  max-height: var(--rs-tree-select-panel-max-h);
   overflow: auto;
-  border: 1px solid var(--rs-dialog-border, var(--rs-border));
-  border-radius: var(--rs-radius);
-  background: var(--rs-surface-elevated);
-  box-shadow: var(--rs-shadow-lg);
-  color: var(--rs-text);
-  font-size: var(--rs-font-size-sm);
-  line-height: var(--rs-line-height-tight);
-  list-style: none;
 }
 
-.rs-auto-complete__label {
-  flex: 1;
-  min-width: 0;
+.rs-tree-select__tree--virtual {
+  height: var(--rs-tree-select-list-height, 256px);
+  max-height: var(--rs-tree-select-list-height, 256px);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.rs-auto-complete__item {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  box-sizing: border-box;
-  padding: var(--rs-space-sm) var(--rs-space-md);
-  border-radius: var(--rs-radius-sm);
-  color: var(--rs-text);
-  font-size: var(--rs-font-size-sm);
-  line-height: var(--rs-line-height-tight);
-  cursor: pointer;
-  user-select: none;
-  transition:
-    background var(--rs-transition-fast),
-    color var(--rs-transition-fast);
-}
-
-.rs-auto-complete__item--active,
-.rs-auto-complete__item:hover:not(.rs-auto-complete__item--disabled) {
-  background: var(--rs-item-hover);
-}
-
-.rs-auto-complete__item--disabled {
-  opacity: 0.38;
-  cursor: not-allowed;
-}
-
-.rs-auto-complete__empty {
-  padding: var(--rs-space-md);
-  color: var(--rs-muted);
-  font-size: var(--rs-font-size-sm);
-  text-align: center;
-}
-
-.rs-auto-complete__mark {
-  padding: 0;
-  background: color-mix(in srgb, var(--rs-primary) 22%, transparent);
-  color: inherit;
-  font-weight: var(--rs-font-weight-medium);
-  border-radius: 0.125rem;
 }
 
 .rs-field {
@@ -1277,7 +1641,7 @@ code {
   display: inline-flex;
   align-items: center;
   flex-wrap: nowrap;
-  gap: 0.25rem;
+  gap: var(--rs-label-gap);
   color: var(--rs-label-color);
   font-size: var(--rs-label-font-size);
   font-weight: var(--rs-label-font-weight);

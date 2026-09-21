@@ -65,14 +65,31 @@ const bio = ref('')
       </div>
     </DemoBlock>
 
+    <DemoBlock title="选填 / 冒号 / htmlFor">
+      <div class="field">
+        <RsLabel html-for="pg-optional" optional colon>手机号</RsLabel>
+        <RsInput id="pg-optional" placeholder="13800000000" />
+      </div>
+    </DemoBlock>
+
+    <DemoBlock title="hint 插槽">
+      <div class="field">
+        <RsLabel for-id="pg-hint-slot" hint-id="pg-hint-name">
+          显示名称
+          <template #hint>将展示在个人资料页。</template>
+        </RsLabel>
+        <RsInput id="pg-hint-slot" aria-describedby="pg-hint-name" placeholder="弱水" />
+      </div>
+    </DemoBlock>
+
     <DemoBlock title="表单组合示例">
       <div class="form">
         <div class="field">
-          <RsLabel for-id="pg-form-name" required>姓名</RsLabel>
+          <RsLabel for-id="pg-form-name" required colon>姓名</RsLabel>
           <RsInput id="pg-form-name" placeholder="张三" />
         </div>
         <div class="field">
-          <RsLabel for-id="pg-form-phone" hint="选填，用于找回密码">手机号</RsLabel>
+          <RsLabel for-id="pg-form-phone" optional hint="用于找回密码">手机号</RsLabel>
           <RsInput id="pg-form-phone" type="text" placeholder="13800000000" />
         </div>
         <div class="field">

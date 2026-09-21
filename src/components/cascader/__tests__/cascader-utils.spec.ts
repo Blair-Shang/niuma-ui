@@ -3,6 +3,8 @@ import {
   cascaderColumns,
   cascaderDisplay,
   isCascaderLeaf,
+  nextCascaderPath,
+  popCascaderPath,
   type RsCascaderOption,
 } from '../src/cascader-utils'
 
@@ -31,5 +33,12 @@ describe('cascader-utils', () => {
   it('detects leaf', () => {
     expect(isCascaderLeaf(options[0]!)).toBe(false)
     expect(isCascaderLeaf(options[0]!.children![0]!)).toBe(true)
+  })
+
+  it('builds and pops a path', () => {
+    expect(nextCascaderPath(['east'], 1, 'sh')).toEqual(['east', 'sh'])
+    expect(nextCascaderPath(['east', 'hz'], 0, 'north')).toEqual(['north'])
+    expect(popCascaderPath(['east', 'sh'])).toEqual(['east'])
+    expect(popCascaderPath(['east'])).toEqual([])
   })
 })

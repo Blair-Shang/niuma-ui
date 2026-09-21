@@ -308,9 +308,9 @@ Stable `Rs*` components. Per-prop APIs live on the docs site. Additions must upd
 | `RsEmpty` | Empty state | `#/components/empty` |
 | `RsLink` | Native `<a>` text link (no Reka) | `#/components/link` |
 | `RsBadge` | Status chip; optional count / dot overlay | `#/components/badge` |
-| `RsTag` / `RsDynamicTags` | Tag / editable tag group | `#/components/tag` |
-| `RsAvatar` | Avatar / fallback | `#/components/avatar` |
-| `RsLabel` | Form label | `#/components/label` |
+| `RsTag` | Status chip | `#/components/tag` |
+| `RsAvatar` | Avatar / fallback (native img, no Reka) | `#/components/avatar` |
+| `RsLabel` | Form label (native label, no Reka) | `#/components/label` |
 | `RsCard` / `RsStatCard` | Content / metric card | `#/components/card` |
 | `RsDivider` | Divider | `#/components/divider` |
 | `RsAlert` | Inline alert | `#/components/alert` |
@@ -324,26 +324,28 @@ Stable `Rs*` components. Per-prop APIs live on the docs site. Additions must upd
 | `RsButton` | `variant` × `tone`, loading, icon-only | `#/components/button` |
 | `RsCheckbox` | Checkbox | `#/components/checkbox` |
 | `RsSwitch` | `checkedValue` / `uncheckedValue` | `#/components/switch` |
-| `RsRadio` / `RsRadioItem` | Radio group | `#/components/radio` |
-| `RsInput` | Validation; prefix/suffix; addons | `#/components/input` |
+| `RsRadio` / `RsRadioItem` | Native radiogroup; `change` | `#/components/radio` |
+| `RsInput` | Native input; validation; prefix/suffix; addons; `validate` / `setValue` | `#/components/input` |
+| `RsTextarea` | Native textarea; autosize; `focus` / `validate` | `#/components/textarea` |
 | `RsInputNumber` | Number input | `#/components/input-number` |
-| `RsSelect` | Search / create / remote / `maxTagCount` | `#/components/select` |
-| `RsAutoComplete` | APG Combobox | `#/components/auto-complete` |
+| `RsSelect` | Native combobox; search / create / remote / `maxTagCount` | `#/components/select` |
+| `RsAutoComplete` | Native combobox; free text; `search` / `focus` | `#/components/auto-complete` |
 | `RsCascader` | Multi-column cascade | `#/components/cascader` |
-| `RsTreeSelect` | Uses `RsTree` | `#/components/tree-select` |
-| `RsMentions` | `@` mentions | `#/components/mentions` |
-| `RsUpload` | File pick + validation helpers | `#/components/upload` |
+| `RsTreeSelect` | Uses `RsTree`; native button + Teleport, no Reka | `#/components/tree-select` |
+| `RsMentions` | Native textarea combobox; caret popup; no Reka | `#/components/mentions` |
+| `RsDynamicTags` | Native fieldset + input; editable short strings; no Reka | `#/components/dynamic-tags` |
+| `RsUpload` | Native file input; drag / paste / directory; no Reka; no storage protocol | `#/components/upload` |
 | `RsForm` / `RsFormItem` / `RsFormList` | Form / Form.Item / Form.List | `#/components/form` |
 | `RsFieldset` | `fieldset`/`legend`, not Card | `#/components/fieldset` |
-| `RsDatePicker` / `RsDateTimePicker` / `RsTimePicker` | Date and time | `#/components/date-picker` |
-| `RsCalendarGrid` / `RsTimePickerColumns` | Calendar / time-column primitives | `#/components/calendar-grid` |
+| `RsDatePicker` / `RsDateTimePicker` / `RsTimePicker` | Date and time; DatePicker / TimePicker are native button + Teleport, no Reka | `#/components/date-picker` `#/components/datetime-picker` `#/components/time-picker` |
+| `RsCalendarGrid` / `RsTimePickerColumns` | Calendar / time-column primitives; CalendarGrid is a native table + button, no Reka | `#/components/calendar-grid` |
 
 ### Navigation and layout
 
 | Component | Role | Docs |
 |-----------|------|------|
-| `RsBreadcrumb` | Breadcrumb | `#/components/breadcrumb` |
-| `RsAnchor` | In-page TOC; hash routers need `changeHash=false` | `#/components/anchor` |
+| `RsBreadcrumb` | Breadcrumb; native nav + ol, no Reka | `#/components/breadcrumb` |
+| `RsAnchor` | In-page TOC; native nav, no Reka; hash routers need `changeHash=false` | `#/components/anchor` |
 | `RsToolbar` | Toolbar | `#/components/toolbar` |
 | `RsTabs` | Close / rename / overflow | `#/components/tabs` |
 | `RsSteps` | Steps | `#/components/steps` |
@@ -397,7 +399,7 @@ Stable `Rs*` components. Per-prop APIs live on the docs site. Additions must upd
 | Size / radius | `useResolvedRsComponentSize`, `rsRadiusCss` | |
 | Theme | `applyTheme`, `resolveThemeMode`, `readResolvedTheme`; `themePresets` is reference-only | |
 | i18n | `useRsI18n`, `registerRsLocale`, `applyLocale`, `resolveHostLocale`, `resolveDirMode`, `rsLocaleMessageKeys` | |
-| Form / date | `validateDateValue`, … | No DOM |
+| Form / date | `validateDateValue`, `formatPickerDisplay`, `resolveWeekStartsOn`, … | No DOM |
 | Table | `useRsTable*` (see table architecture) | Do not reimplement the engine in a host |
 
 ---

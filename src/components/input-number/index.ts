@@ -1,4 +1,5 @@
 export { default as RsInputNumber } from './src/RsInputNumber.vue'
+export type { RsInputNumberExpose, RsInputNumberInstance } from './src/RsInputNumber.vue'
 export type { RsInputNumberValue } from './src/input-number-utils'
 export {
   clampNumber,

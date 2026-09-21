@@ -1,6 +1,5 @@
-import { computed, nextTick, onUnmounted, watch, type ModelRef } from 'vue'
+import { computed, onUnmounted, watch, type ModelRef } from 'vue'
 import type { RsTranslateFn } from '../../../composables/useRsI18n'
-import { useFilter } from '../../_shared/src/reka'
 import {
   buildOptionDisabledMap,
   buildOptionLabelMap,
@@ -14,6 +13,7 @@ import {
   normalizeSelectOptions,
   optionDisplayLabel,
   packSelectModel,
+  selectContains,
   restoreSelectValue,
   restoreSelectValues,
   selectModelEntries,
@@ -83,7 +83,6 @@ export function useRsSelect<T extends RsSelectModelValue = RsSelectModelValue>(
   emit: RsSelectEngineEmit,
   t: RsTranslateFn,
 ) {
-  const { contains } = useFilter({ sensitivity: 'base' })
   const isMultiple = computed(() => isSelectMultiple(props.multiple))
 
   const normalizedOptions = computed(() =>
@@ -106,11 +105,7 @@ export function useRsSelect<T extends RsSelectModelValue = RsSelectModelValue>(
     () => Boolean(props.virtual) || flatCount.value > (props.virtualThreshold ?? 50),
   )
 
-  /**
-   * 可搜索时一律走本地过滤，并关掉 Reka 内置 filter。
-   * Reka 的 filterSearch 与搜索框 searchQuery 不同步（打开时会被清空），
-   * 默认依赖内置过滤时会出现：手输「NVA」已出「使用 NVA」，但 NVARCHAR 仍被整表挡住。
-   */
+  /** 可搜索 / 远程 / 自定义过滤一律走本函数，不再依赖外部 headless filter。 */
   const useManualFilter = computed(
     () =>
       Boolean(props.remote) ||
@@ -130,7 +125,7 @@ export function useRsSelect<T extends RsSelectModelValue = RsSelectModelValue>(
         next = filterSelectOptions(
           normalizedOptions.value,
           searchQuery.value,
-          contains,
+          selectContains,
           props.filterOption,
           props.optionFilterProp,
         )
@@ -357,24 +352,32 @@ export function useRsSelect<T extends RsSelectModelValue = RsSelectModelValue>(
     if (searchTimer) clearTimeout(searchTimer)
   })
 
-  watch(open, async (isOpen) => {
+  watch(open, (isOpen) => {
     if (isOpen) {
-      const pending = searchQuery.value
-      await nextTick()
-      await nextTick()
-      // ComboboxInput 挂载时会 resetSearchTerm，把选中值写进搜索框。
-      // 默认清空；受控 / 未清理的 searchValue 写回；fillSearchWithValue 才回填当前选中。
-      if (pending) {
-        searchQuery.value = pending
-      } else if (props.fillSearchWithValue && !isMultiple.value && hasValue.value) {
+      if (searchQuery.value) return
+      if (props.fillSearchWithValue && !isMultiple.value && hasValue.value) {
         searchQuery.value = singleDisplayLabel.value
-      } else {
-        searchQuery.value = ''
       }
       return
     }
     if (props.autoClearSearchValue) searchQuery.value = ''
   })
+
+  function pickToken(token: string): void {
+    if (isTokenDisabled(token)) return
+    if (canCreate.value && token === createValue.value) {
+      commitCreatedValue(token)
+      return
+    }
+    if (isMultiple.value) {
+      const prev = selectedValues.value
+      const next = prev.includes(token) ? prev.filter((item) => item !== token) : [...prev, token]
+      comboboxModel.value = next
+      return
+    }
+    comboboxModel.value = token
+    open.value = false
+  }
 
   function onSearchKeydown(event: KeyboardEvent): void {
     if (event.key !== 'Enter' || event.isComposing) return
@@ -448,6 +451,7 @@ export function useRsSelect<T extends RsSelectModelValue = RsSelectModelValue>(
     omittedTagTitle,
     singleDisplayLabel,
     comboboxModel,
+    pickToken,
     tokenLabel,
     truncateTagLabel,
     optionFromToken,

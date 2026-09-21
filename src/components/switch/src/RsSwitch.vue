@@ -1,11 +1,28 @@
 <script setup lang="ts">
-import { computed, useId } from 'vue'
+import { computed, useId, useTemplateRef } from 'vue'
 import type { RsComponentSize } from '../../../theme/types'
-import { SwitchRoot, SwitchThumb } from '../../_shared/src/reka'
 import { useResolvedRsComponentSize } from '../../_shared/src/resolve-size'
+import { useRsFormContext } from '../../form/src/form-utils'
+import {
+  resolveRsSwitchChecked,
+  resolveRsSwitchNext,
+  type RsSwitchValue,
+} from './switch-utils'
 
-/** Switch v-model 取值：默认 boolean，也可为业务码如 'Y'/'N'、1/0 */
-export type RsSwitchValue = boolean | string | number
+export type { RsSwitchValue }
+
+/**
+ * RsSwitch 模板 ref 请用此类型。
+ * 不要写 `InstanceType<typeof RsSwitch>`：组件实例类型过深，vue-tsc 会报 Excessive stack depth。
+ */
+export interface RsSwitchExpose {
+  focus: () => void
+}
+
+/** 模板 ref 实例：expose + 根节点 */
+export type RsSwitchInstance = RsSwitchExpose & { $el: HTMLElement }
+
+defineOptions({ name: 'RsSwitch' })
 
 const model = defineModel<RsSwitchValue>({ default: false })
 
@@ -16,6 +33,8 @@ const props = withDefaults(
     /** 无障碍名称；有默认插槽文案时可省略 */
     ariaLabel?: string
     id?: string
+    /** 原生 name，供表单提交 */
+    name?: string
     /** 打开时写入 v-model 的值，默认 true */
     checkedValue?: RsSwitchValue
     /** 关闭时写入 v-model 的值，默认 false */
@@ -32,50 +51,79 @@ const emit = defineEmits<{
   change: [value: RsSwitchValue]
 }>()
 
+const formContext = useRsFormContext()
 const autoId = useId()
 const inputId = computed(() => props.id || autoId)
+const inputRef = useTemplateRef<HTMLInputElement>('inputRef')
 const resolvedSize = useResolvedRsComponentSize(() => props.size)
-/** Reka Switch 只吃 boolean；对外 v-model 按 checkedValue / uncheckedValue 映射 */
-const isChecked = computed(() => Object.is(model.value, props.checkedValue))
+const resolvedDisabled = computed(
+  () => props.disabled || Boolean(formContext?.disabled.value),
+)
+const isChecked = computed(() => resolveRsSwitchChecked(model.value, props.checkedValue))
 
 const rootClass = computed(() => [
   'rs-switch',
   `rs-switch--${resolvedSize.value}`,
   {
     'rs-switch--checked': isChecked.value,
-    'rs-switch--disabled': props.disabled,
+    'rs-switch--disabled': resolvedDisabled.value,
   },
 ])
 
-function onUpdate(checked: boolean): void {
-  const next = checked ? props.checkedValue : props.uncheckedValue
+function writeChecked(checked: boolean): void {
+  const next = resolveRsSwitchNext(checked, props.checkedValue, props.uncheckedValue)
   if (Object.is(model.value, next)) return
   model.value = next
   emit('change', next)
 }
+
+function onNativeChange(event: Event): void {
+  if (resolvedDisabled.value) return
+  writeChecked((event.target as HTMLInputElement).checked)
+}
+
+function onTrackClick(event: MouseEvent): void {
+  event.preventDefault()
+  event.stopPropagation()
+  if (resolvedDisabled.value) return
+  writeChecked(!isChecked.value)
+}
+
+defineExpose<RsSwitchExpose>({
+  focus: () => {
+    inputRef.value?.focus()
+  },
+})
 </script>
 
 <template>
-  <div :class="rootClass">
-    <SwitchRoot
+  <label :class="rootClass">
+    <input
       :id="inputId"
-      class="rs-switch__root"
-      :model-value="isChecked"
-      :disabled="disabled"
+      ref="inputRef"
+      class="rs-switch__input"
+      type="checkbox"
+      role="switch"
+      :name="name"
+      :checked="isChecked"
+      :disabled="resolvedDisabled"
+      :aria-checked="isChecked ? 'true' : 'false'"
       :aria-label="ariaLabel"
-      @update:model-value="onUpdate"
+      @change="onNativeChange"
+      @click.stop
     >
-      <SwitchThumb class="rs-switch__thumb" />
-    </SwitchRoot>
-    <label v-if="$slots.default" class="rs-switch__label" :for="inputId">
+    <span class="rs-switch__root" aria-hidden="true" @click="onTrackClick">
+      <span class="rs-switch__thumb" />
+    </span>
+    <span v-if="$slots.default" class="rs-switch__label">
       <slot />
-    </label>
-  </div>
+    </span>
+  </label>
 </template>
 
-<style>
+<style scoped>
 /**
- * 轨道高度 = control-height * 2/3（对齐 Ant：Input SM 24 / Switch SM 16）。
+ * 轨道高度 = control-height * 2/3（与 Input SM 24 / Switch SM 16 同比例）。
  * 宽高、内边距、滑块均由 token / calc 推导，不写死档位 px。
  * 外层 min-height = control-height，保证与同排输入垂直居中对齐。
  */
@@ -83,6 +131,7 @@ function onUpdate(checked: boolean): void {
   --rs-switch-pad: calc(var(--rs-switch-track-h) * 0.12);
   --rs-switch-track-w: calc(var(--rs-switch-track-h) * 1.75);
   --rs-switch-thumb: calc(var(--rs-switch-track-h) - var(--rs-switch-pad) * 2 - 2px);
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: var(--rs-space-xs);
@@ -96,6 +145,18 @@ function onUpdate(checked: boolean): void {
 .rs-switch--disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+.rs-switch__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .rs-switch__root {
@@ -125,7 +186,7 @@ function onUpdate(checked: boolean): void {
   border-color: var(--rs-primary);
 }
 
-.rs-switch__root:focus-visible {
+.rs-switch__input:focus-visible + .rs-switch__root {
   box-shadow: 0 0 0 var(--rs-focus-ring-width, 2px) var(--rs-focus-ring);
 }
 
@@ -186,5 +247,12 @@ function onUpdate(checked: boolean): void {
 .rs-switch--ssm .rs-switch__label,
 .rs-switch--sm .rs-switch__label {
   font-size: var(--rs-font-size-xs);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rs-switch__root,
+  .rs-switch__thumb {
+    transition: none;
+  }
 }
 </style>

@@ -1,4 +1,5 @@
 export { default as RsSelect } from './src/RsSelect.vue'
+export type { RsSelectExpose, RsSelectInstance } from './src/RsSelect.vue'
 export type {
   RsSelectFieldNames,
   RsSelectFilterOption,

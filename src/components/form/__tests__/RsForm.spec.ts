@@ -1,7 +1,8 @@
 import { defineComponent, h, ref } from 'vue'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
-import RsForm from '../src/RsForm.vue'
+import RsForm, { type RsFormExpose } from '../src/RsForm.vue'
+import RsFormItem from '../src/RsFormItem.vue'
 import RsInput from '../../input/src/RsInput.vue'
 import RsSelect from '../../select/src/RsSelect.vue'
 
@@ -15,6 +16,26 @@ describe('RsForm', () => {
     document.body.innerHTML = ''
   })
 
+  it('registers the public component name', () => {
+    expect(RsForm.name).toBe('RsForm')
+  })
+
+  it('exposes the host command API', () => {
+    const wrapper = mount(RsForm)
+    const exposed = wrapper.vm as unknown as RsFormExpose
+    expect(typeof exposed.validate).toBe('function')
+    expect(typeof exposed.validateField).toBe('function')
+    expect(typeof exposed.clearValidation).toBe('function')
+    expect(typeof exposed.resetFields).toBe('function')
+    expect(typeof exposed.getFieldsValue).toBe('function')
+    expect(typeof exposed.setFieldsValue).toBe('function')
+    expect(typeof exposed.getFieldValue).toBe('function')
+    expect(typeof exposed.setFieldValue).toBe('function')
+    expect(typeof exposed.scrollToField).toBe('function')
+    expect((exposed as { validateFields?: unknown }).validateFields).toBeUndefined()
+    wrapper.unmount()
+  })
+
   it('renders form element with base class', () => {
     const wrapper = mount(RsForm, {
       slots: { default: '<p class="slot">内容</p>' },
@@ -22,6 +43,64 @@ describe('RsForm', () => {
     expect(wrapper.element.tagName).toBe('FORM')
     expect(wrapper.classes()).toContain('rs-form')
     expect(wrapper.find('.slot').text()).toBe('内容')
+    expect(wrapper.attributes('novalidate')).toBeDefined()
+    wrapper.unmount()
+  })
+
+  it('scrollToField only queries this form root', async () => {
+    const Host = defineComponent({
+      components: { RsForm, RsFormItem, RsInput },
+      setup() {
+        const formRef = ref<RsFormExpose | null>(null)
+        const email = ref('')
+        return { formRef, email }
+      },
+      template: `
+        <div>
+          <form class="other">
+            <div data-rs-form-item="email" class="other-item"></div>
+          </form>
+          <RsForm ref="formRef">
+            <RsFormItem name="email">
+              <RsInput v-model="email" />
+            </RsFormItem>
+          </RsForm>
+        </div>
+      `,
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await flushPromises()
+    const mine = wrapper.find('.rs-form [data-rs-form-item="email"]').element as HTMLElement
+    const other = wrapper.find('.other-item').element as HTMLElement
+    const mineScroll = vi.fn()
+    const otherScroll = vi.fn()
+    mine.scrollIntoView = mineScroll
+    other.scrollIntoView = otherScroll
+    wrapper.vm.formRef!.scrollToField('email')
+    expect(mineScroll).toHaveBeenCalled()
+    expect(otherScroll).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('does not emit validate after unmount', async () => {
+    const Host = defineComponent({
+      components: { RsForm, RsInput },
+      setup() {
+        const formRef = ref<RsFormExpose | null>(null)
+        const name = ref('')
+        return { formRef, name }
+      },
+      template: `
+        <RsForm ref="formRef" :rules="{ name: [{ required: true, message: '必填' }] }">
+          <RsInput v-model="name" name="name" />
+        </RsForm>
+      `,
+    })
+    const wrapper = mount(Host)
+    await flushPromises()
+    const pending = wrapper.vm.formRef!.validate()
+    wrapper.unmount()
+    await expect(pending).resolves.toMatchObject({ valid: false })
   })
 
   it('applies gap, maxWidth, and labelPosition classes', () => {

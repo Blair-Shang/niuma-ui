@@ -7,7 +7,7 @@
  * - `stringMode` 时为 `string | null`（高精度 / 表格草稿场景）
  * - 输入过程用文本草稿，允许中间态；blur / step / Enter 再规范化
  */
-import { computed, ref, useId, watch } from 'vue'
+import { computed, ref, useAttrs, useId, useTemplateRef, watch } from 'vue'
 import type { RsComponentSize, RsRadius } from '../../../theme/types'
 import { useRsI18n } from '../../../composables/useRsI18n'
 import { useResolvedRsComponentSize } from '../../_shared/src/resolve-size'
@@ -35,9 +35,22 @@ import {
   type RsInputNumberValue,
 } from './input-number-utils'
 
-defineOptions({ inheritAttrs: false })
+export interface RsInputNumberExpose {
+  focus: () => void
+  blur: () => void
+  commit: (raw?: string) => void
+  setValue: (value: unknown) => void
+  step: (direction: 1 | -1) => void
+}
+
+/** 模板 ref 实例：expose + 根节点 */
+export type RsInputNumberInstance = RsInputNumberExpose & { $el: HTMLElement }
+
+defineOptions({ name: 'RsInputNumber', inheritAttrs: false })
 
 const { t } = useRsI18n()
+const attrs = useAttrs()
+const controlRef = useTemplateRef<HTMLInputElement>('controlRef')
 
 const model = defineModel<RsInputNumberValue>({ default: null })
 
@@ -255,6 +268,7 @@ function onBlur(event: FocusEvent): void {
 }
 
 function onKeydown(event: KeyboardEvent): void {
+  if (event.isComposing || event.key === 'Process') return
   if (event.key === 'Enter') {
     commitDraft()
     emit('pressEnter', event)
@@ -276,6 +290,10 @@ function onWheel(event: WheelEvent): void {
   event.preventDefault()
   applyStep(event.deltaY < 0 ? 1 : -1)
 }
+
+const controlBinds = computed(() =>
+  props.changeOnWheel ? { ...attrs, onWheel } : attrs,
+)
 
 function setValue(value: unknown): void {
   if (value == null || value === '') {
@@ -309,14 +327,12 @@ useRsFormField(() => ({
   clearValidation: () => undefined,
 }))
 
-defineExpose({
+defineExpose<RsInputNumberExpose>({
   focus: () => {
-    const el = document.getElementById(resolvedId.value) as HTMLInputElement | null
-    el?.focus()
+    controlRef.value?.focus()
   },
   blur: () => {
-    const el = document.getElementById(resolvedId.value) as HTMLInputElement | null
-    el?.blur()
+    controlRef.value?.blur()
   },
   commit: commitDraft,
   setValue,
@@ -353,6 +369,8 @@ defineExpose({
         }"
       >
         <input
+          ref="controlRef"
+          v-bind="controlBinds"
           :id="resolvedId"
           class="rs-input-number__control"
           :class="`rs-input-number__control--${resolvedSize}`"
@@ -365,6 +383,7 @@ defineExpose({
           :placeholder="placeholder"
           :disabled="resolvedDisabled"
           :readonly="resolvedReadonly"
+          :aria-required="required || undefined"
           :aria-invalid="isInvalid || undefined"
           :aria-describedby="displayMessage ? errorId : undefined"
           :aria-valuemin="min"
@@ -375,7 +394,6 @@ defineExpose({
           @focus="onFocus"
           @blur="onBlur"
           @keydown="onKeydown"
-          v-bind="changeOnWheel ? { onWheel } : {}"
         />
 
         <div v-if="controls" class="rs-input-number__handlers" aria-hidden="true">

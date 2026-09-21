@@ -39,3 +39,20 @@ export function resolveFieldsetTitleSize(size: RsFieldsetTitleSize): string {
 export function resolveFieldsetTitleWeight(weight: RsFontWeight): string {
   return RS_FONT_WEIGHT_CSS[weight]
 }
+
+/** tooltip 优先；弃用的 description 仍映射到同一 tip。 */
+export function resolveFieldsetTooltip(
+  tooltip: string | undefined,
+  description: string | undefined,
+): string {
+  return (tooltip || description || '').trim()
+}
+
+/** 显式 invalid，或有错误文案 / #error，都算组级失败。 */
+export function resolveFieldsetInvalid(
+  invalid: boolean,
+  error: string | undefined,
+  hasErrorSlot: boolean,
+): boolean {
+  return Boolean(invalid || error?.trim() || hasErrorSlot)
+}

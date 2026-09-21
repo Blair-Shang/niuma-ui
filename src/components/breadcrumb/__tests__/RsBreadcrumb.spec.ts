@@ -75,7 +75,9 @@ describe('RsBreadcrumb', () => {
         items: [{ label: '路由页', to: '/route' }, { label: '当前' }],
       },
     })
-    expect(wrapper.findAll('a.rs-breadcrumb__link')).toHaveLength(1)
+    const anchors = wrapper.findAll('a.rs-breadcrumb__link')
+    expect(anchors).toHaveLength(1)
+    expect(anchors[0]?.attributes('href')).toBe('/route')
     expect(wrapper.findAll('span.rs-breadcrumb__link')).toHaveLength(1)
   })
 
@@ -169,4 +171,133 @@ describe('RsBreadcrumb', () => {
     expect(links[2]?.attributes('aria-current')).toBe('page')
     expect(links[2]?.text()).toBe('Leaf')
   })
+
+  it('does not import or render reka-ui', () => {
+    const wrapper = mount(RsBreadcrumb, {
+      props: { items: threeLevelItems },
+    })
+    expect(wrapper.html().toLowerCase()).not.toContain('reka')
+    expect(wrapper.find('nav.rs-breadcrumb').exists()).toBe(true)
+  })
+
+  it('registers the Vue component name', () => {
+    const wrapper = mount(RsBreadcrumb, {
+      props: { items: threeLevelItems },
+    })
+    expect(wrapper.vm.$options.name).toBe('RsBreadcrumb')
+  })
+
+  it('uses ariaLabel when provided', () => {
+    const wrapper = mount(RsBreadcrumb, {
+      props: { items: threeLevelItems, ariaLabel: 'Path' },
+    })
+    expect(wrapper.find('nav.rs-breadcrumb').attributes('aria-label')).toBe('Path')
+  })
+
+  it('renders a custom text separator', () => {
+    const wrapper = mount(RsBreadcrumb, {
+      props: { items: threeLevelItems, separator: '/' },
+    })
+    expect(wrapper.findAll('.rs-breadcrumb__sep')).toHaveLength(2)
+    expect(wrapper.find('.rs-breadcrumb__sep').text()).toBe('/')
+  })
+
+  it('collapses middle items and expands on more click', async () => {
+    const wrapper = mount(RsBreadcrumb, {
+      props: {
+        maxItems: 3,
+        items: [
+          { label: 'A', href: '/a' },
+          { label: 'B', href: '/b' },
+          { label: 'C', href: '/c' },
+          { label: 'D', href: '/d' },
+          { label: 'E' },
+        ],
+      },
+    })
+    expect(wrapper.find('.rs-breadcrumb__more').exists()).toBe(true)
+    expect(wrapper.text()).toContain('A')
+    expect(wrapper.text()).not.toContain('B')
+    expect(wrapper.text()).toContain('E')
+
+    await wrapper.find('.rs-breadcrumb__more').trigger('click')
+    expect(wrapper.find('.rs-breadcrumb__more').exists()).toBe(false)
+    expect(wrapper.text()).toContain('B')
+    expect(wrapper.text()).toContain('C')
+  })
+
+  it('renders disabled items as spans and still emits click', async () => {
+    const wrapper = mount(RsBreadcrumb, {
+      props: {
+        items: [
+          { label: 'Home', href: '/' },
+          { label: 'Locked', href: '/locked', disabled: true },
+          { label: 'Now' },
+        ],
+      },
+    })
+    const disabled = wrapper.find('.rs-breadcrumb__link--disabled')
+    expect(disabled.element.tagName).toBe('SPAN')
+    expect(disabled.attributes('aria-disabled')).toBe('true')
+
+    await disabled.trigger('click')
+    const emitted = wrapper.emitted('click')
+    expect(emitted).toHaveLength(1)
+    expect(emitted?.[0]?.[0]).toMatchObject({ label: 'Locked', disabled: true })
+  })
+
+  it('adds noopener noreferrer on target=_blank', () => {
+    const wrapper = mount(RsBreadcrumb, {
+      props: {
+        items: [
+          { label: 'Docs', href: 'https://vuejs.org', target: '_blank' },
+          { label: 'Here' },
+        ],
+      },
+    })
+    const anchor = wrapper.find('a.rs-breadcrumb__link')
+    expect(anchor.attributes('target')).toBe('_blank')
+    expect(anchor.attributes('rel')).toBe('noopener noreferrer')
+  })
+
+  it('renders the last item as a span even when it has href', () => {
+    const wrapper = mount(RsBreadcrumb, {
+      props: {
+        items: [
+          { label: 'Home', href: '/' },
+          { label: 'Here', href: '/here' },
+        ],
+      },
+    })
+    const current = wrapper.find('.rs-breadcrumb__link--current')
+    expect(current.element.tagName).toBe('SPAN')
+    expect(current.attributes('aria-current')).toBe('page')
+  })
+
+  it('renders item icons', () => {
+    const wrapper = mount(RsBreadcrumb, {
+      props: {
+        items: [
+          { label: 'Home', href: '/', icon: 'house' },
+          { label: 'Now' },
+        ],
+      },
+    })
+    expect(wrapper.find('.rs-breadcrumb__icon').exists()).toBe(true)
+  })
+
+  it('renders #item and #separator slots', () => {
+    const wrapper = mount(RsBreadcrumb, {
+      props: { items: [{ label: 'Home', href: '/' }, { label: 'Now' }] },
+      slots: {
+        item: ({ item, isCurrent }: { item: { label: string }; isCurrent: boolean }) =>
+          `${isCurrent ? '●' : '○'} ${item.label}`,
+        separator: () => '|',
+      },
+    })
+    expect(wrapper.text()).toContain('○ Home')
+    expect(wrapper.text()).toContain('● Now')
+    expect(wrapper.text()).toContain('|')
+  })
 })
+

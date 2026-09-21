@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RsContainer from '../src/RsContainer.vue'
+import { resolveRsContainerStyle } from '../src/container-utils'
 
 const maxWidths = ['sm', 'md', 'lg', 'xl', 'full'] as const
 const paddings = ['none', 'sm', 'md', 'lg'] as const
 
 describe('RsContainer', () => {
+  it('registers the public component name', () => {
+    expect(RsContainer.name).toBe('RsContainer')
+  })
+
   it('renders slot content', () => {
     const wrapper = mount(RsContainer, { slots: { default: '页面内容' } })
     expect(wrapper.text()).toBe('页面内容')
@@ -85,5 +90,23 @@ describe('RsContainer', () => {
     expect(style).toContain('--rs-container-gap-sm: var(--rs-space-xs);')
     expect(style).toContain('--rs-container-gap-md: var(--rs-space-sm);')
     expect(style).toContain('--rs-container-gap-lg: var(--rs-space-lg);')
+  })
+})
+
+describe('container-utils', () => {
+  it('resolves fluid and default tokens like the original inline style', () => {
+    expect(
+      resolveRsContainerStyle({
+        maxWidth: 'lg',
+        padding: 'md',
+        fluid: true,
+        grid: false,
+        columns: 12,
+        gap: 'md',
+      }),
+    ).toEqual({
+      '--rs-container-max-current': 'none',
+      '--rs-container-padding-current': 'var(--rs-space-md)',
+    })
   })
 })

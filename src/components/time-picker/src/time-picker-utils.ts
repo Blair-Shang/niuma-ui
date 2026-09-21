@@ -15,14 +15,18 @@ const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/
 const TIME_WITH_SECONDS_PATTERN = /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/
 
 export function scheduleAfterPaint(callback: () => void): () => void {
+  if (typeof window === 'undefined') return () => {}
   let cancelled = false
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
+  let inner = 0
+  const outer = window.requestAnimationFrame(() => {
+    inner = window.requestAnimationFrame(() => {
       if (!cancelled) callback()
     })
   })
   return () => {
     cancelled = true
+    window.cancelAnimationFrame(outer)
+    if (inner) window.cancelAnimationFrame(inner)
   }
 }
 
@@ -82,6 +86,48 @@ export function scrollTimeColumnToValue(
   if (!item) return
   const top = item.offsetTop - (container.clientHeight - item.offsetHeight) / 2
   container.scrollTop = Math.max(0, top)
+}
+
+/** 列内部滚动：给浮层的 capture scroll 用，避免列一滚就重算面板位置。 */
+export function isTimeColumnScrollTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && Boolean(target.closest('.rs-time-columns__list'))
+}
+
+function resolveTimeColumnList(event: WheelEvent): HTMLElement | null {
+  if (event.currentTarget instanceof HTMLElement && event.currentTarget.classList.contains('rs-time-columns__list')) {
+    return event.currentTarget
+  }
+  if (event.target instanceof Element) {
+    return event.target.closest('.rs-time-columns__list')
+  }
+  return null
+}
+
+/**
+ * 把滚轮留在时间列里。到顶/到底或列本身装不下时 preventDefault，避免带动页面。
+ * 必须非 passive（`{ passive: false }`）。
+ */
+export function containColumnWheel(event: WheelEvent): void {
+  event.stopPropagation()
+  const list = resolveTimeColumnList(event)
+  if (!list) {
+    event.preventDefault()
+    return
+  }
+  const delta = event.deltaY
+  if (delta === 0) return
+  const max = list.scrollHeight - list.clientHeight
+  const top = list.scrollTop
+  if (max <= 0 || (delta < 0 && top <= 0) || (delta > 0 && top >= max - 1)) {
+    event.preventDefault()
+  }
+}
+
+/** 面板非列区域：滚轮不要带动外层页面。列内交给 containColumnWheel。 */
+export function containOverlayWheel(event: WheelEvent): void {
+  if (isTimeColumnScrollTarget(event.target)) return
+  event.stopPropagation()
+  event.preventDefault()
 }
 
 export function parseTimeValue(value?: string, withSeconds = false): RsParsedTime | null {
@@ -230,11 +276,97 @@ export function pickLaterTime(
 
 export function formatTimeRangeDisplay(
   range: RsTimeRangeValue,
-  options?: { separator?: string },
+  options?: { separator?: string; hourCycle?: RsTimePickerHourCycle; locale?: string; withSeconds?: boolean },
 ): string {
   const separator = options?.separator ?? ' ~ '
-  const start = range.start ? formatTimeValue(range.start) : ''
-  const end = range.end ? formatTimeValue(range.end) : ''
+  const start = range.start
+    ? formatTimeDisplay(range.start, {
+        hourCycle: options?.hourCycle,
+        locale: options?.locale,
+        withSeconds: options?.withSeconds,
+      })
+    : ''
+  const end = range.end
+    ? formatTimeDisplay(range.end, {
+        hourCycle: options?.hourCycle,
+        locale: options?.locale,
+        withSeconds: options?.withSeconds,
+      })
+    : ''
   if (start && end) return `${start}${separator}${end}`
   return start || end
+}
+
+/** 12 或 24 小时制。绑定值始终是 24 小时墙钟 HH:mm[:ss]。 */
+export type RsTimePickerHourCycle = 12 | 24
+
+/** 按列禁用某一档。hour 为 0–23。 */
+export type RsTimePickerDisabledTime = (unit: RsTimeUnit, value: number) => boolean
+
+export type RsTimePickerGetPopupContainer = (
+  trigger?: HTMLElement,
+) => HTMLElement | string | undefined
+
+export interface RsTimePickerShortcut {
+  label: string
+  value: () => string | RsTimeRangeValue
+}
+
+export type RsTimePickerModelValue = string | RsTimeRangeValue
+
+/** 12 小时列：12, 1, 2, … 11 */
+export const TIME_HOUR12_OPTIONS: readonly RsTimeUnitOption[] = [
+  { value: 12, label: '12' },
+  ...Array.from({ length: 11 }, (_, index) => {
+    const value = index + 1
+    return { value, label: String(value) }
+  }),
+]
+
+export function toHour12(hour24: number): { hour: number; period: 'am' | 'pm' } {
+  const period = hour24 >= 12 ? 'pm' : 'am'
+  const hour = hour24 % 12 === 0 ? 12 : hour24 % 12
+  return { hour, period }
+}
+
+export function toHour24(hour12: number, period: 'am' | 'pm'): number {
+  const hour = hour12 % 12
+  return period === 'pm' ? hour + 12 : hour
+}
+
+/**
+ * 触发器展示。hourCycle=12 用 Intl（上午/下午跟 locale）；未传则墙钟 HH:mm[:ss]。
+ */
+export function formatTimeDisplay(
+  value: string | undefined,
+  options?: { hourCycle?: RsTimePickerHourCycle; withSeconds?: boolean; locale?: string },
+): string {
+  if (!value) return ''
+  const parsed = parseTimeValue(value, options?.withSeconds)
+  if (!parsed) return value
+  if (options?.hourCycle !== 12) {
+    return formatTimeFromParts(parsed.hour, parsed.minute, parsed.second, options?.withSeconds)
+  }
+  const date = new Date(2000, 0, 1, parsed.hour, parsed.minute, parsed.second)
+  try {
+    return new Intl.DateTimeFormat(options.locale || undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+      second: options.withSeconds ? '2-digit' : undefined,
+      hour12: true,
+    }).format(date)
+  } catch {
+    const { hour, period } = toHour12(parsed.hour)
+    const body = formatTimeFromParts(hour % 12 === 0 && hour === 12 ? 12 : hour, parsed.minute, parsed.second, options.withSeconds)
+    return `${body} ${period.toUpperCase()}`
+  }
+}
+
+export function resolveTimePickerPortalTarget(
+  getPopupContainer: RsTimePickerGetPopupContainer | undefined,
+  trigger?: HTMLElement | null,
+): string | HTMLElement {
+  if (typeof document === 'undefined') return 'body'
+  if (!getPopupContainer) return 'body'
+  return getPopupContainer(trigger ?? undefined) ?? 'body'
 }

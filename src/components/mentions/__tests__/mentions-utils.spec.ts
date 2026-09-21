@@ -20,15 +20,24 @@ describe('mentions-utils', () => {
     expect(next.cursor).toBe(10)
   })
 
-  it('filters options by query', () => {
+  it('filters options by query and keeps disabled rows', () => {
     const list = filterMentionOptions(
       [
         { label: 'Alice', value: 'alice' },
-        { label: 'Bob', value: 'bob' },
+        { label: 'Bob', value: 'bob', disabled: true },
       ],
       'al',
     )
     expect(list.map((item) => item.value)).toEqual(['alice'])
+    expect(
+      filterMentionOptions(
+        [
+          { label: 'Alice', value: 'alice' },
+          { label: 'Bob', value: 'bob', disabled: true },
+        ],
+        '',
+      ).map((item) => item.value),
+    ).toEqual(['alice', 'bob'])
   })
 
   it('measures caret relative to the textarea', () => {

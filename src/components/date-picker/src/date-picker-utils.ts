@@ -429,6 +429,71 @@ export function isDateRangeEmpty(value: RsDateRangeValue): boolean {
   return !value.start && !value.end
 }
 
+/** 一周从哪一天起：0 = 周日 … 6 = 周六，对齐 JS `Date.getDay()`。 */
+export type RsWeekStartsOn = 0 | 1 | 2 | 3 | 4 | 5 | 6
+
+/** 禁用某一天。入参是墙钟年月日，不是 Date 对象。 */
+export type RsDatePickerDisabledDate = (date: RsParsedDate) => boolean
+
+/** 把面板挂到何处。未传则 `body`。 */
+export type RsDatePickerGetPopupContainer = (
+  trigger?: HTMLElement,
+) => HTMLElement | string | undefined
+
+/**
+ * 解析一周起始日。显式 `weekStartsOn` 优先；否则读 `Intl.Locale` weekInfo；
+ * 再按语言回退（en-US / en-CA / ja 周日，其它周一）。SSR 无 Intl.Locale 时回退周一。
+ */
+export function resolveWeekStartsOn(
+  locale: string,
+  override?: number | null,
+): RsWeekStartsOn {
+  if (override != null && override >= 0 && override <= 6) {
+    return override as RsWeekStartsOn
+  }
+  try {
+    const loc = new Intl.Locale(locale)
+    const withWeek = loc as Intl.Locale & {
+      weekInfo?: { firstDay?: number }
+      getWeekInfo?: () => { firstDay: number }
+    }
+    const info = withWeek.weekInfo ?? withWeek.getWeekInfo?.()
+    if (info?.firstDay != null) {
+      const day = info.firstDay === 7 ? 0 : info.firstDay
+      if (day >= 0 && day <= 6) return day as RsWeekStartsOn
+    }
+  } catch {
+    /* SSR / 旧引擎 */
+  }
+  const tag = locale.toLowerCase()
+  if (tag.startsWith('en-us') || tag.startsWith('en-ca') || tag.startsWith('ja')) return 0
+  return 1
+}
+
+/**
+ * 触发器展示文案。`format` 是 dayjs 模板；未传则墙钟 `YYYY-MM-DD` / `YYYY-MM-DD HH:mm:ss`。
+ */
+export function formatPickerDisplay(
+  value: string | undefined,
+  options?: { format?: string; withTime?: boolean },
+): string {
+  if (!value) return ''
+  if (!options?.format) {
+    return options?.withTime ? formatDateTimeDisplay(value) : formatDateDisplay(value)
+  }
+  const parsed = parseRsDateTimeDayjs(value) ?? parseRsDayjs(value)
+  return parsed ? parsed.format(options.format) : value
+}
+
+export function resolveDatePickerPortalTarget(
+  getPopupContainer: RsDatePickerGetPopupContainer | undefined,
+  trigger?: HTMLElement | null,
+): string | HTMLElement {
+  if (typeof document === 'undefined') return 'body'
+  if (!getPopupContainer) return 'body'
+  return getPopupContainer(trigger ?? undefined) ?? 'body'
+}
+
 export function buildCalendarGrid(
   year: number,
   month: number,

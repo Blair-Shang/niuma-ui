@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="Value extends string | number = string, Multiple extends boolean = false, LabelInValue extends boolean = false">
-import { computed, nextTick, onMounted, onUnmounted, ref, useAttrs, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, useAttrs, useId, useTemplateRef, watch } from 'vue'
 
 import { useRsI18n } from '../../../composables/useRsI18n'
 import type { RsComponentSize, RsRadius } from '../../../theme/types'
@@ -20,6 +20,10 @@ import {
 import { useResolvedRsComponentSize } from '../../_shared/src/resolve-size'
 import { rsRadiusCss, useResolvedRsRadius } from '../../_shared/src/resolve-radius'
 import {
+  placeAnchoredPopup,
+  stepEnabledIndex,
+} from '../../_shared/src/overlay-utils'
+import {
   isSelectOptionGroup,
   toComboboxValue,
   type RsSelectFieldNames,
@@ -38,23 +42,23 @@ import {
   type RsSelectValue,
 } from './select-utils'
 import { useRsSelect } from './use-rs-select'
-import {
-  ComboboxAnchor,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxGroup,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxItemIndicator,
-  ComboboxLabel,
-  ComboboxPortal,
-  ComboboxRoot,
-  ComboboxTrigger,
-  ComboboxViewport,
-  ComboboxVirtualizer,
-} from '../../_shared/src/reka'
 
-defineOptions({ inheritAttrs: false })
+export interface RsSelectExpose {
+  setValue: (value: unknown) => void
+  clearValidation: () => void
+  validate: (trigger?: RsFormRuleTrigger) => Promise<{
+    valid: boolean
+    message?: string
+    name?: string
+  }>
+  focus: () => void
+  blur: () => void
+}
+
+/** 模板 ref 实例：expose + 根节点 */
+export type RsSelectInstance = RsSelectExpose & { $el: HTMLElement }
+
+defineOptions({ name: 'RsSelect', inheritAttrs: false })
 
 /**
  * multiple / labelInValue 是运行时 boolean，不能从 prop 推断字面量。
@@ -78,7 +82,7 @@ const props = withDefaults(
      * 开启后若未显式关 searchable，将自动启用搜索框。
      */
     creatable?: boolean
-    /** 运行时必须是 boolean；写成泛型 Multiple 时 :multiple="true" 可能进 attrs，Combobox 会按单选。 */
+    /** 运行时必须是 boolean；写成泛型 Multiple 时 :multiple="true" 可能进 attrs。 */
     multiple?: boolean
     required?: boolean
     name?: string
@@ -124,7 +128,7 @@ const props = withDefaults(
     autoClearSearchValue?: boolean
     /**
      * 打开下拉时把当前选中项写入搜索框并参与过滤。
-     * 默认 false：搜索框保持空白（Reka 挂载时会写选中值，需显式清掉）。
+     * 默认 false：搜索框保持空白。
      */
     fillSearchWithValue?: boolean
     showArrow?: boolean
@@ -180,14 +184,22 @@ const emit = defineEmits<{
   popupScroll: [event: Event]
 }>()
 
+const ITEM_ESTIMATE = 36
+const VIRTUAL_OVERSCAN = 6
+
 const { t } = useRsI18n()
 const attrs = useAttrs()
+const listId = useId()
 const formContext = useRsFormContext()
 const formItem = useRsFormItemContext()
 const boundToItem = computed(() =>
   isRsFormItemBoundControl(formItem, { id: props.id, name: props.name }),
 )
-const anchorRef = ref<{ $el?: HTMLElement } | HTMLElement | null>(null)
+const rootRef = useTemplateRef<HTMLElement>('rootRef')
+const triggerRef = useTemplateRef<HTMLButtonElement>('triggerRef')
+const contentRef = useTemplateRef<HTMLElement>('contentRef')
+const searchInputRef = useTemplateRef<HTMLInputElement>('searchInputRef')
+const viewportRef = useTemplateRef<HTMLElement>('viewportRef')
 
 const {
   resolvedPlaceholder,
@@ -198,7 +210,6 @@ const {
   isSearchable,
   labelMap,
   useVirtual,
-  useManualFilter,
   displayOptions,
   createValue,
   canCreate,
@@ -211,7 +222,7 @@ const {
   omittedTagLabel,
   omittedTagTitle,
   singleDisplayLabel,
-  comboboxModel,
+  pickToken,
   tokenLabel,
   truncateTagLabel,
   optionFromToken,
@@ -236,10 +247,9 @@ const rootStyle = computed(() => ({
 }))
 
 const portalTo = computed(() => {
-  if (!props.getPopupContainer) return undefined
-  const raw = anchorRef.value
-  const el = raw instanceof HTMLElement ? raw : raw?.$el
-  return props.getPopupContainer(el instanceof HTMLElement ? el : undefined)
+  if (!props.getPopupContainer) return 'body'
+  const el = triggerRef.value ?? undefined
+  return props.getPopupContainer(el) ?? 'body'
 })
 
 const autoMessage = ref('')
@@ -284,24 +294,412 @@ useRsFormField(() => ({
   },
 }))
 
+function focus(): void {
+  triggerRef.value?.focus()
+}
+
+function blur(): void {
+  triggerRef.value?.blur()
+  searchInputRef.value?.blur()
+}
+
 defineExpose({
   setValue,
   clearValidation,
   validate: runValidate,
+  focus,
+  blur,
 })
+
+type SelectRow = {
+  token: string
+  label: string
+  disabled: boolean
+  isCreate: boolean
+  option?: RsSelectOption
+  title?: string
+}
+
+const listRows = computed((): SelectRow[] => {
+  const rows: SelectRow[] = []
+  if (canCreate.value) {
+    rows.push({
+      token: createValue.value,
+      label: createOptionLabel.value,
+      disabled: false,
+      isCreate: true,
+    })
+  }
+  for (const entry of displayOptions.value) {
+    if (isSelectOptionGroup(entry)) {
+      for (const opt of entry.options) {
+        rows.push({
+          token: toComboboxValue(opt.value),
+          label: opt.label,
+          disabled: Boolean(opt.disabled || isOptionLimited(opt)),
+          isCreate: false,
+          option: opt,
+          title: opt.title,
+        })
+      }
+    } else {
+      rows.push({
+        token: toComboboxValue(entry.value),
+        label: entry.label,
+        disabled: Boolean(entry.disabled || isOptionLimited(entry)),
+        isCreate: false,
+        option: entry,
+        title: entry.title,
+      })
+    }
+  }
+  return rows
+})
+
+const highlight = ref(0)
+const virtualStart = ref(0)
+const popup = ref<{
+  top: number
+  left: number
+  width: number
+  minWidth: number
+  placement: RsSelectPlacement
+}>({
+  top: 0,
+  left: 0,
+  width: 0,
+  minWidth: 0,
+  placement: 'bottom',
+})
+
+/** 面板挂到 body 后仍跟触发器最近的 data-rs-theme（深色岛 / 混主题页）。 */
+const panelTheme = ref<string | undefined>()
+
+function syncPanelTheme(): void {
+  const el = triggerRef.value ?? rootRef.value
+  if (!el) {
+    panelTheme.value = undefined
+    return
+  }
+  panelTheme.value = el.closest('[data-rs-theme]')?.getAttribute('data-rs-theme') ?? undefined
+}
+
+const highlightedToken = computed(() => listRows.value[highlight.value]?.token)
+const activeOptionId = computed(() =>
+  open.value && highlightedToken.value ? `${listId}-${highlightedToken.value}` : undefined,
+)
+
+const virtualSlice = computed(() => {
+  const all = virtualValues.value
+  if (!useVirtual.value) {
+    return { items: all, padTop: 0, padBottom: 0, totalH: all.length * ITEM_ESTIMATE }
+  }
+  const start = Math.max(0, virtualStart.value - VIRTUAL_OVERSCAN)
+  const viewCount = Math.ceil(props.listHeight / ITEM_ESTIMATE) + VIRTUAL_OVERSCAN * 2
+  const items = all.slice(start, start + viewCount)
+  return {
+    items,
+    padTop: start * ITEM_ESTIMATE,
+    padBottom: Math.max(0, (all.length - start - items.length) * ITEM_ESTIMATE),
+    totalH: all.length * ITEM_ESTIMATE,
+  }
+})
+
+const emptyVisible = computed(
+  () => !props.loading && !canCreate.value && displayOptions.value.length === 0,
+)
+
+function placePopup(): void {
+  const trigger = triggerRef.value
+  const content = contentRef.value
+  if (!trigger || !open.value) return
+  const anchor = trigger.getBoundingClientRect()
+  const measured = content?.getBoundingClientRect()
+  const height = measured?.height || Math.min(props.listHeight, 320)
+  const prefWidth = props.matchTriggerWidth
+    ? anchor.width
+    : Math.max(anchor.width, measured?.width || anchor.width)
+  const gap = 4
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+
+  if (props.placement === 'left' || props.placement === 'right') {
+    const width = Math.min(prefWidth, Math.max(0, vw - gap * 2))
+    const leftPos = anchor.left - width - gap
+    const rightPos = anchor.right + gap
+    let side: 'left' | 'right' = props.placement
+    let left = side === 'left' ? leftPos : rightPos
+    if (side === 'left' && leftPos < gap && rightPos + width <= vw - gap) {
+      side = 'right'
+      left = rightPos
+    } else if (side === 'right' && rightPos + width > vw - gap && leftPos >= gap) {
+      side = 'left'
+      left = leftPos
+    }
+    left = Math.min(Math.max(gap, left), Math.max(gap, vw - width - gap))
+    const top = Math.min(Math.max(gap, anchor.top), Math.max(gap, vh - height - gap))
+    popup.value = { top, left, width, minWidth: anchor.width, placement: side }
+    return
+  }
+
+  const box = placeAnchoredPopup(
+    { top: anchor.top, left: anchor.left, height: anchor.height, width: anchor.width },
+    { width: prefWidth, height },
+    { width: vw, height: vh },
+    gap,
+  )
+  if (props.placement === 'top') {
+    const above = anchor.top - height - gap
+    if (above >= gap) {
+      popup.value = { ...box, top: above, minWidth: anchor.width, placement: 'top' }
+      return
+    }
+  }
+  popup.value = { ...box, minWidth: anchor.width }
+}
+
+let frame = 0
+let overlayBound = false
+
+function requestPlace(): void {
+  if (typeof window === 'undefined') return
+  if (frame) return
+  frame = window.requestAnimationFrame(() => {
+    frame = 0
+    placePopup()
+  })
+}
+
+function syncHighlight(): void {
+  const rows = listRows.value
+  const selected = rows.findIndex(
+    (row) => selectedValues.value.includes(row.token) && !row.disabled,
+  )
+  highlight.value = selected >= 0 ? selected : stepEnabledIndex(rows, -1, 1)
+}
+
+function escapeToken(token: string): string {
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') return CSS.escape(token)
+  return token.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+}
+
+function scrollHighlightIntoView(): void {
+  const token = highlightedToken.value
+  if (!token) return
+  const root = contentRef.value
+  const el = root?.querySelector(`[data-value="${escapeToken(token)}"]`)
+  if (el && 'scrollIntoView' in el) {
+    ;(el as HTMLElement).scrollIntoView({ block: 'nearest' })
+  }
+}
+
+function toggleOpen(): void {
+  if (resolvedDisabled.value) return
+  open.value = !open.value
+}
+
+function onDocPointerDown(event: PointerEvent): void {
+  const target = event.target as Node | null
+  if (!target) return
+  if (rootRef.value?.contains(target)) return
+  if (contentRef.value?.contains(target)) return
+  open.value = false
+}
+
+function onWindowChange(): void {
+  if (open.value) requestPlace()
+}
+
+function attachOverlay(): void {
+  if (overlayBound || typeof window === 'undefined') return
+  overlayBound = true
+  if (typeof document !== 'undefined') {
+    document.addEventListener('pointerdown', onDocPointerDown)
+  }
+  window.addEventListener('resize', onWindowChange)
+  window.addEventListener('scroll', onWindowChange, true)
+}
+
+function detachOverlay(): void {
+  if (frame && typeof window !== 'undefined') {
+    window.cancelAnimationFrame(frame)
+    frame = 0
+  }
+  if (!overlayBound) return
+  overlayBound = false
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('pointerdown', onDocPointerDown)
+  }
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', onWindowChange)
+    window.removeEventListener('scroll', onWindowChange, true)
+  }
+}
+
+function moveHighlight(delta: 1 | -1): void {
+  highlight.value = stepEnabledIndex(listRows.value, highlight.value, delta)
+  scrollHighlightIntoView()
+}
+
+function commitHighlight(): void {
+  const row = listRows.value[highlight.value]
+  if (!row || row.disabled) return
+  pickToken(row.token)
+}
+
+function onTriggerKeydown(event: KeyboardEvent): void {
+  if (resolvedDisabled.value || event.isComposing) return
+  if (event.key === 'Escape') {
+    if (!open.value) return
+    event.preventDefault()
+    open.value = false
+    return
+  }
+  if (event.key === 'ArrowDown') {
+    event.preventDefault()
+    if (!open.value) {
+      open.value = true
+      return
+    }
+    moveHighlight(1)
+    return
+  }
+  if (event.key === 'ArrowUp') {
+    event.preventDefault()
+    if (!open.value) {
+      open.value = true
+      return
+    }
+    moveHighlight(-1)
+    return
+  }
+  if (event.key === 'Home' && open.value) {
+    event.preventDefault()
+    highlight.value = stepEnabledIndex(listRows.value, -1, 1)
+    scrollHighlightIntoView()
+    return
+  }
+  if (event.key === 'End' && open.value) {
+    event.preventDefault()
+    highlight.value = stepEnabledIndex(listRows.value, listRows.value.length, -1)
+    scrollHighlightIntoView()
+    return
+  }
+  if (event.key === 'Enter' && open.value) {
+    event.preventDefault()
+    commitHighlight()
+    return
+  }
+  if (isSearchable.value) return
+  if (event.key.length !== 1 || event.ctrlKey || event.metaKey || event.altKey) return
+  onTypeahead(event.key)
+}
+
+function onPanelSearchKeydown(event: KeyboardEvent): void {
+  if (event.isComposing) return
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    open.value = false
+    triggerRef.value?.focus()
+    return
+  }
+  if (event.key === 'ArrowDown') {
+    event.preventDefault()
+    moveHighlight(1)
+    return
+  }
+  if (event.key === 'ArrowUp') {
+    event.preventDefault()
+    moveHighlight(-1)
+    return
+  }
+  if (event.key === 'Home') {
+    event.preventDefault()
+    highlight.value = stepEnabledIndex(listRows.value, -1, 1)
+    scrollHighlightIntoView()
+    return
+  }
+  if (event.key === 'End') {
+    event.preventDefault()
+    highlight.value = stepEnabledIndex(listRows.value, listRows.value.length, -1)
+    scrollHighlightIntoView()
+    return
+  }
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    if (canCreate.value) {
+      onSearchKeydown(event)
+      return
+    }
+    commitHighlight()
+  }
+}
+
+let typeahead = ''
+let typeaheadTimer: ReturnType<typeof setTimeout> | undefined
+
+function onTypeahead(key: string): void {
+  typeahead += key.toLowerCase()
+  if (typeaheadTimer) clearTimeout(typeaheadTimer)
+  typeaheadTimer = setTimeout(() => {
+    typeahead = ''
+    typeaheadTimer = undefined
+  }, 500)
+  if (!open.value) open.value = true
+  const idx = listRows.value.findIndex(
+    (row) => !row.disabled && row.label.toLowerCase().startsWith(typeahead),
+  )
+  if (idx >= 0) highlight.value = idx
+}
+
+function onViewportScroll(event: Event): void {
+  emit('popupScroll', event)
+  if (!useVirtual.value) return
+  const el = event.target as HTMLElement
+  virtualStart.value = Math.floor(el.scrollTop / ITEM_ESTIMATE)
+}
+
+function onViewportPointerOver(event: PointerEvent): void {
+  const raw = event.target
+  if (!(raw instanceof Element)) return
+  const item = raw.closest('.rs-select__item')
+  if (!item || !viewportRef.value?.contains(item)) return
+  if (item.hasAttribute('data-disabled')) return
+  const token = item.getAttribute('data-value')
+  if (!token) return
+  const idx = listRows.value.findIndex((row) => row.token === token)
+  if (idx >= 0) highlight.value = idx
+}
+
+function itemState(token: string): 'checked' | undefined {
+  return selectedValues.value.includes(token) ? 'checked' : undefined
+}
 
 watch(open, (isOpen) => {
   emit('dropdownVisibleChange', isOpen)
+  if (isOpen) {
+    virtualStart.value = 0
+    syncPanelTheme()
+    syncHighlight()
+    attachOverlay()
+    void nextTick(() => {
+      requestPlace()
+      if (isSearchable.value) searchInputRef.value?.focus()
+      else scrollHighlightIntoView()
+    })
+    return
+  }
+  detachOverlay()
+})
+
+watch(listRows, () => {
+  if (!open.value) return
+  syncHighlight()
+  requestPlace()
 })
 
 onMounted(() => {
-  if (!props.autoFocus) return
-  const el = anchorRef.value
-  const node = el instanceof HTMLElement ? el : el?.$el
-  const trigger = (node instanceof HTMLElement ? node : undefined)?.querySelector?.(
-    '.rs-select__trigger',
-  ) as HTMLElement | null
-  trigger?.focus()
+  if (props.autoFocus) triggerRef.value?.focus()
 })
 
 const responsiveTagCap = ref<number | null>(null)
@@ -312,15 +710,12 @@ function measureResponsiveTags(): void {
     responsiveTagCap.value = null
     return
   }
-  const el = anchorRef.value
-  const node = el instanceof HTMLElement ? el : el?.$el
-  const trigger = (node instanceof HTMLElement ? node : undefined)?.querySelector?.(
-    '.rs-select__value--multiple',
-  ) as HTMLElement | null
-  if (!trigger) return
-  const budget = trigger.clientWidth - 48
+  const trigger = triggerRef.value
+  const row = trigger?.querySelector('.rs-select__value--multiple') as HTMLElement | null
+  if (!row) return
+  const budget = row.clientWidth - 48
   if (budget <= 0) return
-  const tags = Array.from(trigger.querySelectorAll<HTMLElement>('.rs-select__tag'))
+  const tags = Array.from(row.querySelectorAll<HTMLElement>('.rs-select__tag'))
   if (!tags.length) {
     responsiveTagCap.value = selectedValues.value.length
     return
@@ -341,13 +736,17 @@ onMounted(() => {
   if (typeof ResizeObserver === 'undefined') return
   tagResize = new ResizeObserver(() => measureResponsiveTags())
   void nextTick(() => {
-    const el = anchorRef.value
-    const node = el instanceof HTMLElement ? el : el?.$el
-    if (node instanceof HTMLElement) tagResize?.observe(node)
+    if (triggerRef.value) tagResize?.observe(triggerRef.value)
     measureResponsiveTags()
   })
 })
-onUnmounted(() => tagResize?.disconnect())
+
+onUnmounted(() => {
+  tagResize?.disconnect()
+  if (typeaheadTimer) clearTimeout(typeaheadTimer)
+  detachOverlay()
+})
+
 watch(
   () => [selectedValues.value.join('\0'), props.maxTagCount, isMultiple.value] as const,
   () => void nextTick(measureResponsiveTags),
@@ -368,12 +767,21 @@ const shownOmittedCount = computed(() =>
 function highlightParts(label: string) {
   return splitSelectLabelHighlight(label, isSearchable.value ? searchQuery.value : '')
 }
+
+const contentStyle = computed(() => ({
+  position: 'fixed' as const,
+  top: `${popup.value.top}px`,
+  left: `${popup.value.left}px`,
+  '--rs-select-list-height': `${props.listHeight}px`,
+  '--rs-select-trigger-width': `${popup.value.minWidth || popup.value.width}px`,
+  ...(props.matchTriggerWidth ? { width: `${popup.value.width}px` } : {}),
+  ...props.dropdownStyle,
+}))
 </script>
 
 <template>
-  <ComboboxRoot
-    v-model="comboboxModel"
-    v-model:open="open"
+  <div
+    ref="rootRef"
     class="rs-select"
     :class="{
       'rs-select--multiple': isMultiple,
@@ -384,103 +792,130 @@ function highlightParts(label: string) {
       [`rs-select--${variant}`]: true,
     }"
     :style="rootStyle"
-    :multiple="isMultiple"
-    :disabled="resolvedDisabled"
-    :ignore-filter="useManualFilter"
-    :reset-search-term-on-select="autoClearSearchValue"
-    open-on-click
   >
-    <ComboboxAnchor ref="anchorRef" as-child>
-      <ComboboxTrigger
-        v-bind="attrs"
-        :id="id"
-        class="rs-select__trigger"
-        :class="[
-          classNames?.trigger,
-          {
-            'rs-select__trigger--invalid': isInvalid,
-            'rs-select__trigger--warning': isWarning,
-          },
-        ]"
-        :aria-invalid="isInvalid || undefined"
-        @focus="emit('focus', $event)"
-        @blur="emit('blur', $event)"
-      >
-        <span v-if="$slots.prefix" class="rs-select__prefix">
-          <slot name="prefix" />
-        </span>
+    <template v-if="name">
+      <template v-if="isMultiple">
+        <input
+          v-for="token in selectedValues"
+          :key="token"
+          type="hidden"
+          :name="name"
+          :value="String(restoreTokenValue(token))"
+        />
+      </template>
+      <input
+        v-else
+        type="hidden"
+        :name="name"
+        :value="hasValue ? String(restoreTokenValue(selectedValues[0]!)) : ''"
+      />
+    </template>
 
-        <span v-if="isMultiple" class="rs-select__value rs-select__value--multiple">
-          <template v-if="hasValue">
-            <span
-              v-for="value in shownTagTokens"
-              :key="value"
-              class="rs-select__tag"
-            >
-              <slot
-                name="tag"
-                :value="restoreTokenValue(value)"
-                :label="tokenLabel(value)"
-                :closable="true"
-              >
-                <span class="rs-select__tag-label">{{ truncateTagLabel(tokenLabel(value)) }}</span>
-                <button
-                  type="button"
-                  class="rs-select__tag-remove"
-                  :aria-label="t('select.clear')"
-                  @pointerdown.stop
-                  @click="removeTag(value, $event)"
-                >
-                  <RsIcon name="x" :size="12" />
-                </button>
-              </slot>
-            </span>
-            <span
-              v-if="shownOmittedCount > 0"
-              class="rs-select__tag rs-select__tag--rest"
-              :title="omittedTagTitle"
-            >
-              <slot name="maxTagPlaceholder" :omitted="shownOmittedCount">
-                {{
-                  typeof maxTagPlaceholder === 'function'
-                    ? maxTagPlaceholder(shownOmittedCount)
-                    : omittedTagLabel
-                }}
-              </slot>
-            </span>
-          </template>
-          <span v-else class="rs-select__placeholder">{{ resolvedPlaceholder }}</span>
-        </span>
+    <button
+      ref="triggerRef"
+      v-bind="attrs"
+      :id="id"
+      type="button"
+      class="rs-select__trigger"
+      :class="[
+        classNames?.trigger,
+        {
+          'rs-select__trigger--invalid': isInvalid,
+          'rs-select__trigger--warning': isWarning,
+        },
+      ]"
+      role="combobox"
+      aria-haspopup="listbox"
+      :aria-expanded="open ? 'true' : 'false'"
+      :aria-controls="open ? listId : undefined"
+      :aria-activedescendant="activeOptionId"
+      :aria-invalid="isInvalid || undefined"
+      :aria-disabled="resolvedDisabled ? 'true' : undefined"
+      :disabled="resolvedDisabled"
+      :data-disabled="resolvedDisabled ? '' : undefined"
+      :data-state="open ? 'open' : 'closed'"
+      @click="toggleOpen"
+      @keydown="onTriggerKeydown"
+      @focus="emit('focus', $event)"
+      @blur="emit('blur', $event)"
+    >
+      <span v-if="$slots.prefix" class="rs-select__prefix">
+        <slot name="prefix" />
+      </span>
 
-        <span v-else class="rs-select__value">
-          <span v-if="hasValue" class="rs-select__single-label">{{ singleDisplayLabel }}</span>
-          <span v-else class="rs-select__placeholder">{{ resolvedPlaceholder }}</span>
-        </span>
-
-        <span class="rs-select__actions">
-          <button
-            v-if="clearable && hasValue && !resolvedDisabled"
-            type="button"
-            class="rs-select__clear"
-            :aria-label="t('select.clear')"
-            @pointerdown.stop
-            @click="onClear"
+      <span v-if="isMultiple" class="rs-select__value rs-select__value--multiple">
+        <template v-if="hasValue">
+          <span
+            v-for="value in shownTagTokens"
+            :key="value"
+            class="rs-select__tag"
           >
-            <slot name="clearIcon">
-              <RsIcon name="x" :size="14" />
-            </slot>
-          </button>
-          <span v-if="showArrow" class="rs-select__suffix">
-            <slot name="suffixIcon">
-              <RsIcon name="chevron-down" :size="triggerIconSize" class="rs-select__icon" />
+            <slot
+              name="tag"
+              :value="restoreTokenValue(value)"
+              :label="tokenLabel(value)"
+              :closable="true"
+            >
+              <span class="rs-select__tag-label">{{ truncateTagLabel(tokenLabel(value)) }}</span>
+              <button
+                type="button"
+                class="rs-select__tag-remove"
+                :aria-label="t('select.clear')"
+                @pointerdown.stop
+                @click="removeTag(value, $event)"
+              >
+                <RsIcon name="x" :size="12" />
+              </button>
             </slot>
           </span>
-        </span>
-      </ComboboxTrigger>
-    </ComboboxAnchor>
+          <span
+            v-if="shownOmittedCount > 0"
+            class="rs-select__tag rs-select__tag--rest"
+            :title="omittedTagTitle"
+          >
+            <slot name="maxTagPlaceholder" :omitted="shownOmittedCount">
+              {{
+                typeof maxTagPlaceholder === 'function'
+                  ? maxTagPlaceholder(shownOmittedCount)
+                  : omittedTagLabel
+              }}
+            </slot>
+          </span>
+        </template>
+        <span v-else class="rs-select__placeholder">{{ resolvedPlaceholder }}</span>
+      </span>
 
-    <ComboboxPortal :to="portalTo">
-      <ComboboxContent
+      <span v-else class="rs-select__value">
+        <span v-if="hasValue" class="rs-select__single-label">{{ singleDisplayLabel }}</span>
+        <span v-else class="rs-select__placeholder">{{ resolvedPlaceholder }}</span>
+      </span>
+
+      <span class="rs-select__actions">
+        <button
+          v-if="clearable && hasValue && !resolvedDisabled"
+          type="button"
+          class="rs-select__clear"
+          :aria-label="t('select.clear')"
+          @pointerdown.stop
+          @click="onClear"
+        >
+          <slot name="clearIcon">
+            <RsIcon name="x" :size="14" />
+          </slot>
+        </button>
+        <span v-if="showArrow" class="rs-select__suffix">
+          <slot name="suffixIcon">
+            <RsIcon name="chevron-down" :size="triggerIconSize" class="rs-select__icon" />
+          </slot>
+        </span>
+      </span>
+    </button>
+
+    <Teleport :to="portalTo" :disabled="!open">
+      <div
+        v-if="open"
+        :id="listId"
+        ref="contentRef"
         class="rs-select__content"
         :class="[
           `rs-select__content--${resolvedSize}`,
@@ -488,26 +923,30 @@ function highlightParts(label: string) {
           classNames?.popup,
           { 'rs-select__content--match-trigger': matchTriggerWidth },
         ]"
-        :style="{ '--rs-select-list-height': `${listHeight}px`, ...dropdownStyle }"
-        align="start"
-        :side="placement"
-        :side-offset="4"
-        position="popper"
+        :data-placement="popup.placement"
+        :data-rs-theme="panelTheme"
+        :style="contentStyle"
       >
         <slot name="dropdownRender">
-          <div v-if="$slots.header" class="rs-select__panel-header" @mousedown.prevent>
+          <div v-if="$slots.header" class="rs-select__panel-header">
             <slot name="header" />
           </div>
 
           <div v-if="isSearchable" class="rs-select__search-bar">
             <div class="rs-select__search-wrap">
               <RsIcon name="search" :size="14" class="rs-select__search-icon" aria-hidden="true" />
-              <ComboboxInput
+              <input
+                ref="searchInputRef"
                 v-model="searchQuery"
+                type="text"
                 class="rs-select__search"
                 :placeholder="resolvedSearchPlaceholder"
-                auto-focus
-                @keydown="onSearchKeydown"
+                :aria-label="resolvedSearchPlaceholder"
+                autocomplete="off"
+                role="searchbox"
+                :aria-controls="listId"
+                :aria-activedescendant="activeOptionId"
+                @keydown="onPanelSearchKeydown"
               />
             </div>
           </div>
@@ -516,77 +955,110 @@ function highlightParts(label: string) {
             <slot name="loading">{{ resolvedLoadingText }}</slot>
           </div>
 
-          <ComboboxEmpty v-if="!loading && !canCreate" class="rs-select__empty">
+          <div v-else-if="emptyVisible" class="rs-select__empty" role="status">
             <slot name="empty">{{ resolvedEmptyText }}</slot>
-          </ComboboxEmpty>
+          </div>
 
-          <ComboboxViewport class="rs-select__viewport" @scroll="emit('popupScroll', $event)">
-            <ComboboxVirtualizer
+          <div
+            v-if="!loading"
+            ref="viewportRef"
+            class="rs-select__viewport"
+            role="listbox"
+            :aria-multiselectable="isMultiple ? 'true' : undefined"
+            :aria-label="t('select.listbox')"
+            @scroll="onViewportScroll"
+            @pointerover="onViewportPointerOver"
+          >
+            <div
               v-if="useVirtual"
-              v-slot="{ option }"
-              :options="virtualValues"
-              :text-content="(value) => labelMap.get(String(value)) ?? String(value)"
-              :estimate-size="36"
+              class="rs-select__virtual"
+              :style="{ height: `${virtualSlice.totalH}px` }"
             >
-              <ComboboxItem
-                :value="option"
-                :disabled="isTokenDisabled(String(option))"
-                :text-value="labelMap.get(String(option)) ?? String(option)"
-                class="rs-select__item"
-                :class="{ 'rs-select__item--create': canCreate && String(option) === createValue }"
-                :title="optionFromToken(String(option))?.title"
+              <div
+                :style="{
+                  transform: `translateY(${virtualSlice.padTop}px)`,
+                  paddingBottom: `${virtualSlice.padBottom}px`,
+                }"
               >
-                <span class="rs-select__item-label">
-                  <slot
-                    name="option"
-                    :option="optionOrCreate(String(option))"
-                    :selected="selectedValues.includes(String(option))"
-                  >
-                    <template
-                      v-for="(part, i) in highlightParts(
-                        canCreate && String(option) === createValue
-                          ? createOptionLabel
-                          : (labelMap.get(String(option)) ?? String(option)),
-                      )"
-                      :key="i"
+                <div
+                  v-for="token in virtualSlice.items"
+                  :id="`${listId}-${token}`"
+                  :key="token"
+                  role="option"
+                  class="rs-select__item"
+                  :class="{ 'rs-select__item--create': canCreate && token === createValue }"
+                  :data-value="token"
+                  :data-highlighted="highlightedToken === token ? '' : undefined"
+                  :data-state="itemState(token)"
+                  :data-disabled="isTokenDisabled(token) ? '' : undefined"
+                  :aria-selected="selectedValues.includes(token) ? 'true' : 'false'"
+                  :aria-disabled="isTokenDisabled(token) ? 'true' : undefined"
+                  :title="optionFromToken(token)?.title"
+                  @click="pickToken(token)"
+                >
+                  <span class="rs-select__item-label">
+                    <slot
+                      name="option"
+                      :option="optionOrCreate(token)"
+                      :selected="selectedValues.includes(token)"
                     >
-                      <mark v-if="part.highlight" class="rs-select__mark">{{ part.text }}</mark>
-                      <template v-else>{{ part.text }}</template>
-                    </template>
-                  </slot>
-                </span>
-                <ComboboxItemIndicator class="rs-select__item-check">
-                  <RsIcon name="check" :size="14" />
-                </ComboboxItemIndicator>
-              </ComboboxItem>
-            </ComboboxVirtualizer>
+                      <template
+                        v-for="(part, i) in highlightParts(
+                          canCreate && token === createValue
+                            ? createOptionLabel
+                            : (labelMap.get(token) ?? String(token)),
+                        )"
+                        :key="i"
+                      >
+                        <mark v-if="part.highlight" class="rs-select__mark">{{ part.text }}</mark>
+                        <template v-else>{{ part.text }}</template>
+                      </template>
+                    </slot>
+                  </span>
+                  <span v-if="selectedValues.includes(token)" class="rs-select__item-check">
+                    <RsIcon name="check" :size="14" />
+                  </span>
+                </div>
+              </div>
+            </div>
 
             <template v-else>
-              <ComboboxItem
+              <div
                 v-if="canCreate"
-                :value="createValue"
-                :text-value="createValue"
+                :id="`${listId}-${createValue}`"
+                role="option"
                 class="rs-select__item rs-select__item--create"
+                :data-value="createValue"
+                :data-highlighted="highlightedToken === createValue ? '' : undefined"
+                :data-state="itemState(createValue)"
+                :aria-selected="selectedValues.includes(createValue) ? 'true' : 'false'"
+                @click="pickToken(createValue)"
               >
                 <span class="rs-select__item-label">{{ createOptionLabel }}</span>
-                <ComboboxItemIndicator class="rs-select__item-check">
+                <span v-if="selectedValues.includes(createValue)" class="rs-select__item-check">
                   <RsIcon name="check" :size="14" />
-                </ComboboxItemIndicator>
-              </ComboboxItem>
+                </span>
+              </div>
 
               <template v-for="(entry, index) in displayOptions" :key="index">
-                <ComboboxGroup v-if="isSelectOptionGroup(entry)" class="rs-select__group">
-                  <ComboboxLabel class="rs-select__group-label">
+                <div v-if="isSelectOptionGroup(entry)" class="rs-select__group" role="group" :aria-label="entry.label">
+                  <div class="rs-select__group-label">
                     {{ entry.label }}
-                  </ComboboxLabel>
-                  <ComboboxItem
+                  </div>
+                  <div
                     v-for="opt in entry.options"
+                    :id="`${listId}-${toComboboxValue(opt.value)}`"
                     :key="toComboboxValue(opt.value)"
-                    :value="toComboboxValue(opt.value)"
-                    :disabled="opt.disabled || isOptionLimited(opt)"
-                    :text-value="opt.label"
+                    role="option"
                     class="rs-select__item"
+                    :data-value="toComboboxValue(opt.value)"
+                    :data-highlighted="highlightedToken === toComboboxValue(opt.value) ? '' : undefined"
+                    :data-state="itemState(toComboboxValue(opt.value))"
+                    :data-disabled="opt.disabled || isOptionLimited(opt) ? '' : undefined"
+                    :aria-selected="selectedValues.includes(toComboboxValue(opt.value)) ? 'true' : 'false'"
+                    :aria-disabled="opt.disabled || isOptionLimited(opt) ? 'true' : undefined"
                     :title="opt.title"
+                    @click="pickToken(toComboboxValue(opt.value))"
                   >
                     <span class="rs-select__item-label">
                       <slot
@@ -600,20 +1072,29 @@ function highlightParts(label: string) {
                         </template>
                       </slot>
                     </span>
-                    <ComboboxItemIndicator class="rs-select__item-check">
+                    <span
+                      v-if="selectedValues.includes(toComboboxValue(opt.value))"
+                      class="rs-select__item-check"
+                    >
                       <RsIcon name="check" :size="14" />
-                    </ComboboxItemIndicator>
-                  </ComboboxItem>
-                </ComboboxGroup>
+                    </span>
+                  </div>
+                </div>
 
-                <ComboboxItem
+                <div
                   v-else
+                  :id="`${listId}-${toComboboxValue(entry.value)}`"
                   :key="toComboboxValue(entry.value)"
-                  :value="toComboboxValue(entry.value)"
-                  :disabled="entry.disabled || isOptionLimited(entry)"
-                  :text-value="entry.label"
+                  role="option"
                   class="rs-select__item"
+                  :data-value="toComboboxValue(entry.value)"
+                  :data-highlighted="highlightedToken === toComboboxValue(entry.value) ? '' : undefined"
+                  :data-state="itemState(toComboboxValue(entry.value))"
+                  :data-disabled="entry.disabled || isOptionLimited(entry) ? '' : undefined"
+                  :aria-selected="selectedValues.includes(toComboboxValue(entry.value)) ? 'true' : 'false'"
+                  :aria-disabled="entry.disabled || isOptionLimited(entry) ? 'true' : undefined"
                   :title="entry.title"
+                  @click="pickToken(toComboboxValue(entry.value))"
                 >
                   <span class="rs-select__item-label">
                     <slot
@@ -627,21 +1108,24 @@ function highlightParts(label: string) {
                       </template>
                     </slot>
                   </span>
-                  <ComboboxItemIndicator class="rs-select__item-check">
+                  <span
+                    v-if="selectedValues.includes(toComboboxValue(entry.value))"
+                    class="rs-select__item-check"
+                  >
                     <RsIcon name="check" :size="14" />
-                  </ComboboxItemIndicator>
-                </ComboboxItem>
+                  </span>
+                </div>
               </template>
             </template>
-          </ComboboxViewport>
+          </div>
 
-          <div v-if="$slots.footer" class="rs-select__panel-footer" @mousedown.prevent>
+          <div v-if="$slots.footer" class="rs-select__panel-footer">
             <slot name="footer" />
           </div>
         </slot>
-      </ComboboxContent>
-    </ComboboxPortal>
-  </ComboboxRoot>
+      </div>
+    </Teleport>
+  </div>
 </template>
 
 <style scoped>
@@ -752,7 +1236,7 @@ function highlightParts(label: string) {
   font-weight: var(--rs-font-weight-medium);
 }
 
-.rs-select__trigger:hover:not([data-disabled]) {
+.rs-select__trigger:hover:not([data-disabled]):not(:disabled) {
   border-color: var(--rs-input-border-hover, var(--rs-border));
 }
 
@@ -765,7 +1249,8 @@ function highlightParts(label: string) {
     0 0 0 var(--rs-focus-ring-width, 2px) var(--rs-focus-ring);
 }
 
-.rs-select__trigger[data-disabled] {
+.rs-select__trigger[data-disabled],
+.rs-select__trigger:disabled {
   opacity: 0.38;
   cursor: not-allowed;
   background: var(--rs-surface-hover);
@@ -784,15 +1269,15 @@ function highlightParts(label: string) {
 }
 
 .rs-select__trigger--warning {
-  border-color: var(--rs-warning, #d97706);
+  border-color: var(--rs-warning);
 }
 
 .rs-select__trigger--warning:focus-visible {
-  border-color: var(--rs-warning, #d97706);
+  border-color: var(--rs-warning);
   box-shadow:
     var(--rs-input-shadow, none),
     0 0 0 var(--rs-focus-ring-width, 2px)
-      color-mix(in srgb, var(--rs-warning, #d97706) 14%, transparent);
+      color-mix(in srgb, var(--rs-warning) 14%, transparent);
 }
 
 .rs-select__value {
@@ -928,5 +1413,18 @@ function highlightParts(label: string) {
 .rs-select__item--create .rs-select__item-label {
   color: var(--rs-primary);
   font-weight: var(--rs-font-weight-medium);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rs-select__trigger,
+  .rs-select__icon,
+  .rs-select__clear,
+  .rs-select__tag-remove {
+    transition: none;
+  }
+
+  .rs-select__trigger[data-state='open'] .rs-select__icon {
+    transform: none;
+  }
 }
 </style>

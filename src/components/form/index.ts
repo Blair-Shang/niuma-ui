@@ -1,4 +1,5 @@
 export { default as RsForm } from './src/RsForm.vue'
+export type { RsFormExpose, RsFormInstance } from './src/RsForm.vue'
 export { default as RsFormItem } from './src/RsFormItem.vue'
 export { default as RsFormList } from './src/RsFormList.vue'
 export type {
