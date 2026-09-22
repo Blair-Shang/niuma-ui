@@ -1,3 +1,5 @@
+import { documentThemeAttributes } from '../../../theme/color-theme'
+
 export interface RsCodeBlockSelection {
   text: string
   startLine: number
@@ -76,7 +78,7 @@ function ensureThemeObserver(): void {
   })
   themeObserver.observe(document.documentElement, {
     attributes: true,
-    attributeFilter: ['data-rs-theme'],
+    attributeFilter: [...documentThemeAttributes],
     subtree: true,
   })
 }

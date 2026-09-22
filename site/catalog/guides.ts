@@ -134,8 +134,9 @@ export const guideDocs: GuideDoc[] = [
     slug: 'theme',
     title: '主题定制',
     titleEn: 'Theming',
-    description: '通过 data-rs-theme 与 --rs-* Token 切换明暗主题，并用品牌层覆盖主色。',
-    descriptionEn: 'Switch light and dark with data-rs-theme and --rs-* tokens. Override brand color in a host layer.',
+    description: '通过 data-rs-theme 与 --rs-* Token 切换明暗，并用 applyColorTheme 安装颜色主题。',
+    descriptionEn:
+      'Switch light and dark with data-rs-theme, and install a color theme with applyColorTheme.',
     sections: [
       {
         id: 'provider',
@@ -167,6 +168,97 @@ export const guideDocs: GuideDoc[] = [
             '}',
           ].join('\n'),
         },
+      },
+      {
+        id: 'color-theme',
+        title: '颜色主题',
+        titleEn: 'Color themes',
+        demo: 'color-theme',
+        body: '颜色主题是一份数据，由宿主在用户选中后交给 applyColorTheme。明暗仍由 RsConfigProvider 的 light、dark、system 决定。下面的预览把同一份数据写到面板上，文档站其余区域不变。',
+        bodyEn:
+          'A color theme is data. The host passes the selected theme to applyColorTheme. Light, dark, and system stay on RsConfigProvider. The preview writes that data onto the panel only; the rest of the docs stay unchanged.',
+        code: {
+          lang: 'ts',
+          content: [
+            "import { applyColorTheme, clearColorTheme, type RsColorTheme } from 'niuma-ui'",
+            '',
+            'const ink: RsColorTheme = {',
+            "  id: 'example.ink',",
+            "  label: 'Ink',",
+            "  uiTheme: 'dark',",
+            '  colors: {',
+            "    primary: '#c45c26',",
+            "    bg: '#1c1412',",
+            "    surface: '#2a211c',",
+            "    text: '#f3e6d8',",
+            "    muted: '#c4b2a4',",
+            "    border: '#6b5348',",
+            '  },',
+            '}',
+            '',
+            'const root = document.documentElement',
+            "root.setAttribute('data-rs-theme', ink.uiTheme)",
+            'applyColorTheme(ink, root)',
+            '',
+            'clearColorTheme(root)',
+          ].join('\n'),
+        },
+      },
+      {
+        id: 'color-theme-fields',
+        title: '主题字段',
+        titleEn: 'Theme fields',
+        body: 'id 是稳定名字，不翻译。label 用英文，界面译文由宿主的语言包提供。uiTheme 声明这套颜色配亮色还是暗色。colors 里没有写出的令牌继续用样式表里的值。',
+        bodyEn:
+          'id is a stable name and is not translated. label is English; the host translates it in its own catalog. uiTheme says whether the colors belong to light or dark. Omitted color keys keep the stylesheet value.',
+        code: {
+          lang: 'ts',
+          content: [
+            'interface RsColorTheme {',
+            '  id: string',
+            '  label: string',
+            "  uiTheme: 'light' | 'dark'",
+            '  colors: Partial<Record<RsColorThemeToken, string>>',
+            '}',
+          ].join('\n'),
+        },
+      },
+      {
+        id: 'color-theme-tokens',
+        title: '可覆盖的令牌',
+        titleEn: 'Tokens a theme may set',
+        body: '只接受 RS_COLOR_THEME_VARS 里的字段。表格、树和按钮已经用 var() 指向这些名字。未知字段，以及带 url( 或分号的值，会被丢掉。',
+        bodyEn:
+          'Only keys in RS_COLOR_THEME_VARS are accepted. Table, tree, and button styles already point at these names with var(). Unknown keys, and values that contain url( or a semicolon, are dropped.',
+        code: {
+          lang: 'ts',
+          content: [
+            'primary, primaryHover, primaryForeground, primaryContainer, onPrimaryContainer',
+            'bg, surface, surfaceElevated, surfaceHover, itemHover',
+            'inputBg, inputBorder, inputBorderHover, border, borderSubtle',
+            'text, muted, placeholder, textDisabled, textInverse',
+            'danger, dangerContainer, onDangerContainer',
+            'success, successContainer, onSuccessContainer',
+            'warning, warningContainer, onWarningContainer',
+            'info, infoContainer, onInfoContainer',
+          ].join('\n'),
+        },
+      },
+      {
+        id: 'color-theme-host',
+        title: '宿主接入',
+        titleEn: 'Host integration',
+        body: '宿主保存用户选中的主题 id。跟随系统时，先得到 light 或 dark，再应用 uiTheme 与之相同的那一套。恢复内置外观时调用 clearColorTheme。',
+        bodyEn:
+          'The host stores the selected theme id. When appearance is system, resolve light or dark first, then apply the theme whose uiTheme matches. Call clearColorTheme to restore the built-in look.',
+        bullets: [
+          '固定品牌色可以继续放在 brand.css。需要切换的皮肤再用 applyColorTheme。',
+          '同一明暗下更换皮肤时，代码编辑器、Monaco、终端和代码块会重读令牌。',
+        ],
+        bulletsEn: [
+          'A fixed brand can stay in brand.css. Use applyColorTheme for skins the user can switch.',
+          'Code editor, Monaco, terminal, and code block re-read tokens when the skin changes without a light/dark flip.',
+        ],
       },
       {
         id: 'scope',

@@ -49,6 +49,8 @@ export interface GuideSection {
   bullets?: string[]
   bulletsEn?: string[]
   code?: { lang: string; content: string }
+  /** 指南里的可交互演示。目前只有颜色主题。 */
+  demo?: 'color-theme'
 }
 
 export interface ComponentDoc {

@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { RsCodeBlock } from 'niuma-ui'
 import { getGuide } from '../catalog/guides'
 import DocPager from '../components/DocPager.vue'
+import ThemeColorDemo from '../demos/theme-color.vue'
 import { useDocToc } from '../composables/doc-toc'
 import { useSiteI18n } from '../composables/use-site-i18n'
 
@@ -46,6 +47,7 @@ watchEffect(() => {
       <ul v-if="pair(section.bullets, section.bulletsEn)?.length">
         <li v-for="item in pair(section.bullets, section.bulletsEn)" :key="item">{{ item }}</li>
       </ul>
+      <ThemeColorDemo v-if="section.demo === 'color-theme'" />
       <RsCodeBlock v-if="section.code" :code="section.code.content" :lang="section.code.lang" />
     </section>
     <DocPager />

@@ -1,4 +1,5 @@
 import { readResolvedTheme } from '../../../theme/apply'
+import { documentThemeAttributes } from '../../../theme/color-theme'
 
 export type RsCodeEditorLanguage =
   | 'plaintext'
@@ -133,7 +134,7 @@ export function subscribeDocumentTheme(listener: ThemeListener): () => void {
     })
     themeObserver.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ['data-rs-theme'],
+      attributeFilter: [...documentThemeAttributes],
     })
   }
   let active = true

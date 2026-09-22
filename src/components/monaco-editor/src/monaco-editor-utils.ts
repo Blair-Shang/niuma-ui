@@ -10,6 +10,7 @@ import {
   MONACO_SQLITE_LSP_LANGUAGE,
   MONACO_SQLSERVER_LANGUAGE,
 } from '../../../monaco/languages'
+import { documentThemeAttributes } from '../../../theme/color-theme'
 import { readCodeFontFamily, readCodeFontSizePx, readCssLengthPx, readCssVar } from '../../../theme/css-token'
 
 /** 实例级补全片段（仅作用于当前编辑器 Model）。 */
@@ -356,7 +357,7 @@ export function subscribeDocumentTheme(listener: () => void): () => void {
     })
     themeObserver.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ['data-rs-theme'],
+      attributeFilter: [...documentThemeAttributes],
     })
   }
   let active = true

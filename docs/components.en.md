@@ -168,6 +168,8 @@ Theme is `RsConfigProvider` + `data-rs-theme`. `theme` is `light` | `dark` | `sy
 
 Colors live only in `styles.css` / the host brand sheet. `themePresets` is a reference palette and does not paint the page. Brand overlays copy `src/theme/brand.example.css` and load **after** `styles.css`.
 
+Installable color themes use `applyColorTheme`. A theme is `{ id, label, uiTheme, colors }`: `id` is not translated (`example.ink`), `label` is English, `uiTheme` is `light` or `dark`, and `colors` may only set the semantic tokens in `RS_COLOR_THEME_VARS`. The call writes those `--rs-*` as inline properties and sets `data-rs-color-theme` as an identity marker. Component CSS must not select on that attribute. `clearColorTheme` restores the stylesheet. Unknown keys and values containing `url(` or a semicolon are dropped. Follow-system still resolves light or dark first, then applies the color theme chosen for that appearance. Code editor, Monaco, terminal, and code block re-read tokens when the color theme changes without a light/dark flip.
+
 Text tokens are `--rs-text-primary` / `--rs-text-secondary` / `--rs-text-tertiary` / `--rs-text-disabled` / `--rs-text-inverse` / `--rs-text-link`. `--rs-text` / `--rs-muted` / `--rs-placeholder` are aliases only — do not use them in new overrides.
 
 Lucide strokes use `--rs-icon-color`. Data-source mark colors are optional: `import 'niuma-ui/brand-icons.css'`. Without it, marks use `currentColor`.
@@ -398,7 +400,7 @@ Stable `Rs*` components. Per-prop APIs live on the docs site. Additions must upd
 | Button | `resolveRsButtonVariant` / `resolveRsButtonTone` | Shape and hue |
 | Anchor | `hrefToAnchorId`, `flattenAnchorItems`, `pickActiveAnchorHref` | Pure helpers; do not export scroll / ink |
 | Size / radius | `useResolvedRsComponentSize`, `rsRadiusCss` | |
-| Theme | `applyTheme`, `resolveThemeMode`, `readResolvedTheme`; `themePresets` is reference-only | |
+| Theme | `applyTheme`, `resolveThemeMode`, `readResolvedTheme`; `applyColorTheme` / `clearColorTheme` write semantic `--rs-*`; `themePresets` is reference-only | |
 | i18n | `useRsI18n`, `registerRsLocale`, `applyLocale`, `resolveHostLocale`, `resolveDirMode`, `rsLocaleMessageKeys` | |
 | Form / date | `validateDateValue`, `formatPickerDisplay`, `resolveWeekStartsOn`, … | No DOM |
 | Table | `useRsTable*` (see table architecture) | Do not reimplement the engine in a host |

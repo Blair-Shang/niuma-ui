@@ -1,4 +1,5 @@
 import type { ITheme, Terminal } from '@xterm/xterm'
+import { documentThemeAttributes } from '../../../theme/color-theme'
 
 export type RsTerminalThemeMode = 'auto' | 'light' | 'dark'
 export type RsResolvedTerminalTheme = 'light' | 'dark'
@@ -421,7 +422,7 @@ function ensureTerminalThemeObserver(): void {
   })
   sharedThemeObserver.observe(document.documentElement, {
     attributes: true,
-    attributeFilter: ['data-rs-theme'],
+    attributeFilter: [...documentThemeAttributes],
     subtree: true,
   })
 }

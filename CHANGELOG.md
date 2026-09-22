@@ -6,6 +6,12 @@
 
 ## [Unreleased]
 
+## [2.1.3] - 2026-09-22
+
+### 变更
+
+- 颜色主题：`applyColorTheme` / `clearColorTheme`。主题包只覆盖 `RS_COLOR_THEME_VARS` 里的语义 `--rs-*`，并标记 `data-rs-color-theme`。明暗仍是 `data-rs-theme="light|dark"`。同一明暗下更换皮肤时，代码编辑器、Monaco、终端和代码块会重读 token。文档站「主题定制」有可切换的演示。
+
 ## [2.1.2] - 2026-09-22
 
 ### 修复

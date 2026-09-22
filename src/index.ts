@@ -56,7 +56,7 @@ export type { RsDividerOrientation } from './components/divider'
 export { RsDescriptions } from './components/descriptions'
 export { RsDescriptionsItem } from './components/descriptions'
 export type {
-  RsDescriptionsItem as RsDescriptionsItemData,
+  RsDescriptionsItemData,
   RsDescriptionsLabelAlign,
   RsDescriptionsLabelPlacement,
   RsDescriptionsSize,
@@ -1096,6 +1096,7 @@ export type {
   RsFontSize,
   RsFontWeight,
 } from './theme/types'
+export type { RsColorTheme, RsColorThemeToken } from './theme/color-theme'
 export {
   RS_COMPONENT_SIZES,
   RS_COMPONENT_SIZE_ICON_PX,
@@ -1137,6 +1138,14 @@ export {
   resolveThemeMode,
   subscribePreferredColorScheme,
 } from './theme/apply'
+export {
+  RS_COLOR_THEME_VARS,
+  applyColorTheme,
+  clearColorTheme,
+  colorThemeAttribute,
+  isSafeColorThemeId,
+  isSafeColorThemeValue,
+} from './theme/color-theme'
 export {
   parseCssLengthToPx,
   readCodeFontFamily,

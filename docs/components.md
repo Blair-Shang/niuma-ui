@@ -186,6 +186,8 @@ dist/           构建产物（gitignore，npm files 发布）
 
 色值只认 `styles.css` / 宿主 brand.css。`themePresets` 是参考色板，不驱动画面。品牌覆盖复制 `src/theme/brand.example.css`，在 `styles.css` **之后**加载同名 `--rs-*`。
 
+可安装的颜色主题走 `applyColorTheme`。一份主题是 `{ id, label, uiTheme, colors }`：`id` 不翻译（如 `example.ink`），`label` 用英文，`uiTheme` 只能是 `light` 或 `dark`，`colors` 只填 `RS_COLOR_THEME_VARS` 里的语义令牌。调用后把这些 `--rs-*` 写到元素内联样式上，并标记 `data-rs-color-theme`（身份，组件样式不要选择它）。`clearColorTheme` 回到样式表。未列入的键和含 `url(`、分号的值会被丢掉。跟随系统仍先解析明暗，再套上该明暗下选中的颜色主题。同一明暗换皮肤时，代码编辑器、Monaco、终端和代码块会重读 token。
+
 文字只认 `--rs-text-primary` / `--rs-text-secondary` / `--rs-text-tertiary` / `--rs-text-disabled` / `--rs-text-inverse` / `--rs-text-link`。`--rs-text` / `--rs-muted` / `--rs-placeholder` 只是别名，新覆盖不要写它们。
 
 Lucide 线标走 `--rs-icon-color`。数据源品牌 mark 色是可选子系统：`import 'niuma-ui/brand-icons.css'`（`--rs-icon-{name}-accent`）。不引入则 mark 为 `currentColor`。
@@ -465,7 +467,7 @@ Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
 | 按钮 | `resolveRsButtonVariant` / `resolveRsButtonTone` | 形态与色相 |
 | 锚点 | `hrefToAnchorId`、`flattenAnchorItems`、`pickActiveAnchorHref` | 纯函数；滚动 / ink 不导出 |
 | 尺寸 / 圆角 | `useResolvedRsComponentSize`、`rsRadiusCss` | |
-| 主题 | `applyTheme`、`resolveThemeMode`、`readResolvedTheme`；`themePresets` 仅参考 | |
+| 主题 | `applyTheme`、`resolveThemeMode`、`readResolvedTheme`；`applyColorTheme` / `clearColorTheme` 写语义 `--rs-*`；`themePresets` 仅参考 | |
 | i18n | `useRsI18n`、`registerRsLocale`、`applyLocale`、`resolveHostLocale`、`resolveDirMode`、`rsLocaleMessageKeys` | |
 | 表单 / 日期校验 | `validateDateValue`、`formatPickerDisplay`、`resolveWeekStartsOn` 等 | 无 DOM |
 | 表格 | `useRsTable*`（见表格架构文） | 勿在业务再写一套 engine |

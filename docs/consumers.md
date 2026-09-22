@@ -105,6 +105,7 @@ pnpm install --no-frozen-lockfile
 - 无属性时样式按浅色。首屏请在 `index.html` 写 `<html data-rs-theme="light">`（或 `dark`）。
 - 色值只认 CSS。`themePresets` 是参考，改它不会换肤。
 - 业务 CSS 覆盖同名 `--rs-*`，见 [`src/theme/brand.example.css`](../src/theme/brand.example.css)。
+- 可切换皮肤用 `applyColorTheme({ id, label, uiTheme, colors })`，只覆盖 `RS_COLOR_THEME_VARS`。`clearColorTheme()` 恢复。主题 id 不翻译。
 - 文字覆盖 `--rs-text-primary`（不要新写 `--rs-text`）。
 - 品牌图标色是可选子系统：`import 'niuma-ui/brand-icons.css'`。不引入则 mark 为单色。
 - 未设 `locale` 跟本机语言，回退 `zh-CN`。第三方语言见 [locales.md](./locales.md)：`registerRsLocale` + `rsLocaleMessageKeys`。`t()` 支持 `{count, plural, one {#} other {#}}`。RTL：`dir="rtl"` 或登记时 `{ dir: 'rtl' }`。

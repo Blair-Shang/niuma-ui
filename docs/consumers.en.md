@@ -105,6 +105,7 @@ pnpm install --no-frozen-lockfile
 - No attribute means light. Set `<html data-rs-theme="light">` (or `dark`) for first paint.
 - Colors live in CSS only. `themePresets` is a reference and does not restyle the page.
 - Override the same `--rs-*` names in host CSS. See [`src/theme/brand.example.css`](../src/theme/brand.example.css).
+- Switchable skins call `applyColorTheme({ id, label, uiTheme, colors })` and may only set `RS_COLOR_THEME_VARS`. `clearColorTheme()` restores the built-in sheet. Theme ids are not translated.
 - Override text with `--rs-text-primary` (do not start new overrides on `--rs-text`).
 - Brand mark colors are optional: `import 'niuma-ui/brand-icons.css'`. Without it, marks are monochrome.
 - Omitted `locale` follows the host language and falls back to `zh-CN`. Extra languages: [locales.en.md](./locales.en.md) (`registerRsLocale` + `rsLocaleMessageKeys`). `t()` supports `{count, plural, one {#} other {#}}`. RTL: `dir="rtl"` or `{ dir: 'rtl' }` when registering.
