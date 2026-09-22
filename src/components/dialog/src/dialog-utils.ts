@@ -102,6 +102,14 @@ export type RsConfirmBeforeClose = (
   reason: RsConfirmCloseReason,
 ) => boolean | void | Promise<boolean | void>
 
+/** 模板 ref。close 走 beforeClose；focus 把焦点送进确认框。 */
+export interface RsConfirmDialogExpose {
+  close: (reason?: RsConfirmCloseReason) => Promise<boolean>
+  focus: () => void
+}
+
+export type RsConfirmDialogInstance = RsConfirmDialogExpose
+
 export interface RsConfirmOptions {
   title?: string
   /** 次要说明（标题与正文之间，对应业务侧常见 subtitle） */

@@ -6,6 +6,13 @@
 
 ## [Unreleased]
 
+## [2.0.6] - 2026-09-22
+
+### 变更
+
+- `RsToaster`：去掉 `vue-sonner`（该组件原先不引用 Reka）。`useRsToast` 的 success / error / info / warning、字符串或 `{ title, description, position, duration }`、`dismiss()` 语义不变，并返回 id。补 `message` / `loading` / `promise` / `update`、`action` / `cancel`、`onDismiss` / `onAutoClose`、`toasterId`，以及宿主上的 `duration` / `visibleToasts` / `offset` / `swipe` / `pauseOnHover` / `hotkey` / `ariaLabel` / `teleportTo` / `id` 与 `dismiss(id)`。错误是 `role=alert`，其余是 `role=status`。关闭文案走 `toaster.close`。悬停、焦点、页面隐藏暂停倒计时；滑动只在这一次手势上捕获指针。每个宿主最多留 24 条，定时器和 `visibilitychange` 在队列清空时摘掉，卸载摘掉快捷键。颜色走 `--rs-toast-*`，方位用物理角，条内间距用逻辑属性，减少动态时不做离场等待、也不模糊。文档站按 site README 补全中英 props / events / slots / methods / tokens / FAQ。
+- `RsConfirmDialog`：去掉 Reka `AlertDialog*`，改为原生 `dialog`（`role="alertdialog"`，带 `open`，不调用 `showModal`）+ Teleport。`v-model:open` / 文案 / `tone` / `icon` / `width` / 确认取消 / `confirmLoading` / `autoCloseOnConfirm` / `beforeClose` / `showOverlay` / `teleportTo` / `#icon` / `#extra` 与 `close` 语义不变。补 `closeOnEsc` / `lockScroll` / `zIndex` / `ariaLabel` / `id`、`focus()` 与公开类型 `RsConfirmDialogExpose` / `RsConfirmDialogInstance`。始终模态：焦点陷阱、Esc 只关最上层（与 Dialog 共用层栈）、关闭还焦点、透明层挡住点击；`showOverlay` 只负责涂暗，点遮罩不关闭。`lockScroll` 默认 true，引用计数并补滚动条宽度。父级把 `open` 设为 false 仍走 `beforeClose('programmatic')`，被拦住会重新打开。确认关闭不发 `cancel`。打开时才挂 keydown，卸载摘掉。面板抄触发处的 `data-rs-theme` / `dir` / `lang`。间距用逻辑属性，减少动态时关掉模糊。文档站按 site README 补全中英 props / events / slots / methods / tokens / FAQ，演示可点危险确认、色相、单按钮、拦截、附加内容、遮罩、挂载、叠加与 `close()` / `focus()`。
+
 ## [2.0.5] - 2026-09-22
 
 ### 变更

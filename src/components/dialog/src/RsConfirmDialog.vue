@@ -1,18 +1,20 @@
 <script setup lang="ts">
-import { computed, type Component } from 'vue'
-import {
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogOverlay,
-  AlertDialogPortal,
-  AlertDialogRoot,
-  AlertDialogTitle,
-} from '../../_shared/src/reka'
+import { computed, nextTick, onBeforeUnmount, ref, useId, watch, type Component } from 'vue'
 import RsButton from '../../button/src/RsButton.vue'
 import { useRsI18n } from '../../../composables/useRsI18n'
 import {
+  acquireDialogScrollLock,
+  claimDialogInert,
+  dialogLayerTick,
   isRsDialogWidthPreset,
+  dialogTargetOwnsTab,
+  isTopDialogLayer,
+  listDialogTabbables,
+  pushDialogLayer,
+  releaseDialogInert,
+  removeDialogLayer,
   resolveDialogOverlayStyle,
+  resolveDialogTabTarget,
   resolveRsDialogCssWidth,
   runRsConfirmBeforeClose,
   type RsConfirmBeforeClose,
@@ -53,8 +55,17 @@ const props = withDefaults(
     overlayOpacity?: number
     /** 遮罩模糊；number 为 px。默认主题为 0 */
     overlayBlur?: number | string
-    /** AlertDialogPortal 挂载目标；false 禁用 Teleport */
+    /** 挂载目标；false 禁用 Teleport */
     teleportTo?: string | HTMLElement | false
+    /** Esc 关闭。确认中无效。只作用于最上层。 */
+    closeOnEsc?: boolean
+    /** 模态时锁 body 滚动。默认 true。 */
+    lockScroll?: boolean
+    /** 覆盖 --rs-z-modal。遮罩用该值，面板 +1。 */
+    zIndex?: number
+    /** 没有可用标题关联时的可访问名称 */
+    ariaLabel?: string
+    id?: string
   }>(),
   {
     tone: 'danger',
@@ -63,6 +74,8 @@ const props = withDefaults(
     confirmLoading: false,
     autoCloseOnConfirm: true,
     showOverlay: false,
+    closeOnEsc: true,
+    lockScroll: true,
   },
 )
 
@@ -72,6 +85,28 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useRsI18n()
+const uid = useId()
+const layerId = uid
+const anchorRef = ref<HTMLElement | null>(null)
+const shellRef = ref<HTMLElement | null>(null)
+const contentRef = ref<HTMLElement | null>(null)
+const panelTheme = ref<string>()
+const panelDir = ref<'ltr' | 'rtl'>()
+const panelLang = ref<string>()
+
+const domId = computed(() => props.id?.trim() || `rs-confirm-${uid}`)
+const titleDomId = computed(() => `${domId.value}-title`)
+const descriptionDomId = computed(() => `${domId.value}-description`)
+
+let disposed = false
+let closing = false
+let closeGeneration = 0
+/** requestClose 已决定原因。null 表示父级把 open 设成 false。 */
+let closeFromInside: RsConfirmCloseReason | null = null
+let keyBound = false
+let releaseScroll: (() => void) | null = null
+let returnTo: HTMLElement | null = null
+let inertGeneration = 0
 
 const contentClass = computed(() => {
   if (props.width && isRsDialogWidthPreset(props.width)) {
@@ -80,18 +115,33 @@ const contentClass = computed(() => {
   return undefined
 })
 
-const overlayStyle = computed(() =>
-  resolveDialogOverlayStyle({
-    overlayOpacity: props.overlayOpacity,
-    overlayBlur: props.overlayBlur,
-  }),
-)
+function zIndexStyle(offset: number): Record<string, string> | undefined {
+  if (props.zIndex == null || !Number.isFinite(props.zIndex)) return undefined
+  return { zIndex: String(Math.round(props.zIndex) + offset) }
+}
+
+const overlayStyle = computed(() => {
+  const visual = props.showOverlay
+    ? resolveDialogOverlayStyle({
+        overlayOpacity: props.overlayOpacity,
+        overlayBlur: props.overlayBlur,
+      })
+    : undefined
+  const z = zIndexStyle(0)
+  if (!visual) return z
+  if (!z) return visual
+  return { ...visual, ...z }
+})
 
 const contentStyle = computed(() => {
-  if (props.width == null || isRsDialogWidthPreset(props.width)) return undefined
-  const css = resolveRsDialogCssWidth(props.width)
-  if (!css) return undefined
-  return { maxWidth: css }
+  const style: Record<string, string> = {}
+  if (props.width != null && !isRsDialogWidthPreset(props.width)) {
+    const css = resolveRsDialogCssWidth(props.width)
+    if (css) style.maxWidth = css
+  }
+  const z = zIndexStyle(1)
+  if (z) Object.assign(style, z)
+  return Object.keys(style).length ? style : undefined
 })
 
 const descriptionText = computed(() => {
@@ -103,20 +153,160 @@ const showDefaultDescription = computed(
   () => descriptionText.value == null && !props.subtitle,
 )
 
-let closing = false
-let pendingCloseReason: RsConfirmCloseReason = 'programmatic'
+const hasDescribedBy = computed(
+  () => descriptionText.value != null || Boolean(props.subtitle) || showDefaultDescription.value,
+)
+
+const labelledBy = computed(() => (props.ariaLabel?.trim() ? undefined : titleDomId.value))
+const accessibleName = computed(() => props.ariaLabel?.trim() || undefined)
+
+const teleportDisabled = computed(() => props.teleportTo === false)
+const teleportTarget = computed(() => {
+  const target = props.teleportTo
+  if (target === false || target == null) return 'body'
+  return target
+})
+
+function syncChrome(): void {
+  const el = anchorRef.value
+  if (!el) {
+    panelTheme.value = undefined
+    panelDir.value = undefined
+    panelLang.value = undefined
+    return
+  }
+  const themed = el.closest('[data-rs-theme]')
+  const directed = el.closest('[dir]')
+  const langed = el.closest('[lang]')
+  panelTheme.value = themed instanceof HTMLElement ? themed.dataset.rsTheme : undefined
+  const dir = directed?.getAttribute('dir')
+  panelDir.value = dir === 'ltr' || dir === 'rtl' ? dir : undefined
+  panelLang.value = langed?.getAttribute('lang') || undefined
+}
+
+function syncScrollLock(): void {
+  const should = open.value && props.lockScroll
+  if (should && !releaseScroll) {
+    releaseScroll = acquireDialogScrollLock()
+    return
+  }
+  if (!should && releaseScroll) {
+    releaseScroll()
+    releaseScroll = null
+  }
+}
+
+async function syncInert(): Promise<void> {
+  const generation = ++inertGeneration
+  await nextTick()
+  if (disposed || generation !== inertGeneration) return
+  const top = open.value && isTopDialogLayer(layerId)
+  if (!top || !shellRef.value) {
+    releaseDialogInert(layerId)
+    return
+  }
+  claimDialogInert(layerId, shellRef.value)
+}
+
+function bindKey(): void {
+  if (keyBound || typeof document === 'undefined') return
+  document.addEventListener('keydown', onDocumentKeydown, true)
+  keyBound = true
+}
+
+function unbindKey(): void {
+  if (!keyBound || typeof document === 'undefined') return
+  document.removeEventListener('keydown', onDocumentKeydown, true)
+  keyBound = false
+}
+
+function rememberTrigger(): void {
+  if (typeof document === 'undefined') return
+  const active = document.activeElement
+  if (
+    active instanceof HTMLElement &&
+    active !== document.body &&
+    active !== document.documentElement
+  ) {
+    returnTo = active
+    return
+  }
+  returnTo = null
+}
+
+function restoreTrigger(): void {
+  const el = returnTo
+  returnTo = null
+  if (!el?.isConnected) return
+  if (contentRef.value?.contains(el)) return
+  el.focus()
+}
+
+function focusDialog(force: boolean): void {
+  const root = contentRef.value
+  if (!root || disposed) return
+  const active = document.activeElement
+  if (!force && active instanceof HTMLElement && root.contains(active) && active !== root) return
+  const preferred = root.querySelector<HTMLElement>('[autofocus]')
+  if (preferred && !preferred.hasAttribute('disabled')) {
+    preferred.focus()
+    return
+  }
+  const first = listDialogTabbables(root)[0]
+  if (first) {
+    first.focus()
+    return
+  }
+  root.focus()
+}
+
+function queueFocus(): void {
+  void nextTick(() => {
+    if (!open.value || disposed) return
+    focusDialog(false)
+  })
+}
+
+function focus(): void {
+  focusDialog(true)
+}
 
 async function requestClose(reason: RsConfirmCloseReason): Promise<boolean> {
-  if (!open.value || closing) return false
+  if (disposed || !open.value || closing) return false
+  const generation = ++closeGeneration
   closing = true
   try {
     const allowed = await runRsConfirmBeforeClose(props.beforeClose, reason)
-    if (!allowed) return false
+    if (!allowed || disposed || generation !== closeGeneration || !open.value) return false
+    closeFromInside = reason
     open.value = false
     return true
+  } catch {
+    return false
   } finally {
-    closing = false
+    if (generation === closeGeneration) closing = false
   }
+}
+
+function onDocumentKeydown(event: KeyboardEvent): void {
+  if (!open.value || !isTopDialogLayer(layerId)) return
+  if (event.key === 'Escape') {
+    if (event.isComposing) return
+    if (!props.closeOnEsc || props.confirmLoading) {
+      event.preventDefault()
+      return
+    }
+    event.preventDefault()
+    void requestClose('escape')
+    return
+  }
+  if (event.key !== 'Tab' || dialogTargetOwnsTab(event.target)) return
+  const root = contentRef.value
+  if (!root) return
+  const target = resolveDialogTabTarget(root, document.activeElement, event.shiftKey)
+  if (target === 'stay') return
+  event.preventDefault()
+  target.focus()
 }
 
 async function onConfirmClick(): Promise<void> {
@@ -126,101 +316,161 @@ async function onConfirmClick(): Promise<void> {
   }
 }
 
+function finishClose(wasOpen: boolean): void {
+  removeDialogLayer(layerId)
+  unbindKey()
+  syncScrollLock()
+  inertGeneration += 1
+  releaseDialogInert(layerId)
+  if (!wasOpen) return
+  const reason = closeFromInside
+  closeFromInside = null
+  restoreTrigger()
+  if (reason !== 'confirm') emit('cancel')
+}
+
+async function vetoParentClose(): Promise<void> {
+  const generation = ++closeGeneration
+  closing = true
+  try {
+    const allowed = await runRsConfirmBeforeClose(props.beforeClose, 'programmatic')
+    if (disposed || generation !== closeGeneration) return
+    if (!allowed) {
+      open.value = true
+      return
+    }
+    closeFromInside = 'programmatic'
+    finishClose(true)
+  } catch {
+    if (!disposed && generation === closeGeneration) open.value = true
+  } finally {
+    if (generation === closeGeneration) closing = false
+  }
+}
+
 async function onCancelClick(): Promise<void> {
-  const closed = await requestClose('cancel')
-  if (closed) emit('cancel')
+  await requestClose('cancel')
 }
 
-function onEscapeKeyDown(event: Event): void {
-  if (props.confirmLoading) {
-    event.preventDefault()
-    return
-  }
-  pendingCloseReason = 'escape'
-}
+watch(
+  open,
+  (isOpen, wasOpen) => {
+    if (isOpen) {
+      if (wasOpen !== true) {
+        rememberTrigger()
+        syncChrome()
+        pushDialogLayer(layerId)
+        queueFocus()
+      }
+      bindKey()
+      syncScrollLock()
+      void syncInert()
+      return
+    }
+    if (wasOpen === true && closeFromInside == null) {
+      void vetoParentClose()
+      return
+    }
+    finishClose(wasOpen === true)
+  },
+  { immediate: true },
+)
 
-async function onUpdateOpen(next: boolean): Promise<void> {
-  if (next) {
-    open.value = true
-    return
-  }
-  // requestClose 已处理 beforeClose；此处承接 Esc 等 Root 发起的关闭
-  if (closing) {
-    open.value = false
-    return
-  }
-  const reason = pendingCloseReason
-  pendingCloseReason = 'programmatic'
-  const allowed = await runRsConfirmBeforeClose(props.beforeClose, reason)
-  if (!allowed) {
-    open.value = true
-    return
-  }
-  open.value = false
-  if (reason === 'escape' || reason === 'programmatic') {
-    emit('cancel')
-  }
-}
+watch(
+  () => [props.lockScroll, dialogLayerTick.value] as const,
+  () => {
+    if (!open.value || disposed) return
+    syncScrollLock()
+    void syncInert()
+  },
+)
+
+onBeforeUnmount(() => {
+  disposed = true
+  inertGeneration += 1
+  closeGeneration += 1
+  removeDialogLayer(layerId)
+  unbindKey()
+  releaseScroll?.()
+  releaseScroll = null
+  releaseDialogInert(layerId)
+})
 
 defineExpose({
-  /** 请求关闭（走 beforeClose） */
   close: (reason: RsConfirmCloseReason = 'programmatic') => requestClose(reason),
+  focus,
 })
 </script>
 
 <template>
-  <AlertDialogRoot :open="open" @update:open="onUpdateOpen">
-    <AlertDialogPortal
-      :disabled="teleportTo === false"
-      :to="teleportTo === false ? undefined : teleportTo"
+  <span ref="anchorRef" hidden class="rs-confirm-dialog__anchor" aria-hidden="true" />
+  <Teleport defer :to="teleportTarget" :disabled="teleportDisabled">
+    <div
+      v-if="open"
+      ref="shellRef"
+      class="rs-confirm-dialog"
+      :data-rs-theme="panelTheme"
+      :dir="panelDir"
+      :lang="panelLang"
     >
-      <AlertDialogOverlay v-if="showOverlay" class="rs-confirm-dialog__overlay" :style="overlayStyle" />
-      <AlertDialogContent
+      <div
+        class="rs-confirm-dialog__backdrop"
+        :class="{ 'rs-confirm-dialog__overlay': showOverlay }"
+        :style="overlayStyle"
+        aria-hidden="true"
+      />
+      <dialog
+        :id="domId"
+        ref="contentRef"
+        open
         class="rs-confirm-dialog__content"
         :class="contentClass"
         :style="contentStyle"
-        :disable-outside-pointer-events="true"
-        @escape-key-down="onEscapeKeyDown"
+        role="alertdialog"
+        aria-modal="true"
+        :aria-labelledby="labelledBy"
+        :aria-label="accessibleName"
+        :aria-describedby="hasDescribedBy ? descriptionDomId : undefined"
+        tabindex="-1"
       >
-        <div class="rs-confirm-dialog__icon" :class="`rs-confirm-dialog__icon--${tone}`">
+        <div class="rs-confirm-dialog__icon" :class="`rs-confirm-dialog__icon--${tone}`" aria-hidden="true">
           <slot name="icon">
             <component :is="icon" v-if="icon" class="rs-confirm-dialog__icon-glyph" />
             <template v-else>!</template>
           </slot>
         </div>
         <div class="rs-confirm-dialog__main">
-          <AlertDialogTitle class="rs-confirm-dialog__title">
+          <h2 :id="titleDomId" class="rs-confirm-dialog__title">
             {{ title ?? t('confirm.title') }}
-          </AlertDialogTitle>
+          </h2>
+          <p v-if="subtitle && descriptionText != null" class="rs-confirm-dialog__subtitle">
+            {{ subtitle }}
+          </p>
           <p
-            v-if="subtitle && descriptionText != null"
+            v-if="descriptionText != null"
+            :id="descriptionDomId"
+            class="rs-confirm-dialog__description"
+          >
+            {{ descriptionText }}
+          </p>
+          <p
+            v-else-if="subtitle"
+            :id="descriptionDomId"
             class="rs-confirm-dialog__subtitle"
           >
             {{ subtitle }}
           </p>
-          <AlertDialogDescription
-            v-if="descriptionText != null"
-            class="rs-confirm-dialog__description"
-          >
-            {{ descriptionText }}
-          </AlertDialogDescription>
-          <AlertDialogDescription
-            v-else-if="subtitle"
-            class="rs-confirm-dialog__subtitle"
-          >
-            {{ subtitle }}
-          </AlertDialogDescription>
-          <AlertDialogDescription
+          <p
             v-else-if="showDefaultDescription"
+            :id="descriptionDomId"
             class="rs-confirm-dialog__description"
           >
             {{ t('confirm.description') }}
-          </AlertDialogDescription>
+          </p>
           <div v-if="$slots.extra" class="rs-confirm-dialog__extra">
             <slot name="extra" />
           </div>
           <footer class="rs-confirm-dialog__footer">
-            <!-- 不用 AlertDialogCancel/Action：关闭统一走 beforeClose / autoCloseOnConfirm -->
             <RsButton
               v-if="showCancel"
               variant="default"
@@ -239,16 +489,25 @@ defineExpose({
             </RsButton>
           </footer>
         </div>
-      </AlertDialogContent>
-    </AlertDialogPortal>
-  </AlertDialogRoot>
+      </dialog>
+    </div>
+  </Teleport>
 </template>
 
-<style>
-.rs-confirm-dialog__overlay {
+<style scoped>
+.rs-confirm-dialog {
+  display: contents;
+}
+.rs-confirm-dialog__anchor {
+  display: none;
+}
+.rs-confirm-dialog__backdrop {
   position: fixed;
   inset: 0;
   z-index: var(--rs-z-modal);
+  background: transparent;
+}
+.rs-confirm-dialog__overlay {
   background: var(--rs-dialog-overlay-bg);
   backdrop-filter: blur(var(--rs-dialog-overlay-blur)) saturate(120%);
   -webkit-backdrop-filter: blur(var(--rs-dialog-overlay-blur)) saturate(120%);
@@ -267,6 +526,7 @@ defineExpose({
   max-width: 28rem;
   transform: translate(-50%, -50%);
   box-sizing: border-box;
+  margin: 0;
   padding: var(--rs-space-xl);
   border: 1px solid var(--rs-dialog-border);
   border-radius: var(--rs-radius-lg);
@@ -274,6 +534,11 @@ defineExpose({
   color: var(--rs-dialog-title-fg);
   box-shadow: var(--rs-dialog-shadow);
   outline: none;
+}
+.rs-confirm-dialog__content:focus-visible {
+  box-shadow:
+    var(--rs-dialog-shadow),
+    0 0 0 var(--rs-focus-ring-width) var(--rs-focus-ring);
 }
 .rs-confirm-dialog__content--sm {
   max-width: 24rem;
@@ -345,7 +610,7 @@ defineExpose({
   font-size: var(--rs-font-size-sm);
   line-height: var(--rs-line-height-normal);
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .rs-confirm-dialog__extra {
   margin-top: var(--rs-space-md);
@@ -360,6 +625,17 @@ defineExpose({
   min-height: var(--rs-dialog-footer-min-height);
   margin-top: var(--rs-space-xl);
   padding-top: var(--rs-dialog-footer-padding-y);
-  border-top: 1px solid color-mix(in srgb, var(--rs-dialog-separator) 72%, transparent);
+  border-block-start: 1px solid color-mix(in srgb, var(--rs-dialog-separator) 72%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-rs-theme='light'] .rs-confirm-dialog__content {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--rs-dialog-bg);
+  }
+  .rs-confirm-dialog__overlay {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 </style>

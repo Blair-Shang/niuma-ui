@@ -1,77 +1,101 @@
 <script setup lang="ts">
-import {
-  ContextMenuItem,
-  ContextMenuPortal,
-  ContextMenuSeparator,
-  ContextMenuSub,
-  ContextMenuSubContent,
-  ContextMenuSubTrigger,
-} from '../../_shared/src/reka'
+import RsIcon from '../../icon/src/RsIcon.vue'
 import {
   RS_CONTEXT_MENU_ARROW_SIZE,
-  RS_CONTEXT_MENU_ICON_SIZE,
+  contextMenuItemRole,
+  hasContextMenuChildren,
+  isContextMenuSeparator,
+  resolveContextMenuRel,
   type RsContextMenuItem,
 } from './context-menu-utils'
-import RsContextMenuItems from './RsContextMenuItems.vue'
-import RsIcon from '../../icon/src/RsIcon.vue'
 
-defineProps<{
+const props = defineProps<{
   items: RsContextMenuItem[]
+  highlight: string
+  openKey: string
+  menuId: string
+  layerId: string
+  iconSize: number
 }>()
 
 const emit = defineEmits<{
   select: [item: RsContextMenuItem]
+  hover: [item: RsContextMenuItem]
 }>()
 
-function onSelect(item: RsContextMenuItem) {
-  if (item.disabled || item.separator) return
+function itemId(item: RsContextMenuItem, index: number): string {
+  return `${props.menuId}-${props.layerId}-${index}`
+}
+
+function onClick(item: RsContextMenuItem, event: MouseEvent) {
+  if (item.disabled || isContextMenuSeparator(item)) {
+    event.preventDefault()
+    return
+  }
+  if (event.button !== 0) return
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+    emit('select', item)
+    return
+  }
   emit('select', item)
 }
 </script>
 
 <template>
-  <template v-for="item in items" :key="item.key">
-    <!-- 分隔线 -->
-    <ContextMenuSeparator v-if="item.separator" class="rs-context-menu__separator" />
-
-    <!-- 子菜单 -->
-    <ContextMenuSub v-else-if="item.children?.length">
-      <ContextMenuSubTrigger
-        class="rs-context-menu__item"
-        :class="{ 'rs-context-menu__item--danger': item.danger }"
-        :disabled="item.disabled"
-      >
-        <span class="rs-context-menu__icon-cell">
-          <RsIcon v-if="item.icon" :name="item.icon" :size="RS_CONTEXT_MENU_ICON_SIZE" />
-        </span>
-        <span class="rs-context-menu__label">{{ item.label }}</span>
-        <RsIcon name="chevron-right" :size="RS_CONTEXT_MENU_ARROW_SIZE" class="rs-context-menu__arrow" />
-      </ContextMenuSubTrigger>
-      <ContextMenuPortal>
-        <ContextMenuSubContent
-          class="rs-context-menu__sub-content rs-native-scrollbar rs-motion-reduce"
-          :side-offset="2"
-          :align-offset="-6"
-          :collision-padding="8"
-        >
-          <RsContextMenuItems :items="item.children" @select="emit('select', $event)" />
-        </ContextMenuSubContent>
-      </ContextMenuPortal>
-    </ContextMenuSub>
-
-    <!-- 普通菜单项 -->
-    <ContextMenuItem
+  <template v-for="(item, index) in items" :key="item.key">
+    <p v-if="isContextMenuSeparator(item) && item.label" class="rs-context-menu__group">
+      {{ item.label }}
+    </p>
+    <hr v-else-if="isContextMenuSeparator(item)" class="rs-context-menu__separator" />
+    <component
+      :is="item.href && !item.disabled ? 'a' : 'button'"
       v-else
+      :id="itemId(item, index)"
+      :type="item.href && !item.disabled ? undefined : 'button'"
+      :href="item.href && !item.disabled ? item.href : undefined"
+      :target="item.href && !item.disabled ? item.target : undefined"
+      :rel="item.href && !item.disabled ? resolveContextMenuRel(item) : undefined"
       class="rs-context-menu__item"
       :class="{ 'rs-context-menu__item--danger': item.danger }"
-      :disabled="item.disabled"
-      @select="onSelect(item)"
+      :role="contextMenuItemRole(item)"
+      :tabindex="item.key === highlight && !item.disabled ? 0 : -1"
+      :data-ctx-key="item.key"
+      :data-highlighted="item.key === highlight ? '' : undefined"
+      :data-state="item.key === openKey ? 'open' : undefined"
+      :data-disabled="item.disabled ? '' : undefined"
+      :aria-disabled="item.disabled ? 'true' : undefined"
+      :aria-checked="item.type === 'checkbox' || item.type === 'radio' ? Boolean(item.checked) : undefined"
+      :aria-haspopup="hasContextMenuChildren(item) ? 'menu' : undefined"
+      :aria-expanded="hasContextMenuChildren(item) ? item.key === openKey : undefined"
+      @click="onClick(item, $event)"
+      @pointerenter="emit('hover', item)"
     >
       <span class="rs-context-menu__icon-cell">
-        <RsIcon v-if="item.icon" :name="item.icon" :size="RS_CONTEXT_MENU_ICON_SIZE" />
+        <RsIcon
+          v-if="(item.type === 'checkbox' || item.type === 'radio') && item.checked"
+          name="check"
+          :size="iconSize"
+        />
+        <RsIcon v-else-if="item.icon" :name="item.icon" :size="iconSize" />
       </span>
-      <span class="rs-context-menu__label">{{ item.label }}</span>
+      <span class="rs-context-menu__text">
+        <slot
+          name="item"
+          :item="item"
+          :highlighted="item.key === highlight"
+          :checked="Boolean(item.checked)"
+        >
+          <span class="rs-context-menu__label">{{ item.label }}</span>
+          <span v-if="item.hint" class="rs-context-menu__hint">{{ item.hint }}</span>
+        </slot>
+      </span>
       <span v-if="item.shortcut" class="rs-context-menu__shortcut">{{ item.shortcut }}</span>
-    </ContextMenuItem>
+      <RsIcon
+        v-if="hasContextMenuChildren(item)"
+        name="chevron-right"
+        :size="RS_CONTEXT_MENU_ARROW_SIZE"
+        class="rs-context-menu__arrow"
+      />
+    </component>
   </template>
 </template>

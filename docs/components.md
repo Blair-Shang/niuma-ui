@@ -429,10 +429,10 @@ Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
 |------|------|--------|
 | `RsTooltip` / `RsTooltipProvider` | 提示；原生触发器 + Teleport，不包 Reka；悬停 / 键盘焦点，贴边翻转 | `#/components/tooltip` |
 | `RsPopover` | 气泡卡片；触发器合并属性 + Teleport，不包 Reka | `#/components/popover` |
-| `RsDialog` / `RsConfirmDialog` | 对话框：原生 dialog + Teleport，不包 Reka；确认框另见 ConfirmDialog | `#/components/dialog` |
+| `RsDialog` / `RsConfirmDialog` | 对话框与确认框：原生 dialog + Teleport，不包 Reka。确认框是 alertdialog | `#/components/dialog`、`#/components/confirm-dialog` |
 | `RsDrawer` | 抽屉；原生 dialog + Teleport，不包 Reka；四向、可拖、模态焦点陷阱 | `#/components/drawer` |
 | `RsContextMenu` | 右键菜单 | `#/components/context-menu` |
-| `RsToaster` | Toast 宿主（`useRsToast`） | `#/components/toaster` |
+| `RsToaster` | Toast 宿主；原生 region + Teleport，不包 Reka / vue-sonner（`useRsToast`） | `#/components/toaster` |
 
 ### 数据展示
 

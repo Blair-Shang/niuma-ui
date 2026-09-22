@@ -1,10 +1,19 @@
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { defineComponent, h, ref } from 'vue'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import RsConfigProvider from '../../config-provider/src/RsConfigProvider.vue'
 import RsConfirmDialog from '../src/RsConfirmDialog.vue'
+import { resetDialogGuardsForTests } from '../src/dialog-utils'
 
 describe('RsConfirmDialog', () => {
+  afterEach(() => {
+    resetDialogGuardsForTests()
+    document.body.style.overflow = ''
+    document.body.style.paddingInlineEnd = ''
+  })
+
   it('renders custom title and description when open', async () => {
     const wrapper = mount(RsConfirmDialog, {
       props: {
@@ -152,14 +161,115 @@ describe('RsConfirmDialog', () => {
     wrapper.unmount()
   })
 
-  it('enables pointer events on content when open (reka-ui 2.9.10)', async () => {
+  it('renders a native alertdialog and does not import reka-ui', async () => {
+    const source = readFileSync(path.resolve('src/components/dialog/src/RsConfirmDialog.vue'), 'utf8')
+    expect(source).not.toContain('reka-ui')
+    expect(source).not.toContain("from '../../_shared/src/reka'")
     const wrapper = mount(RsConfirmDialog, {
       props: { open: true, title: '测试' },
       attachTo: document.body,
     })
     await flushPromises()
-    const content = document.body.querySelector('.rs-confirm-dialog__content') as HTMLElement | null
-    expect(content?.style.pointerEvents).toBe('auto')
+    const content = document.body.querySelector('.rs-confirm-dialog__content')
+    expect(content?.tagName).toBe('DIALOG')
+    expect(content?.hasAttribute('open')).toBe(true)
+    expect(content?.getAttribute('role')).toBe('alertdialog')
+    expect(content?.getAttribute('aria-modal')).toBe('true')
+    expect(document.body.innerHTML.toLowerCase()).not.toContain('reka')
+    wrapper.unmount()
+  })
+
+  it('emits cancel and closes on Escape', async () => {
+    const Host = defineComponent({
+      components: { RsConfirmDialog },
+      setup() {
+        const open = ref(true)
+        return { open }
+      },
+      template: `<RsConfirmDialog v-model:open="open" title="Esc" @cancel="$emit('cancelled')" />`,
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await flushPromises()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+    await flushPromises()
+    expect(wrapper.emitted('cancelled')).toHaveLength(1)
+    expect(wrapper.findComponent(RsConfirmDialog).props('open')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('keeps open when Escape is pressed during confirmLoading', async () => {
+    const Host = defineComponent({
+      components: { RsConfirmDialog },
+      setup() {
+        const open = ref(true)
+        return { open }
+      },
+      template: `<RsConfirmDialog v-model:open="open" title="Busy" confirm-loading />`,
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await flushPromises()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+    await flushPromises()
+    expect(wrapper.findComponent(RsConfirmDialog).props('open')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('closes only the top confirm when two are open', async () => {
+    const Host = defineComponent({
+      components: { RsConfirmDialog },
+      setup() {
+        const back = ref(true)
+        const front = ref(true)
+        return { back, front }
+      },
+      template: `
+        <RsConfirmDialog v-model:open="back" title="Back" />
+        <RsConfirmDialog v-model:open="front" title="Front" :z-index="140" />
+      `,
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await flushPromises()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+    await flushPromises()
+    const titles = [...document.body.querySelectorAll('.rs-confirm-dialog__title')].map((node) => node.textContent)
+    expect(titles).toContain('Back')
+    expect(titles).not.toContain('Front')
+    wrapper.unmount()
+  })
+
+  it('locks body scroll while open and restores it on unmount', async () => {
+    document.body.style.overflow = 'scroll'
+    const wrapper = mount(RsConfirmDialog, {
+      props: { open: true, title: '锁滚动' },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    expect(document.body.style.overflow).toBe('hidden')
+    wrapper.unmount()
+    expect(document.body.style.overflow).toBe('scroll')
+  })
+
+  it('restores focus to the trigger after close', async () => {
+    const Host = defineComponent({
+      components: { RsConfirmDialog },
+      setup() {
+        const open = ref(false)
+        return { open }
+      },
+      template: `
+        <button id="confirm-trigger" type="button" @click="open = true">Open</button>
+        <RsConfirmDialog v-model:open="open" title="Focus" />
+      `,
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    const trigger = document.getElementById('confirm-trigger') as HTMLButtonElement
+    trigger.focus()
+    ;(wrapper.vm as { open: boolean }).open = true
+    await flushPromises()
+    expect(document.activeElement).not.toBe(trigger)
+    ;(wrapper.vm as { open: boolean }).open = false
+    await flushPromises()
+    expect(document.activeElement).toBe(trigger)
     wrapper.unmount()
   })
 
@@ -254,6 +364,23 @@ describe('RsConfirmDialog', () => {
     await flushPromises()
     const extra = document.body.querySelector('.rs-confirm-dialog__extra .extra-probe')
     expect(extra?.textContent).toContain('extra-body')
+    wrapper.unmount()
+  })
+
+  it('reopens when a parent close is blocked by beforeClose', async () => {
+    const Host = defineComponent({
+      components: { RsConfirmDialog },
+      setup() {
+        const open = ref(true)
+        return { open }
+      },
+      template: `<RsConfirmDialog v-model:open="open" title="Veto" :before-close="() => false" />`,
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await flushPromises()
+    ;(wrapper.vm as { open: boolean }).open = false
+    await flushPromises()
+    expect(wrapper.findComponent(RsConfirmDialog).props('open')).toBe(true)
     wrapper.unmount()
   })
 

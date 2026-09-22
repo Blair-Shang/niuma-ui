@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { defineComponent, ref } from 'vue'
 import RsContextMenu from '../src/RsContextMenu.vue'
 
 describe('RsContextMenu', () => {
@@ -126,5 +129,137 @@ describe('RsContextMenu', () => {
     await flushPromises()
     expect(document.body.querySelector('.rs-context-menu__content')).toBeNull()
     wrapper.unmount()
+  })
+
+  it('moves with the keyboard, opens a submenu, and closes on Escape', async () => {
+    const wrapper = mount(RsContextMenu, {
+      props: {
+        items: [
+          { key: 'open', label: '打开' },
+          {
+            key: 'share',
+            label: '分享',
+            children: [{ key: 'link', label: '复制链接' }],
+          },
+        ],
+      },
+      slots: { default: '<div class="trigger">Right click</div>' },
+      attachTo: document.body,
+    })
+    await wrapper.find('.trigger').trigger('contextmenu')
+    await flushPromises()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    await flushPromises()
+    expect(document.body.querySelector('.rs-context-menu__item[data-highlighted]')?.textContent).toContain('分享')
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    await flushPromises()
+    expect(document.body.textContent).toContain('复制链接')
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await flushPromises()
+    expect(document.body.textContent).toContain('分享')
+    expect(document.body.textContent).not.toContain('复制链接')
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await flushPromises()
+    expect(document.body.querySelector('.rs-context-menu__content')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('keeps checkbox rows open and exposes aria-checked', async () => {
+    const wrapper = mount(RsContextMenu, {
+      props: {
+        items: [{ key: 'hidden', label: '显示隐藏', type: 'checkbox', checked: true }],
+      },
+      slots: { default: '<div class="trigger">Right click</div>' },
+      attachTo: document.body,
+    })
+    await wrapper.find('.trigger').trigger('contextmenu')
+    await flushPromises()
+    const row = document.body.querySelector('.rs-context-menu__item')
+    expect(row?.getAttribute('role')).toBe('menuitemcheckbox')
+    expect(row?.getAttribute('aria-checked')).toBe('true')
+    ;(row as HTMLElement).click()
+    await flushPromises()
+    expect(wrapper.emitted('select')?.[0]).toEqual(['hidden'])
+    expect(document.body.querySelector('.rs-context-menu__content')).not.toBeNull()
+    wrapper.unmount()
+  })
+
+  it('does not open when disabled and drops listeners after unmount', async () => {
+    const disabled = mount(RsContextMenu, {
+      props: { items, disabled: true },
+      slots: { default: '<div class="trigger">Right click</div>' },
+      attachTo: document.body,
+    })
+    await disabled.find('.trigger').trigger('contextmenu')
+    await flushPromises()
+    expect(document.body.querySelector('.rs-context-menu__content')).toBeNull()
+    disabled.unmount()
+
+    const wrapper = mount(RsContextMenu, {
+      props: { items },
+      slots: { default: '<div class="trigger">Right click</div>' },
+      attachTo: document.body,
+    })
+    await wrapper.find('.trigger').trigger('contextmenu')
+    await flushPromises()
+    expect(document.body.querySelector('.rs-context-menu__content')).not.toBeNull()
+    wrapper.unmount()
+    await flushPromises()
+    expect(document.body.querySelector('.rs-context-menu__content')).toBeNull()
+    expect(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    }).not.toThrow()
+  })
+
+  it('closes the previous menu when another one opens', async () => {
+    const first = mount(RsContextMenu, {
+      props: { items },
+      slots: { default: '<div class="trigger">A</div>' },
+      attachTo: document.body,
+    })
+    const second = mount(RsContextMenu, {
+      props: { items: [{ key: 'copy', label: '复制' }] },
+      slots: { default: '<div class="trigger">B</div>' },
+      attachTo: document.body,
+    })
+    await first.find('.trigger').trigger('contextmenu')
+    await flushPromises()
+    await second.find('.trigger').trigger('contextmenu')
+    await flushPromises()
+    const labels = [...document.body.querySelectorAll('.rs-context-menu__label')].map((node) =>
+      node.textContent?.trim(),
+    )
+    expect(labels).toEqual(['复制'])
+    first.unmount()
+    second.unmount()
+  })
+
+  it('syncs v-model:open', async () => {
+    const Host = defineComponent({
+      components: { RsContextMenu },
+      setup() {
+        const open = ref(false)
+        return { open, items }
+      },
+      template:
+        '<RsContextMenu v-model:open="open" :items="items"><div class="trigger">Right click</div></RsContextMenu>',
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await wrapper.find('.trigger').trigger('contextmenu')
+    await flushPromises()
+    expect(wrapper.vm.open).toBe(true)
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await flushPromises()
+    expect(wrapper.vm.open).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('does not import reka-ui', () => {
+    const menu = readFileSync(path.resolve('src/components/context-menu/src/RsContextMenu.vue'), 'utf8')
+    const rows = readFileSync(path.resolve('src/components/context-menu/src/RsContextMenuItems.vue'), 'utf8')
+    expect(menu).not.toContain('reka-ui')
+    expect(menu).not.toContain("_shared/src/reka")
+    expect(rows).not.toContain('reka-ui')
+    expect(rows).not.toContain('ContextMenuRoot')
   })
 })

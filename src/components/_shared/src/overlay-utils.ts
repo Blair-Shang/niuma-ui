@@ -33,7 +33,7 @@ export type RsToastPosition =
 
 export const RS_TOAST_DEFAULT_POSITION: RsToastPosition = 'top-center'
 
-/** 多条 Toast 之间的垂直间距（px），传给 vue-sonner `gap` */
+/** 多条 Toast 之间的垂直间距（px） */
 export const RS_TOAST_DEFAULT_GAP = 4
 
 export const rsToastPositions = [

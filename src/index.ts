@@ -168,6 +168,8 @@ export type {
 export type {
   RsConfirmBeforeClose,
   RsConfirmCloseReason,
+  RsConfirmDialogExpose,
+  RsConfirmDialogInstance,
   RsConfirmOptions,
   RsDialogBeforeClose,
   RsDialogCloseReason,
@@ -386,7 +388,14 @@ export type {
   RsToolbarOrientation,
   RsToolbarSize,
 } from './components/toolbar'
-export type { RsContextMenuItem } from './components/context-menu'
+export type {
+  RsContextMenuExpose,
+  RsContextMenuGetPopupContainer,
+  RsContextMenuItem,
+  RsContextMenuItemSlot,
+  RsContextMenuItemType,
+  RsContextMenuPoint,
+} from './components/context-menu'
 export type {
   RsDropdownContentWidth,
   RsDropdownExpose,
@@ -1035,7 +1044,13 @@ export {
 export { useRsI18n, createTranslator } from './composables/useRsI18n'
 export type { RsTranslateFn } from './composables/useRsI18n'
 export { useRsToast } from './composables/useRsToast'
-export type { RsToastInput } from './composables/useRsToast'
+export type {
+  RsToastAction,
+  RsToastInput,
+  RsToastKind,
+  RsToastOptions,
+  RsToastPromiseMessages,
+} from './composables/useRsToast'
 export {
   rsCommonIconNames,
   rsBrandIconNames,

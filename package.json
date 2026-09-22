@@ -1,6 +1,6 @@
 {
   "name": "niuma-ui",
-  "version": "2.0.5",
+  "version": "2.0.6",
   "license": "Apache-2.0",
   "type": "module",
   "description": "Vue 3 workbench design system — Rs* components, --rs-* tokens, optional Monaco / CodeMirror / xterm",
@@ -137,8 +137,7 @@
     "marked": "^18.0.9",
     "monaco-editor": "^0.55.1",
     "monaco-sql-languages": "^1.2.0",
-    "reka-ui": "^2.9.10",
-    "vue-sonner": "^2.0.9"
+    "reka-ui": "^2.9.10"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

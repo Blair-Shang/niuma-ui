@@ -3,6 +3,8 @@ export { default as RsConfirmDialog } from './src/RsConfirmDialog.vue'
 export type {
   RsConfirmBeforeClose,
   RsConfirmCloseReason,
+  RsConfirmDialogExpose,
+  RsConfirmDialogInstance,
   RsConfirmOptions,
   RsDialogBeforeClose,
   RsDialogCloseReason,

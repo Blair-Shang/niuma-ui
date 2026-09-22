@@ -34,7 +34,7 @@ const closeButtonOptions = [
 
 const richColorsOptions = [
   { label: '默认描边语义色', value: 'false' },
-  { label: 'vue-sonner richColors', value: 'true' },
+  { label: '语义色洗表面', value: 'true' },
 ]
 
 const closeButtonModel = computed({
