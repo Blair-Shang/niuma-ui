@@ -375,7 +375,7 @@ Stable `Rs*` components. Per-prop APIs live on the docs site. Additions must upd
 | `RsTable` | Sort, select, virtual, edit. Architecture [rs-table-architecture.md](./rs-table-architecture.md); SSR [rs-table-ssr.md](./rs-table-ssr.md); charts [rs-table-chart-adapter.md](./rs-table-chart-adapter.md); pixels [rs-table-visual.md](./rs-table-visual.md) | `#/components/table` |
 | `RsTableCellEditor` | Cell editor | `#/components/table-cell-edit` |
 | `RsTableHeader` / `RsTableBody` / `RsTableColGroup` | Table view parts (ViewContext) | With Table |
-| `RsTree` | Check, drag, virtual | `#/components/tree` |
+| `RsTree` | Check, drag, virtual; native role=tree, no Reka. Arrow keys swap in RTL, filter follows locale | `#/components/tree` |
 | `RsCodeBlock` | Read-only code; native figure, no Reka. `editable` / `showBar`; theme changes do not rebuild the document | `#/components/code-block` |
 | `RsMarkdown` | Markdown edit and preview; named section, no Reka; sanitized GFM; theme follows data-rs-theme | `#/components/markdown` |
 | `RsProseEditor` | Rich-text surface | Editor family |

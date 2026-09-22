@@ -54,6 +54,15 @@ export interface RsMonacoEditorExpose {
   blur: () => void
 }
 
+/** 右键命中。行、列 1-based；点在滚动条等无光标处时为 0。 */
+export interface RsMonacoEditorContextMenu {
+  line: number
+  column: number
+  selectedText: string
+  x: number
+  y: number
+}
+
 export type RsMonacoEditorInstance = RsMonacoEditorExpose
 
 /** `light` / `vs-dark` 是公开取值；实际主题名是带 token 色的 rs-light / rs-dark。 */

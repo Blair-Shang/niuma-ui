@@ -433,30 +433,29 @@ html {
   --rs-surface-hover: #2e2e2e;
   --rs-item-hover: rgb(255 255 255 / 0.08);
 
-  /* ── Table（VS Code Dark Modern 列表/表格语义）──
-   * 灰阶斑马纹 + 主色选中（选中与条纹语义分离） */
+  /* ── Table：跟语义色，品牌覆盖 --rs-surface / --rs-text-primary 即生效 ── */
   --rs-table-radius: var(--rs-radius-sm);
-  --rs-table-border: #2b2b2b;
-  --rs-table-cell-divider: #262626;
-  --rs-table-fg: #dddddd;
-  --rs-table-muted-fg: #9d9d9d;
-  --rs-table-bg: #1f1f1f;
-  --rs-table-bg-header: #1f1f1f;
-  --rs-table-body-bg: #1f1f1f;
-  --rs-table-header-bg: #1f1f1f;
-  --rs-table-header-fg: #f3f3f3;
+  --rs-table-border: var(--rs-border);
+  --rs-table-cell-divider: var(--rs-border);
+  --rs-table-fg: var(--rs-text-primary);
+  --rs-table-muted-fg: var(--rs-text-tertiary);
+  --rs-table-bg: var(--rs-surface);
+  --rs-table-bg-header: var(--rs-surface);
+  --rs-table-body-bg: var(--rs-surface);
+  --rs-table-header-bg: var(--rs-surface);
+  --rs-table-header-fg: var(--rs-text-primary);
   --rs-table-header-weight: var(--rs-font-weight-semibold);
   --rs-table-header-size: var(--rs-table-cell-size, var(--rs-font-size-xs));
   --rs-table-cell-size: var(--rs-font-size-xs);
-  --rs-table-cell-weight: 400;
-  --rs-table-footer-bg: #1f1f1f;
-  --rs-table-group-bg: #2d2d2d;
-  --rs-table-expand-bg: #2d2d2d;
-  --rs-table-row-stripe: #2d2d2d;
-  --rs-table-row-hover: #363636;
+  --rs-table-cell-weight: var(--rs-font-weight-regular);
+  --rs-table-footer-bg: var(--rs-surface);
+  --rs-table-group-bg: var(--rs-surface-elevated);
+  --rs-table-expand-bg: var(--rs-surface-elevated);
+  --rs-table-row-stripe: color-mix(in srgb, var(--rs-text-primary) 6%, var(--rs-surface));
+  --rs-table-row-hover: var(--rs-item-hover);
   --rs-table-row-selected: color-mix(in srgb, var(--rs-primary) 22%, var(--rs-table-body-bg));
   --rs-table-row-selected-hover: color-mix(in srgb, var(--rs-primary) 30%, var(--rs-table-body-bg));
-  --rs-table-row-selected-fg: #ffffff;
+  --rs-table-row-selected-fg: var(--rs-text-primary);
   --rs-table-row-selected-accent: var(--rs-primary);
   --rs-table-row-highlight: color-mix(in srgb, var(--rs-primary) 12%, var(--rs-table-body-bg));
   --rs-table-row-highlight-hover: color-mix(in srgb, var(--rs-primary) 18%, var(--rs-table-body-bg));
@@ -465,10 +464,10 @@ html {
   --rs-table-gutter-bg: color-mix(in srgb, var(--rs-border) 10%, var(--rs-table-header-bg));
   --rs-table-gutter-border: var(--rs-table-cell-divider);
   --rs-table-scrollbar-corner: var(--rs-table-bg-header);
-  --rs-table-checkbox-bg: #313131;
+  --rs-table-checkbox-bg: var(--rs-surface);
   --rs-table-sort-active-fg: var(--rs-primary);
   --rs-table-drop-indicator: var(--rs-primary);
-  --rs-table-resize-handle: #6e6e6e;
+  --rs-table-resize-handle: var(--rs-text-tertiary);
   --rs-table-resize-handle-hover: var(--rs-primary);
 
   /* ── Tree（导航线 / 行选中 / 焦点；业务可覆盖）── */
@@ -482,6 +481,9 @@ html {
   --rs-tree-selected-focused-bg: color-mix(in srgb, var(--rs-primary) 16%, var(--rs-surface));
   --rs-tree-selected-focused-ring: color-mix(in srgb, var(--rs-primary) 36%, transparent);
   --rs-tree-drop-indicator: var(--rs-primary);
+  --rs-tree-drop-inside-bg: color-mix(in srgb, var(--rs-primary) 8%, transparent);
+  --rs-tree-highlight-bg: color-mix(in srgb, var(--rs-warning) 45%, transparent);
+  --rs-tree-check-fg: var(--rs-primary-foreground);
 
   /* VS Code 式抬升型输入底（比内容略亮），非 macOS 凹陷井 */
   /* WCAG AA: input-border 3.18:1 vs #2b2b2b; border 3.24:1 vs #1f1f1f; placeholder 4.5:1 vs #2b2b2b */
@@ -821,41 +823,41 @@ html {
   --rs-surface-hover: #e8e8ed;
   --rs-item-hover: rgb(0 0 0 / 0.05);
 
-  /* ── Table（VS Code Light Modern 列表/表格语义）── */
+  /* ── Table：跟语义色。表头比表体略沉一档，仍不写死 hex ── */
   --rs-table-radius: var(--rs-radius-sm);
-  --rs-table-border: #e5e5e5;
-  --rs-table-cell-divider: #e5e5e5;
-  --rs-table-fg: #333333;
-  --rs-table-muted-fg: #616161;
-  --rs-table-bg: #ffffff;
-  --rs-table-bg-header: #f8f8f8;
-  --rs-table-body-bg: #ffffff;
-  --rs-table-header-bg: #f8f8f8;
-  --rs-table-header-fg: #1a1a1a;
+  --rs-table-border: var(--rs-border);
+  --rs-table-cell-divider: var(--rs-border);
+  --rs-table-fg: var(--rs-text-primary);
+  --rs-table-muted-fg: var(--rs-text-tertiary);
+  --rs-table-bg: var(--rs-surface);
+  --rs-table-bg-header: color-mix(in srgb, var(--rs-text-primary) 3%, var(--rs-surface));
+  --rs-table-body-bg: var(--rs-surface);
+  --rs-table-header-bg: var(--rs-table-bg-header);
+  --rs-table-header-fg: var(--rs-text-primary);
   --rs-table-header-weight: var(--rs-font-weight-semibold);
   --rs-table-header-size: var(--rs-table-cell-size, var(--rs-font-size-xs));
   --rs-table-cell-size: var(--rs-font-size-xs);
-  --rs-table-cell-weight: 400;
-  --rs-table-footer-bg: #f8f8f8;
-  --rs-table-group-bg: #f3f3f3;
-  --rs-table-expand-bg: #f3f3f3;
-  --rs-table-row-stripe: #f6f6f6;
-  --rs-table-row-hover: #f2f2f2;
+  --rs-table-cell-weight: var(--rs-font-weight-regular);
+  --rs-table-footer-bg: var(--rs-table-bg-header);
+  --rs-table-group-bg: color-mix(in srgb, var(--rs-text-primary) 4%, var(--rs-surface));
+  --rs-table-expand-bg: var(--rs-table-group-bg);
+  --rs-table-row-stripe: color-mix(in srgb, var(--rs-text-primary) 3%, var(--rs-surface));
+  --rs-table-row-hover: var(--rs-item-hover);
   --rs-table-row-selected: color-mix(in srgb, var(--rs-primary) 10%, var(--rs-table-body-bg));
   --rs-table-row-selected-hover: color-mix(in srgb, var(--rs-primary) 16%, var(--rs-table-body-bg));
-  --rs-table-row-selected-fg: var(--rs-text);
+  --rs-table-row-selected-fg: var(--rs-text-primary);
   --rs-table-row-selected-accent: var(--rs-primary);
   --rs-table-row-highlight: color-mix(in srgb, var(--rs-primary) 8%, var(--rs-table-body-bg));
   --rs-table-row-highlight-hover: color-mix(in srgb, var(--rs-primary) 12%, var(--rs-table-body-bg));
-  --rs-table-row-highlight-fg: var(--rs-text);
+  --rs-table-row-highlight-fg: var(--rs-text-primary);
   --rs-table-row-highlight-accent: color-mix(in srgb, var(--rs-primary) 45%, transparent);
   --rs-table-gutter-bg: color-mix(in srgb, var(--rs-border) 6%, var(--rs-table-header-bg));
   --rs-table-gutter-border: var(--rs-table-cell-divider);
   --rs-table-scrollbar-corner: var(--rs-table-bg-header);
-  --rs-table-checkbox-bg: #ffffff;
+  --rs-table-checkbox-bg: var(--rs-surface);
   --rs-table-sort-active-fg: var(--rs-primary);
   --rs-table-drop-indicator: var(--rs-primary);
-  --rs-table-resize-handle: #8c8c8c;
+  --rs-table-resize-handle: var(--rs-text-tertiary);
   --rs-table-resize-handle-hover: var(--rs-primary);
 
   /* ── Tree（导航线 / 行选中 / 焦点；业务可覆盖）── */
@@ -869,6 +871,9 @@ html {
   --rs-tree-selected-focused-bg: color-mix(in srgb, var(--rs-primary) 10%, var(--rs-surface));
   --rs-tree-selected-focused-ring: color-mix(in srgb, var(--rs-primary) 28%, transparent);
   --rs-tree-drop-indicator: var(--rs-primary);
+  --rs-tree-drop-inside-bg: color-mix(in srgb, var(--rs-primary) 8%, transparent);
+  --rs-tree-highlight-bg: color-mix(in srgb, var(--rs-warning) 45%, transparent);
+  --rs-tree-check-fg: var(--rs-primary-foreground);
 
   /* macOS separator 风格：默认边框偏柔，focus 环承担可访问性反馈 */
   --rs-input-bg: #ffffff;

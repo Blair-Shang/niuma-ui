@@ -442,7 +442,7 @@ Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
 | `RsTable` | 排序、选择、虚拟、编辑。架构 [rs-table-architecture.md](./rs-table-architecture.md)；SSR [rs-table-ssr.md](./rs-table-ssr.md)；图表 [rs-table-chart-adapter.md](./rs-table-chart-adapter.md)；像素 [rs-table-visual.md](./rs-table-visual.md) | `#/components/table` |
 | `RsTableCellEditor` | 单元格编辑器 | `#/components/table-cell-edit` |
 | `RsTableHeader` / `RsTableBody` / `RsTableColGroup` | 表格视图子件（ViewContext） | 随 Table |
-| `RsTree` | 勾选、拖拽、虚拟 | `#/components/tree` |
+| `RsTree` | 勾选、拖拽、虚拟；原生 role=tree，不包 Reka。RTL 方向键对调，过滤跟 locale | `#/components/tree` |
 | `RsCodeBlock` | 只读代码；原生 figure，不包 Reka。`editable` / `showBar`；主题切换不重建文档 | `#/components/code-block` |
 | `RsMarkdown` | Markdown 编辑与预览；带名称的 section，不包 Reka；GFM 消毒，主题跟 data-rs-theme | `#/components/markdown` |
 | `RsProseEditor` | 富文本表面 | 随编辑器族 |

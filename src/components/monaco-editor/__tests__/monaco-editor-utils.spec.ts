@@ -187,5 +187,7 @@ describe('RsMonacoEditor source', () => {
     expect(source).toContain('dir="ltr"')
     expect(source).toContain('overflow: hidden')
     expect(source).toContain('useResolvedRsRadius')
+    expect(source).toContain('contextMenuDisposable')
+    expect(source).toContain('onContextMenu')
   })
 })

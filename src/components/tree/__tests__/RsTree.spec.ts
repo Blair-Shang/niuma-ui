@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs'
 import { mount, flushPromises } from '@vue/test-utils'
-import { nextTick } from 'vue'
+import { nextTick, ref } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
+import { RS_FORM_INJECTION_KEY } from '../../form/src/form-utils'
 import RsTree from '../src/RsTree.vue'
 import {
   collectHalfCheckedKeys,
@@ -467,6 +469,221 @@ describe('RsTree', () => {
       'b',
     )
   })
+
+  it('does not import reka-ui', () => {
+    const source = readFileSync('src/components/tree/src/RsTree.vue', 'utf8')
+    const utils = readFileSync('src/components/tree/src/tree-utils.ts', 'utf8')
+    expect(source).not.toContain('reka-ui')
+    expect(utils).not.toContain('reka-ui')
+    expect(source).toContain("name: 'RsTree'")
+    expect(source).toContain('clearTimeout')
+    expect(source).toContain('disconnect')
+    expect(source).not.toContain('setInterval')
+    expect(source).not.toContain('addEventListener')
+  })
+
+  it('ignores selection when disabled, including a disabled form', async () => {
+    const wrapper = mount(RsTree, {
+      props: {
+        nodes: [{ key: 'a', label: 'A' }],
+        disabled: true,
+        modelValue: '',
+        'onUpdate:modelValue': (value: string | string[]) => wrapper.setProps({ modelValue: value }),
+      },
+    })
+    await wrapper.find('.rs-tree__label').trigger('click')
+    expect(wrapper.props('modelValue')).toBe('')
+    expect(wrapper.attributes('aria-disabled')).toBe('true')
+
+    const formDisabled = ref(true)
+    const formed = mount(RsTree, {
+      props: {
+        nodes: [{ key: 'a', label: 'A' }],
+        modelValue: '',
+        'onUpdate:modelValue': (value: string | string[]) => formed.setProps({ modelValue: value }),
+      },
+      global: {
+        provide: {
+          [RS_FORM_INJECTION_KEY as symbol]: {
+            disabled: formDisabled,
+            size: ref('md'),
+          },
+        },
+      },
+    })
+    await formed.find('.rs-tree__label').trigger('click')
+    expect(formed.props('modelValue')).toBe('')
+    expect(formed.classes()).toContain('rs-tree--disabled')
+  })
+
+  it('renders the empty slot and a custom icon', () => {
+    const wrapper = mount(RsTree, {
+      props: { nodes: [], filter: 'none' },
+      slots: {
+        empty: '<p class="custom-empty">Nothing here</p>',
+      },
+    })
+    expect(wrapper.find('.custom-empty').exists()).toBe(true)
+    expect(wrapper.find('.rs-tree__empty').exists()).toBe(false)
+
+    const icons = mount(RsTree, {
+      props: {
+        nodes: [{ key: 'a', label: 'A', icon: 'folder' }],
+      },
+      slots: {
+        icon: '<span class="custom-icon">I</span>',
+      },
+    })
+    expect(icons.find('.custom-icon').exists()).toBe(true)
+    expect(icons.find('.rs-tree__node-icon').exists()).toBe(false)
+  })
+
+  it('sets a mixed checkbox and aria-checked', async () => {
+    const wrapper = mount(RsTree, {
+      props: {
+        nodes: checkNodes,
+        checkable: true,
+        defaultExpandAll: true,
+        checkedKeys: ['child-a'],
+      },
+    })
+    await flushPromises()
+    const parent = wrapper.findAll('.rs-tree__row')[0]
+    expect(parent.attributes('aria-checked')).toBe('mixed')
+    const input = parent.find('input[type="checkbox"]').element as HTMLInputElement
+    expect(input.indeterminate).toBe(true)
+    expect(input.checked).toBe(false)
+  })
+
+  it('moves to a child with ArrowRight and with ArrowLeft when the host is rtl', async () => {
+    const treeNodes = [
+      { key: 'p', label: 'Parent', children: [{ key: 'c', label: 'Child' }] },
+    ]
+    const ltr = mount(RsTree, {
+      props: { nodes: treeNodes, expandedKeys: ['p'] },
+      attachTo: document.body,
+    })
+    const ltrEl = ltr.get('.rs-tree').element
+    ltrEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    await flushPromises()
+    expect(ltr.find('.rs-tree__row--focused').text()).toContain('Child')
+    ltr.unmount()
+
+    document.documentElement.setAttribute('dir', 'rtl')
+    const rtl = mount(RsTree, {
+      props: { nodes: treeNodes, expandedKeys: ['p'] },
+      attachTo: document.body,
+    })
+    rtl.get('.rs-tree').element.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
+    await flushPromises()
+    expect(rtl.find('.rs-tree__row--focused').text()).toContain('Child')
+    rtl.unmount()
+    document.documentElement.removeAttribute('dir')
+  })
+
+  it('typeahead focuses the next matching label', async () => {
+    const wrapper = mount(RsTree, {
+      props: {
+        nodes: [{ key: 'a', label: 'Alpha' }, { key: 'b', label: 'Beta' }],
+      },
+      attachTo: document.body,
+    })
+    wrapper.get('.rs-tree').element.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', bubbles: true }))
+    await flushPromises()
+    expect(wrapper.find('.rs-tree__row--focused').text()).toContain('Beta')
+    wrapper.unmount()
+  })
+
+  it('scrollToKey expands ancestors and focus() targets the tree', async () => {
+    const wrapper = mount(RsTree, {
+      props: {
+        nodes: [
+          { key: 'p', label: 'Parent', children: [{ key: 'c', label: 'Child' }] },
+        ],
+        expandedKeys: [] as string[],
+        'onUpdate:expandedKeys': (value: string[] | undefined) => {
+          if (value !== undefined) void wrapper.setProps({ expandedKeys: value })
+        },
+      },
+      attachTo: document.body,
+    })
+    const vm = wrapper.vm as {
+      scrollToKey: (key: string) => void
+      focus: () => void
+      getExpandedKeys: () => string[]
+    }
+    vm.scrollToKey('c')
+    await flushPromises()
+    expect(vm.getExpandedKeys()).toContain('p')
+    expect(wrapper.text()).toContain('Child')
+    expect(wrapper.find('.rs-tree__row--focused').text()).toContain('Child')
+    vm.focus()
+    expect(document.activeElement).toBe(wrapper.get('.rs-tree').element)
+    wrapper.unmount()
+  })
+
+  it('disconnects the height observer on unmount', () => {
+    const disconnect = vi.fn()
+    const observe = vi.fn()
+    class ResizeObserverStub {
+      observe = observe
+      disconnect = disconnect
+    }
+    vi.stubGlobal('ResizeObserver', ResizeObserverStub)
+    const wrapper = mount(RsTree, {
+      props: {
+        nodes: [{ key: 'a', label: 'A' }],
+        virtual: true,
+      },
+    })
+    expect(observe).toHaveBeenCalled()
+    wrapper.unmount()
+    expect(disconnect).toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+
+  it('does not expand after unmount while loadData is pending', async () => {
+    let finish: (() => void) | undefined
+    const loadData = vi.fn(() => new Promise<void>((resolve) => {
+      finish = resolve
+    }))
+    const wrapper = mount(RsTree, {
+      props: {
+        nodes: [{ key: 'lazy-root', label: '异步根', isLeaf: false }],
+        lazy: true,
+        loadData,
+      },
+    })
+    await wrapper.find('.rs-tree__toggle').trigger('click')
+    expect(loadData).toHaveBeenCalled()
+    wrapper.unmount()
+    finish?.()
+    await flushPromises()
+    expect(wrapper.exists()).toBe(false)
+  })
+
+  it('prints once when virtual scroll turns on', () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+    const quiet = mount(RsTree, {
+      props: { nodes: [{ key: 'a', label: 'A' }] },
+    })
+    expect(info).not.toHaveBeenCalled()
+    quiet.unmount()
+
+    const wrapper = mount(RsTree, {
+      props: {
+        nodes: Array.from({ length: 20 }, (_, index) => ({ key: String(index), label: `N${index}` })),
+        virtual: true,
+        height: 200,
+      },
+    })
+    const line = info.mock.calls.map((args) => args.map(String).join(' ')).join('\n')
+    expect(line).toContain('虚拟滚动已开启')
+    expect(line).toContain('节点数:')
+    expect(line).toContain('200 (prop)')
+    wrapper.unmount()
+    info.mockRestore()
+  })
 })
 
 describe('tree-utils basics', () => {
@@ -499,8 +716,8 @@ describe('tree-utils basics', () => {
 
   it('resolveTreeFocusKey moves across flat nodes', () => {
     const flat = [
-      { key: 'a', node: {}, depth: 0, hasChildren: false, isLast: false, parentKey: null, levelLines: [] },
-      { key: 'b', node: {}, depth: 0, hasChildren: false, isLast: true, parentKey: null, levelLines: [] },
+      { key: 'a', node: {}, depth: 0, hasChildren: false, isLast: false, parentKey: null, setSize: 2, posInSet: 1, levelLines: [] },
+      { key: 'b', node: {}, depth: 0, hasChildren: false, isLast: true, parentKey: null, setSize: 2, posInSet: 2, levelLines: [] },
     ]
     const index = new Map([
       ['a', { node: {}, parentKey: null, childrenKeys: [] }],

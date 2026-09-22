@@ -1,8 +1,8 @@
 import type { ITheme, Terminal } from '@xterm/xterm'
-import { readDocumentTheme } from '../../code-editor/src/code-editor-utils'
 
 export type RsTerminalThemeMode = 'auto' | 'light' | 'dark'
 export type RsResolvedTerminalTheme = 'light' | 'dark'
+export type RsTerminalCursorStyle = 'block' | 'underline' | 'bar'
 
 export type RsTerminalAction = 'copy' | 'paste' | 'selectAll' | 'clear' | 'askAi' | 'search'
 
@@ -190,12 +190,42 @@ function themeSourceElement(mode: RsResolvedTerminalTheme): HTMLElement {
   return themeProbeElement(mode)
 }
 
-/** 从全局 `--rs-terminal-*` token 构建 xterm 调色板（须已加载 styles.css） */
-export function readTerminalThemeFromCss(mode: RsResolvedTerminalTheme): ITheme {
+/**
+ * auto 看最近的 `data-rs-theme`，没有时看 documentElement。
+ * 未写或不是 dark 时跟全库浅色。传入元素时深色岛不必改整页。
+ */
+export function resolveTerminalTheme(
+  mode: RsTerminalThemeMode = 'auto',
+  el?: HTMLElement | null,
+): RsResolvedTerminalTheme {
+  if (mode !== 'auto') {
+    return mode
+  }
+  if (typeof document === 'undefined') {
+    return 'light'
+  }
+  const themed = el?.closest?.('[data-rs-theme]')
+  const node = themed ?? document.documentElement
+  const themeName = node instanceof HTMLElement ? node.dataset.rsTheme : null
+  return themeName === 'dark' ? 'dark' : 'light'
+}
+
+function pickThemeSource(mode: RsResolvedTerminalTheme, el?: HTMLElement | null): HTMLElement {
+  if (el && resolveTerminalTheme('auto', el) === mode) {
+    return el
+  }
+  return themeSourceElement(mode)
+}
+
+/** 从 `--rs-terminal-*` 构建 xterm 调色板。传入宿主时读继承到的 token。 */
+export function readTerminalThemeFromCss(
+  mode: RsResolvedTerminalTheme,
+  el?: HTMLElement | null,
+): ITheme {
   if (typeof document === 'undefined' || typeof getComputedStyle === 'undefined') {
     return {}
   }
-  const source = themeSourceElement(mode)
+  const source = pickThemeSource(mode, el)
   const theme: ITheme = {}
   for (const [key, cssVar] of TERMINAL_CSS_KEYS) {
     const raw = readResolvedCssColor(cssVar, source, BACKGROUND_THEME_KEYS.has(key))
@@ -207,10 +237,6 @@ export function readTerminalThemeFromCss(mode: RsResolvedTerminalTheme): ITheme 
   return theme
 }
 
-export function resolveTerminalTheme(mode: RsTerminalThemeMode = 'auto'): RsResolvedTerminalTheme {
-  return mode === 'auto' ? readDocumentTheme() : mode
-}
-
 export function getTerminalThemePalette(mode: RsResolvedTerminalTheme): ITheme {
   return readTerminalThemeFromCss(mode)
 }
@@ -218,9 +244,10 @@ export function getTerminalThemePalette(mode: RsResolvedTerminalTheme): ITheme {
 export function mergeTerminalTheme(
   mode: RsResolvedTerminalTheme,
   overrides?: Partial<ITheme>,
+  el?: HTMLElement | null,
 ): ITheme {
   return {
-    ...readTerminalThemeFromCss(mode),
+    ...readTerminalThemeFromCss(mode, el),
     ...overrides,
   }
 }
@@ -376,6 +403,124 @@ export function isMacPlatform(): boolean {
 /** 菜单/文档展示的修饰键标签 */
 export function terminalShortcutLabel(key: string): string {
   return isMacPlatform() ? `⌘${key}` : `Ctrl+${key}`
+}
+
+type ThemeListener = () => void
+
+const themeListeners = new Set<ThemeListener>()
+let sharedThemeObserver: MutationObserver | null = null
+
+function ensureTerminalThemeObserver(): void {
+  if (sharedThemeObserver || typeof document === 'undefined' || typeof MutationObserver === 'undefined') {
+    return
+  }
+  sharedThemeObserver = new MutationObserver(() => {
+    for (const listener of themeListeners) {
+      listener()
+    }
+  })
+  sharedThemeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-rs-theme'],
+    subtree: true,
+  })
+}
+
+/**
+ * 多个终端共用一个 `data-rs-theme` 观察器（含主题岛）。
+ * 最后一个退订时断开，避免卸载后仍监听整棵文档。
+ */
+export function subscribeTerminalTheme(listener: ThemeListener): () => void {
+  if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') {
+    return () => undefined
+  }
+  themeListeners.add(listener)
+  ensureTerminalThemeObserver()
+  return () => {
+    themeListeners.delete(listener)
+    if (themeListeners.size === 0 && sharedThemeObserver) {
+      sharedThemeObserver.disconnect()
+      sharedThemeObserver = null
+    }
+  }
+}
+
+/** 当前仍挂着的主题订阅数。测试用来确认卸载成对退订。 */
+export function terminalThemeSubscriptionCount(): number {
+  return themeListeners.size
+}
+
+export type RsTerminalLinkHit = { start: number; end: number; text: string }
+
+const TERMINAL_LINK_TRAILING = new Set(['.', ',', ';', ':', '!', '?', ')', '>', ']'])
+
+function trimTerminalLinkPunctuation(raw: string): string {
+  let end = raw.length
+  while (end > 0 && TERMINAL_LINK_TRAILING.has(raw.charAt(end - 1))) {
+    end -= 1
+  }
+  return raw.slice(0, end)
+}
+
+/** 只放行 http(s) 与 mailto。javascript: / data: 一律拒绝。 */
+export function isSafeTerminalLink(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:' || url.protocol === 'mailto:'
+  } catch {
+    return false
+  }
+}
+
+/** 从一行可见文本里找出可点的 http(s) / mailto。end 为不含尾标点的字符串下标。 */
+export function findTerminalHttpLinks(line: string): RsTerminalLinkHit[] {
+  if (!line.includes('http') && !line.includes('mailto')) {
+    return []
+  }
+  const re = /(?:https?:\/\/|mailto:)[^\s<>"']+/gi
+  const out: RsTerminalLinkHit[] = []
+  let match: RegExpExecArray | null
+  while ((match = re.exec(line))) {
+    const text = trimTerminalLinkPunctuation(match[0])
+    if (!text || !isSafeTerminalLink(text)) {
+      continue
+    }
+    out.push({ start: match.index, end: match.index + text.length, text })
+  }
+  return out
+}
+
+/**
+ * 把字符串下标换成 xterm 1-based 单元格列。
+ * 宽字符占两格，后续 width 0 的格子跳过，避免链接框落在汉字上。
+ */
+export function terminalCellIndexForString(
+  cells: ReadonlyArray<{ chars: string; width: number }>,
+  stringIndex: number,
+): number {
+  let seen = 0
+  for (let i = 0; i < cells.length; i += 1) {
+    const width = cells[i]?.width ?? 1
+    if (width < 1) {
+      continue
+    }
+    if (seen >= stringIndex) {
+      return i + 1
+    }
+    const chars = cells[i]?.chars ?? ''
+    seen += chars.length || 1
+  }
+  return Math.max(1, cells.length)
+}
+
+export function terminalLinkCellRange(
+  cells: ReadonlyArray<{ chars: string; width: number }>,
+  start: number,
+  end: number,
+): { startX: number; endX: number } {
+  const startX = terminalCellIndexForString(cells, start)
+  const endX = terminalCellIndexForString(cells, Math.max(start, end - 1))
+  return { startX, endX: Math.max(startX, endX) }
 }
 
 /** ANSI 16 色演示文本 */

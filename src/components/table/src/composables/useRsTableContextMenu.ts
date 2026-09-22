@@ -188,7 +188,7 @@ export function useRsTableContextMenu<T extends RsTableRowData>(
   }
 
   /**
-   * 捕获阶段预填：须早于 ContextMenuTrigger 冒泡打开。
+   * 捕获阶段预填：须早于右键菜单在冒泡阶段打开。
    */
   function onContextmenuCapture(event: MouseEvent): void {
     if (!read(options.enabled)) return

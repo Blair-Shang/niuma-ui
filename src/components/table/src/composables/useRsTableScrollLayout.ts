@@ -194,6 +194,8 @@ export function useRsTableScrollLayout(options: UseRsTableScrollLayoutOptions) {
   }
 
   function disposeScrollLayout(): void {
+    restoreGeneration += 1
+    restoringScroll = false
     viewportResizeObserver?.disconnect()
     viewportResizeObserver = null
     if (scrollRafId) {

@@ -1,6 +1,8 @@
 <script setup lang="ts" generic="T extends import('../utils/table-utils').RsTableRowData">
 import { useRsTableView } from '../context/rs-table-view-context'
 
+defineOptions({ name: 'RsTableColGroup' })
+
 const view = useRsTableView<T>()
 </script>
 

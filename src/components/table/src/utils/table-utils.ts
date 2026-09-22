@@ -327,12 +327,12 @@ export function resolveCellTooltipText<T extends RsTableRowData>(
   return String(value)
 }
 
-export function compareTableValues(a: unknown, b: unknown): number {
+export function compareTableValues(a: unknown, b: unknown, locale?: string): number {
   if (a === b) return 0
   if (a === undefined || a === null) return -1
   if (b === undefined || b === null) return 1
   if (typeof a === 'number' && typeof b === 'number') return a - b
-  return formatComparableValue(a).localeCompare(formatComparableValue(b))
+  return formatComparableValue(a).localeCompare(formatComparableValue(b), locale)
 }
 
 export function toggleSortState(current: RsTableSortState | null, key: string): RsTableSortState | null {
@@ -373,34 +373,37 @@ export function compareTableRowsBySort<T extends RsTableRowData>(
   right: T,
   column: RsTableColumn<T>,
   order: Exclude<RsTableSortOrder, null>,
+  locale?: string,
 ): number {
   const direction = order === 'asc' ? 1 : -1
   if (column.sorter) return column.sorter(left, right) * direction
-  return compareTableValues(getCellValue(left, column), getCellValue(right, column)) * direction
+  return compareTableValues(getCellValue(left, column), getCellValue(right, column), locale) * direction
 }
 
 export function sortTableRows<T extends RsTableRowData>(
   rows: readonly T[],
   columns: readonly RsTableColumn<T>[],
   sort: RsTableSortState | null,
+  locale?: string,
 ): T[] {
   if (!sort) return rows as T[]
   const column = columns.find((item) => item.key === sort.key)
   if (!column) return rows as T[]
-  return [...rows].sort((left, right) => compareTableRowsBySort(left, right, column, sort.order))
+  return [...rows].sort((left, right) => compareTableRowsBySort(left, right, column, sort.order, locale))
 }
 
 export function sortTableRowsMulti<T extends RsTableRowData>(
   rows: readonly T[],
   columns: readonly RsTableColumn<T>[],
   sorts: readonly RsTableSortState[],
+  locale?: string,
 ): T[] {
   if (sorts.length === 0) return rows as T[]
   return [...rows].sort((left, right) => {
     for (const sort of sorts) {
       const column = columns.find((item) => item.key === sort.key)
       if (!column) continue
-      const compare = compareTableRowsBySort(left, right, column, sort.order)
+      const compare = compareTableRowsBySort(left, right, column, sort.order, locale)
       if (compare !== 0) return compare
     }
     return 0
@@ -412,16 +415,17 @@ export function filterTableRows<T extends RsTableRowData>(
   query: string,
   columns: readonly RsTableColumn<T>[],
   keys?: string[],
+  locale?: string,
 ): T[] {
   const trimmed = query.trim()
   if (!trimmed) return rows as T[]
   const searchKeys = keys ?? columns.map((column) => column.key)
-  const lower = trimmed.toLowerCase()
+  const lower = trimmed.toLocaleLowerCase(locale)
   return rows.filter((row) =>
     searchKeys.some((key) => {
       const column = columns.find((item) => item.key === key)
       const value = column ? getCellValue(row, column) : row[key as keyof T]
-      return formatComparableValue(value).toLowerCase().includes(lower)
+      return formatComparableValue(value).toLocaleLowerCase(locale).includes(lower)
     }),
   )
 }
@@ -430,6 +434,7 @@ export function filterTableRowsByColumnFilters<T extends RsTableRowData>(
   rows: readonly T[],
   columns: readonly RsTableColumn<T>[],
   filters: Record<string, string>,
+  locale?: string,
 ): T[] {
   const active = Object.entries(filters)
     .map(([key, query]) => [key, query.trim()] as const)
@@ -443,8 +448,8 @@ export function filterTableRowsByColumnFilters<T extends RsTableRowData>(
       if (!column) return true
       const value = getCellValue(row, column)
       if (column.filter) return column.filter(value, row, query)
-      const lower = query.toLowerCase()
-      return formatComparableValue(value).toLowerCase().includes(lower)
+      const lower = query.toLocaleLowerCase(locale)
+      return formatComparableValue(value).toLocaleLowerCase(locale).includes(lower)
     }),
   )
 }
@@ -541,28 +546,29 @@ export function buildTableEntries<T extends RsTableRowData>(
     groupBy?: RsTableGroupBy<T>
     groupLabel?: (key: string) => string
     remoteSort?: boolean
+    locale?: string
   } = {},
 ): RsTableRowEntry<T>[] {
   let processed: readonly T[] = rows
   const filterText = options.filterText ?? ''
   if (filterText.trim()) {
-    processed = filterTableRows(processed, filterText, columns, options.filterKeys)
+    processed = filterTableRows(processed, filterText, columns, options.filterKeys, options.locale)
   }
   const columnFilters = options.columnFilters ?? {}
   if (Object.values(columnFilters).some((q) => q.trim())) {
-    processed = filterTableRowsByColumnFilters(processed, columns, columnFilters)
+    processed = filterTableRowsByColumnFilters(processed, columns, columnFilters, options.locale)
   }
   if (!options.remoteSort) {
     if (options.multiSort && options.sorts?.length) {
-      processed = sortTableRowsMulti(processed, columns, options.sorts)
+      processed = sortTableRowsMulti(processed, columns, options.sorts, options.locale)
     } else if (options.sort) {
-      processed = sortTableRows(processed, columns, options.sort)
+      processed = sortTableRows(processed, columns, options.sort, options.locale)
     }
   }
   if (options.groupBy) {
     const groupBy = options.groupBy
     processed = [...processed].sort((left, right) =>
-      compareTableValues(resolveGroupKey(left, groupBy), resolveGroupKey(right, groupBy)),
+      compareTableValues(resolveGroupKey(left, groupBy), resolveGroupKey(right, groupBy), options.locale),
     )
     return groupTableRows(processed, groupBy, options.groupLabel)
   }
@@ -805,6 +811,7 @@ export function filterTableTreeRows<T extends RsTableRowData>(
     childrenField?: string
     filterKeys?: string[]
     columnFilters?: Record<string, string>
+    locale?: string
   } = {},
 ): T[] {
   const childrenField = options.childrenField ?? 'children'
@@ -816,11 +823,11 @@ export function filterTableTreeRows<T extends RsTableRowData>(
   const matchesSelf = (row: T): boolean => {
     let ok = true
     if (trimmed) {
-      const filtered = filterTableRows([row], trimmed, columns, options.filterKeys)
+      const filtered = filterTableRows([row], trimmed, columns, options.filterKeys, options.locale)
       ok = filtered.length > 0
     }
     if (ok && hasColumnFilters) {
-      const filtered = filterTableRowsByColumnFilters([row], columns, columnFilters)
+      const filtered = filterTableRowsByColumnFilters([row], columns, columnFilters, options.locale)
       ok = filtered.length > 0
     }
     return ok
@@ -853,14 +860,15 @@ export function sortTableTreeRows<T extends RsTableRowData>(
     sort?: RsTableSortState | null
     sorts?: readonly RsTableSortState[]
     multiSort?: boolean
+    locale?: string
   },
 ): T[] {
   const childrenField = options.childrenField ?? 'children'
   let sorted: T[]
   if (options.multiSort && options.sorts?.length) {
-    sorted = sortTableRowsMulti(rows, columns, options.sorts)
+    sorted = sortTableRowsMulti(rows, columns, options.sorts, options.locale)
   } else if (options.sort) {
-    sorted = sortTableRows(rows, columns, options.sort)
+    sorted = sortTableRows(rows, columns, options.sort, options.locale)
   } else {
     sorted = rows as T[]
   }
@@ -932,6 +940,7 @@ export function buildTableTreeEntries<T extends RsTableRowData>(
     filterKeys?: string[]
     columnFilters?: Record<string, string>
     remoteSort?: boolean
+    locale?: string
   },
 ): RsTableRowEntry<T>[] {
   const childrenField = options.tree.childrenField ?? 'children'
@@ -944,6 +953,7 @@ export function buildTableTreeEntries<T extends RsTableRowData>(
       childrenField,
       filterKeys: options.filterKeys,
       columnFilters,
+      locale: options.locale,
     })
   }
 
@@ -953,6 +963,7 @@ export function buildTableTreeEntries<T extends RsTableRowData>(
       sort: options.sort,
       sorts: options.sorts,
       multiSort: options.multiSort,
+      locale: options.locale,
     })
   }
 

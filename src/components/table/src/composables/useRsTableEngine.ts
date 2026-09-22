@@ -9,6 +9,7 @@
  */
 
 import { computed, ref, watch, type ComputedRef, type Ref } from 'vue'
+import { useRsI18n } from '../../../../composables/useRsI18n'
 import {
   buildTableEntries,
   buildTableTreeEntries,
@@ -86,6 +87,7 @@ function read<T>(source: ComputedRef<T> | (() => T) | Ref<T>): T {
  *          行勾选/展开的「交互处理函数」仍留在 RsTable（依赖 DOM 与其它 UI 状态）。
  */
 export function useRsTableEngine<T extends RsTableRowData>(options: UseRsTableEngineOptions<T>) {
+  const { locale } = useRsI18n()
   const internalSort = ref<RsTableSortState | null>(options.defaultSort ?? null)
   const internalSorts = ref<RsTableSortState[]>([...options.defaultSorts])
   const internalSelectedRowKeys = ref<string[]>([...options.defaultSelectedRowKeys])
@@ -249,6 +251,7 @@ export function useRsTableEngine<T extends RsTableRowData>(options: UseRsTableEn
         filterKeys: read(options.filterKeys),
         columnFilters: read(options.columnFilters),
         remoteSort: read(options.remoteSort),
+        locale: locale.value,
       })
     }
     return injectExpandRows(
@@ -262,6 +265,7 @@ export function useRsTableEngine<T extends RsTableRowData>(options: UseRsTableEn
         groupBy: read(options.groupBy),
         groupLabel: read(options.groupLabel),
         remoteSort: read(options.remoteSort),
+        locale: locale.value,
       }),
       expandedKeySet.value,
       rowKey,

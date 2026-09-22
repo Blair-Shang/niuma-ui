@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, useId, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import type { RsComponentSize } from '../../../../theme/types'
 import { useRsI18n } from '../../../../composables/useRsI18n'
 import RsDatePicker from '../../../date-picker/src/RsDatePicker.vue'
@@ -20,6 +20,10 @@ import {
 } from '../utils/table-edit-utils'
 
 const { t } = useRsI18n()
+
+defineOptions({ name: 'RsTableCellEditor' })
+
+let blurCommitTimer = 0
 
 const props = withDefaults(
   defineProps<{
@@ -187,13 +191,20 @@ function onPressEnter(event: KeyboardEvent): void {
 
 function onBlur(): void {
   if (isDate.value && dateOverlayOpen.value) {
-    window.setTimeout(() => {
+    window.clearTimeout(blurCommitTimer)
+    blurCommitTimer = window.setTimeout(() => {
+      blurCommitTimer = 0
       if (shouldCommitOnBlur()) emit('commit')
     }, 0)
     return
   }
   if (shouldCommitOnBlur()) emit('commit')
 }
+
+onBeforeUnmount(() => {
+  window.clearTimeout(blurCommitTimer)
+  blurCommitTimer = 0
+})
 
 function onKeydown(event: KeyboardEvent): void {
   if (event.isComposing || composing.value) {

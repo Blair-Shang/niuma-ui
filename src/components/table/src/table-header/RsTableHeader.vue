@@ -3,6 +3,8 @@ import RsIcon from '../../../icon/src/RsIcon.vue'
 import RsTableHeaderFilter from './RsTableHeaderFilter.vue'
 import { useRsTableView } from '../context/rs-table-view-context'
 
+defineOptions({ name: 'RsTableHeader' })
+
 const view = useRsTableView<T>()
 </script>
 

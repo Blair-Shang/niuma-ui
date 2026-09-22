@@ -8,6 +8,8 @@ import type { RsTableRowEntry } from '../utils/table-utils'
 import RsTableBodyRow from './RsTableBodyRow.vue'
 import { useRsTableView } from '../context/rs-table-view-context'
 
+defineOptions({ name: 'RsTableBody' })
+
 const view = useRsTableView<T>()
 
 type RowEntry = Extract<RsTableRowEntry<T>, { type: 'row' }>

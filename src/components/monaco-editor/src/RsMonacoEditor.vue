@@ -31,6 +31,7 @@ import {
   syncMonacoCompletionProvider,
   type MonacoCompletionSnippet,
   type MonacoJsonSchemaEntry,
+  type RsMonacoEditorContextMenu,
   type RsMonacoEditorExpose,
 } from './monaco-editor-utils'
 
@@ -39,6 +40,7 @@ export type {
   MonacoCompletionPrefixResolver,
   MonacoCompletionRequest,
   MonacoCompletionSnippet,
+  RsMonacoEditorContextMenu,
   RsMonacoEditorExpose,
   RsMonacoEditorInstance,
   RsMonacoEditorTheme,
@@ -105,6 +107,11 @@ const props = withDefaults(
     ariaLabel?: string
     /** 根节点 id。不传时用 useId。 */
     id?: string
+    /**
+     * 原生右键菜单。默认开。
+     * 关掉后不再弹出 Monaco 菜单，contextmenu 仍给出行、列和指针坐标。
+     */
+    contextMenu?: boolean
   }>(),
   {
     language: 'json',
@@ -118,6 +125,7 @@ const props = withDefaults(
     debugBreakpoints: () => [],
     embedded: false,
     completionTriggerCharacters: () => ['"', '$', '{', ':', ','],
+    contextMenu: true,
   },
 )
 
@@ -130,6 +138,8 @@ const emit = defineEmits<{
   blur: []
   /** 编辑器完成创建（含 language 变化后的重建） */
   ready: []
+  /** 右键。contextMenu 关闭时已拦住浏览器菜单。 */
+  contextmenu: [event: RsMonacoEditorContextMenu]
 }>()
 
 const model = defineModel<string>({ default: '' })
@@ -154,6 +164,7 @@ let contentDisposable: monaco.IDisposable | null = null
 let focusDisposable: monaco.IDisposable | null = null
 let blurDisposable: monaco.IDisposable | null = null
 let glyphClickDisposable: monaco.IDisposable | null = null
+let contextMenuDisposable: monaco.IDisposable | null = null
 let debugDecoIds: string[] = []
 let suppressChange = false
 let unmounted = false
@@ -183,6 +194,30 @@ function bindGlyphClick(): void {
     const line = event.target.position?.lineNumber
     if (!line) return
     emit('glyphMarginClick', line)
+  })
+}
+
+function bindContextMenu(): void {
+  contextMenuDisposable?.dispose()
+  contextMenuDisposable = null
+  if (!editor) return
+  contextMenuDisposable = editor.onContextMenu((event) => {
+    if (!editor?.getOption(monaco.editor.EditorOption.contextmenu)) {
+      event.event.preventDefault()
+      event.event.stopPropagation()
+    }
+    const position = event.target.position
+    const selection = editor?.getSelection()
+    const selectedText = position && selection && editorModel && !selection.isEmpty() && selection.containsPosition(position)
+      ? editorModel.getValueInRange(selection)
+      : ''
+    emit('contextmenu', {
+      line: position?.lineNumber ?? 0,
+      column: position?.column ?? 0,
+      selectedText,
+      x: event.event.browserEvent.clientX,
+      y: event.event.browserEvent.clientY,
+    })
   })
 }
 
@@ -311,6 +346,8 @@ function disposeEditor(): void {
   blurDisposable = null
   glyphClickDisposable?.dispose()
   glyphClickDisposable = null
+  contextMenuDisposable?.dispose()
+  contextMenuDisposable = null
   debugDecoIds = []
   editor?.dispose()
   editorModel?.dispose()
@@ -390,6 +427,7 @@ function initEditor(): void {
     },
     fixedOverflowWidgets: true,
     ...overrides,
+    contextmenu: props.contextMenu,
   })
 
   contentDisposable = editorModel.onDidChangeContent(() => {
@@ -403,6 +441,7 @@ function initEditor(): void {
   applyJsonSchema()
   applySnippets()
   bindGlyphClick()
+  bindContextMenu()
   syncDebugDecorations()
   emit('ready')
 }
@@ -440,6 +479,7 @@ watch(() => [props.readonly, props.disabled] as const, ([readonly, disabled]) =>
   editor?.updateOptions({ readOnly: readonly || disabled, domReadOnly: disabled })
 })
 watch(() => props.minimap, (val) => editor?.updateOptions({ minimap: { enabled: val } }))
+watch(() => props.contextMenu, (val) => editor?.updateOptions({ contextmenu: val }))
 watch(resolvedAriaLabel, (label) => editor?.updateOptions({ ariaLabel: label }))
 watch(() => props.placeholder, (value) => editor?.updateOptions({ placeholder: value ?? '' }))
 watch(
@@ -468,7 +508,10 @@ watch(() => props.completionTriggerCharacters, () => applySnippets(), { deep: tr
 watch(() => props.completionPrefixResolver, () => applySnippets())
 watch(() => props.options, () => {
   if (!editor || !props.options) return
-  editor.updateOptions(mergeMonacoEditorOptions(props.options, props.language) as monaco.editor.IEditorOptions)
+  editor.updateOptions({
+    ...mergeMonacoEditorOptions(props.options, props.language),
+    contextmenu: props.contextMenu,
+  } as monaco.editor.IEditorOptions)
   applyTheme()
 })
 

@@ -1,12 +1,17 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from 'vue'
 import { useRsI18n } from '../../../composables/useRsI18n'
+import { useRsConfigOptional } from '../../../composables/useRsConfig'
+import { resolveDirMode } from '../../../locale/apply'
+import { useResolvedRsComponentSize } from '../../_shared/src/resolve-size'
+import { useRsFormContext } from '../../form/src/form-utils'
 import RsEmpty from '../../empty/src/RsEmpty.vue'
 import RsIcon from '../../icon/src/RsIcon.vue'
 import type {
   RsTreeCheckState,
   RsTreeDragTrigger,
   RsTreeDropPosition,
+  RsTreeExpose,
   RsTreeFlatNode,
   RsTreeFocusMove,
   RsTreeNode,
@@ -33,6 +38,7 @@ import {
   resolveTreeFocusKey,
   resolveTreeIndent,
   resolveTreeRowHeight,
+  resolveTreeTypeaheadKey,
   resolveTreeVirtualEnabled,
   sliceVirtualTreeNodes,
   shouldShowTreeCheckbox,
@@ -57,6 +63,9 @@ const props = withDefaults(
     nodes: RsTreeNode[]
     fieldNames?: RsTreeFieldNames
     size?: RsTreeSize
+    id?: string
+    ariaLabel?: string
+    disabled?: boolean
     multiple?: boolean
     selectable?: boolean
     checkable?: boolean
@@ -87,7 +96,6 @@ const props = withDefaults(
     overscan?: number
   }>(),
   {
-    size: 'md',
     multiple: false,
     selectable: true,
     checkable: false,
@@ -105,6 +113,7 @@ const props = withDefaults(
     highlight: true,
     autoExpandParent: true,
     lazy: false,
+    disabled: false,
     draggable: false,
     dragTrigger: 'handle',
     virtual: false,
@@ -123,36 +132,68 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useRsI18n()
+const formContext = useRsFormContext()
+const config = useRsConfigOptional()
+const uid = useId()
+const resolvedSize = useResolvedRsComponentSize(() => props.size)
+const treeDisabled = computed(() => props.disabled || Boolean(formContext?.disabled.value))
+const rootId = computed(() => props.id || uid)
+const treeLabel = computed(() => props.ariaLabel || t('tree.label'))
 
 const fields = computed(() => resolveTreeFieldNames(props.fieldNames))
-const rowHeight = computed(() => resolveTreeRowHeight(props.size, props.itemHeight))
+const rowHeight = computed(() => resolveTreeRowHeight(resolvedSize.value, props.itemHeight))
 const indentPx = computed(() => resolveTreeIndent(props.size))
 const rootKeys = computed(() => props.nodes.map((node) => getTreeKey(node, fields.value)))
 
-/* ── 自动高度（仅当业务组件显式传 virtual 时启动，由消费方决定是否开启） ── */
+/* ── 自动高度（仅当业务显式传 virtual，且高度为填满/百分比/未指定） ── */
 const treeRootRef = ref<HTMLElement | null>(null)
 const _measuredHeight = ref(0)
 let _heightObs: ResizeObserver | null = null
+let alive = true
+let typeaheadQuery = ''
+let typeaheadTimer: ReturnType<typeof setTimeout> | null = null
 
-onMounted(() => {
-  // 虚拟滚动且高度为填满/百分比/未指定时，用 ResizeObserver 测量真实视口
-  if (!props.virtual || !treeRootRef.value) return
-  if (
-    props.height !== undefined
-    && !isVirtualListFillHeight(props.height)
-  ) {
-    return
-  }
-  _heightObs = new ResizeObserver((entries) => {
-    _measuredHeight.value = entries[0]?.contentRect.height ?? 0
-  })
-  _heightObs.observe(treeRootRef.value)
-  _measuredHeight.value = treeRootRef.value.clientHeight
-})
+function needsHeightObserver(): boolean {
+  if (!props.virtual || !treeRootRef.value) return false
+  if (props.height !== undefined && !isVirtualListFillHeight(props.height)) return false
+  return typeof ResizeObserver !== 'undefined'
+}
 
-onUnmounted(() => {
+function syncHeightObserver(): void {
   _heightObs?.disconnect()
   _heightObs = null
+  if (!needsHeightObserver() || !treeRootRef.value) return
+  const target = treeRootRef.value
+  _heightObs = new ResizeObserver((entries) => {
+    if (!alive) return
+    _measuredHeight.value = entries[0]?.contentRect.height ?? 0
+  })
+  _heightObs.observe(target)
+  _measuredHeight.value = target.clientHeight
+}
+
+onMounted(() => {
+  syncHeightObserver()
+})
+
+watch(
+  () => [props.virtual, props.height] as const,
+  () => {
+    void nextTick(() => {
+      if (!alive) return
+      syncHeightObserver()
+    })
+  },
+)
+
+onUnmounted(() => {
+  alive = false
+  _heightObs?.disconnect()
+  _heightObs = null
+  if (typeaheadTimer != null) clearTimeout(typeaheadTimer)
+  typeaheadTimer = null
+  typeaheadQuery = ''
+  rowRefs.value.clear()
 })
 
 const expandedKeysInternal = ref<string[]>(
@@ -236,22 +277,24 @@ const useVirtualScroll = computed(() =>
 )
 
 if (import.meta.env.DEV) {
-  watch(
-    [useVirtualScroll, _measuredHeight],
-    ([virtual, h]) => {
-      const status = virtual ? '✅ 虚拟滚动已开启' : '⬜ 虚拟滚动未开启'
-      let heightInfo: string
-      if (h > 0) {
-        heightInfo = `${h}px (ResizeObserver)`
-      } else if (props.height === undefined) {
-        heightInfo = '320px (fallback)'
-      } else {
-        heightInfo = `${props.height} (prop)`
-      }
-      console.debug('[RsTree]', status, '| 节点数:', flatNodes.value.length, '| 视口高度:', heightInfo)
-    },
-    { immediate: true },
-  )
+  watch(useVirtualScroll, (enabled, wasEnabled) => {
+    if (!enabled || wasEnabled) return
+    let heightInfo: string
+    if (_measuredHeight.value > 0) {
+      heightInfo = `${Math.round(_measuredHeight.value)}px (ResizeObserver)`
+    } else if (props.height !== undefined && !isVirtualListFillHeight(props.height)) {
+      heightInfo = `${props.height} (prop)`
+    } else {
+      heightInfo = '320px (fallback)'
+    }
+    console.info(
+      '[RsTree] 虚拟滚动已开启',
+      '| 节点数:',
+      flatNodes.value.length,
+      '| 视口高度:',
+      heightInfo,
+    )
+  }, { immediate: true })
 }
 
 const viewportHeightPx = computed(() => {
@@ -344,6 +387,7 @@ watch(
     if (previousKeyword === undefined) return
     // 列表高度骤变时浏览器不一定派发 scroll，主动归零避免虚拟切片空白
     void nextTick(() => {
+      if (!alive) return
       resetViewportScroll()
     })
   },
@@ -356,6 +400,7 @@ watch(
     if (nodes.length === 0) {
       focusedKey.value = null
       void nextTick(() => {
+        if (!alive) return
         clampViewportScroll()
       })
       return
@@ -364,6 +409,7 @@ watch(
       focusedKey.value = nodes[0]?.key ?? null
     }
     void nextTick(() => {
+      if (!alive) return
       clampViewportScroll()
     })
   },
@@ -383,9 +429,77 @@ function setRowRef(key: string, element: Element | null): void {
   else rowRefs.value.delete(key)
 }
 
+function pruneRowRefs(nodes: readonly RsTreeFlatNode[]): void {
+  const live = new Set(nodes.map((item) => item.key))
+  for (const key of rowRefs.value.keys()) {
+    if (!live.has(key)) rowRefs.value.delete(key)
+  }
+}
+
+watch(visibleFlatNodes, (nodes) => {
+  pruneRowRefs(nodes)
+})
+
+function itemDomId(key: string): string {
+  return `${rootId.value}-item-${encodeURIComponent(key).replace(/%/g, '_')}`
+}
+
+function isRtlHost(): boolean {
+  if (config) return resolveDirMode(config.dir.value, config.locale.value) === 'rtl'
+  const dir = treeRootRef.value?.closest('[dir]')?.getAttribute('dir')
+  if (dir === 'rtl') return true
+  if (dir === 'ltr') return false
+  if (treeRootRef.value && typeof getComputedStyle === 'function') {
+    return getComputedStyle(treeRootRef.value).direction === 'rtl'
+  }
+  return false
+}
+
+function scrollKeyIntoView(key: string): void {
+  const index = flatNodes.value.findIndex((item) => item.key === key)
+  if (index < 0) return
+  if (useVirtualScroll.value) {
+    const top = index * rowHeight.value
+    const view = viewportHeightPx.value
+    const current = scrollTop.value
+    let next = current
+    if (top < current) next = top
+    else if (top + rowHeight.value > current + view) next = Math.max(0, top + rowHeight.value - view)
+    if (next !== current) {
+      scrollTop.value = next
+      const el = viewportRef.value
+      if (el && el.scrollTop !== next) el.scrollTop = next
+    }
+    return
+  }
+  rowRefs.value.get(key)?.scrollIntoView?.({ block: 'nearest' })
+}
+
 async function scrollFocusedIntoView(key: string): Promise<void> {
   await nextTick()
-  rowRefs.value.get(key)?.scrollIntoView?.({ block: 'nearest' })
+  if (!alive) return
+  scrollKeyIntoView(key)
+}
+
+function revealAncestors(key: string): void {
+  const index = nodeIndex.value
+  if (!index.has(key)) return
+  const chain: string[] = []
+  let parent = index.get(key)?.parentKey ?? null
+  while (parent) {
+    chain.push(parent)
+    parent = index.get(parent)?.parentKey ?? null
+  }
+  if (chain.length === 0) return
+  const next = new Set(expandedKeys.value)
+  let changed = false
+  for (const id of chain) {
+    if (!next.has(id)) {
+      next.add(id)
+      changed = true
+    }
+  }
+  if (changed) expandedKeys.value = [...next]
 }
 
 function setExpanded(key: string, expanded: boolean): void {
@@ -402,6 +516,7 @@ function setExpanded(key: string, expanded: boolean): void {
 }
 
 async function toggleExpanded(node: RsTreeNode, key: string): Promise<void> {
+  if (treeDisabled.value) return
   const expanded = expandedSet.value.has(key)
   if (expanded) {
     setExpanded(key, false)
@@ -420,17 +535,19 @@ async function toggleExpanded(node: RsTreeNode, key: string): Promise<void> {
     try {
       await props.loadData(node, key)
     } finally {
+      if (!alive) return
       const doneLoading = new Set(loadingKeys.value)
       doneLoading.delete(key)
       loadingKeys.value = doneLoading
     }
   }
 
+  if (!alive) return
   setExpanded(key, true)
 }
 
 function selectNode(node: RsTreeNode, key: string): void {
-  if (!props.selectable || isTreeNodeDisabled(node, fields.value)) return
+  if (treeDisabled.value || !props.selectable || isTreeNodeDisabled(node, fields.value)) return
 
   if (props.multiple) {
     const next = new Set(selectedSet.value)
@@ -443,7 +560,7 @@ function selectNode(node: RsTreeNode, key: string): void {
 }
 
 function toggleCheck(node: RsTreeNode, key: string): void {
-  if (isTreeCheckboxDisabled(node, fields.value, checkboxOptions())) return
+  if (treeDisabled.value || isTreeCheckboxDisabled(node, fields.value, checkboxOptions())) return
   const next = toggleTreeCheck(
     key,
     checkedSet.value,
@@ -456,6 +573,7 @@ function toggleCheck(node: RsTreeNode, key: string): void {
 }
 
 function handleNodeAction(node: RsTreeNode, key: string): void {
+  if (treeDisabled.value) return
   emit('node-click', node, key)
   focusedKey.value = key
 
@@ -479,6 +597,7 @@ function handleRowClick(node: RsTreeNode, key: string, event: MouseEvent): void 
 }
 
 function handleRowDblclick(node: RsTreeNode, key: string, event: MouseEvent): void {
+  if (treeDisabled.value) return
   const target = event.target as HTMLElement
   if (target.closest('.rs-tree__toggle, .rs-tree__checkbox, .rs-tree__drag-handle')) return
   emit('node-dblclick', node, key)
@@ -489,16 +608,33 @@ function handleLabelClick(node: RsTreeNode, key: string, event: MouseEvent): voi
   handleNodeAction(node, key)
 }
 
-/** 逐行渲染都会调用（含 title 插槽的 check-state）；无勾选项时全部为 unchecked，不必建索引 */
+/**
+ * 只给当前可见行算勾选态，模板里多次读取走 Map。
+ * 没有勾选项时不建索引。
+ */
+const checkStateMap = computed(() => {
+  const map = new Map<string, RsTreeCheckState>()
+  if (!props.checkable || checkedSet.value.size === 0) return map
+  const index = nodeIndex.value
+  for (const entry of visibleFlatNodes.value) {
+    map.set(
+      entry.key,
+      resolveTreeCheckState(entry.key, checkedSet.value, index, props.checkStrictly, props.onlyCheckLeaf),
+    )
+  }
+  return map
+})
+
 function checkStateFor(key: string): RsTreeCheckState {
-  if (checkedSet.value.size === 0) return 'unchecked'
-  return resolveTreeCheckState(
-    key,
-    checkedSet.value,
-    nodeIndex.value,
-    props.checkStrictly,
-    props.onlyCheckLeaf,
-  )
+  return checkStateMap.value.get(key) ?? 'unchecked'
+}
+
+function ariaChecked(key: string): 'true' | 'false' | 'mixed' | undefined {
+  if (!props.checkable) return undefined
+  const state = checkStateFor(key)
+  if (state === 'checked') return 'true'
+  if (state === 'indeterminate') return 'mixed'
+  return 'false'
 }
 
 function isSelected(key: string): boolean {
@@ -513,10 +649,23 @@ function isFocused(key: string): boolean {
   return focusedKey.value === key
 }
 
-function labelParts(node: RsTreeNode): Array<{ text: string; highlight: boolean }> {
-  const label = getTreeLabel(node, fields.value)
-  if (!props.highlight || !props.filter.trim()) return [{ text: label, highlight: false }]
-  return splitTreeLabelHighlight(label, props.filter)
+const labelPartsByKey = computed(() => {
+  const map = new Map<string, Array<{ text: string; highlight: boolean }>>()
+  const keyword = props.filter.trim()
+  for (const entry of visibleFlatNodes.value) {
+    const label = getTreeLabel(entry.node, fields.value)
+    map.set(
+      entry.key,
+      !props.highlight || !keyword
+        ? [{ text: label, highlight: false }]
+        : splitTreeLabelHighlight(label, props.filter),
+    )
+  }
+  return map
+})
+
+function labelParts(key: string): Array<{ text: string; highlight: boolean }> {
+  return labelPartsByKey.value.get(key) ?? []
 }
 
 function rowIndentStyle(depth: number): Record<string, string> {
@@ -544,6 +693,34 @@ function focusNode(key: string): void {
   void scrollFocusedIntoView(key)
 }
 
+function focus(): void {
+  treeRootRef.value?.focus()
+}
+
+function scrollToKey(key: string): void {
+  if (!nodeIndex.value.has(key)) return
+  revealAncestors(key)
+  focusedKey.value = key
+  void scrollFocusedIntoView(key)
+}
+
+function getSelectedKeys(): string[] {
+  if (props.multiple) return Array.isArray(model.value) ? model.value.map(String) : []
+  return typeof model.value === 'string' && model.value ? [model.value] : []
+}
+
+function getCheckedKeys(): string[] {
+  return [...checkedKeys.value]
+}
+
+function getExpandedKeys(): string[] {
+  return [...expandedKeys.value]
+}
+
+function getHalfCheckedKeys(): string[] {
+  return [...halfCheckedKeys.value]
+}
+
 function moveFocus(move: RsTreeFocusMove): void {
   const nextKey = resolveTreeFocusKey(flatNodes.value, focusedKey.value, move, nodeIndex.value)
   if (!nextKey) return
@@ -566,35 +743,61 @@ function handleTreeNavigationKey(event: KeyboardEvent): boolean {
   return true
 }
 
-function handleTreeArrowRight(event: KeyboardEvent, entry: RsTreeFlatNode, current: string): void {
+function handleTreeArrowForward(event: KeyboardEvent, entry: RsTreeFlatNode, current: string): void {
   event.preventDefault()
   if (entry.hasChildren && !isExpanded(current)) void toggleExpanded(entry.node, current)
   else moveFocus('next')
 }
 
-function handleTreeArrowLeft(event: KeyboardEvent, entry: RsTreeFlatNode, current: string): void {
+function handleTreeArrowBackward(event: KeyboardEvent, entry: RsTreeFlatNode, current: string): void {
   event.preventDefault()
   if (entry.hasChildren && isExpanded(current)) setExpanded(current, false)
   else moveFocus('parent')
 }
 
-function handleTreeEntryKeydown(event: KeyboardEvent, entry: RsTreeFlatNode, current: string): void {
-  const key = event.key
-  if (key === 'ArrowRight') {
-    handleTreeArrowRight(event, entry, current)
-    return
+function expandSiblingBranches(current: string): void {
+  if (props.accordion || treeDisabled.value) return
+  const index = nodeIndex.value
+  const parentKey = index.get(current)?.parentKey ?? null
+  const siblings = parentKey ? (index.get(parentKey)?.childrenKeys ?? []) : rootKeys.value
+  const next = new Set(expandedKeys.value)
+  let changed = false
+  for (const sibling of siblings) {
+    const entry = index.get(sibling)
+    if (!entry || entry.childrenKeys.length === 0 || next.has(sibling)) continue
+    next.add(sibling)
+    changed = true
   }
-  if (key === 'ArrowLeft') {
-    handleTreeArrowLeft(event, entry, current)
-    return
-  }
-  if (key === 'Enter' || key === ' ') {
-    event.preventDefault()
-    handleNodeAction(entry.node, current)
-  }
+  if (changed) expandedKeys.value = [...next]
+}
+
+function handleTypeahead(event: KeyboardEvent): boolean {
+  if (event.isComposing || event.key === 'Process') return false
+  if (event.altKey || event.ctrlKey || event.metaKey) return false
+  if (event.key.length !== 1) return false
+  event.preventDefault()
+  typeaheadQuery = `${typeaheadQuery}${event.key}`.slice(-32)
+  if (typeaheadTimer != null) clearTimeout(typeaheadTimer)
+  typeaheadTimer = setTimeout(() => {
+    typeaheadTimer = null
+    typeaheadQuery = ''
+  }, 500)
+  const nextKey = resolveTreeTypeaheadKey(flatNodes.value, focusedKey.value, typeaheadQuery, fields.value)
+  if (!nextKey) return true
+  focusedKey.value = nextKey
+  void scrollFocusedIntoView(nextKey)
+  return true
+}
+
+function isInnerControlTarget(event: KeyboardEvent): boolean {
+  const target = event.target
+  if (!(target instanceof Element)) return false
+  return Boolean(target.closest('.rs-tree__label, .rs-tree__toggle, .rs-tree__checkbox'))
 }
 
 function handleKeydown(event: KeyboardEvent): void {
+  if (treeDisabled.value) return
+  if ((event.key === 'Enter' || event.key === ' ') && isInnerControlTarget(event)) return
   if (handleTreeNavigationKey(event)) return
 
   const current = focusedKey.value
@@ -602,7 +805,27 @@ function handleKeydown(event: KeyboardEvent): void {
   const entry = flatNodes.value.find((item) => item.key === current)
   if (!entry) return
 
-  handleTreeEntryKeydown(event, entry, current)
+  const forward = isRtlHost() ? 'ArrowLeft' : 'ArrowRight'
+  const backward = isRtlHost() ? 'ArrowRight' : 'ArrowLeft'
+  if (event.key === forward) {
+    handleTreeArrowForward(event, entry, current)
+    return
+  }
+  if (event.key === backward) {
+    handleTreeArrowBackward(event, entry, current)
+    return
+  }
+  if (event.key === '*') {
+    event.preventDefault()
+    expandSiblingBranches(current)
+    return
+  }
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    handleNodeAction(entry.node, current)
+    return
+  }
+  handleTypeahead(event)
 }
 
 function canDrop(drag: string, drop: string, position: RsTreeDropPosition): boolean {
@@ -623,7 +846,7 @@ function resolveDropPosition(event: MouseEvent, element: HTMLElement): RsTreeDro
 }
 
 function onDragStart(key: string, event: DragEvent): void {
-  if (!props.draggable) return
+  if (treeDisabled.value || !props.draggable) return
   dragKey.value = key
   if (!event.dataTransfer) return
   event.dataTransfer.setData('text/plain', key)
@@ -631,7 +854,7 @@ function onDragStart(key: string, event: DragEvent): void {
 }
 
 function onDragOver(key: string, event: DragEvent): void {
-  if (!props.draggable || !dragKey.value) return
+  if (treeDisabled.value || !props.draggable || !dragKey.value) return
   const row = event.currentTarget as HTMLElement
   const position = resolveDropPosition(event, row)
   if (!canDrop(dragKey.value, key, position)) return
@@ -645,7 +868,7 @@ function onDragLeave(): void {
 }
 
 function onDrop(key: string, event: DragEvent): void {
-  if (!props.draggable || !dragKey.value) return
+  if (treeDisabled.value || !props.draggable || !dragKey.value) return
   const row = event.currentTarget as HTMLElement
   const position = resolveDropPosition(event, row)
   event.preventDefault()
@@ -664,21 +887,28 @@ function onViewportScroll(event: Event): void {
   scrollTop.value = (event.target as HTMLElement).scrollTop
 }
 
-defineExpose({
+defineExpose<RsTreeExpose>({
   expandAll,
   collapseAll,
   expandNode,
   collapseNode,
   focusNode,
+  focus,
+  scrollToKey,
+  getSelectedKeys,
+  getCheckedKeys,
+  getExpandedKeys,
+  getHalfCheckedKeys,
 })
 </script>
 
 <template>
   <div
+    :id="rootId"
     ref="treeRootRef"
-    class="rs-tree"
+    class="rs-tree rs-motion-reduce"
     :class="[
-      `rs-tree--${size}`,
+      `rs-tree--${resolvedSize}`,
       {
         'rs-tree--virtual': useVirtualScroll,
         'rs-tree--fill-capture': fillCapture,
@@ -686,20 +916,24 @@ defineExpose({
         'rs-tree--line': showLine,
         'rs-tree--draggable': draggable,
         'rs-tree--drag-row': dragWholeRow,
+        'rs-tree--disabled': treeDisabled,
       },
     ]"
     role="tree"
-    tabindex="0"
-    :aria-label="t('tree.label')"
+    :tabindex="treeDisabled ? -1 : 0"
+    :aria-label="treeLabel"
+    :aria-disabled="treeDisabled || undefined"
     :aria-multiselectable="multiple || checkable || undefined"
+    :aria-activedescendant="focusedKey ? itemDomId(focusedKey) : undefined"
     @keydown="handleKeydown"
   >
-    <RsEmpty
-      v-if="isEmpty"
-      fill
-      class="rs-tree__empty"
-      :description="t('tree.empty')"
-    />
+    <slot v-if="isEmpty" name="empty">
+      <RsEmpty
+        fill
+        class="rs-tree__empty"
+        :description="t('tree.empty')"
+      />
+    </slot>
 
     <div
       v-else
@@ -720,20 +954,24 @@ defineExpose({
 
       <ul class="rs-tree__list">
         <li
-          v-for="(entry, entryIndex) in visibleFlatNodes"
+          v-for="entry in visibleFlatNodes"
           :key="`${entry.parentKey ?? 'root'}:${entry.key}`"
           class="rs-tree__item"
         >
           <div
+            :id="itemDomId(entry.key)"
             :ref="(el) => setRowRef(entry.key, el as Element | null)"
             class="rs-tree__row"
             role="treeitem"
-            :tabindex="isFocused(entry.key) ? 0 : -1"
+            tabindex="-1"
             :aria-expanded="entry.hasChildren ? isExpanded(entry.key) : undefined"
             :aria-selected="selectable ? isSelected(entry.key) : undefined"
+            :aria-checked="checkable && shouldShowTreeCheckbox(entry.node, fields, checkboxOptions()) ? ariaChecked(entry.key) : undefined"
+            :aria-disabled="treeDisabled || isTreeNodeDisabled(entry.node, fields) || undefined"
+            :aria-busy="isTreeNodeLoading(entry.node, entry.key, loadingKeys, fields) || undefined"
             :aria-level="entry.depth + 1"
-            :aria-setsize="flatNodes.length"
-            :aria-posinset="virtualSlice.startIndex + entryIndex + 1"
+            :aria-setsize="entry.setSize"
+            :aria-posinset="entry.posInSet"
             :draggable="draggable && !isTreeNodeDisabled(entry.node, fields)"
             :class="{
               'rs-tree__row--selected': selectable && isSelected(entry.key),
@@ -747,7 +985,6 @@ defineExpose({
             :data-tree-key="entry.key"
             :style="[rowIndentStyle(entry.depth), { minHeight: `${rowHeight}px` }]"
             @contextmenu="emit('node-contextmenu', entry.node, entry.key, $event)"
-            @keydown="handleKeydown"
             @dragstart="onDragStart(entry.key, $event)"
             @dragover="onDragOver(entry.key, $event)"
             @dragleave="onDragLeave"
@@ -781,7 +1018,7 @@ defineExpose({
             <span
               v-if="showDragHandle"
               class="rs-tree__drag-handle"
-              :aria-label="t('tree.drag')"
+              :title="t('tree.drag')"
               aria-hidden="true"
             >
               <RsIcon name="grip-vertical" size="sm" />
@@ -792,9 +1029,10 @@ defineExpose({
               type="button"
               class="rs-tree__toggle"
               :class="{ 'rs-tree__toggle--expanded': isExpanded(entry.key) }"
+              tabindex="-1"
               :aria-label="isExpanded(entry.key) ? t('tree.collapse') : t('tree.expand')"
               :aria-expanded="isExpanded(entry.key)"
-              :disabled="isTreeNodeLoading(entry.node, entry.key, loadingKeys, fields)"
+              :disabled="treeDisabled || isTreeNodeLoading(entry.node, entry.key, loadingKeys, fields)"
               @click.stop="toggleExpanded(entry.node, entry.key)"
             >
               <RsIcon
@@ -819,8 +1057,10 @@ defineExpose({
               <input
                 type="checkbox"
                 class="rs-tree__checkbox-input"
+                tabindex="-1"
                 :checked="checkStateFor(entry.key) === 'checked'"
-                :disabled="isTreeCheckboxDisabled(entry.node, fields, checkboxOptions())"
+                :indeterminate="checkStateFor(entry.key) === 'indeterminate'"
+                :disabled="treeDisabled || isTreeCheckboxDisabled(entry.node, fields, checkboxOptions())"
                 :aria-label="t('tree.check')"
                 @click.stop
                 @change="toggleCheck(entry.node, entry.key)"
@@ -833,18 +1073,27 @@ defineExpose({
               aria-hidden="true"
             />
 
-            <RsIcon
-              v-if="entry.node[fields.icon] || entry.node.icon"
-              :name="String(entry.node[fields.icon] ?? entry.node.icon)"
-              size="sm"
-              class="rs-tree__node-icon"
-            />
+            <slot
+              v-if="$slots.icon || entry.node[fields.icon] || entry.node.icon"
+              name="icon"
+              :node="entry.node"
+              :key="entry.key"
+              :expanded="isExpanded(entry.key)"
+            >
+              <RsIcon
+                v-if="entry.node[fields.icon] || entry.node.icon"
+                :name="String(entry.node[fields.icon] ?? entry.node.icon)"
+                size="sm"
+                class="rs-tree__node-icon"
+              />
+            </slot>
 
             <button
               v-if="!blockNode"
               type="button"
               class="rs-tree__label"
-              :disabled="isTreeNodeDisabled(entry.node, fields)"
+              tabindex="-1"
+              :disabled="treeDisabled || isTreeNodeDisabled(entry.node, fields)"
               @click="handleLabelClick(entry.node, entry.key, $event)"
             >
               <slot
@@ -859,7 +1108,7 @@ defineExpose({
                 :focused="isFocused(entry.key)"
               >
                 <span class="rs-tree__label-text">
-                  <template v-for="(part, index) in labelParts(entry.node)" :key="index">
+                  <template v-for="(part, index) in labelParts(entry.key)" :key="index">
                     <mark v-if="part.highlight" class="rs-tree__highlight">{{ part.text }}</mark>
                     <template v-else>{{ part.text }}</template>
                   </template>
@@ -883,7 +1132,7 @@ defineExpose({
                 :focused="isFocused(entry.key)"
               >
                 <span class="rs-tree__label-text">
-                  <template v-for="(part, index) in labelParts(entry.node)" :key="index">
+                  <template v-for="(part, index) in labelParts(entry.key)" :key="index">
                     <mark v-if="part.highlight" class="rs-tree__highlight">{{ part.text }}</mark>
                     <template v-else>{{ part.text }}</template>
                   </template>
@@ -1026,7 +1275,11 @@ defineExpose({
 }
 
 .rs-tree__row--drop-inside {
-  background: color-mix(in srgb, var(--rs-primary) 8%, transparent);
+  background: var(--rs-tree-drop-inside-bg);
+}
+
+.rs-tree--disabled {
+  cursor: not-allowed;
 }
 
 .rs-tree--line .rs-tree__lines {
@@ -1106,8 +1359,16 @@ defineExpose({
   transition: transform var(--rs-transition-fast);
 }
 
+[dir='rtl'] .rs-tree__toggle-caret {
+  transform: translateY(-0.5px) scaleX(-1);
+}
+
 .rs-tree__toggle--expanded .rs-tree__toggle-caret {
   transform: translateY(-0.5px) rotate(90deg);
+}
+
+[dir='rtl'] .rs-tree__toggle--expanded .rs-tree__toggle-caret {
+  transform: translateY(-0.5px) scaleX(-1) rotate(-90deg);
 }
 
 .rs-tree__loading-icon {
@@ -1163,7 +1424,7 @@ defineExpose({
   content: '';
   width: 0.3rem;
   height: 0.55rem;
-  border: solid var(--rs-on-primary, #fff);
+  border: solid var(--rs-tree-check-fg, var(--rs-primary-foreground));
   border-width: 0 2px 2px 0;
   transform: rotate(45deg) translate(-1px, -1px);
 }
@@ -1172,7 +1433,7 @@ defineExpose({
   content: '';
   width: 0.5rem;
   height: 2px;
-  background: var(--rs-on-primary, #fff);
+  background: var(--rs-tree-check-fg, var(--rs-primary-foreground));
   border-radius: 1px;
 }
 
@@ -1213,7 +1474,7 @@ defineExpose({
   padding: 0 0.125rem;
   border: 0;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--rs-warning) 45%, transparent);
+  background: var(--rs-tree-highlight-bg);
   color: inherit;
   font-weight: var(--rs-font-weight-semibold);
 }

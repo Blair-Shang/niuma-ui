@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { h, nextTick } from 'vue'
@@ -1236,5 +1237,23 @@ describe('RsTable', () => {
     await wrapper.find('.rs-table__td--data').trigger('contextmenu')
     expect(document.body.querySelector('.rs-context-menu__content')).toBeNull()
     wrapper.unmount()
+  })
+
+  it('does not import reka-ui and cleans timers on unmount', () => {
+    const source = readFileSync('src/components/table/src/RsTable.vue', 'utf8')
+    const editor = readFileSync('src/components/table/src/table-body/RsTableCellEditor.vue', 'utf8')
+    const scroll = readFileSync('src/components/table/src/composables/useRsTableScrollLayout.ts', 'utf8')
+    const resize = readFileSync('src/components/table/src/composables/useRsTableColumnResize.ts', 'utf8')
+    expect(source).not.toContain('reka-ui')
+    expect(editor).not.toContain('reka-ui')
+    expect(source).toContain("name: 'RsTable'")
+    expect(source).toContain('rs-motion-reduce')
+    expect(editor).toContain('clearTimeout')
+    expect(editor).toContain('onBeforeUnmount')
+    expect(scroll).toContain('disconnect')
+    expect(scroll).toContain('cancelAnimationFrame')
+    expect(scroll).toContain('restoreGeneration += 1')
+    expect(resize).toContain('removeEventListener')
+    expect(resize).toContain('cancelAnimationFrame')
   })
 })

@@ -4,7 +4,7 @@ import { SearchAddon } from '@xterm/addon-search'
 import type { ITheme } from '@xterm/xterm'
 import { Terminal } from '@xterm/xterm'
 import '@xterm/xterm/css/xterm.css'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import { useRsI18n } from '../../../composables/useRsI18n'
 import {
   readTerminalFontFamily,
@@ -21,14 +21,19 @@ import RsContextMenu from '../../context-menu/src/RsContextMenu.vue'
 import type { RsContextMenuItem } from '../../context-menu/src/context-menu-utils'
 import RsLoading from '../../loading/src/RsLoading.vue'
 import {
-  proposeTerminalGeometry,
-  readXtermCssCellSize,
+  findTerminalHttpLinks,
+  isSafeTerminalLink,
   mergeTerminalTheme,
   needsPtyWriteViewportPrep,
   prepareTerminalForPtyWrite,
+  proposeTerminalGeometry,
+  readXtermCssCellSize,
   resolveTerminalTheme,
+  subscribeTerminalTheme,
+  terminalLinkCellRange,
   terminalShortcutLabel,
   type RsTerminalAction,
+  type RsTerminalCursorStyle,
   type RsTerminalExpose,
   type RsTerminalGeometry,
   type RsTerminalThemeMode,
@@ -45,9 +50,8 @@ const TERMINAL_LINE_HEIGHT = 1.2
 /** 令牌缺省字号；仅在挂载前（含 SSR）占位，挂载后由 syncResolvedFontSize 换成实测值。 */
 const FALLBACK_FONT_SIZE_PX = 14
 
-// class / style 需要落在 .rs-terminal 上；根节点是 RsContextMenu 的 as-child 触发器，
-// 交给自动透传会落到触发器上，消费方只能在外面再套一层控制尺寸。
-defineOptions({ inheritAttrs: false })
+// class / style 落在 .rs-terminal 上。右键菜单包在外面，自动透传会落到菜单根上。
+defineOptions({ name: 'RsTerminal', inheritAttrs: false })
 
 type RsTerminalFontWeight =
   | 'normal'
@@ -91,7 +95,8 @@ const props = withDefaults(
     extraContextMenuItems?: RsContextMenuItem[]
     /**
      * 右键是否自动选中光标下单词。
-     * SSH/vim/less 等 TUI 场景建议 false，避免冲掉用户已拖选的大段文本。
+     * 已经有拖选时不会缩成一个词，避免滚选大段文本时选区跳一下。
+     * SSH/vim/less 等 TUI 场景建议 false。
      */
     rightClickSelectsWord?: boolean
     shortcuts?: boolean
@@ -111,6 +116,27 @@ const props = withDefaults(
     copyOnSelect?: boolean
     /** 启用 Ctrl/⌘+F 终端内搜索 */
     searchEnabled?: boolean
+    /** 光标形状。缺省 block，与 xterm 一致。 */
+    cursorStyle?: RsTerminalCursorStyle
+    /**
+     * 读屏模式。缺省关闭：打开后 xterm 会为每次光标移动暴露辅助节点。
+     * 需要 NVDA / VoiceOver 跟随时再开。
+     */
+    screenReaderMode?: boolean
+    /**
+     * 点击 http(s) / mailto 时用新标签打开。
+     * 设为 false 时只发 `link`，由宿主决定。javascript: 与 data: 一律忽略。
+     */
+    openLinks?: boolean
+    /**
+     * 单格宽、字形却更宽的字符（GB18030 歧义宽度）按格缩放。
+     * 缺省开启。DOM 渲染器下无效。
+     */
+    rescaleOverlappingGlyphs?: boolean
+    /** 区域的可访问名称。未传走 terminal.label。 */
+    ariaLabel?: string
+    /** 根节点 id。 */
+    id?: string
     /**
      * 单元格前景相对背景的最低对比度（xterm `minimumContrastRatio`）。
      * `ls --color` 软链接常用黑底；浅色主题把青/蓝调深后会看不清，4.5 对齐 WCAG AA。
@@ -138,6 +164,10 @@ const props = withDefaults(
     snapViewportOnTuiWrite: true,
     copyOnSelect: false,
     searchEnabled: false,
+    cursorStyle: 'block',
+    screenReaderMode: false,
+    openLinks: true,
+    rescaleOverlappingGlyphs: true,
     minimumContrastRatio: 4.5,
   },
 )
@@ -153,14 +183,24 @@ const emit = defineEmits<{
   selectionChange: [text: string]
   /** 业务追加的右键项被选中 */
   extraSelect: [key: string]
+  /** OSC 0 / 2 标题。宿主用来改页签或窗口名。 */
+  titleChange: [title: string]
+  /** BEL（\\x07）。组件不发声，由宿主决定。 */
+  bell: []
+  /** 点中 http(s) 或 mailto。不安全协议不发。 */
+  link: [url: string]
 }>()
 
 const { t } = useRsI18n()
 const hostEl = ref<HTMLElement | null>(null)
+const regionLabel = computed(() => props.ariaLabel || t('terminal.label', 'Terminal'))
 const terminalReady = ref(false)
 const hasSelection = ref(false)
-/** 右键菜单打开瞬间的选区快照（capture 阶段，早于 xterm word-select） */
-const menuSelectionSnapshot = ref('')
+/**
+ * 右键打开前的选区文本。不用 ref：菜单禁用只看 hasSelection，
+ * 避免大段文本写回响应式数据时把菜单再排一次。
+ */
+let menuSelectionText = ''
 const resolvedThemeMode = ref(resolveTerminalTheme(props.themeMode))
 /** fit 后量一次真实行高，避免亚像素漂移；非每帧更新 */
 const zebraRowStepPx = ref<number | null>(null)
@@ -213,13 +253,14 @@ const contextMenuItems = computed<RsContextMenuItem[]>(() => {
       label: t('terminal.copy', 'Copy'),
       icon: 'copy',
       shortcut: terminalShortcutLabel('C'),
-      disabled: false,
+      disabled: !hasSelection.value,
     },
     {
       key: 'paste',
       label: t('terminal.paste', 'Paste'),
       icon: 'clipboard-paste',
       shortcut: terminalShortcutLabel('V'),
+      disabled: !props.inputEnabled,
     },
     {
       key: 'selectAll',
@@ -243,7 +284,7 @@ const contextMenuItems = computed<RsContextMenuItem[]>(() => {
         key: 'askAi',
         label: t('terminal.askAi', 'Ask AI'),
         icon: 'bot',
-        disabled: !hasSelection.value && !menuSelectionSnapshot.value,
+        disabled: !hasSelection.value,
       },
     )
   }
@@ -265,17 +306,29 @@ const contextMenuItems = computed<RsContextMenuItem[]>(() => {
 
 const searchOpen = ref(false)
 const searchQuery = ref('')
+const searchStatus = ref('')
 const searchInputEl = ref<HTMLInputElement | null>(null)
+const searchStatusId = useId()
+
+type Disposable = { dispose: () => void }
 
 let terminal: Terminal | null = null
 let fitAddon: FitAddon | null = null
 let searchAddon: SearchAddon | null = null
 let resizeObserver: ResizeObserver | null = null
-let themeObserver: MutationObserver | null = null
+let unsubscribeTheme: (() => void) | null = null
 let detachWheelGuard: (() => void) | null = null
+let dataDisposable: Disposable | null = null
+let selectionDisposable: Disposable | null = null
+let titleDisposable: Disposable | null = null
+let bellDisposable: Disposable | null = null
+let linkDisposable: Disposable | null = null
+let motionMedia: MediaQueryList | null = null
 let lastGeometry = { cols: 0, rows: 0 }
 let fitRaf = 0
+let selectionFrame = 0
 let didInitialFit = false
+let alive = true
 
 function resolveAllowTransparency(): boolean {
   return props.allowTransparency || props.zebraStripes
@@ -284,7 +337,39 @@ function resolveAllowTransparency(): boolean {
 function buildXtermTheme(): ITheme {
   // 主题背景保持不透明：反色行 (xterm-fg/bg-257) 依赖 opaque(background)；
   // 斑马纹通过 allowTransparency 让默认单元格透出底层 CSS 渐变。
-  return mergeTerminalTheme(resolvedThemeMode.value, props.theme)
+  return mergeTerminalTheme(resolvedThemeMode.value, props.theme, hostEl.value)
+}
+
+function prefersReducedMotion(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false
+  }
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+function syncCursorBlink(): void {
+  if (!terminal) {
+    return
+  }
+  terminal.options.cursorBlink = props.cursorBlink && !prefersReducedMotion()
+}
+
+function onMotionPreference(): void {
+  syncCursorBlink()
+}
+
+function syncInputEnabled(): void {
+  if (!terminal) {
+    return
+  }
+  terminal.options.disableStdin = !props.inputEnabled
+}
+
+function labelTerminalInput(): void {
+  const textarea = hostEl.value?.querySelector('textarea')
+  if (textarea instanceof HTMLTextAreaElement) {
+    textarea.setAttribute('aria-label', regionLabel.value)
+  }
 }
 
 function applyThemeToTerminal(): void {
@@ -325,7 +410,7 @@ function attachWheelGuard(): void {
 }
 
 function refreshResolvedTheme(): void {
-  resolvedThemeMode.value = resolveTerminalTheme(props.themeMode)
+  resolvedThemeMode.value = resolveTerminalTheme(props.themeMode, hostEl.value)
   applyThemeToTerminal()
 }
 
@@ -358,7 +443,7 @@ function emitResizeIfChanged(): void {
 }
 
 async function fit(): Promise<void> {
-  if (!fitAddon || !terminal || !hostEl.value) {
+  if (!alive || !fitAddon || !terminal || !hostEl.value) {
     return
   }
   const { clientWidth, clientHeight } = hostEl.value
@@ -372,7 +457,7 @@ async function fit(): Promise<void> {
     await nextTick()
     await rafTwice()
   }
-  if (!fitAddon || !terminal) {
+  if (!alive || !fitAddon || !terminal || !hostEl.value) {
     return
   }
   try {
@@ -435,11 +520,14 @@ function trimOverflowRow(): void {
 }
 
 function scheduleFit(): void {
-  if (fitRaf) {
+  if (!alive || fitRaf) {
     return
   }
   fitRaf = requestAnimationFrame(() => {
     fitRaf = 0
+    if (!alive) {
+      return
+    }
     void fit()
   })
 }
@@ -470,26 +558,52 @@ function getSelectionText(): string {
 }
 
 function syncSelectionState(): void {
-  hasSelection.value = Boolean(terminal?.hasSelection())
-  emit('selectionChange', getSelectionText())
+  const text = getSelectionText()
+  const selected = Boolean(terminal?.hasSelection())
+  if (hasSelection.value !== selected) hasSelection.value = selected
+  menuSelectionText = selected ? text.trim() : ''
+  emit('selectionChange', text)
 }
 
-/** 优先活选区；若被右键 word-select / 失焦冲掉，则回退菜单快照。 */
+/** 选区文本留到下一帧再序列化，右键和松开鼠标先把画面画完。 */
+function scheduleSelectionText(): void {
+  if (selectionFrame) return
+  selectionFrame = requestAnimationFrame(() => {
+    selectionFrame = 0
+    if (!alive) return
+    syncSelectionState()
+  })
+}
+
+/** 优先活选区；菜单抢走焦点后回退打开时记下的文本。 */
 function resolveMenuSelectionText(): string {
   const live = getSelectionText().trim()
-  const snap = menuSelectionSnapshot.value.trim()
-  if (live && (!snap || live.length >= snap.length)) {
-    return live
+  if (live) return live
+  return menuSelectionText
+}
+
+function ensureSearchAddon(): SearchAddon | null {
+  if (!terminal || !props.searchEnabled) {
+    return null
   }
-  return snap
+  if (!searchAddon) {
+    searchAddon = new SearchAddon()
+    terminal.loadAddon(searchAddon)
+  }
+  return searchAddon
 }
 
 function openSearch(): void {
-  if (!props.searchEnabled) {
+  if (!props.searchEnabled || !alive) {
     return
   }
+  ensureSearchAddon()
   searchOpen.value = true
+  searchStatus.value = ''
   void nextTick(() => {
+    if (!alive) {
+      return
+    }
     searchInputEl.value?.focus()
     searchInputEl.value?.select()
   })
@@ -497,20 +611,22 @@ function openSearch(): void {
 
 function closeSearch(): void {
   searchOpen.value = false
+  searchStatus.value = ''
   searchAddon?.clearDecorations()
-  terminal?.focus()
+  if (alive) {
+    terminal?.focus()
+  }
 }
 
 function runSearch(direction: 'next' | 'prev'): void {
   const query = searchQuery.value
-  if (!query || !searchAddon) {
+  const addon = ensureSearchAddon()
+  if (!query || !addon) {
+    searchStatus.value = ''
     return
   }
-  if (direction === 'prev') {
-    searchAddon.findPrevious(query)
-    return
-  }
-  searchAddon.findNext(query)
+  const found = direction === 'prev' ? addon.findPrevious(query) : addon.findNext(query)
+  searchStatus.value = found ? '' : t('terminal.searchEmpty', 'No matches')
 }
 
 function onSearchKeydown(event: KeyboardEvent): void {
@@ -519,7 +635,7 @@ function onSearchKeydown(event: KeyboardEvent): void {
     closeSearch()
     return
   }
-  if (event.key === 'Enter') {
+  if (event.key === 'Enter' && !event.isComposing) {
     event.preventDefault()
     runSearch(event.shiftKey ? 'prev' : 'next')
   }
@@ -534,16 +650,18 @@ function onHostMouseUp(): void {
 
 async function copySelection(): Promise<void> {
   const text = resolveMenuSelectionText()
-  if (!text) {
+  if (!text || !alive) {
     return
   }
-  if (await copyTextToClipboard(text)) {
-    emit('action', 'copy')
+  const copied = await copyTextToClipboard(text)
+  if (!alive || !copied) {
+    return
   }
+  emit('action', 'copy')
 }
 
 async function pasteFromClipboard(): Promise<void> {
-  if (!terminal || !props.inputEnabled) {
+  if (!alive || !terminal || !props.inputEnabled) {
     return
   }
   terminal.focus()
@@ -552,7 +670,7 @@ async function pasteFromClipboard(): Promise<void> {
     textarea.focus()
   }
   const text = await readClipboardText()
-  if (!text) {
+  if (!alive || !text || !terminal) {
     return
   }
   terminal.paste(text)
@@ -561,26 +679,19 @@ async function pasteFromClipboard(): Promise<void> {
 
 function onTerminalContextMenu(): void {
   void beginClipboardPrefetch()
-  // capture 早于 xterm 的 rightClickSelectsWord，先保住用户拖选（vim/less 大段文本）
-  const existing = getSelectionText().trim()
-  if (existing) {
-    menuSelectionSnapshot.value = existing
-    hasSelection.value = true
-  } else {
-    menuSelectionSnapshot.value = ''
+  const term = terminal
+  if (!term) return
+  const selected = Boolean(term.hasSelection())
+  if (selected && props.rightClickSelectsWord) {
+    // 这一下右键先别把滚选缩成一个词。target 阶段读到 false，事件结束再恢复。
+    term.options.rightClickSelectsWord = false
+    queueMicrotask(() => {
+      if (alive && terminal) terminal.options.rightClickSelectsWord = props.rightClickSelectsWord
+    })
   }
-  // xterm 在 target 阶段才 rightClickSelect，延后同步；无先验选区时采用 word-select 结果
-  void nextTick(() => {
-    syncSelectionState()
-    const after = getSelectionText().trim()
-    // 仅在无快照，或 word-select 反而选出更长文本时更新；避免冲掉用户拖选
-    if (after && (!menuSelectionSnapshot.value || after.length > menuSelectionSnapshot.value.length)) {
-      menuSelectionSnapshot.value = after
-    }
-    if (menuSelectionSnapshot.value) {
-      hasSelection.value = true
-    }
-  })
+  if (hasSelection.value !== selected) hasSelection.value = selected
+  if (!selected) menuSelectionText = ''
+  scheduleSelectionText()
 }
 
 function selectAll(): void {
@@ -704,11 +815,48 @@ watch(
   },
 )
 
+watch(() => props.cursorBlink, syncCursorBlink)
+
 watch(
-  () => props.cursorBlink,
+  () => props.cursorStyle,
   (value) => {
     if (terminal) {
-      terminal.options.cursorBlink = value
+      terminal.options.cursorStyle = value
+    }
+  },
+)
+
+watch(() => props.inputEnabled, syncInputEnabled)
+
+watch(regionLabel, labelTerminalInput)
+
+watch(searchQuery, () => {
+  searchStatus.value = ''
+})
+
+watch(
+  () => props.screenReaderMode,
+  (value) => {
+    if (terminal) {
+      terminal.options.screenReaderMode = value
+    }
+  },
+)
+
+watch(
+  () => props.rescaleOverlappingGlyphs,
+  (value) => {
+    if (terminal) {
+      terminal.options.rescaleOverlappingGlyphs = value
+    }
+  },
+)
+
+watch(
+  () => props.searchEnabled,
+  (value) => {
+    if (!value) {
+      closeSearch()
     }
   },
 )
@@ -765,13 +913,94 @@ watch(
   },
 )
 
+function releaseDisposable(handle: Disposable | null): void {
+  handle?.dispose()
+}
+
+function openTerminalLink(raw: string): void {
+  const text = raw.trim()
+  if (!alive || !isSafeTerminalLink(text)) {
+    return
+  }
+  emit('link', text)
+  if (!props.openLinks || typeof window === 'undefined') {
+    return
+  }
+  window.open(text, '_blank', 'noopener,noreferrer')
+}
+
+function attachLinkProvider(): void {
+  if (!terminal) {
+    return
+  }
+  linkDisposable = terminal.registerLinkProvider({
+    provideLinks(bufferLineNumber, callback) {
+      const term = terminal
+      if (!alive || !term) {
+        callback(undefined)
+        return
+      }
+      const row = term.buffer.active.getLine(bufferLineNumber - 1)
+      if (!row) {
+        callback(undefined)
+        return
+      }
+      const text = row.translateToString(true)
+      const hits = findTerminalHttpLinks(text)
+      if (!hits.length) {
+        callback(undefined)
+        return
+      }
+      const cells: Array<{ chars: string; width: number }> = []
+      for (let index = 0; index < row.length; index += 1) {
+        const cell = row.getCell(index)
+        cells.push({
+          chars: cell?.getChars() || '',
+          width: cell?.getWidth() ?? 1,
+        })
+      }
+      callback(
+        hits.map((hit) => {
+          const range = terminalLinkCellRange(cells, hit.start, hit.end)
+          return {
+            text: hit.text,
+            range: {
+              start: { x: range.startX, y: bufferLineNumber },
+              end: { x: range.endX, y: bufferLineNumber },
+            },
+            activate(_event: MouseEvent, uri: string) {
+              openTerminalLink(uri)
+            },
+          }
+        }),
+      )
+    },
+  })
+}
+
+function attachMotionPreference(): void {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return
+  }
+  motionMedia = window.matchMedia('(prefers-reduced-motion: reduce)')
+  motionMedia.addEventListener('change', onMotionPreference)
+}
+
+function detachMotionPreference(): void {
+  motionMedia?.removeEventListener('change', onMotionPreference)
+  motionMedia = null
+}
+
 onMounted(async () => {
+  alive = true
   if (!hostEl.value) {
     return
   }
   refreshResolvedTheme()
   terminal = new Terminal({
-    cursorBlink: props.cursorBlink,
+    cursorBlink: props.cursorBlink && !prefersReducedMotion(),
+    cursorStyle: props.cursorStyle,
+    disableStdin: !props.inputEnabled,
     fontFamily: resolveTerminalFontFamily(),
     fontSize: resolveTerminalFontSize(),
     fontWeight: resolveTerminalFontWeight(),
@@ -784,47 +1013,74 @@ onMounted(async () => {
     scrollback: props.scrollback,
     convertEol: props.convertEol,
     rightClickSelectsWord: props.rightClickSelectsWord,
+    screenReaderMode: props.screenReaderMode,
+    rescaleOverlappingGlyphs: props.rescaleOverlappingGlyphs,
     theme: buildXtermTheme(),
+    linkHandler: {
+      activate(_event, text) {
+        openTerminalLink(text)
+      },
+    },
   })
   fitAddon = new FitAddon()
   terminal.loadAddon(fitAddon)
-  searchAddon = new SearchAddon()
-  terminal.loadAddon(searchAddon)
+  if (props.searchEnabled) {
+    ensureSearchAddon()
+  }
   terminal.open(hostEl.value)
-  terminal.onData((data: string) => {
-    if (props.inputEnabled) {
+  labelTerminalInput()
+  dataDisposable = terminal.onData((data: string) => {
+    if (alive && props.inputEnabled) {
       emit('data', data)
     }
   })
-  terminal.onSelectionChange(() => {
-    syncSelectionState()
+  selectionDisposable = terminal.onSelectionChange(() => {
+    if (!alive || !terminal) return
+    const selected = Boolean(terminal.hasSelection())
+    if (hasSelection.value !== selected) hasSelection.value = selected
+    scheduleSelectionText()
   })
+  titleDisposable = terminal.onTitleChange((title: string) => {
+    if (alive) {
+      emit('titleChange', title)
+    }
+  })
+  bellDisposable = terminal.onBell(() => {
+    if (alive) {
+      emit('bell')
+    }
+  })
+  attachLinkProvider()
   attachShortcuts()
+  attachMotionPreference()
   await nextTick()
+  if (!alive || !terminal || !hostEl.value) {
+    return
+  }
   attachWheelGuard()
   terminalReady.value = true
   await fit()
+  if (!alive || !terminal || !hostEl.value) {
+    return
+  }
   emit('ready')
 
   resizeObserver = new ResizeObserver(() => {
     scheduleFit()
   })
   resizeObserver.observe(hostEl.value)
-
-  themeObserver = new MutationObserver(() => {
-    if (props.themeMode === 'auto') {
+  unsubscribeTheme = subscribeTerminalTheme(() => {
+    if (alive && props.themeMode === 'auto') {
       refreshResolvedTheme()
     }
-  })
-  themeObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['data-rs-theme'],
   })
 })
 
 onBeforeUnmount(() => {
-  themeObserver?.disconnect()
-  themeObserver = null
+  alive = false
+  unsubscribeTheme?.()
+  unsubscribeTheme = null
+  detachMotionPreference()
   resizeObserver?.disconnect()
   resizeObserver = null
   detachWheelGuard?.()
@@ -833,10 +1089,25 @@ onBeforeUnmount(() => {
     cancelAnimationFrame(fitRaf)
     fitRaf = 0
   }
+  if (selectionFrame) {
+    cancelAnimationFrame(selectionFrame)
+    selectionFrame = 0
+  }
+  releaseDisposable(dataDisposable)
+  releaseDisposable(selectionDisposable)
+  releaseDisposable(titleDisposable)
+  releaseDisposable(bellDisposable)
+  releaseDisposable(linkDisposable)
+  dataDisposable = null
+  selectionDisposable = null
+  titleDisposable = null
+  bellDisposable = null
+  linkDisposable = null
+  searchAddon?.dispose?.()
+  searchAddon = null
   terminal?.dispose()
   terminal = null
   fitAddon = null
-  searchAddon = null
   didInitialFit = false
 })
 
@@ -865,17 +1136,23 @@ defineExpose(exposed)
   >
     <section
       v-bind="$attrs"
+      :id="id"
       class="rs-terminal"
       :class="{
         'rs-terminal--zebra': zebraStripes,
       }"
       :style="zebraStyle"
+      dir="ltr"
+      :aria-label="regionLabel"
+      :aria-busy="showLoading ? 'true' : undefined"
+      :aria-readonly="inputEnabled ? undefined : 'true'"
       @click="focus"
       @contextmenu.capture="onTerminalContextMenu"
     >
       <div
         v-if="searchEnabled && searchOpen"
         class="rs-terminal__search"
+        role="search"
         @click.stop
       >
         <input
@@ -883,8 +1160,10 @@ defineExpose(exposed)
           v-model="searchQuery"
           class="rs-terminal__search-input"
           type="search"
+          enterkeyhint="search"
           :placeholder="t('terminal.searchPlaceholder', 'Find in terminal')"
           :aria-label="t('terminal.search', 'Search')"
+          :aria-describedby="searchStatus ? searchStatusId : undefined"
           @keydown="onSearchKeydown"
         >
         <button type="button" class="rs-terminal__search-btn" @click="runSearch('prev')">
@@ -896,6 +1175,13 @@ defineExpose(exposed)
         <button type="button" class="rs-terminal__search-btn" @click="closeSearch">
           {{ t('terminal.searchClose', 'Close search') }}
         </button>
+        <output
+          v-if="searchStatus"
+          :id="searchStatusId"
+          class="rs-terminal__search-status"
+        >
+          {{ searchStatus }}
+        </output>
       </div>
       <div ref="hostEl" class="rs-terminal__host" @mouseup="onHostMouseUp" />
       <RsLoading v-if="showLoading" class="rs-terminal__loading" />
@@ -925,18 +1211,8 @@ defineExpose(exposed)
   border-radius: var(--rs-radius-md);
   background: var(--rs-terminal-shell-bg, var(--rs-terminal-bg));
   color: var(--rs-terminal-fg);
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--rs-terminal-fg) 5%, transparent),
-    inset 0 0 0 1px color-mix(in srgb, var(--rs-terminal-fg) 4%, transparent),
-    0 1px 3px color-mix(in srgb, #000 32%, transparent);
+  box-shadow: var(--rs-shadow-sm);
   overflow: hidden;
-}
-
-[data-rs-theme='light'] .rs-terminal {
-  box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #fff 80%, transparent),
-    inset 0 0 0 1px color-mix(in srgb, #000 4%, transparent),
-    0 1px 4px color-mix(in srgb, #000 8%, transparent);
 }
 
 .rs-terminal__host {
@@ -961,7 +1237,7 @@ defineExpose(exposed)
   flex-direction: column;
   gap: var(--rs-space-sm);
   padding: var(--rs-space-lg);
-  color: color-mix(in srgb, var(--rs-terminal-fg) 92%, #fff 8%);
+  color: var(--rs-terminal-fg);
   background: color-mix(in srgb, var(--rs-terminal-bg) 84%, transparent);
   text-align: center;
   pointer-events: none;
@@ -981,11 +1257,13 @@ defineExpose(exposed)
 
 .rs-terminal__search {
   position: absolute;
-  top: var(--rs-space-xs);
+  inset-block-start: var(--rs-space-xs);
   inset-inline-end: var(--rs-space-xs);
   z-index: 2;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  max-inline-size: calc(100% - var(--rs-space-sm));
   gap: var(--rs-space-xs);
   padding: var(--rs-space-xs);
   border: 1px solid var(--rs-terminal-border);
@@ -994,8 +1272,10 @@ defineExpose(exposed)
 }
 
 .rs-terminal__search-input {
-  width: 12rem;
-  padding: 0.2rem 0.4rem;
+  inline-size: 12rem;
+  max-inline-size: 100%;
+  padding-block: var(--rs-space-xs);
+  padding-inline: var(--rs-space-xs);
   border: 1px solid var(--rs-terminal-border);
   border-radius: var(--rs-radius-sm);
   background: var(--rs-terminal-bg);
@@ -1005,14 +1285,27 @@ defineExpose(exposed)
   outline: none;
 }
 
+.rs-terminal__search-input:focus-visible,
+.rs-terminal__search-btn:focus-visible {
+  outline: var(--rs-focus-ring-width, 2px) solid var(--rs-focus-border);
+  outline-offset: 1px;
+}
+
 .rs-terminal__search-btn {
-  padding: 0.2rem 0.4rem;
+  padding-block: var(--rs-space-xs);
+  padding-inline: var(--rs-space-xs);
   border: 1px solid var(--rs-terminal-border);
   border-radius: var(--rs-radius-sm);
   background: transparent;
   color: var(--rs-terminal-fg);
   font-size: var(--rs-font-size-xs);
   cursor: pointer;
+}
+
+.rs-terminal__search-status {
+  margin: 0;
+  color: var(--rs-text-secondary);
+  font-size: var(--rs-font-size-xs);
 }
 
 /*
@@ -1050,6 +1343,26 @@ defineExpose(exposed)
   background-color: color-mix(in srgb, var(--rs-muted) 60%, transparent);
   background-clip: padding-box;
   transition: background-color var(--rs-transition-fast);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rs-terminal :deep(.xterm-scrollable-element > .scrollbar > .slider) {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .rs-terminal {
+    background: Canvas;
+    color: CanvasText;
+    border-color: ButtonText;
+    box-shadow: none;
+  }
+
+  .rs-terminal__search-input:focus-visible,
+  .rs-terminal__search-btn:focus-visible {
+    outline: var(--rs-focus-ring-width, 2px) solid Highlight;
+  }
 }
 
 .rs-terminal :deep(.xterm-scrollable-element > .scrollbar > .slider:hover) {

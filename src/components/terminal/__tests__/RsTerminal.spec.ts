@@ -1,9 +1,18 @@
+import { readFileSync } from 'node:fs'
 import { nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import RsTerminal from '../src/RsTerminal.vue'
-import { buildAnsiColorDemo, normalizeTerminalHexColor, resolveTerminalTheme } from '../src/terminal-utils'
-import { readDocumentTheme } from '../../code-editor/src/code-editor-utils'
+import {
+  buildAnsiColorDemo,
+  findTerminalHttpLinks,
+  isSafeTerminalLink,
+  normalizeTerminalHexColor,
+  resolveTerminalTheme,
+  terminalCellIndexForString,
+  terminalLinkCellRange,
+  terminalThemeSubscriptionCount,
+} from '../src/terminal-utils'
 
 vi.mock('../../../utils/rs-clipboard', () => ({
   beginClipboardPrefetch: vi.fn(),
@@ -62,9 +71,20 @@ vi.mock('@xterm/xterm', () => ({
     }
     onData(handler: (data: string) => void) {
       onDataHandlers.push(handler)
+      return { dispose: vi.fn() }
     }
     onSelectionChange(handler: () => void) {
       onSelectionHandlers.push(handler)
+      return { dispose: vi.fn() }
+    }
+    onTitleChange() {
+      return { dispose: vi.fn() }
+    }
+    onBell() {
+      return { dispose: vi.fn() }
+    }
+    registerLinkProvider() {
+      return { dispose: vi.fn() }
     }
     onRender(handler: () => void) {
       onRenderHandlers.push(handler)
@@ -118,11 +138,34 @@ describe('terminal-utils', () => {
     expect(demo).toContain('\x1b[40;31;01m')
   })
 
-  it('resolves document theme', () => {
+  it('resolves document theme and a nested theme island', () => {
     document.documentElement.dataset.rsTheme = 'light'
     expect(resolveTerminalTheme('auto')).toBe('light')
     document.documentElement.dataset.rsTheme = 'dark'
     expect(resolveTerminalTheme('auto')).toBe('dark')
+    document.documentElement.dataset.rsTheme = 'light'
+    const island = document.createElement('div')
+    island.setAttribute('data-rs-theme', 'dark')
+    const host = document.createElement('div')
+    island.appendChild(host)
+    expect(resolveTerminalTheme('auto', host)).toBe('dark')
+    expect(resolveTerminalTheme('light', host)).toBe('light')
+  })
+
+  it('accepts only http(s) and mailto links', () => {
+    expect(isSafeTerminalLink('https://example.com/a')).toBe(true)
+    expect(isSafeTerminalLink('mailto:dev@example.com')).toBe(true)
+    expect(isSafeTerminalLink('javascript:alert(1)')).toBe(false)
+    expect(isSafeTerminalLink('data:text/html,hi')).toBe(false)
+    const hits = findTerminalHttpLinks('see https://example.com/docs. and mailto:dev@example.com')
+    expect(hits.map((hit) => hit.text)).toEqual(['https://example.com/docs', 'mailto:dev@example.com'])
+    const cells = [
+      { chars: '你', width: 2 },
+      { chars: '', width: 0 },
+      { chars: 'h', width: 1 },
+    ]
+    expect(terminalCellIndexForString(cells, 1)).toBe(3)
+    expect(terminalLinkCellRange(cells, 1, 2)).toEqual({ startX: 3, endX: 3 })
   })
 
   it('normalizes terminal hex colors', () => {
@@ -191,8 +234,22 @@ describe('RsTerminal', () => {
   beforeEach(() => {
     pasteMock.mockClear()
     selectAllMock.mockClear()
+    disposeMock.mockClear()
     keyEventHandler = null
     lastTerminalOptions = {}
+  })
+
+  it('registers the public name and does not import reka-ui', () => {
+    const source = readFileSync('src/components/terminal/src/RsTerminal.vue', 'utf8')
+    const utils = readFileSync('src/components/terminal/src/terminal-utils.ts', 'utf8')
+    const wheel = readFileSync('src/components/terminal/src/terminal-wheel.ts', 'utf8')
+    expect(source).toContain("defineOptions({ name: 'RsTerminal', inheritAttrs: false })")
+    expect(source).not.toContain('reka-ui')
+    expect(utils).not.toContain('reka-ui')
+    expect(wheel).not.toContain('reka-ui')
+    expect(source).toContain('dir="ltr"')
+    expect(source).toContain('subscribeTerminalTheme')
+    expect(source).toContain('alive = false')
   })
 
   it('enables minimum contrast so ls symlink colors stay readable', async () => {
@@ -223,6 +280,79 @@ describe('RsTerminal', () => {
     await nextTick()
     onDataHandlers.at(-1)?.('ls\r')
     expect(wrapper.emitted('data')?.[0]).toEqual(['ls\r'])
+    wrapper.unmount()
+  })
+
+  it('blocks input when inputEnabled is false', async () => {
+    const wrapper = mount(RsTerminal, { props: { inputEnabled: false } })
+    await nextTick()
+    expect(lastTerminalOptions.disableStdin).toBe(true)
+    expect(wrapper.find('.rs-terminal').attributes('aria-readonly')).toBe('true')
+    onDataHandlers.at(-1)?.('ls')
+    expect(wrapper.emitted('data')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('drops the shared theme listener on unmount', async () => {
+    const before = terminalThemeSubscriptionCount()
+    const wrapper = mount(RsTerminal)
+    await nextTick()
+    await nextTick()
+    expect(wrapper.find('.rs-terminal').attributes('dir')).toBe('ltr')
+    expect(terminalThemeSubscriptionCount()).toBe(before + 1)
+    wrapper.unmount()
+    expect(terminalThemeSubscriptionCount()).toBe(before)
+    expect(disposeMock).toHaveBeenCalled()
+  })
+
+  it('does not attach a resize observer after unmount during the first fit', async () => {
+    let releaseFonts = (): void => undefined
+    const fontsReady = new Promise<void>((resolve) => {
+      releaseFonts = resolve
+    })
+    const previousFonts = document.fonts
+    Object.defineProperty(document, 'fonts', {
+      configurable: true,
+      value: { ready: fontsReady },
+    })
+    const width = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth')
+    const height = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight')
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 800 })
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 400 })
+    let observes = 0
+    class TrackingResizeObserver {
+      observe() {
+        observes += 1
+      }
+      disconnect() {
+        return undefined
+      }
+    }
+    vi.stubGlobal('ResizeObserver', TrackingResizeObserver)
+    const wrapper = mount(RsTerminal)
+    await nextTick()
+    await nextTick()
+    wrapper.unmount()
+    releaseFonts()
+    await fontsReady
+    await nextTick()
+    expect(observes).toBe(0)
+    expect(disposeMock).toHaveBeenCalled()
+    vi.stubGlobal('ResizeObserver', class {
+      observe() {
+        return undefined
+      }
+      disconnect() {
+        return undefined
+      }
+    })
+    if (width) Object.defineProperty(HTMLElement.prototype, 'clientWidth', width)
+    else delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth
+    if (height) Object.defineProperty(HTMLElement.prototype, 'clientHeight', height)
+    else delete (HTMLElement.prototype as { clientHeight?: number }).clientHeight
+    if (previousFonts) {
+      Object.defineProperty(document, 'fonts', { configurable: true, value: previousFonts })
+    }
   })
 
   it('exposes terminal helpers', async () => {
@@ -251,6 +381,29 @@ describe('RsTerminal', () => {
     } as unknown as KeyboardEvent)
     expect(handled).toBe(false)
     expect(selectAllMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps an existing drag selection on right-click', async () => {
+    hasSelectionMock.mockReturnValue(true)
+    const wrapper = mount(RsTerminal, { attachTo: document.body })
+    await nextTick()
+    await nextTick()
+    const options = wrapper.vm.getTerminal()?.options as { rightClickSelectsWord?: boolean }
+    let value = options.rightClickSelectsWord
+    let suspended = false
+    Object.defineProperty(options, 'rightClickSelectsWord', {
+      configurable: true,
+      get: () => value,
+      set: (next: boolean) => {
+        if (next === false) suspended = true
+        value = next
+      },
+    })
+    await wrapper.find('.rs-terminal').trigger('contextmenu')
+    expect(suspended).toBe(true)
+    expect(value).toBe(true)
+    wrapper.unmount()
+    hasSelectionMock.mockReturnValue(false)
   })
 
   it('emits extraSelect for appended context menu items', async () => {

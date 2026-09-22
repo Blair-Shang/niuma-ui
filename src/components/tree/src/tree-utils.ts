@@ -32,6 +32,10 @@ export interface RsTreeFlatNode {
   hasChildren: boolean
   isLast: boolean
   parentKey: string | null
+  /** 同一父节点下的兄弟个数，对应 aria-setsize */
+  setSize: number
+  /** 在兄弟中的位置，从 1 起算，对应 aria-posinset */
+  posInSet: number
   /**
    * showLine 用：下标对应祖先深度 `0..depth-1`。
    * `true` 表示该祖先不是同级最后一项，竖线需贯穿当前行；`false` 则留空缺口。
@@ -51,6 +55,22 @@ export type RsTreeDropPosition = 'before' | 'inside' | 'after'
 /** handle=显示拖拽手柄；row=整行拖拽且不显示手柄 */
 export type RsTreeDragTrigger = 'handle' | 'row'
 export type RsTreeSize = RsComponentSize
+
+export interface RsTreeExpose {
+  expandAll: () => void
+  collapseAll: () => void
+  expandNode: (key: string) => void
+  collapseNode: (key: string) => void
+  focusNode: (key: string) => void
+  focus: () => void
+  scrollToKey: (key: string) => void
+  getSelectedKeys: () => string[]
+  getCheckedKeys: () => string[]
+  getExpandedKeys: () => string[]
+  getHalfCheckedKeys: () => string[]
+}
+
+export type RsTreeInstance = RsTreeExpose & { $el: HTMLElement }
 
 export const DEFAULT_TREE_FIELD_NAMES: Required<RsTreeFieldNames> = {
   key: 'key',
@@ -291,6 +311,8 @@ export function flattenVisibleTreeNodes(
         hasChildren,
         isLast,
         parentKey: currentParentKey,
+        setSize: items.length,
+        posInSet: index + 1,
         levelLines: levelLines as boolean[],
       })
       if (hasChildren && expandedKeys.has(key)) {
@@ -308,7 +330,7 @@ export function defaultTreeFilterNode(
   keyword: string,
   fields = DEFAULT_TREE_FIELD_NAMES,
 ): boolean {
-  return getTreeLabel(node, fields).toLowerCase().includes(keyword.trim().toLowerCase())
+  return getTreeLabel(node, fields).toLocaleLowerCase().includes(keyword.trim().toLocaleLowerCase())
 }
 
 export function filterTreeNodes(
@@ -348,8 +370,8 @@ export function splitTreeLabelHighlight(
   const query = keyword.trim()
   if (!query) return [{ text: label, highlight: false }]
 
-  const lowerLabel = label.toLowerCase()
-  const lowerQuery = query.toLowerCase()
+  const lowerLabel = label.toLocaleLowerCase()
+  const lowerQuery = query.toLocaleLowerCase()
   const index = lowerLabel.indexOf(lowerQuery)
   if (index < 0) return [{ text: label, highlight: false }]
 
@@ -475,6 +497,24 @@ export function resolveTreeFocusKey(
     default:
       return currentKey
   }
+}
+
+/** 从当前项之后找标签前缀匹配的可见节点；一圈后仍无匹配返回 null。 */
+export function resolveTreeTypeaheadKey(
+  flatNodes: readonly RsTreeFlatNode[],
+  currentKey: string | null,
+  query: string,
+  fields = DEFAULT_TREE_FIELD_NAMES,
+): string | null {
+  const needle = query.trim().toLocaleLowerCase()
+  if (!needle || flatNodes.length === 0) return null
+  const start = Math.max(0, flatNodes.findIndex((item) => item.key === currentKey))
+  for (let step = 1; step <= flatNodes.length; step += 1) {
+    const item = flatNodes[(start + step) % flatNodes.length]
+    if (!item || isTreeNodeDisabled(item.node, fields)) continue
+    if (getTreeLabel(item.node, fields).toLocaleLowerCase().startsWith(needle)) return item.key
+  }
+  return null
 }
 
 export function resolveTreeVirtualEnabled(options: {

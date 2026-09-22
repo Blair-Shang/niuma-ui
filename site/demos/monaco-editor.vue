@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { RsButton, RsMonacoEditor } from 'niuma-ui'
+import { RsButton, RsContextMenu, RsMonacoEditor } from 'niuma-ui'
 import type {
   MonacoCompletionContext,
   MonacoCompletionSnippet,
   MonacoLanguage,
+  RsContextMenuExpose,
+  RsContextMenuItem,
+  RsMonacoEditorContextMenu,
   RsMonacoEditorInstance,
 } from 'niuma-ui'
 import DocDemo from '../components/DocDemo.vue'
@@ -76,6 +79,18 @@ const { copy } = useSiteDemo({
     focusedHost: 'focus() → text area',
     blurredHost: 'blur()',
     candidates: 'Candidates: find, db.collection',
+    menuIdle: 'Right-click the editor.',
+    menuAt: (line: number, column: number, text: string) => {
+      const clip = text.length > 24 ? `${text.slice(0, 24)}…` : text
+      return clip
+        ? `contextmenu → line ${line}, column ${column} · ${clip}`
+        : `contextmenu → line ${line}, column ${column}`
+    },
+    menuSelect: (key: string) => `select → ${key}`,
+    nativeOn: 'Native menu',
+    hostMenu: 'Host menu',
+    formatItem: 'Format',
+    revealItem: 'Reveal line 1',
   },
   'zh-CN': {
     chars: (n: number) => `${n} 个字符`,
@@ -98,11 +113,33 @@ const { copy } = useSiteDemo({
     focusedHost: 'focus() → 文本区',
     blurredHost: 'blur()',
     candidates: '候选：find、db.collection',
+    menuIdle: '在编辑器里右键。',
+    menuAt: (line: number, column: number, text: string) => {
+      const clip = text.length > 24 ? `${text.slice(0, 24)}…` : text
+      return clip
+        ? `contextmenu → 第 ${line} 行，第 ${column} 列 · ${clip}`
+        : `contextmenu → 第 ${line} 行，第 ${column} 列`
+    },
+    menuSelect: (key: string) => `select → ${key}`,
+    nativeOn: '原生菜单',
+    hostMenu: '宿主菜单',
+    formatItem: '格式化',
+    revealItem: '滚到第 1 行',
   },
 })
 
 const eventNote = computed(() => eventLog.value || copy.value.eventIdle)
 const methodNote = computed(() => methodLog.value || copy.value.methodIdle)
+const menuDoc = ref('{\n  "name": "niuma-ui"\n}')
+const nativeMenu = ref(false)
+const menuLog = ref('')
+const menuRef = ref<RsContextMenuExpose | null>(null)
+const menuEditor = ref<RsMonacoEditorInstance | null>(null)
+const menuNote = computed(() => menuLog.value || copy.value.menuIdle)
+const menuItems = computed<RsContextMenuItem[]>(() => [
+  { key: 'format', label: copy.value.formatItem },
+  { key: 'reveal', label: copy.value.revealItem },
+])
 function minimapSample(): string {
   const lines = ['{']
   for (let index = 0; index < 28; index += 1) {
@@ -147,6 +184,22 @@ function complete(context: MonacoCompletionContext): MonacoCompletionSnippet[] {
 
 function onGlyph(line: number): void {
   eventLog.value = copy.value.glyph(line)
+}
+
+function onEditorContextMenu(payload: RsMonacoEditorContextMenu): void {
+  menuLog.value = copy.value.menuAt(payload.line, payload.column, payload.selectedText)
+  if (!nativeMenu.value) menuRef.value?.open({ x: payload.x, y: payload.y })
+}
+
+function toggleNativeMenu(): void {
+  nativeMenu.value = !nativeMenu.value
+  if (nativeMenu.value) menuRef.value?.close()
+}
+
+function onMenuSelect(key: string): void {
+  if (key === 'format') menuEditor.value?.format()
+  if (key === 'reveal') menuEditor.value?.revealLine(1)
+  menuLog.value = copy.value.menuSelect(key)
 }
 
 function formatDoc(): void {
@@ -227,6 +280,29 @@ const eventsCode = `<RsMonacoEditor
   @focus="onFocus"
   @blur="onBlur"
   @ready="onReady"
+/>`
+
+const contextMenuCode = `const menu = ref(null)
+const nativeMenu = ref(false)
+const items = [
+  { key: 'format', label: 'Format' },
+  { key: 'reveal', label: 'Reveal line 1' },
+]
+
+function onContextMenu(event) {
+  log.value = \`contextmenu → line \${event.line}, column \${event.column}\`
+  if (!nativeMenu.value) menu.value?.open({ x: event.x, y: event.y })
+}
+
+<RsButton @click="nativeMenu = !nativeMenu">Host menu</RsButton>
+<p>{{ log }}</p>
+<RsContextMenu ref="menu" :items="items" @select="onSelect" />
+<RsMonacoEditor
+  v-model="code"
+  language="json"
+  :height="160"
+  :context-menu="nativeMenu"
+  @contextmenu="onContextMenu"
 />`
 
 const methodsCode = `const editor = ref(null)
@@ -383,6 +459,31 @@ const optionsCode = `<RsMonacoEditor
       @focus="onEditorFocus"
       @blur="onEditorBlur"
       @ready="onReady"
+    />
+  </DocDemo>
+
+  <DocDemo
+    id="demo-contextmenu"
+    title="右键"
+    title-en="Context menu"
+    description="默认关掉原生菜单。右键后下面出现行和列，并在指针处打开宿主菜单。点「原生菜单」改回 Monaco 的剪切、复制、粘贴。"
+    description-en="The native menu starts off. A right-click prints the line and column, then opens the host menu at the pointer. Native menu switches back to Monaco’s Cut, Copy, and Paste."
+    :code="contextMenuCode"
+  >
+    <div class="toolbar">
+      <RsButton size="sm" :variant="nativeMenu ? 'primary' : 'ghost'" @click="toggleNativeMenu">
+        {{ nativeMenu ? copy.nativeOn : copy.hostMenu }}
+      </RsButton>
+    </div>
+    <p class="note">{{ menuNote }}</p>
+    <RsContextMenu ref="menuRef" :items="menuItems" @select="onMenuSelect" />
+    <RsMonacoEditor
+      ref="menuEditor"
+      v-model="menuDoc"
+      language="json"
+      :height="160"
+      :context-menu="nativeMenu"
+      @contextmenu="onEditorContextMenu"
     />
   </DocDemo>
 

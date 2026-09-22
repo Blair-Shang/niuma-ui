@@ -11,6 +11,7 @@ import {
   resolveTreeCheckState,
   resolveTreeFieldNames,
   resolveTreeFocusKey,
+  resolveTreeTypeaheadKey,
   resolveTreeVirtualEnabled,
   shouldShowTreeCheckbox,
   sliceVirtualTreeNodes,
@@ -53,6 +54,17 @@ describe('tree-utils', () => {
     const expanded = new Set(['root'])
     const flat = flattenVisibleTreeNodes(nodes, expanded)
     expect(flat.map((item) => item.key)).toEqual(['root', 'child-a', 'child-b'])
+    expect(flat[0]).toMatchObject({ setSize: 1, posInSet: 1 })
+    expect(flat[1]).toMatchObject({ setSize: 2, posInSet: 1 })
+    expect(flat[2]).toMatchObject({ setSize: 2, posInSet: 2 })
+  })
+
+  it('typeahead matches the next visible label prefix', () => {
+    const expanded = new Set(['root'])
+    const flat = flattenVisibleTreeNodes(nodes, expanded)
+    expect(resolveTreeTypeaheadKey(flat, 'root', '子节点 b')).toBe('child-b')
+    expect(resolveTreeTypeaheadKey(flat, 'child-b', '根')).toBe('root')
+    expect(resolveTreeTypeaheadKey(flat, 'root', 'zzz')).toBeNull()
   })
 
   it('tracks ancestor levelLines for continuous showLine guides', () => {
@@ -122,6 +134,8 @@ describe('tree-utils', () => {
       hasChildren: false,
       isLast: index === 199,
       parentKey: null,
+      setSize: 200,
+      posInSet: index + 1,
       levelLines: [] as boolean[],
     }))
     const slice = sliceVirtualTreeNodes(flat, 320, 200, 32, 2)
@@ -137,6 +151,8 @@ describe('tree-utils', () => {
       hasChildren: false,
       isLast: index === 4,
       parentKey: null,
+      setSize: 5,
+      posInSet: index + 1,
       levelLines: [] as boolean[],
     }))
     const slice = sliceVirtualTreeNodes(flat, 50_000, 200, 32, 2)
@@ -153,6 +169,8 @@ describe('tree-utils', () => {
       hasChildren: false,
       isLast: index === 499,
       parentKey: null,
+      setSize: 500,
+      posInSet: index + 1,
       levelLines: [] as boolean[],
     }))
     const slice = sliceVirtualTreeNodes(flat, 3200, 200, 32, 2)

@@ -8,6 +8,8 @@
 import type { RsTableColumn } from '../utils/table-utils'
 import type { RsTableSummaryCell } from '../utils/table-summary-utils'
 
+defineOptions({ name: 'RsTableSummaryRow' })
+
 defineProps<{
   /** 与表体一致的展示列（通常为 displayColumns） */
   columns: RsTableColumn<T>[]

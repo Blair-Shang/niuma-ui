@@ -126,6 +126,7 @@ export interface RsTableProps<T extends RsTableRowData = RsTableRowData> {
   rowPending?: (row: T, index: number) => boolean
   showRowStatus?: boolean
   allowNull?: boolean
+  /** 空值展示。未传时用 table.nullValue */
   nullLabel?: string
   editFocusMode?: RsTableCellEditFocusMode
   editKeyboard?: boolean
@@ -336,7 +337,6 @@ export const RS_TABLE_PROP_DEFAULTS = {
   rowCommit: false,
   showRowStatus: true,
   allowNull: true,
-  nullLabel: '(NULL)',
   editFocusMode: 'end' as const,
   editKeyboard: true,
   editUndo: true,

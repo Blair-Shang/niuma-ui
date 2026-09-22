@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref, watch } from 'vue'
 import RsIcon from '../../icon/src/RsIcon.vue'
 import {
   RS_CONTEXT_MENU_ARROW_SIZE,
@@ -22,6 +23,27 @@ const emit = defineEmits<{
   select: [item: RsContextMenuItem]
   hover: [item: RsContextMenuItem]
 }>()
+
+const current = ref(props.highlight)
+
+watch(
+  () => props.highlight,
+  (key) => {
+    current.value = key
+  },
+)
+
+function onPointerEnter(item: RsContextMenuItem) {
+  if (current.value !== item.key) current.value = item.key
+  emit('hover', item)
+}
+
+defineExpose({
+  getHighlight: () => current.value,
+  setHighlight: (key: string) => {
+    current.value = key
+  },
+})
 
 function itemId(item: RsContextMenuItem, index: number): string {
   return `${props.menuId}-${props.layerId}-${index}`
@@ -58,9 +80,9 @@ function onClick(item: RsContextMenuItem, event: MouseEvent) {
       class="rs-context-menu__item"
       :class="{ 'rs-context-menu__item--danger': item.danger }"
       :role="contextMenuItemRole(item)"
-      :tabindex="item.key === highlight && !item.disabled ? 0 : -1"
+      :tabindex="item.key === current && !item.disabled ? 0 : -1"
       :data-ctx-key="item.key"
-      :data-highlighted="item.key === highlight ? '' : undefined"
+      :data-highlighted="item.key === current ? '' : undefined"
       :data-state="item.key === openKey ? 'open' : undefined"
       :data-disabled="item.disabled ? '' : undefined"
       :aria-disabled="item.disabled ? 'true' : undefined"
@@ -68,7 +90,7 @@ function onClick(item: RsContextMenuItem, event: MouseEvent) {
       :aria-haspopup="hasContextMenuChildren(item) ? 'menu' : undefined"
       :aria-expanded="hasContextMenuChildren(item) ? item.key === openKey : undefined"
       @click="onClick(item, $event)"
-      @pointerenter="emit('hover', item)"
+      @pointerenter="onPointerEnter(item)"
     >
       <span class="rs-context-menu__icon-cell">
         <RsIcon
@@ -82,7 +104,7 @@ function onClick(item: RsContextMenuItem, event: MouseEvent) {
         <slot
           name="item"
           :item="item"
-          :highlighted="item.key === highlight"
+          :highlighted="item.key === current"
           :checked="Boolean(item.checked)"
         >
           <span class="rs-context-menu__label">{{ item.label }}</span>

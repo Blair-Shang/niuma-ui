@@ -11,6 +11,7 @@ export {
 export type {
   RsResolvedTerminalTheme,
   RsTerminalAction,
+  RsTerminalCursorStyle,
   RsTerminalExpose,
   RsTerminalGeometry,
   RsTerminalThemeMode,

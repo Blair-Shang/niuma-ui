@@ -4,6 +4,7 @@ export type {
   MonacoCompletionPrefixResolver,
   MonacoCompletionRequest,
   MonacoCompletionSnippet,
+  RsMonacoEditorContextMenu,
   RsMonacoEditorExpose,
   RsMonacoEditorInstance,
   RsMonacoEditorTheme,

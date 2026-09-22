@@ -25,12 +25,13 @@ import type { RsTableFeature } from './features/table-features'
 import { hasTableSummaryConfig } from './utils/table-summary-utils'
 import '../style/rs-table.css'
 
-defineOptions({ inheritAttrs: false })
+defineOptions({ name: 'RsTable', inheritAttrs: false })
 
 const props = withDefaults(defineProps<RsTableProps<T>>(), RS_TABLE_PROP_DEFAULTS)
 const emit = defineEmits<RsTableEmits<T>>()
 const slots = useSlots()
 const { t } = useRsI18n()
+const resolvedNullLabel = computed(() => props.nullLabel ?? t('table.nullValue'))
 
 const sharedTipRef = ref<HTMLElement | null>(null)
 const {
@@ -522,7 +523,7 @@ bindRsTableViewContext<T>({
     rowCommit: () => props.rowCommit,
     allowNull: () => props.allowNull,
     editFocusMode: () => props.editFocusMode,
-    nullLabel: () => props.nullLabel,
+    nullLabel: () => resolvedNullLabel.value,
   },
   layout: {
     useFixedColumnLayout,
@@ -651,16 +652,16 @@ defineExpose(tableApi)
     :items="ctxMenuItems"
     @select="onCtxMenuSelect"
   >
-    <!-- shell 作为 ContextMenuTrigger 宿主；::before 伪元素铺满 shell 捕获空白区右键 -->
+    <!-- shell 是右键宿主；::before 铺满空白区 -->
     <div
-      class="rs-table-shell"
+      class="rs-table-shell rs-motion-reduce"
       :class="{ 'rs-table-shell--ctx': contextMenuEnabled, 'rs-table-shell--fill': fill }"
       v-bind="shellBind"
       @contextmenu="onTableContextmenu"
     >
       <!--
-        在 Trigger(shell) 之内、单元格之外捕获：先于单元格/冒泡填充 items，
-        避免 ContextMenu 在 items 仍为空时拒开。
+        在 shell 之内、单元格之外捕获：先于单元格冒泡填好菜单项，
+        避免菜单在 items 仍为空时拒开。
       -->
       <div
         ref="scrollContainerRef"

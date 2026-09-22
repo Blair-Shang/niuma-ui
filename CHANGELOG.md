@@ -6,6 +6,16 @@
 
 ## [Unreleased]
 
+## [2.0.9] - 2026-09-22
+
+### 变更
+
+- `RsTable`：原先就不引用 Reka。`data` / 排序 / 选择 / 虚拟滚动 / 编辑 / 树表 / 右键语义不变。补组件名。`nullLabel` 未传时走 `table.nullValue`。默认字符串排序和筛选跟当前 locale（`localeCompare` / `toLocaleLowerCase`）；列上的 `sorter` 仍由宿主比较。颜色改跟 `--rs-surface` / `--rs-text-primary` / `--rs-border`，高对比会跟着走。选中色条、列拖放线和展开箭头在 RTL 转向。减少动态时外壳挂 `rs-motion-reduce`。单元格日期失焦提交的定时器在卸载时清掉；滚动布局卸载时作废尚未写回的帧并断开 ResizeObserver。列宽拖拽仍在松开和卸载时摘掉 document 监听。`subscribeAnalytics` 返回的取消函数不调用会留到表格卸载。文档站按 site README 补全中英 props / events / slots / methods / tokens / FAQ，并补排序、勾选、筛选、空态、虚拟、插槽、合计、分组、右键、实例 API、主题和键盘。
+- `RsTree`：原先就不引用 Reka。`v-model` / `v-model:expandedKeys` / `v-model:checkedKeys` / `v-model:halfCheckedKeys` / 勾选、拖拽、过滤、懒加载、虚拟滚动与 `expandAll` / `collapseAll` / `expandNode` / `collapseNode` / `focusNode` 语义不变。补 `disabled`（含 Form.disabled）/ `ariaLabel` / `id`、`#icon` / `#empty`、`focus()` / `scrollToKey()` / `getSelectedKeys()` / `getCheckedKeys()` / `getExpandedKeys()` / `getHalfCheckedKeys()` 与公开类型 `RsTreeExpose` / `RsTreeInstance`。未传 `size` 跟 Form / ConfigProvider。树是一个 Tab 停靠点（`aria-activedescendant`）；方向键在 RTL 对调；字符前缀跳转，输入法组合键不抢；`*` 展开当前层已加载的兄弟。`aria-setsize` / `aria-posinset` 按兄弟计。半选写到 checkbox 的 `indeterminate`。过滤与高亮用 `toLocaleLowerCase`。虚拟列表按行号滚动，不再依赖未挂载的行节点。`virtual` 开关时成对连接 / 断开 ResizeObserver；`loadData` 在卸载后不再改展开；输入跳转定时器卸载时清掉。行引用离开窗口就从 Map 删除。开发环境在虚拟滚动开启时 `console.info` 一行（节点数、视口高度），未开启不打印。名称走 `tree.*`。高亮、拖入和勾选标记走 `--rs-tree-highlight-bg` / `--rs-tree-drop-inside-bg` / `--rs-tree-check-fg`，间距用逻辑属性，减少动态时关掉过渡。文档站按 site README 补全中英 props / events / slots / methods / tokens / FAQ。
+- `RsMonacoEditor`：补 `contextMenu`（默认开，仍是 Monaco 原生右键）和 `contextmenu`（行、列、选中文本、指针坐标）。关掉后不再弹出原生菜单，并拦住浏览器菜单；事件仍发，监听随编辑器释放。`options.contextmenu` 不盖过这个开关。
+- `RsContextMenu`：打开和子菜单先按实测尺寸摆好再淡入。未摆好前不显示，避免边缩放边改 `top` / `left` 时跳动。上下移动高亮只更新条目列表，不再重测面板，层节点的 ref 保持同一个函数。
+- `RsTerminal`：原先就不引用 Reka。`data` / `write` / `resize` / 右键项 / `inputEnabled` / 搜索 / `copyOnSelect` / `minimumContrastRatio` 语义不变。补 `cursorStyle` / `screenReaderMode` / `openLinks` / `rescaleOverlappingGlyphs`（默认开，便于 GB18030 歧义宽度）/ `ariaLabel` / `id`，以及 `titleChange` / `bell` / `link`。http(s) 与 mailto 新开标签并带 noopener，`javascript:` 与 `data:` 忽略。`inputEnabled` 为 false 时关掉 stdin。画面 `dir=ltr`。`themeMode=auto` 跟最近的 `data-rs-theme`，颜色从宿主继承的 token 来。多个实例共用一个主题观察器，最后一个卸载才断开。卸载同时摘掉 ResizeObserver、滚轮、减少动态监听和 xterm 订阅；首次 fit 还在等字体时卸载，之后不再挂观察器。搜索插件只在 `searchEnabled` 时加载。没有匹配时搜索框说明走 `terminal.searchEmpty`，输入法组合中的 Enter 不跳下一条。名称走 `terminal.label`。外壳阴影走 `--rs-shadow-sm`，搜索焦点环走 `--rs-focus-*`。文档站按 site README 补全中英 props / events / slots / methods / tokens / FAQ。
+
 ## [2.0.8] - 2026-09-22
 
 ### 变更

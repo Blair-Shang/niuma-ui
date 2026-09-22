@@ -49,6 +49,12 @@ const emit = defineEmits<{
   'toggle-open': [key: string, open: boolean]
 }>()
 
+defineSlots<{
+  item?: (props: RsMenuItemSlot) => unknown
+  icon?: (props: RsMenuItemSlot) => unknown
+  extra?: (props: RsMenuItemSlot) => unknown
+}>()
+
 const { t } = useRsI18n()
 const isCollapsedVertical = computed(() => props.mode === 'vertical' && props.collapsed)
 const canExpandSubmenu = computed(() => !isCollapsedVertical.value)

@@ -108,6 +108,7 @@ const submenuPath = ref<string[]>([])
 const rootHighlight = ref('')
 const subHighlights = ref<Record<string, string>>({})
 const boxes = ref<Record<string, RsContextMenuPointBox>>({})
+const settled = ref<Record<string, true>>({})
 const panelTheme = ref<string | undefined>()
 const panelDir = ref<'ltr' | 'rtl'>('ltr')
 const panelLang = ref<string | undefined>()
@@ -118,12 +119,19 @@ const layers = computed(() =>
   resolveContextMenuLayers(props.items, submenuPath.value).map((layer, depth) => ({
     ...layer,
     depth,
-    highlight: layer.id === 'root' ? rootHighlight.value : (subHighlights.value[layer.id] ?? ''),
     openKey: submenuPath.value[depth] ?? '',
   })),
 )
 
+type ItemListApi = {
+  getHighlight: () => string
+  setHighlight: (key: string) => void
+}
+
 const layerEls = new Map<string, HTMLElement>()
+const layerRefs = new Map<string, (el: unknown) => void>()
+const itemRefs = new Map<string, (el: unknown) => void>()
+const itemLists = new Map<string, ItemListApi>()
 let frame = 0
 let overlayBound = false
 let openWatchReady = false
@@ -179,14 +187,69 @@ function setOpen(next: boolean, point?: RsContextMenuPoint) {
 }
 
 function highlightOf(layerId: string): string {
+  const live = itemLists.get(layerId)?.getHighlight()
+  if (live) return live
   if (layerId === 'root') return rootHighlight.value
   return subHighlights.value[layerId] ?? ''
 }
 
 function setHighlight(layerId: string, key: string) {
-  if (!key) return
+  if (!key || highlightOf(layerId) === key) return
+  const list = itemLists.get(layerId)
+  if (list) {
+    list.setHighlight(key)
+    return
+  }
   if (layerId === 'root') rootHighlight.value = key
   else subHighlights.value = { ...subHighlights.value, [layerId]: key }
+}
+
+function layerHighlight(id: string): string {
+  if (id === 'root') return rootHighlight.value
+  return subHighlights.value[id] ?? ''
+}
+
+function setPath(next: string[]) {
+  const keep = new Set(next)
+  const settledNext: Record<string, true> = {}
+  for (const id of Object.keys(settled.value)) {
+    if (id === 'root' || keep.has(id)) settledNext[id] = true
+  }
+  if (Object.keys(settledNext).length !== Object.keys(settled.value).length) {
+    settled.value = settledNext
+  }
+  const boxesNext: Record<string, RsContextMenuPointBox> = {}
+  for (const id of Object.keys(boxes.value)) {
+    const box = boxes.value[id]
+    if (box && (id === 'root' || keep.has(id))) boxesNext[id] = box
+  }
+  if (Object.keys(boxesNext).length !== Object.keys(boxes.value).length) boxes.value = boxesNext
+  submenuPath.value = next
+}
+
+function revealSettled() {
+  const next: Record<string, true> = {}
+  for (const layer of layers.value) {
+    if (boxes.value[layer.id]) next[layer.id] = true
+  }
+  const prev = settled.value
+  const nextKeys = Object.keys(next)
+  if (nextKeys.length === Object.keys(prev).length && nextKeys.every((id) => prev[id])) return
+  settled.value = next
+}
+
+function settleLayers(after?: () => void, prepare?: () => void) {
+  void nextTick(() => {
+    if (!open.value) return
+    prepare?.()
+    placeAll()
+    void nextTick(() => {
+      if (!open.value) return
+      placeAll()
+      revealSettled()
+      after?.()
+    })
+  })
 }
 
 function readPanelDir(el: HTMLElement | null): 'ltr' | 'rtl' {
@@ -287,12 +350,49 @@ function observeLayers() {
 }
 
 function setLayerEl(id: string, value: unknown) {
-  if (value instanceof HTMLElement) layerEls.set(id, value)
-  else layerEls.delete(id)
-  if (open.value && value instanceof HTMLElement) {
+  if (value instanceof HTMLElement) {
+    if (layerEls.get(id) === value) return
+    layerEls.set(id, value)
+  } else {
+    if (!layerEls.has(id)) return
+    layerEls.delete(id)
+    return
+  }
+  if (open.value) {
     observeLayers()
     requestPlace()
   }
+}
+
+function layerRefFor(id: string): (el: unknown) => void {
+  const existing = layerRefs.get(id)
+  if (existing) return existing
+  const fn = (el: unknown) => setLayerEl(id, el)
+  layerRefs.set(id, fn)
+  return fn
+}
+
+function itemsRefFor(id: string): (el: unknown) => void {
+  const existing = itemRefs.get(id)
+  if (existing) return existing
+  const fn = (el: unknown) => bindItems(id, el)
+  itemRefs.set(id, fn)
+  return fn
+}
+
+function bindItems(id: string, value: unknown) {
+  if (
+    value &&
+    typeof value === 'object' &&
+    'getHighlight' in value &&
+    'setHighlight' in value &&
+    typeof value.getHighlight === 'function' &&
+    typeof value.setHighlight === 'function'
+  ) {
+    itemLists.set(id, value as ItemListApi)
+    return
+  }
+  itemLists.delete(id)
 }
 
 function layerStyle(id: string): Record<string, string> {
@@ -395,11 +495,9 @@ function openSubmenu(key: string, depth: number) {
       [key]: firstEnabledContextMenuKey(parent?.children ?? []),
     }
   }
-  submenuPath.value = next
-  void nextTick(() => {
-    requestPlace()
-    focusLayerItem(key, subHighlights.value[key] ?? '')
-  })
+  setPath(next)
+  const focusKey = subHighlights.value[key] ?? ''
+  settleLayers(() => focusLayerItem(key, focusKey))
 }
 
 function scheduleOpen(key: string, depth: number) {
@@ -416,7 +514,7 @@ function scheduleCloseFrom(depth: number) {
   clearSubClose()
   subCloseTimer = setTimeout(() => {
     subCloseTimer = undefined
-    submenuPath.value = submenuPath.value.slice(0, depth)
+    setPath(submenuPath.value.slice(0, depth))
   }, SUB_CLOSE_MS)
 }
 
@@ -425,13 +523,12 @@ function armLayerLeave() {
   subCloseTimer = setTimeout(() => {
     subCloseTimer = undefined
     clearSubOpen()
-    submenuPath.value = []
+    setPath([])
   }, SUB_CLOSE_MS)
 }
 
 function onItemHover(layerId: string, depth: number, item: RsContextMenuItem) {
   clearSubClose()
-  setHighlight(layerId, item.key)
   if (item.disabled || !hasContextMenuChildren(item)) {
     scheduleCloseFrom(depth)
     return
@@ -461,7 +558,7 @@ function prunePath() {
     next.push(key)
     current = parent.children
   }
-  if (next.length !== submenuPath.value.length) submenuPath.value = next
+  if (next.length !== submenuPath.value.length) setPath(next)
 }
 
 function attach() {
@@ -546,7 +643,7 @@ function closeTopLayer() {
     setOpen(false)
     return
   }
-  submenuPath.value = submenuPath.value.slice(0, -1)
+  setPath(submenuPath.value.slice(0, -1))
   void nextTick(() => {
     const parent = layers.value.at(-1)
     if (parent) focusLayerItem(parent.id, highlightOf(parent.id))
@@ -612,7 +709,7 @@ function onLayerKey(event: KeyboardEvent, layer: { id: string; items: RsContextM
   if (event.key === keys.closeSub && layer.depth > 0) {
     event.preventDefault()
     event.stopPropagation()
-    submenuPath.value = submenuPath.value.slice(0, layer.depth - 1)
+    setPath(submenuPath.value.slice(0, layer.depth - 1))
     void nextTick(() => {
       const parent = layers.value[layer.depth - 1]
       if (parent) focusLayerItem(parent.id, highlightOf(parent.id))
@@ -745,6 +842,7 @@ watch(
         return
       }
       claimContextMenu(requestClose)
+      settled.value = {}
       submenuPath.value = []
       subHighlights.value = {}
       rootHighlight.value = firstEnabledContextMenuKey(props.items)
@@ -755,14 +853,14 @@ watch(
         restoreTarget =
           document.activeElement instanceof HTMLElement ? document.activeElement : triggerEl.value
       }
-      void nextTick(() => {
-        if (!open.value) return
-        if (!pointLocked) anchor.value = pointFromTrigger()
-        syncPanelChrome()
-        placeAll()
-        observeLayers()
-        focusLayerItem('root', rootHighlight.value)
-      })
+      settleLayers(
+        () => focusLayerItem('root', rootHighlight.value),
+        () => {
+          if (!pointLocked) anchor.value = pointFromTrigger()
+          syncPanelChrome()
+          observeLayers()
+        },
+      )
       if (!skip) emit('openChange', true)
       return
     }
@@ -771,6 +869,8 @@ watch(
     clearSubTimers()
     clearTypeahead()
     submenuPath.value = []
+    settled.value = {}
+    boxes.value = {}
     const shouldRestore = restoreOnClose
     restoreOnClose = false
     const back = restoreTarget
@@ -792,8 +892,10 @@ watch(
     if (!open.value) return
     prunePath()
     const enabled = listContextMenuLayerItems(items)
-    if (!enabled.some((item) => item.key === rootHighlight.value && !item.disabled)) {
-      rootHighlight.value = firstEnabledContextMenuKey(items)
+    if (!enabled.some((item) => item.key === highlightOf('root') && !item.disabled)) {
+      const next = firstEnabledContextMenuKey(items)
+      rootHighlight.value = next
+      itemLists.get('root')?.setHighlight(next)
     }
     requestPlace()
   },
@@ -812,6 +914,9 @@ onUnmounted(() => {
   clearSubTimers()
   clearTypeahead()
   clearSwallow()
+  layerRefs.clear()
+  itemRefs.clear()
+  itemLists.clear()
 })
 </script>
 
@@ -824,7 +929,7 @@ onUnmounted(() => {
         v-for="layer in layers"
         :id="layer.id === 'root' ? menuId : undefined"
         :key="layer.id"
-        :ref="(el) => setLayerEl(layer.id, el)"
+        :ref="layerRefFor(layer.id)"
         class="rs-context-menu__content rs-native-scrollbar rs-motion-reduce"
         :class="[
           layer.id !== 'root' && 'rs-context-menu__sub-content',
@@ -836,6 +941,7 @@ onUnmounted(() => {
         :dir="panelDir"
         :lang="panelLang"
         :data-rs-theme="panelTheme"
+        :data-placed="settled[layer.id] ? '' : undefined"
         :data-origin-x="boxes[layer.id]?.originX"
         :data-origin-y="boxes[layer.id]?.originY"
         :style="layerStyle(layer.id)"
@@ -845,8 +951,9 @@ onUnmounted(() => {
         @contextmenu.prevent
       >
         <RsContextMenuItems
+          :ref="itemsRefFor(layer.id)"
           :items="layer.items"
-          :highlight="layer.highlight"
+          :highlight="layerHighlight(layer.id)"
           :open-key="layer.openKey"
           :menu-id="menuId"
           :layer-id="layer.id"
@@ -894,7 +1001,11 @@ onUnmounted(() => {
 
 .rs-context-menu__content {
   transform-origin: top left;
-  animation: rs-ctx-in var(--rs-ctx-motion-in) cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+.rs-context-menu__content:not([data-placed]) {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .rs-context-menu__content[data-origin-x='right'][data-origin-y='top'] {
@@ -909,7 +1020,11 @@ onUnmounted(() => {
   transform-origin: bottom right;
 }
 
-.rs-context-menu__sub-content {
+.rs-context-menu__content[data-placed] {
+  animation: rs-ctx-in var(--rs-ctx-motion-in) cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+.rs-context-menu__sub-content[data-placed] {
   animation: rs-ctx-sub-in var(--rs-ctx-motion-sub) ease-out;
 }
 
@@ -924,11 +1039,9 @@ onUnmounted(() => {
 @keyframes rs-ctx-in {
   from {
     opacity: 0;
-    transform: scale(0.96);
   }
   to {
     opacity: 1;
-    transform: scale(1);
   }
 }
 

@@ -3,7 +3,6 @@
  * 用法：node scripts/build-lib.mjs
  */
 import { spawnSync } from 'node:child_process'
-import { createRequire } from 'node:module'
 import {
   cpSync,
   existsSync,
@@ -19,7 +18,6 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const distDir = resolve(root, 'dist')
-const require = createRequire(import.meta.url)
 const utf8 = 'utf8'
 
 /**
@@ -204,14 +202,11 @@ function flattenVueArtifacts(dir) {
 }
 
 /**
- * WriteStandaloneCss 发布独立样式：内联 vue-sonner，不含 Tailwind。
+ * WriteStandaloneCss 发布独立样式：内联品牌图标，不含 Tailwind。
  */
 function writeStandaloneCss() {
-  const sonnerPath = require.resolve('vue-sonner/style.css')
-  const sonner = readFileSync(sonnerPath, utf8)
   const brandIcons = readFileSync(resolve(root, 'src/icons/style/brand-icons.css'), utf8)
   let css = readFileSync(resolve(root, 'src/styles/index.css'), utf8)
-  css = css.replace(/@import\s+['"]vue-sonner\/style\.css['"]\s*;\s*/g, `${sonner}\n`)
   css = css.replace(/@import\s+['"]\.\.\/icons\/style\/brand-icons\.css['"]\s*;\s*/g, `${brandIcons}\n`)
   if (css.includes('@import')) {
     throw new Error('styles.css still has @import after inlining; npm consumers cannot resolve src paths')
