@@ -18,7 +18,7 @@ Built for ops consoles, database workbenches, and internal admin UIs. Marketing 
 - **Design tokens** — light / dark / system via `data-rs-theme` and CSS variables; hosts override a brand layer
 - **Rs\* components** — Button, Form, Dialog, Table, Tree, Tabs, Anchor, and more
 - **Tooling** — Monaco, CodeMirror, xterm (import only on routes that need them)
-- **Accessibility** — [Reka UI](https://reka-ui.com/) underneath; apps depend only on `niuma-ui`
+- **Accessibility** — native controls and ARIA; apps depend only on `niuma-ui`
 - **i18n** — omitted `locale` follows the host language (`zh*` → `zh-CN`, `en*` → `en-US`); unknown tags fall back to `zh-CN`. Extra languages: `registerRsLocale` ([guide](./docs/locales.en.md))
 - **Vite** — `import { RsButton } from 'niuma-ui'` is enough to bundle; `niumaUiHost` is local `pnpm dev` HMR only
 
@@ -71,7 +71,7 @@ Omit `locale` to follow the host language. Chinese systems stay on `zh-CN`. Comm
 
 ## Usage
 
-1. Named-import from the package root only. **Do not** depend on `reka-ui`. Do not `import *`.
+1. Named-import from the package root only. Do not `import *`.
 2. Import `niuma-ui/styles.css` once, then your brand CSS.
 3. Wrap the app with `RsConfigProvider` (theme, locale, default control size).
 4. Light sites re-export used symbols from their own `ui.ts`. Do not alias the package to this repo’s `src/index.ts`.
@@ -116,7 +116,7 @@ Stable publishes set npm dist-tag **`latest`**; prereleases use **`next`**. Ther
 
 [Apache License 2.0](./LICENSE). Attribution: [NOTICE](./NOTICE).
 
-Primitives: [Reka UI](https://reka-ui.com/). Icons: [Lucide](https://lucide.dev/). Editors: [Monaco](https://microsoft.github.io/monaco-editor/), [CodeMirror](https://codemirror.net/). Terminal: [xterm.js](https://xtermjs.org/).
+Icons: [Lucide](https://lucide.dev/). Editors: [Monaco](https://microsoft.github.io/monaco-editor/), [CodeMirror](https://codemirror.net/). Terminal: [xterm.js](https://xtermjs.org/).
 
 - Docs: https://blair-shang.github.io/niuma-ui/
 - npm: https://www.npmjs.com/package/niuma-ui

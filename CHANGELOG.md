@@ -6,6 +6,15 @@
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-09-22
+
+### 变更
+
+- 去掉 `reka-ui`。`RsConfigProvider` 不再包一层 Reka `ConfigProvider`。`theme` / `locale` / `dir` / `controlSize` / `controlRadius` / `themeScope` 语义不变；语言和书写方向仍由 `applyLocale` 写到 `document` 或 Provider 根节点。
+- 文档站版本改为读取 `package.json`。推送 `v*` 标签时与 npm 发布同一提交重新部署 GitHub Pages。
+- `RsButton` 轮廓描边改跟 `--rs-input-border`。亮色不再用 `#6e6e73`，暗色不再用 `#a3a3a3`。
+- `RsButton`：未传 `bordered` 回到 `false`（与 2.0.3 之前一致）。要描边须显式传 `bordered`。
+
 ## [2.0.9] - 2026-09-22
 
 ### 变更

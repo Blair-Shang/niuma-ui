@@ -50,17 +50,17 @@ export const basicComponents: ComponentDoc[] = [
         name: 'variant',
         type: "'primary' | 'secondary' | 'default' | 'ghost' | 'danger' | 'link' | 'text'",
         default: "'primary'",
-        description: '形态。secondary 等价 default（轮廓 + 浅底）。danger 为历史实心危险按钮，新代码请用 tone="danger"。',
+        description: '形态。secondary 等价 default（浅底；描边另传 bordered）。danger 为历史实心危险按钮，新代码请用 tone="danger"。',
         descriptionEn:
-          'Shape. secondary equals default (outline + tinted fill). danger is a legacy solid destructive style; prefer tone="danger".',
+          'Shape. secondary equals default (tinted fill; pass bordered for an outline). danger is a legacy solid destructive style; prefer tone="danger".',
       },
       {
         name: 'tone',
         type: "'neutral' | 'primary' | 'success' | 'warning' | 'danger' | 'info'",
         default: '随 variant：primary/link 为 primary，danger 为 danger，其余 neutral',
         defaultEn: 'follows variant: primary/link → primary, danger → danger, else neutral',
-        description: '语义色，与 variant 正交。例：描边警告写 variant="default" tone="warning"。',
-        descriptionEn: 'Semantic hue, independent of variant. Example: outline warning is variant="default" tone="warning".',
+        description: '语义色，与 variant 正交。描边警告：variant="default" tone="warning" bordered。',
+        descriptionEn: 'Semantic hue, independent of variant. Outline warning: variant="default" tone="warning" bordered.',
       },
       {
         name: 'size',
@@ -100,10 +100,9 @@ export const basicComponents: ComponentDoc[] = [
       {
         name: 'bordered',
         type: 'boolean',
-        default: 'text/link 为 false，其余 true',
-        defaultEn: 'false for text/link, true otherwise',
-        description: '是否绘制外边框。',
-        descriptionEn: 'Whether to draw the outline.',
+        default: 'false',
+        description: '是否绘制外边框。未传不画。',
+        descriptionEn: 'Draw the outline. Omit to leave it off.',
       },
       {
         name: 'icon',
@@ -173,9 +172,9 @@ export const basicComponents: ComponentDoc[] = [
     tokens: [
       {
         name: '--rs-btn-outline-border',
-        default: 'light #6e6e73 / dark #a3a3a3',
-        description: '轮廓按钮描边。',
-        descriptionEn: 'Outline button border.',
+        default: 'var(--rs-input-border)',
+        description: '轮廓按钮描边，跟输入框。',
+        descriptionEn: 'Outline button border. Matches the input border.',
       },
       {
         name: '--rs-btn-secondary-bg',
@@ -205,9 +204,9 @@ export const basicComponents: ComponentDoc[] = [
       },
       {
         q: '如何做描边警告或实心成功？',
-        a: '描边警告：variant="default" tone="warning"。实心成功：variant="primary" tone="success"。不要写业务 CSS 改颜色。',
+        a: '描边警告：variant="default" tone="warning" bordered。实心成功：variant="primary" tone="success"。不要写业务 CSS 改颜色。',
         qEn: 'How do I make an outline warning or a solid success button?',
-        aEn: 'Outline warning: variant="default" tone="warning". Solid success: variant="primary" tone="success". Do not restyle color in product CSS.',
+        aEn: 'Outline warning: variant="default" tone="warning" bordered. Solid success: variant="primary" tone="success". Do not restyle color in product CSS.',
       },
       {
         q: '还要不要写 variant="danger"？',

@@ -846,29 +846,41 @@
   touch-action: none;
   z-index: 2;
 }
-/* 默认与列 border 重合，不额外绘制；悬浮时高亮为可拖拽分隔线 */
+/* 平时就画出列边，让人知道这里能拖；悬停改成主色 */
 .rs-table__resize-handle::after {
   content: '';
   position: absolute;
   top: 0;
   bottom: 0;
   left: 50%;
-  width: 1px;
+  width: 2px;
   transform: translateX(-50%);
   border-radius: 0;
-  background: transparent;
-  opacity: 0;
-  transition: opacity 0.12s ease, background 0.12s ease;
+  background: var(--rs-table-resize-handle);
+  opacity: 1;
+  transition: background 0.12s ease;
 }
 .rs-table__resize-handle:hover::after,
 .rs-table__resize-handle:active::after {
-  opacity: 1;
   background: var(--rs-table-resize-handle-hover);
 }
-/* column-bordered：平时由单元格 border-inline-end 承担分隔线，悬浮时由 handle 接管高亮 */
-.rs-table--column-bordered .rs-table__th:has(> .rs-table__resize-handle:hover),
-.rs-table--column-bordered .rs-table__th:has(> .rs-table__resize-handle:active) {
-  border-inline-end-color: transparent;
+/* 已有列分隔线时不再另画 2px 拖拽线，避免表头粗线和表体细线错开。
+   悬停只把这一条分隔线改成主色。最后一列没有分隔线，悬停才画出拖拽线。 */
+.rs-table--column-bordered .rs-table__th:not(:last-child) > .rs-table__resize-handle::after,
+.rs-table--column-bordered .rs-table__th:not(:last-child) > .rs-table__resize-handle:hover::after,
+.rs-table--column-bordered .rs-table__th:not(:last-child) > .rs-table__resize-handle:active::after {
+  background: transparent;
+}
+.rs-table--column-bordered .rs-table__th:not(:last-child):has(> .rs-table__resize-handle:hover),
+.rs-table--column-bordered .rs-table__th:not(:last-child):has(> .rs-table__resize-handle:active) {
+  border-inline-end-color: var(--rs-table-resize-handle-hover);
+}
+.rs-table--column-bordered .rs-table__th:last-child > .rs-table__resize-handle::after {
+  background: transparent;
+}
+.rs-table--column-bordered .rs-table__th:last-child > .rs-table__resize-handle:hover::after,
+.rs-table--column-bordered .rs-table__th:last-child > .rs-table__resize-handle:active::after {
+  background: var(--rs-table-resize-handle-hover);
 }
 /* 滚动条交汇角与容器底色一致 */
 .rs-table.rs-native-scrollbar:has(.rs-table__head)::-webkit-scrollbar-corner {
@@ -1234,7 +1246,39 @@
   pointer-events: none;
 }
 .rs-table-cell-editor--custom {
+  display: flex;
+  align-items: stretch;
   width: 100%;
   height: 100%;
   min-width: 0;
+  min-height: 0;
+}
+/* 插槽里的原生输入跟内置编辑器一样贴合格子，不再另画一圈边框 */
+.rs-table-cell-editor--custom > :where(input, textarea, select) {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: var(--rs-space-sm) var(--rs-space-md);
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  appearance: none;
+}
+.rs-table-cell-editor--custom > :where(input, textarea, select):focus {
+  outline: none;
+  box-shadow: none;
+}
+.rs-table--compact .rs-table-cell-editor--custom > :where(input, textarea, select),
+.rs-table--sm .rs-table-cell-editor--custom > :where(input, textarea, select) {
+  padding: var(--rs-space-xs) var(--rs-space-sm);
+}
+.rs-table--lg .rs-table-cell-editor--custom > :where(input, textarea, select) {
+  padding: var(--rs-space-md) var(--rs-space-lg);
 }

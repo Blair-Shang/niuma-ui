@@ -9,20 +9,20 @@ const buttonApi: DemoApiRow[] = [
     name: 'variant',
     type: "'primary' | 'secondary' | 'default' | 'ghost' | 'danger' | 'link' | 'text'",
     default: "'primary'",
-    description: '形态：实心 / 轮廓浅底 / 幽灵 / 文字 / 链接。secondary 等价 default。与 tone 正交。',
+    description: '形态：实心 / 浅底 / 幽灵 / 文字 / 链接。secondary 等价 default。描边另传 bordered。与 tone 正交。',
   },
   {
     name: 'tone',
     type: "'neutral' | 'primary' | 'success' | 'warning' | 'danger' | 'info'",
     default: 'primary/link 为 primary，danger 变体为 danger，其余 neutral',
-    description: '语义色。例：variant="default" tone="warning" → 描边 + 浅底警告色（对齐 Ant color / Element type）。',
+    description: '语义色。描边浅底警告：variant="default" tone="warning" bordered。',
   },
   { name: 'size', type: "'ssm' | 'sm' | 'md' | 'lg'", default: "'md'", description: '控件尺寸' },
   {
     name: 'bordered',
     type: 'boolean',
-    default: 'text/link 为 false，其余 true',
-    description: '是否显示外边框',
+    default: 'false',
+    description: '是否显示外边框。未传不画。',
   },
   { name: 'loading', type: 'boolean', default: 'false', description: '加载中，展示旋转指示并禁用点击' },
   { name: 'disabled', type: 'boolean', default: 'false', description: '禁用' },
@@ -126,8 +126,8 @@ function runLongLoad() {
 
     <DemoBlock title="语义色（形态 × 色相）" :code="tonesCode">
       <p class="hint">
-        <code>tone</code> 只改色相，<code>variant</code> 只管形态。轮廓按钮用
-        <code>variant="default"</code> 即可同时有描边和浅底，不必再写业务 CSS。
+        <code>tone</code> 只改色相，<code>variant</code> 只管形态。要描边再传
+        <code>bordered</code>，例如 <code>variant="default" tone="warning" bordered</code>。
       </p>
       <div class="row">
         <RsButton variant="default" tone="primary" size="sm">primary</RsButton>
@@ -146,13 +146,12 @@ function runLongLoad() {
 
     <DemoBlock title="白底表面 · 轮廓对比">
       <p class="hint">
-        白/浅底上 secondary 必须能看清边框。默认 token：亮色
-        <code>--rs-btn-outline-border: #6e6e73</code>，暗色 <code>#a3a3a3</code>。
+        默认描边跟输入框 <code>--rs-input-border</code>，不再用单独的实色灰。
       </p>
       <div class="compare-grid">
         <div class="surface-panel">
           <span class="label">默认 token</span>
-          <RsButton variant="secondary">重置</RsButton>
+          <RsButton variant="secondary" bordered>重置</RsButton>
         </div>
         <div class="surface-panel">
           <span class="label">bordered=false</span>
@@ -175,21 +174,21 @@ function runLongLoad() {
           <span class="label">preset 默认</span>
           <div class="row">
             <RsButton variant="primary" size="sm">保存</RsButton>
-            <RsButton variant="secondary" size="sm">重置</RsButton>
+            <RsButton variant="secondary" size="sm" bordered>重置</RsButton>
           </div>
         </div>
         <div class="surface-panel panel-token-strong">
           <span class="label">覆盖：更深描边 + 品牌悬浮</span>
           <div class="row">
             <RsButton variant="primary" size="sm">保存</RsButton>
-            <RsButton variant="secondary" size="sm">重置</RsButton>
+            <RsButton variant="secondary" size="sm" bordered>重置</RsButton>
           </div>
         </div>
         <div class="surface-panel panel-token-soft">
           <span class="label">覆盖：柔和描边</span>
           <div class="row">
-            <RsButton variant="secondary" size="sm">取消</RsButton>
-            <RsButton variant="ghost" size="sm">更多</RsButton>
+            <RsButton variant="secondary" size="sm" bordered>取消</RsButton>
+            <RsButton variant="ghost" size="sm" bordered>更多</RsButton>
           </div>
         </div>
       </div>

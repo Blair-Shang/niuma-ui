@@ -206,7 +206,7 @@ function onEditorSetNull(): void {
     <slot v-if="hasCustomSlot" />
     <RsTableCellContent v-else :content="displayContent" />
   </span>
-  <div v-else-if="hasEditSlot" class="rs-table-cell-editor rs-table-cell-editor--custom">
+  <div v-else-if="hasEditSlot" class="rs-table-cell-editor rs-table-cell-editor--inline rs-table-cell-editor--custom">
     <slot
       name="editor"
       :draft="localDraft"

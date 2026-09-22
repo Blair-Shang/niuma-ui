@@ -1,6 +1,6 @@
 {
   "name": "niuma-ui",
-  "version": "2.0.9",
+  "version": "2.1.0",
   "license": "Apache-2.0",
   "type": "module",
   "description": "Vue 3 workbench design system — Rs* components, --rs-* tokens, optional Monaco / CodeMirror / xterm",
@@ -11,7 +11,6 @@
     "components",
     "design-system",
     "workbench",
-    "reka-ui",
     "niuma"
   ],
   "author": "Blair-Shang",
@@ -136,8 +135,7 @@
     "magic-string": "^0.30.17",
     "marked": "^18.0.9",
     "monaco-editor": "^0.55.1",
-    "monaco-sql-languages": "^1.2.0",
-    "reka-ui": "^2.9.10"
+    "monaco-sql-languages": "^1.2.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

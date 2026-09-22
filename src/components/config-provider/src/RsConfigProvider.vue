@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { createRsConfigState, provideRsConfig } from '../../../composables/useRsConfig'
-import { applyLocale, resolveDirMode } from '../../../locale/apply'
+import { applyLocale } from '../../../locale/apply'
 import { resolveHostLocale } from '../../../locale/resolve-host'
 import { type RsDirMode, type RsLocale } from '../../../locale/types'
 import { applyTheme, subscribePreferredColorScheme } from '../../../theme/apply'
 import type { RsComponentSize, RsRadius, RsThemeMode } from '../../../theme/types'
-import { ConfigProvider as RekaConfigProvider } from '../../_shared/src/reka'
 
 defineOptions({ name: 'RsConfigProvider' })
 
@@ -127,20 +126,15 @@ watch(rootEl, () => {
   }
 })
 
-const resolvedDir = computed(() => resolveDirMode(config.dir.value, config.locale.value))
-const rekaLocale = computed(() => config.locale.value)
-
 onBeforeUnmount(() => {
   stopPreferred?.()
 })
 </script>
 
 <template>
-  <RekaConfigProvider :dir="resolvedDir" :locale="rekaLocale">
-    <div ref="rootEl" class="rs-config-provider">
-      <slot />
-    </div>
-  </RekaConfigProvider>
+  <div ref="rootEl" class="rs-config-provider">
+    <slot />
+  </div>
 </template>
 
 <style scoped>

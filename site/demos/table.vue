@@ -76,7 +76,15 @@ const { copy } = useSiteDemo({
     dropHit: (text: string) => `rowDrop → ${text}`,
     remoteIdle: 'Remote sort only emits. This demo reorders after the event.',
     remoteHit: (text: string) => `remote update:sort → ${text}`,
-    resizeIdle: 'Drag a column edge.',
+    resizeIdle: 'The column edge is visible. Drag it.',
+    stripeResizeIdle: 'Stripes and the drag line are both on. Drag a column edge.',
+    alignNote: 'left, center, and right. right paints as text-align: end.',
+    nullIdle: 'An empty cell shows the null label.',
+    rowClickIdle: 'Click a row.',
+    rowClickHit: (name: string) => `rowClick → ${name}`,
+    dblIdle: 'Double-click a row.',
+    dblHit: (name: string) => `rowDblclick → ${name}`,
+    grabIdle: 'Drag the row itself. There is no grip column.',
     resizeHit: (key: string, width: number) => `columnResize → ${key} ${width}px`,
     moreIdle: 'Scroll to the bottom.',
     moreHit: (count: number) => `loadMore → ${count} rows`,
@@ -139,7 +147,15 @@ const { copy } = useSiteDemo({
     dropHit: (text: string) => `rowDrop → ${text}`,
     remoteIdle: '远程排序只发事件。这个例子在事件之后自己重排。',
     remoteHit: (text: string) => `远程 update:sort → ${text}`,
-    resizeIdle: '拖列边。',
+    resizeIdle: '列边已经画出来了，按住它拖。',
+    stripeResizeIdle: '条纹和拖拽线一起开着。按住列边拖。',
+    alignNote: 'left、center、right。right 画成 text-align: end。',
+    nullIdle: '空单元格显示空值文案。',
+    rowClickIdle: '点击一行。',
+    rowClickHit: (name: string) => `rowClick → ${name}`,
+    dblIdle: '双击一行。',
+    dblHit: (name: string) => `rowDblclick → ${name}`,
+    grabIdle: '按住行本身拖。没有手柄列。',
     resizeHit: (key: string, width: number) => `columnResize → ${key} ${width}px`,
     moreIdle: '滚到接近底部。',
     moreHit: (count: number) => `loadMore → ${count} 行`,
@@ -159,6 +175,30 @@ const columns = computed<RsTableColumn<Row>[]>(() => [
   { key: 'name', title: copy.value.name, sortable: true },
   { key: 'status', title: copy.value.status, sortable: true },
   { key: 'count', title: copy.value.count, align: 'right', sortable: true },
+])
+
+const alignColumns = computed<RsTableColumn<Row>[]>(() => [
+  { key: 'name', title: copy.value.name, align: 'left', width: 160 },
+  { key: 'status', title: copy.value.status, align: 'center', width: 160 },
+  { key: 'count', title: copy.value.count, align: 'right', width: 120 },
+])
+
+interface SparseRow {
+  id: string
+  name: string
+  status: string | null
+  count: number | null
+}
+
+const nullColumns = computed<RsTableColumn<SparseRow>[]>(() => [
+  { key: 'name', title: copy.value.name, width: 160 },
+  { key: 'status', title: copy.value.status, width: 140 },
+  { key: 'count', title: copy.value.count, align: 'right', width: 100 },
+])
+
+const nullRows = computed<SparseRow[]>(() => [
+  { id: '1', name: copy.value.sync, status: null, count: 12 },
+  { id: '2', name: copy.value.quality, status: copy.value.stopped, count: null },
 ])
 
 const sortLog = ref('')
@@ -219,10 +259,15 @@ const columnOrder = ref<string[]>(['name', 'status', 'count'])
 const orderLog = ref('')
 const dragRows = ref<Row[]>([])
 const dropLog = ref('')
+const grabRows = ref<Row[]>([])
+const grabLog = ref('')
+const rowClickLog = ref('')
+const dblLog = ref('')
 const remoteSort = ref<RsTableSortState | null>(null)
 const remoteRows = ref<Row[]>([])
 const remoteLog = ref('')
 const resizeLog = ref('')
+const stripeResizeLog = ref('')
 const loaded = ref(20)
 const moreLog = ref('')
 const highlighted = ref<string>()
@@ -269,6 +314,8 @@ watch(
     const byId = new Map(rows.map((row) => [row.id, row]))
     if (dragRows.value.length === 0) dragRows.value = rows.map((row) => ({ ...row }))
     else dragRows.value = dragRows.value.map((row) => ({ ...row, ...byId.get(row.id) }))
+    if (grabRows.value.length === 0) grabRows.value = rows.map((row) => ({ ...row }))
+    else grabRows.value = grabRows.value.map((row) => ({ ...row, ...byId.get(row.id) }))
     if (!remoteSort.value) remoteRows.value = rows.map((row) => ({ ...row }))
   },
   { immediate: true },
@@ -307,22 +354,44 @@ function onColumnOrder(value: string[]): void {
   orderLog.value = copy.value.orderHit(value.join(' → '))
 }
 
-function onRowDrop(dragKeys: string[], dropKey: string, position: RsTableRowDropPosition): void {
-  dropLog.value = copy.value.dropHit(`${dragKeys.join(',')} ${position} ${dropKey}`)
-  if (position === 'into') return
+function reorderRows(
+  rows: Row[],
+  dragKeys: string[],
+  dropKey: string,
+  position: RsTableRowDropPosition,
+): Row[] {
+  if (position === 'into') return rows
   const dragKey = dragKeys[0]
-  if (!dragKey) return
-  const next = [...dragRows.value]
+  if (!dragKey) return rows
+  const next = [...rows]
   const dragIndex = next.findIndex((row) => row.id === dragKey)
   const dropIndex = next.findIndex((row) => row.id === dropKey)
-  if (dragIndex < 0 || dropIndex < 0) return
+  if (dragIndex < 0 || dropIndex < 0) return rows
   const [moved] = next.splice(dragIndex, 1)
-  if (!moved) return
+  if (!moved) return rows
   let target = dropIndex
   if (dragIndex < dropIndex) target -= 1
   if (position === 'after') target += 1
   next.splice(target, 0, moved)
-  dragRows.value = next
+  return next
+}
+
+function onRowDrop(dragKeys: string[], dropKey: string, position: RsTableRowDropPosition): void {
+  dropLog.value = copy.value.dropHit(`${dragKeys.join(',')} ${position} ${dropKey}`)
+  dragRows.value = reorderRows(dragRows.value, dragKeys, dropKey, position)
+}
+
+function onGrabDrop(dragKeys: string[], dropKey: string, position: RsTableRowDropPosition): void {
+  grabLog.value = copy.value.dropHit(`${dragKeys.join(',')} ${position} ${dropKey}`)
+  grabRows.value = reorderRows(grabRows.value, dragKeys, dropKey, position)
+}
+
+function onRowClick(row: Row): void {
+  rowClickLog.value = copy.value.rowClickHit(row.name)
+}
+
+function onRowDblclick(row: Row): void {
+  dblLog.value = copy.value.dblHit(row.name)
 }
 
 function onRemoteSort(sort: RsTableSortState | null): void {
@@ -346,6 +415,10 @@ function onResize(key: string, width: number): void {
   resizeLog.value = copy.value.resizeHit(key, width)
 }
 
+function onStripeResize(key: string, width: number): void {
+  stripeResizeLog.value = copy.value.resizeHit(key, width)
+}
+
 function onLoadMore(): void {
   loaded.value = Math.min(loaded.value + 20, virtualRows.value.length)
   moreLog.value = copy.value.moreHit(loaded.value)
@@ -367,6 +440,18 @@ function onHighlight(key: string | undefined): void {
     code="<RsTable :columns=&quot;columns&quot; :data=&quot;rows&quot; row-key=&quot;id&quot; />"
   >
     <RsTable :columns="columns" :data="baseRows" row-key="id" bordered />
+  </DocDemo>
+
+  <DocDemo
+    id="demo-align"
+    title="对齐"
+    title-en="Alignment"
+    description="align 只有 left、center、right。right 画成 text-align: end，文字从行尾对齐，不写成 end。"
+    description-en="align is only left, center, or right. right paints as text-align: end, so text sits on the trailing edge. Do not pass end."
+    code="<RsTable :columns=&quot;[{ key: 'count', align: 'right' }]&quot; />"
+  >
+    <RsTable :columns="alignColumns" :data="baseRows" row-key="id" bordered />
+    <p class="meta">{{ copy.alignNote }}</p>
   </DocDemo>
 
   <DocDemo
@@ -417,8 +502,8 @@ function onHighlight(key: string | undefined): void {
     id="demo-size"
     title="尺寸与条纹"
     title-en="Size and stripes"
-    description="size 是 sm / md / lg，默认 md。striped 只画斑马纹，不改变选中色。"
-    description-en="size is sm, md, or lg, default md. striped paints zebra rows and does not change the selected color."
+    description="size 是 sm / md / lg，默认 md。compact 为 true 时行高跟 sm。striped 只换行底色，横线每格都有，竖线要 column-bordered。"
+    description-en="size is sm, md, or lg, default md. compact uses the sm row height. striped only changes the row fill. Every cell has a horizontal line; vertical lines need column-bordered."
     code="<RsTable size=&quot;sm&quot; striped bordered />"
   >
     <RsTable :columns="columns" :data="baseRows" row-key="id" size="sm" striped bordered />
@@ -437,6 +522,18 @@ function onHighlight(key: string | undefined): void {
     </RsTable>
     <RsTable :columns="columns" :data="baseRows" row-key="id" bordered loading />
     <p class="meta">{{ copy.loading }}</p>
+  </DocDemo>
+
+  <DocDemo
+    id="demo-null"
+    title="空值"
+    title-en="Null cells"
+    description="单元格是 null 或 undefined 时显示 table.nullValue，斜体、次要色。要换文案传 null-label。这和没有行的空态不是一回事。"
+    description-en="A null or undefined cell shows table.nullValue, in italic and the tertiary color. Pass null-label to change the words. This is not the empty state for zero rows."
+    code="<RsTable :data=&quot;[{ id: '1', status: null }]&quot; null-label=&quot;(empty)&quot; />"
+  >
+    <RsTable :columns="nullColumns" :data="nullRows" row-key="id" bordered />
+    <p class="meta">{{ copy.nullIdle }}</p>
   </DocDemo>
 
   <DocDemo
@@ -485,6 +582,30 @@ function onHighlight(key: string | undefined): void {
     code="<RsTable group-by=&quot;status&quot; />"
   >
     <RsTable :columns="columns" :data="baseRows" row-key="id" bordered group-by="status" />
+  </DocDemo>
+
+  <DocDemo
+    id="demo-row-click"
+    title="点击行"
+    title-en="Row click"
+    description="row-click 给出这一行。悬停只换行底色，不选中。要点选多行用后面的行多选，要勾选列用勾选。"
+    description-en="row-click reports the row. Hover only changes the row fill and does not select it. Click-to-select is the row-select page. A checkbox column is the selection example."
+    code="<RsTable @row-click=&quot;onRowClick&quot; />"
+  >
+    <RsTable :columns="columns" :data="baseRows" row-key="id" bordered @row-click="onRowClick" />
+    <p class="meta">{{ rowClickLog || copy.rowClickIdle }}</p>
+  </DocDemo>
+
+  <DocDemo
+    id="demo-dblclick"
+    title="双击行"
+    title-en="Row double-click"
+    description="没开编辑时，双击发 row-dblclick，用来打开详情。表级 editable 且这一列可编辑时，双击仍是进入单元格，不再发这个事件。列上 edit-trigger=&quot;click&quot; 时，双击才回到 row-dblclick。"
+    description-en="Without editing, a double-click emits row-dblclick, for opening a detail. When the table is editable and the column can be edited, double-click still opens the cell and does not emit this event. It returns to row-dblclick when that column sets edit-trigger=&quot;click&quot;."
+    code="<RsTable @row-dblclick=&quot;onRowDblclick&quot; />"
+  >
+    <RsTable :columns="columns" :data="baseRows" row-key="id" bordered @row-dblclick="onRowDblclick" />
+    <p class="meta">{{ dblLog || copy.dblIdle }}</p>
   </DocDemo>
 
   <DocDemo
@@ -695,11 +816,31 @@ function onHighlight(key: string | undefined): void {
   </DocDemo>
 
   <DocDemo
+    id="demo-row-grab"
+    title="整行拖"
+    title-en="Drag the row"
+    description="row-drag-trigger=&quot;row&quot; 不占手柄列。按住行拖，落下仍是 row-drop，表格不改 data。"
+    description-en="row-drag-trigger=&quot;row&quot; does not add a grip column. Drag the row itself. The drop is still row-drop, and the table does not change data."
+    code="<RsTable row-draggable row-drag-trigger=&quot;row&quot; @row-drop=&quot;onGrabDrop&quot; />"
+  >
+    <RsTable
+      :columns="columns"
+      :data="grabRows"
+      row-key="id"
+      bordered
+      row-draggable
+      row-drag-trigger="row"
+      @row-drop="onGrabDrop"
+    />
+    <p class="meta">{{ grabLog || copy.grabIdle }}</p>
+  </DocDemo>
+
+  <DocDemo
     id="demo-resize"
     title="列宽"
     title-en="Resize columns"
-    description="resizable 在列边上拖。松手发 column-resize，宽度是像素。拖的过程中表格自己画，不必每帧写 data。"
-    description-en="resizable drags the column edge. column-resize fires on release, with the width in pixels. The table paints during the drag; do not write data every frame."
+    description="没开列分隔线时，列边平时就有拖拽线，悬停变成主色。开了 column-bordered 就用那条分隔线，不再另画一条，悬停把分隔线改成主色。松手才发 column-resize，宽度是像素。"
+    description-en="Without column borders, the drag line is visible before you hover and turns primary on hover. With column-bordered, that divider is the line; hover turns the divider primary instead of painting a second stroke. column-resize fires on release, with the width in pixels."
     code="<RsTable resizable @column-resize=&quot;onResize&quot; />"
   >
     <RsTable
@@ -711,6 +852,26 @@ function onHighlight(key: string | undefined): void {
       @column-resize="onResize"
     />
     <p class="meta">{{ resizeLog || copy.resizeIdle }}</p>
+  </DocDemo>
+
+  <DocDemo
+    id="demo-stripe-resize"
+    title="条纹与列宽"
+    title-en="Stripes and resize"
+    description="striped 和 resizable 可以一起开。条纹只换行底色。列边拖拽线跟单元格分隔线同色，不会在条纹上变深。悬停仍是主色，松手发 column-resize。"
+    description-en="striped and resizable can be on together. The stripe only changes the row fill. The drag line uses the cell divider color, so it does not darken on a stripe. Hover is still the primary color, and column-resize fires on release."
+    code="<RsTable striped resizable @column-resize=&quot;onResize&quot; />"
+  >
+    <RsTable
+      :columns="columns"
+      :data="baseRows"
+      row-key="id"
+      bordered
+      striped
+      resizable
+      @column-resize="onStripeResize"
+    />
+    <p class="meta">{{ stripeResizeLog || copy.stripeResizeIdle }}</p>
   </DocDemo>
 
   <DocDemo

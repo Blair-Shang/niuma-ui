@@ -32,10 +32,7 @@ const props = withDefaults(
     type?: 'button' | 'submit' | 'reset'
     disabled?: boolean
     loading?: boolean
-    /**
-     * 是否显示外边框。未传时 text / link 无边，其余有边。
-     * 默认必须是 undefined：Vue 会把未传的 Boolean 收成 false。
-     */
+    /** 是否绘制外边框。未传为 false，与 2.0.3 之前一致。 */
     bordered?: boolean
     /** 前缀图标（Lucide kebab-case 名称） */
     icon?: string
@@ -59,7 +56,7 @@ const props = withDefaults(
     loading: false,
     iconOnly: false,
     revealLabel: false,
-    bordered: undefined,
+    bordered: false,
   },
 )
 
@@ -78,11 +75,7 @@ const hasLabel = computed(() => Boolean(slots.default))
 
 const resolvedVariant = computed(() => resolveRsButtonVariant(props.variant ?? 'primary'))
 
-/** text 默认无边框；其它变体默认有边框（可由 bordered 覆盖） */
-const resolvedBordered = computed(() => {
-  if (props.bordered !== undefined) return props.bordered
-  return resolvedVariant.value !== 'text' && resolvedVariant.value !== 'link'
-})
+const resolvedBordered = computed(() => props.bordered)
 
 /** 形态 × 色相：所有变体都带 tone class，由 CSS 决定如何上色。 */
 const resolvedTone = computed(() => resolveRsButtonTone(props.variant ?? 'primary', props.tone))
@@ -421,11 +414,6 @@ onUnmounted(() => {
 .rs-btn--ghost:active:not(:disabled) {
   background: color-mix(in srgb, var(--rs-btn-tone, var(--rs-text)) 12%, var(--rs-surface-hover));
 }
-.rs-btn--borderless,
-.rs-btn--borderless:hover:not(:disabled),
-.rs-btn--borderless:active:not(:disabled) {
-  border-color: transparent;
-}
 .rs-btn--danger {
   background: var(--rs-danger-container);
   border-color: color-mix(in srgb, var(--rs-danger) 30%, transparent);
@@ -562,6 +550,14 @@ onUnmounted(() => {
   border-color: var(--rs-btn-tone);
   background: color-mix(in srgb, var(--rs-btn-tone) 14%, var(--rs-surface));
   color: var(--rs-btn-tone);
+}
+
+/* 未传 bordered 时压过上面各变体后写的 border-color */
+.rs-btn.rs-btn--borderless,
+.rs-btn.rs-btn--borderless:hover:not(:disabled),
+.rs-btn.rs-btn--borderless:active:not(:disabled),
+.rs-btn.rs-btn--borderless.rs-btn--loading {
+  border-color: transparent;
 }
 
 .rs-btn__spinner {

@@ -17,7 +17,6 @@ Versions below are typical; the lockfile is authoritative.
 | Project / 项目 | Typical license / 常见许可证 | Use / 用途 |
 |----------------|------------------------------|------------|
 | Vue | MIT | peer framework |
-| Reka UI | MIT | accessible primitives |
 | Lucide (@lucide/vue) | ISC | default icons |
 | Monaco Editor | MIT | RsMonacoEditor |
 | CodeMirror | MIT | RsCodeEditor |

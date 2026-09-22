@@ -39,7 +39,7 @@ const { copy: label } = useSiteDemo({
     textInfo: 'Text info',
     square: 'Square',
     pill: 'Pill',
-    noBorder: 'No border',
+    withBorder: 'Border',
     darkSurface: 'Dark surface — ghost keeps theme tokens, do not hard-code color',
     idle: 'No click yet. The event is native @click on the button.',
     saveHit: 'click → Save',
@@ -74,7 +74,7 @@ const { copy: label } = useSiteDemo({
     textInfo: '文字信息',
     square: '直角',
     pill: '胶囊',
-    noBorder: '无描边',
+    withBorder: '描边',
     darkSurface: '深色表面 — 幽灵跟主题 token，不要写死颜色',
     idle: '还没有点击。事件就是按钮上的原生 @click。',
     saveHit: 'click → 保存',
@@ -131,7 +131,7 @@ const loadingCode = `<RsButton :loading="saving" @click="save">Save</RsButton>
 const radiusCode = `<RsButton radius="none">Square</RsButton>
 <RsButton radius="sm">sm</RsButton>
 <RsButton radius="full">Pill</RsButton>
-<RsButton :bordered="false">No border</RsButton>`
+<RsButton variant="default" bordered>Border</RsButton>`
 
 const groupCode = `<RsButton variant="primary">Save</RsButton>
 <RsButton variant="default">Cancel</RsButton>
@@ -197,8 +197,8 @@ function inspectButtonRef() {
     id="demo-tone"
     title="语义色"
     title-en="Tone"
-    description="tone 只改色相，variant 只管形态。描边警告：variant=&quot;default&quot; tone=&quot;warning&quot;。不要用业务 CSS 改颜色。"
-    description-en="tone changes hue only. variant stays the shape. Outline warning is variant=&quot;default&quot; tone=&quot;warning&quot;. Do not restyle color in product CSS."
+    description="tone 只改色相，variant 只管形态。描边要再传 bordered，例如 variant=&quot;default&quot; tone=&quot;warning&quot; bordered。不要用业务 CSS 改颜色。"
+    description-en="tone changes hue only. variant stays the shape. Pass bordered to draw an outline, for example variant=&quot;default&quot; tone=&quot;warning&quot; bordered. Do not restyle color in product CSS."
     :code="toneCode"
   >
     <div class="row">
@@ -290,8 +290,8 @@ function inspectButtonRef() {
     id="demo-radius"
     title="圆角与描边"
     title-en="Radius and border"
-    description="默认 radius=&quot;full&quot;（胶囊）。直角工作台传 none。bordered=false 去掉描边。"
-    description-en="Default radius is full (pill). Pass none for a square workbench. bordered=false removes the outline."
+    description="默认 radius=&quot;full&quot;（胶囊）。直角工作台传 none。未传 bordered 不画边，需要轮廓时再传。"
+    description-en="Default radius is full (pill). Pass none for a square workbench. Omit bordered to leave the outline off."
     :code="radiusCode"
   >
     <div class="row">
@@ -299,7 +299,7 @@ function inspectButtonRef() {
       <RsButton radius="sm">sm</RsButton>
       <RsButton radius="md">md</RsButton>
       <RsButton radius="full">{{ label.pill }}</RsButton>
-      <RsButton variant="default" :bordered="false">{{ label.noBorder }}</RsButton>
+      <RsButton variant="default" bordered>{{ label.withBorder }}</RsButton>
     </div>
   </DocDemo>
 

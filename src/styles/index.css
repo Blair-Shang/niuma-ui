@@ -467,7 +467,7 @@ html {
   --rs-table-checkbox-bg: var(--rs-surface);
   --rs-table-sort-active-fg: var(--rs-primary);
   --rs-table-drop-indicator: var(--rs-primary);
-  --rs-table-resize-handle: var(--rs-text-tertiary);
+  --rs-table-resize-handle: var(--rs-table-cell-divider);
   --rs-table-resize-handle-hover: var(--rs-primary);
 
   /* ── Tree（导航线 / 行选中 / 焦点；业务可覆盖）── */
@@ -494,10 +494,10 @@ html {
   --rs-border: #6e6e6e;
   --rs-border-subtle: #3a3a3a;
   /*
-   * Button secondary/default：轮廓与底色独立于分隔线 --rs-border，
+   * Button secondary/default：描边跟输入框，不另用更亮的实色灰。
    * 业务可用 --rs-btn-* 覆盖（见 theme/brand.example.css）。
    */
-  --rs-btn-outline-border: #a3a3a3;
+  --rs-btn-outline-border: var(--rs-input-border);
   --rs-btn-secondary-bg: var(--rs-surface-hover);
   --rs-btn-secondary-bg-hover: color-mix(in srgb, var(--rs-primary) 16%, var(--rs-surface-hover));
   --rs-btn-secondary-bg-active: color-mix(in srgb, var(--rs-primary) 24%, var(--rs-surface-hover));
@@ -857,7 +857,7 @@ html {
   --rs-table-checkbox-bg: var(--rs-surface);
   --rs-table-sort-active-fg: var(--rs-primary);
   --rs-table-drop-indicator: var(--rs-primary);
-  --rs-table-resize-handle: var(--rs-text-tertiary);
+  --rs-table-resize-handle: var(--rs-table-cell-divider);
   --rs-table-resize-handle-hover: var(--rs-primary);
 
   /* ── Tree（导航线 / 行选中 / 焦点；业务可覆盖）── */
@@ -883,10 +883,10 @@ html {
   --rs-border: rgb(60 60 67 / 0.16);
   --rs-border-subtle: rgb(60 60 67 / 0.10);
   /*
-   * Button secondary/default：亮色分隔线偏淡，轮廓单独提高对比（≥3:1 vs 白底）。
-   * 业务覆盖 --rs-btn-* 即可，无需改组件。
+   * Button secondary/default：描边跟输入框（柔分隔线），焦点环负责强调。
+   * 需要更重的轮廓时覆盖 --rs-btn-outline-border。
    */
-  --rs-btn-outline-border: #6e6e73;
+  --rs-btn-outline-border: var(--rs-input-border);
   --rs-btn-secondary-bg: var(--rs-surface-hover);
   --rs-btn-secondary-bg-hover: color-mix(in srgb, var(--rs-primary) 12%, var(--rs-surface-hover));
   --rs-btn-secondary-bg-active: color-mix(in srgb, var(--rs-primary) 18%, var(--rs-surface-hover));
@@ -1526,12 +1526,6 @@ code {
 .rs-date-picker__time-picker {
   flex: 1;
   min-width: 0;
-}
-
-/* ContextMenu：Dialog 内表格右键菜单 Portal 后须高于 modal */
-[data-reka-popper-content-wrapper]:has(> .rs-context-menu__content),
-[data-reka-popper-content-wrapper]:has(> .rs-context-menu__sub-content) {
-  z-index: calc(var(--rs-z-modal) + 2);
 }
 
 /*

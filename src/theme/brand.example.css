@@ -34,7 +34,7 @@
   --rs-primary-hover: #4f46e5;
   --rs-primary-container: #eef2ff;
   --rs-on-primary-container: #312e81;
-  /* secondary 轮廓：按需加深（默认已可读，一般无需改） */
+  /* secondary 轮廓：默认跟输入框；需要更重的线时再覆盖 */
   --rs-btn-outline-border: #6b7280;
   --rs-btn-secondary-bg: #f3f4f6;
   --rs-btn-secondary-bg-hover: #ede9fe;

@@ -40,21 +40,21 @@ describe('RsButton', () => {
     expect(wrapper.classes()).toContain('rs-btn--ghost')
   })
 
-  it('ghost and default keep an outline unless bordered is set', () => {
+  it('omitted bordered stays false on ghost and default', () => {
     const ghost = mount(RsButton, { props: { variant: 'ghost' }, slots: { default: '幽灵' } })
     const secondary = mount(RsButton, { props: { variant: 'default' }, slots: { default: '取消' } })
-    expect(ghost.classes()).not.toContain('rs-btn--borderless')
-    expect(secondary.classes()).not.toContain('rs-btn--borderless')
+    expect(ghost.classes()).toContain('rs-btn--borderless')
+    expect(secondary.classes()).toContain('rs-btn--borderless')
     ghost.unmount()
     secondary.unmount()
   })
 
-  it('bordered=false removes the outline on ghost', () => {
+  it('bordered draws the outline on ghost', () => {
     const wrapper = mount(RsButton, {
-      props: { variant: 'ghost', bordered: false },
+      props: { variant: 'ghost', bordered: true },
       slots: { default: '幽灵' },
     })
-    expect(wrapper.classes()).toContain('rs-btn--borderless')
+    expect(wrapper.classes()).not.toContain('rs-btn--borderless')
   })
 
   it('text variant defaults to borderless + neutral tone', () => {

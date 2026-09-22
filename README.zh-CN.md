@@ -18,7 +18,7 @@ Vue 3 **工作台**设计系统：一致的 `Rs*` 组件与 `--rs-*` Token，以
 - **Design Token**：明暗主题走 `data-rs-theme`（`light` / `dark` / `system`）与 CSS 变量，宿主用品牌层覆盖
 - **Rs\* 组件**：Button、Form、Dialog、Table、Tree、Tabs、Anchor 等
 - **专业工具**：Monaco、CodeMirror、xterm（只在用到的路由引入）
-- **无障碍**：底层 [Reka UI](https://reka-ui.com/)，应用只依赖 `niuma-ui`
+- **无障碍**：原生控件与 ARIA，应用只依赖 `niuma-ui`
 - **国际化**：未设 `locale` 时跟本机语言（中文系统就是 `zh-CN`）；认不出回退中文。第三方语言用 `registerRsLocale`，见 [docs/locales.md](./docs/locales.md)
 - **Vite**：`import { RsButton } from 'niuma-ui'` 即可打包；`niumaUiHost` 仅本机 `pnpm dev` 联调源码
 
@@ -71,7 +71,7 @@ import { RsConfigProvider, RsButton } from 'niuma-ui'
 
 ## 使用约定
 
-1. 只从包根具名导入：`import { RsButton } from 'niuma-ui'`。**不要**直接依赖 `reka-ui`，不要 `import *`。
+1. 只从包根具名导入：`import { RsButton } from 'niuma-ui'`。不要 `import *`。
 2. 样式只引一次 `niuma-ui/styles.css`，再加载你的品牌 CSS。
 3. 根节点包 `RsConfigProvider`（主题、语言、默认控件尺寸）。
 4. 轻量站点在自己的 `ui.ts` 里再导出用到的符号。不要把包名别名到本仓库的 `src/index.ts`。
@@ -122,7 +122,7 @@ pnpm build        # 库 → dist/
 
 [Apache License 2.0](./LICENSE)。版权与第三方声明见 [NOTICE](./NOTICE)。
 
-交互原语：[Reka UI](https://reka-ui.com/)。图标：[Lucide](https://lucide.dev/)。编辑器：[Monaco](https://microsoft.github.io/monaco-editor/)、[CodeMirror](https://codemirror.net/)。终端：[xterm.js](https://xtermjs.org/)。
+图标：[Lucide](https://lucide.dev/)。编辑器：[Monaco](https://microsoft.github.io/monaco-editor/)、[CodeMirror](https://codemirror.net/)。终端：[xterm.js](https://xtermjs.org/)。
 
 - 文档站：https://blair-shang.github.io/niuma-ui/
 - npm：https://www.npmjs.com/package/niuma-ui

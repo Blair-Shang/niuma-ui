@@ -1,3 +1,4 @@
+import { siteConfig } from '../config'
 import type { GuideDoc } from './types'
 
 export const guideDocs: GuideDoc[] = [
@@ -64,8 +65,8 @@ export const guideDocs: GuideDoc[] = [
         id: 'install',
         title: '安装',
         titleEn: 'Install',
-        body: '要求 Node.js ≥ 20、Vue ^3.5。当前发布版本 2.0.0。建议锁定 ^2.0.0。',
-        bodyEn: 'Requires Node.js ≥ 20 and Vue ^3.5. Current release is 2.0.0. Prefer a range such as ^2.0.0.',
+        body: `要求 Node.js ≥ 20、Vue ^3.5。当前发布版本 ${siteConfig.version}。建议锁定 ${siteConfig.releaseRange}。`,
+        bodyEn: `Requires Node.js ≥ 20 and Vue ^3.5. Current release is ${siteConfig.version}. Prefer a range such as ${siteConfig.releaseRange}.`,
         code: {
           lang: 'bash',
           content: 'pnpm add niuma-ui\n# or: npm install niuma-ui / yarn add niuma-ui',
