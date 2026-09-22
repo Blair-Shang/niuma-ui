@@ -4,14 +4,20 @@ import { h } from 'vue'
 import RsTabs from '../src/RsTabs.vue'
 import RsConfigProvider from '../../config-provider/src/RsConfigProvider.vue'
 import {
+  getAdjacentTabValue,
+  getEdgeTabValue,
   getNextTabAfterBatchClose,
   getNextTabAfterClose,
   isTabClosable,
   isTabFixed,
   isTabRenamable,
+  isVerticalTabsPosition,
   reorderTabItems,
+  resolveTabKeyboardMove,
+  resolveTabsSize,
   resolveTabsToClose,
   resolveVisibleTabValues,
+  shouldRenderTabPanel,
 } from '../src/tabs-utils'
 
 const items = [
@@ -134,12 +140,29 @@ describe('tabs-utils', () => {
     expect(visible.has('c')).toBe(false)
     expect(visible.has('a')).toBe(true)
   })
+
+  it('keyboard helpers skip disabled and flip arrows in RTL', () => {
+    const items = [
+      { value: 'a', label: 'A' },
+      { value: 'b', label: 'B', disabled: true },
+      { value: 'c', label: 'C' },
+    ]
+    expect(getAdjacentTabValue(items, 'a', 1)).toBe('c')
+    expect(getEdgeTabValue(items, 'end')).toBe('c')
+    expect(resolveTabKeyboardMove('ArrowLeft', 'top', true)).toBe(1)
+    expect(resolveTabKeyboardMove('ArrowUp', 'left')).toBe(-1)
+    expect(isVerticalTabsPosition('right')).toBe(true)
+    expect(resolveTabsSize('ssm')).toBe('sm')
+    expect(shouldRenderTabPanel('b', 'a', new Set(), false, true)).toBe(false)
+    expect(shouldRenderTabPanel('b', 'a', new Set(['b']), true, false)).toBe(true)
+  })
 })
 
 describe('RsTabs', () => {
-  it('renders root with tabs aria-label', () => {
+  it('renders tablist with tabs aria-label', () => {
     const wrapper = mountTabs()
-    expect(wrapper.find('.rs-tabs').attributes('aria-label')).toBe('Tabs')
+    expect(wrapper.find('[role="tablist"]').attributes('aria-label')).toBe('Tabs')
+    expect(wrapper.find('[role="tablist"]').attributes('aria-orientation')).toBe('horizontal')
   })
 
   it('uses en-US aria-label when locale is en-US', () => {
@@ -153,7 +176,14 @@ describe('RsTabs', () => {
           }),
       },
     })
-    expect(wrapper.find('.rs-tabs').attributes('aria-label')).toBe('Tabs')
+    expect(wrapper.find('[role="tablist"]').attributes('aria-label')).toBe('Tabs')
+  })
+
+  it('does not import or render reka-ui', () => {
+    const wrapper = mountTabs()
+    expect(wrapper.html().toLowerCase()).not.toContain('reka')
+    expect(wrapper.find('.rs-tabs').exists()).toBe(true)
+    expect(wrapper.vm.$options.name).toBe('RsTabs')
   })
 
   it('renders all tab labels', () => {
@@ -178,9 +208,10 @@ describe('RsTabs', () => {
 
   it('emits update:modelValue when another tab is clicked', async () => {
     const wrapper = mountTabs()
-    await wrapper.findAll('.rs-tabs__trigger')[1]?.trigger('mousedown', { button: 0 })
+    await wrapper.findAll('.rs-tabs__trigger')[1]?.trigger('click')
     await flushPromises()
     expect(wrapper.emitted('update:modelValue')?.pop()).toEqual(['b'])
+    expect(wrapper.emitted('change')?.pop()).toEqual(['b'])
   })
 
   it('does not emit update:modelValue when disabled tab is clicked', async () => {
@@ -197,7 +228,7 @@ describe('RsTabs', () => {
         b: () => h('p', 'B'),
       },
     })
-    await wrapper.findAll('.rs-tabs__trigger')[1]?.trigger('mousedown', { button: 0 })
+    await wrapper.findAll('.rs-tabs__trigger')[1]?.trigger('click')
     await flushPromises()
     expect(wrapper.emitted('update:modelValue')).toBeUndefined()
   })
@@ -326,11 +357,17 @@ describe('RsTabs', () => {
     expect(wrapper.find('.rs-tabs').classes()).toContain('rs-tabs--card')
   })
 
-  it('makes movable tabs draggable without a handle', () => {
+  it('marks movable tabs with a grip, not a hand cursor', () => {
     const wrapper = mountTabs({ draggable: true })
     expect(wrapper.find('.rs-tabs').classes()).toContain('rs-tabs--draggable')
-    expect(wrapper.find('.rs-tabs__drag-handle').exists()).toBe(false)
+    expect(wrapper.findAll('.rs-tabs__drag')).toHaveLength(items.length)
     expect(wrapper.findAll('.rs-tabs__trigger--movable')).toHaveLength(items.length)
+    expect(wrapper.find('.rs-tabs__trigger--movable').attributes('draggable')).toBe('true')
+  })
+
+  it('hides the grip when showDragHandle is false', () => {
+    const wrapper = mountTabs({ draggable: true, showDragHandle: false })
+    expect(wrapper.find('.rs-tabs__drag').exists()).toBe(false)
     expect(wrapper.find('.rs-tabs__trigger--movable').attributes('draggable')).toBe('true')
   })
 
@@ -411,9 +448,57 @@ describe('RsTabs', () => {
     const wrapper = mountTabs({
       beforeLeave: () => false,
     })
-    await wrapper.findAll('.rs-tabs__trigger')[1]?.trigger('mousedown', { button: 0 })
+    await wrapper.findAll('.rs-tabs__trigger')[1]?.trigger('click')
     await flushPromises()
     expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+  })
+
+  it('applies position and keeps inactive panels when destroyInactive is false', () => {
+    const wrapper = mountTabs({ tabPosition: 'left', destroyInactive: false })
+    expect(wrapper.find('.rs-tabs').classes()).toContain('rs-tabs--position-left')
+    expect(wrapper.find('[role="tablist"]').attributes('aria-orientation')).toBe('vertical')
+    expect(wrapper.findAll('[role="tabpanel"]')).toHaveLength(items.length)
+  })
+
+  it('moves focus and activates with arrow keys', async () => {
+    const wrapper = mountTabs()
+    await wrapper.find('[role="tablist"]').trigger('keydown', { key: 'ArrowRight' })
+    await flushPromises()
+    expect(wrapper.emitted('update:modelValue')?.pop()).toEqual(['b'])
+  })
+
+  it('only moves focus in manual activation', async () => {
+    const wrapper = mountTabs({ activation: 'manual' })
+    await wrapper.find('[role="tablist"]').trigger('keydown', { key: 'ArrowRight' })
+    await flushPromises()
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+    await wrapper.find('[role="tablist"]').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(wrapper.emitted('update:modelValue')?.pop()).toEqual(['b'])
+  })
+
+  it('exposes focus and selectTab', async () => {
+    const wrapper = mountTabs()
+    const exposed = wrapper.vm as unknown as { focus: (value?: string) => void; selectTab: (value: string) => Promise<boolean> }
+    const ok = await exposed.selectTab('c')
+    expect(ok).toBe(true)
+    expect(wrapper.emitted('update:modelValue')?.pop()).toEqual(['c'])
+    exposed.focus('a')
+    expect(wrapper.find('[role="tab"][aria-selected="true"]').exists()).toBe(true)
+  })
+
+  it('renders #tab slot content', () => {
+    const wrapper = mount(RsTabs, {
+      props: {
+        items: [{ value: 'a', label: 'A' }],
+        modelValue: 'a',
+      },
+      slots: {
+        tab: ({ item }: { item: { label: string } }) => h('span', { class: 'custom-tab' }, item.label),
+        a: () => h('p', 'A'),
+      },
+    })
+    expect(wrapper.find('.custom-tab').text()).toBe('A')
   })
 
   it('emits closeBatch for middle-click close', async () => {

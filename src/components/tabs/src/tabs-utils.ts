@@ -15,11 +15,37 @@ export interface RsTabItem {
   renamable?: boolean
 }
 
-/** 选项卡尺寸 */
-export type RsTabsSize = 'sm' | 'md'
+/** 选项卡尺寸（ssm 由 ConfigProvider 落入时按 sm） */
+export type RsTabsSize = 'sm' | 'md' | 'lg'
 
 /** line 下划线 · segmented 胶囊 · card 卡片（Ant editable-card） */
 export type RsTabsVariant = 'line' | 'segmented' | 'card'
+
+/** 标签栏位置（对齐 Ant / Element tabPosition） */
+export type RsTabsPosition = 'top' | 'bottom' | 'left' | 'right'
+
+/**
+ * 键盘激活方式（WAI-ARIA APG）。
+ * automatic：方向键同时移动焦点并切换；manual：方向键只移焦点，Enter / Space 才切换。
+ */
+export type RsTabsActivation = 'automatic' | 'manual'
+
+/** `#tab` 插槽参数 */
+export interface RsTabsTabSlot {
+  item: RsTabItem
+  active: boolean
+  disabled: boolean
+}
+
+export interface RsTabsExpose {
+  /** 把焦点放到指定标签；未传则落到当前激活项 */
+  focus: (value?: string) => void
+  /** 走 beforeLeave 后切换。被拦截时返回 false */
+  selectTab: (value: string) => Promise<boolean>
+}
+
+/** 模板 ref 实例：expose + 根节点 */
+export type RsTabsInstance = RsTabsExpose & { $el: HTMLElement }
 
 /**
  * 标签栏对齐：start 左齐 · center 居中 · evenly 均分空隙 · stretch 项等宽铺满。
@@ -244,4 +270,88 @@ export function resolveVisibleTabValues(
   }
 
   return new Set(visible)
+}
+
+export function isVerticalTabsPosition(position: RsTabsPosition): boolean {
+  return position === 'left' || position === 'right'
+}
+
+export function getEnabledTabValues(items: readonly RsTabItem[]): string[] {
+  return items.filter((item) => !item.disabled).map((item) => item.value)
+}
+
+/** 在可启用项里按 delta 环移（跳过 disabled） */
+export function getAdjacentTabValue(
+  items: readonly RsTabItem[],
+  current: string,
+  delta: number,
+): string | undefined {
+  const enabled = getEnabledTabValues(items)
+  if (!enabled.length) return undefined
+  const index = enabled.indexOf(current)
+  const from = Math.max(index, 0)
+  const next = (from + delta + enabled.length * 8) % enabled.length
+  return enabled[next]
+}
+
+export function getEdgeTabValue(
+  items: readonly RsTabItem[],
+  edge: 'start' | 'end',
+): string | undefined {
+  const enabled = getEnabledTabValues(items)
+  if (!enabled.length) return undefined
+  return edge === 'start' ? enabled[0] : enabled.at(-1)
+}
+
+/**
+ * 解析标签栏键盘位移。竖排只用上下；横排左右在 RTL 下对调。
+ * Home / End 返回端点；不处理的键返回 null。
+ */
+export function resolveTabKeyboardMove(
+  key: string,
+  position: RsTabsPosition,
+  rtl = false,
+): number | 'start' | 'end' | null {
+  if (key === 'Home') return 'start'
+  if (key === 'End') return 'end'
+  if (isVerticalTabsPosition(position)) {
+    if (key === 'ArrowUp') return -1
+    if (key === 'ArrowDown') return 1
+    return null
+  }
+  if (key === 'ArrowLeft') return rtl ? 1 : -1
+  if (key === 'ArrowRight') return rtl ? -1 : 1
+  return null
+}
+
+export function sanitizeTabDomId(value: string): string {
+  const cleaned = value.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-/, '').replace(/-$/, '')
+  return cleaned || 'tab'
+}
+
+export function tabTriggerId(rootId: string, value: string): string {
+  return `${rootId}-tab-${sanitizeTabDomId(value)}`
+}
+
+export function tabPanelId(rootId: string, value: string): string {
+  return `${rootId}-panel-${sanitizeTabDomId(value)}`
+}
+
+/** lazy：首次激活才挂；destroyInactive：离开即卸。后者优先。 */
+export function shouldRenderTabPanel(
+  value: string,
+  activeValue: string,
+  visited: ReadonlySet<string>,
+  lazy: boolean,
+  destroyInactive: boolean,
+): boolean {
+  if (destroyInactive) return value === activeValue
+  if (!lazy) return true
+  return value === activeValue || visited.has(value)
+}
+
+export function resolveTabsSize(size: string | undefined): RsTabsSize {
+  if (size === 'lg') return 'lg'
+  if (size === 'sm' || size === 'ssm') return 'sm'
+  return 'md'
 }

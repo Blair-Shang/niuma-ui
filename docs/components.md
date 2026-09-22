@@ -371,8 +371,8 @@ Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
 | `RsIcon` | Lucide（及自定义）按名渲染 | `#/components/icon` |
 | `RsContainer` | 响应式宽度 / 内边距 | `#/components/container` |
 | `RsScrollbar` | 滚动区域 | `#/components/scrollbar` |
-| `RsLoading` | 加载指示 | `#/components/loading` |
-| `RsEmpty` | 空状态 | `#/components/empty` |
+| `RsLoading` | 加载指示；原生 div[role=status]，不包 Reka；可包裹内容 | `#/components/loading` |
+| `RsEmpty` | 空状态；原生 div[role=status]，不包 Reka | `#/components/empty` |
 | `RsLink` | 原生 `<a>` 文字链接（不包 Reka） | `#/components/link` |
 | `RsBadge` | 状态芯片；可选 count / dot 角标 | `#/components/badge` |
 | `RsTag` | 标签芯片 | `#/components/tag` |
@@ -380,9 +380,9 @@ Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
 | `RsLabel` | 表单标签（原生 label，不包 Reka） | `#/components/label` |
 | `RsCard` / `RsStatCard` | 内容卡 / 指标卡 | `#/components/card` |
 | `RsDivider` | 分隔线 | `#/components/divider` |
-| `RsAlert` | 反馈提示条 | `#/components/alert` |
+| `RsAlert` | 反馈提示条；原生 div，不包 Reka | `#/components/alert` |
 | `RsDescriptions` / `RsDescriptionsItem` | 描述列表 | `#/components/descriptions` |
-| `RsLoadingBar` | 顶栏进度（`useRsLoadingBar`） | `#/components/loading-bar` |
+| `RsLoadingBar` | 顶栏进度；原生 div[role=progressbar]，不包 Reka（`useRsLoadingBar`） | `#/components/loading-bar` |
 
 ### 操作与输入
 
@@ -413,24 +413,24 @@ Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
 |------|------|--------|
 | `RsBreadcrumb` | 面包屑；原生 nav + ol，不包 Reka | `#/components/breadcrumb` |
 | `RsAnchor` | 页内目录；原生 nav，不包 Reka；Hash 路由须 `changeHash=false` | `#/components/anchor` |
-| `RsToolbar` | 工具条 | `#/components/toolbar` |
-| `RsTabs` | 关闭 / 重命名 / 溢出 | `#/components/tabs` |
-| `RsSteps` | 步骤条 | `#/components/steps` |
-| `RsMenu` | 菜单 | `#/components/menu` |
-| `RsDropdown` | 下拉命令 | `#/components/dropdown` |
-| `RsSidebar` / `RsSidebarGroup` / `RsSidebarItem` | 侧栏 | `#/components/sidebar` |
-| `RsSplitPane` | 可拖拽分栏 | `#/components/split-pane` |
-| `RsPagination` | 分页 | `#/components/pagination` |
+| `RsToolbar` | 工具条；原生 header/div，不包 Reka；#start/#center/#end；可选 APG 键盘 | `#/components/toolbar` |
+| `RsTabs` | 标签页；原生 tablist，不包 Reka；关闭 / 重命名 / 溢出 | `#/components/tabs` |
+| `RsSteps` | 步骤条；原生 nav + ol，不包 Reka；v-model 绑 value | `#/components/steps` |
+| `RsMenu` | 菜单；原生 nav + button / a，不包 Reka；折叠 flyout 走 Teleport | `#/components/menu` |
+| `RsDropdown` | 下拉命令；原生 button + Teleport，不包 Reka | `#/components/dropdown` |
+| `RsSidebar` / `RsSidebarGroup` / `RsSidebarItem` | 侧栏壳；原生 aside + nav，不包 Reka | `#/components/sidebar` |
+| `RsSplitPane` | 可拖拽分栏；原生 group + hr，不包 Reka；百分比、APG Window Splitter | `#/components/split-pane` |
+| `RsPagination` | 分页；原生 nav + button，不包 Reka；跳转走 RsInput，每页条数走 RsSelect | `#/components/pagination` |
 | `RsVirtualList` | 虚拟列表 | `#/components/virtual-list` |
 
 ### 浮层与反馈
 
 | 组件 | 说明 | 文档站 |
 |------|------|--------|
-| `RsTooltip` / `RsTooltipProvider` | 提示 | `#/components/tooltip` |
-| `RsPopover` | 气泡卡片 | `#/components/popover` |
-| `RsDialog` / `RsConfirmDialog` | 对话框 / 确认 | `#/components/dialog` |
-| `RsDrawer` | 抽屉 | `#/components/drawer` |
+| `RsTooltip` / `RsTooltipProvider` | 提示；原生触发器 + Teleport，不包 Reka；悬停 / 键盘焦点，贴边翻转 | `#/components/tooltip` |
+| `RsPopover` | 气泡卡片；触发器合并属性 + Teleport，不包 Reka | `#/components/popover` |
+| `RsDialog` / `RsConfirmDialog` | 对话框：原生 dialog + Teleport，不包 Reka；确认框另见 ConfirmDialog | `#/components/dialog` |
+| `RsDrawer` | 抽屉；原生 dialog + Teleport，不包 Reka；四向、可拖、模态焦点陷阱 | `#/components/drawer` |
 | `RsContextMenu` | 右键菜单 | `#/components/context-menu` |
 | `RsToaster` | Toast 宿主（`useRsToast`） | `#/components/toaster` |
 

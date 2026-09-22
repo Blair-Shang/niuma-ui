@@ -508,4 +508,174 @@ describe('RsMenu', () => {
     expect(wrapper.find('.rs-menu__label').exists()).toBe(true)
     expect(wrapper.find('.rs-menu__submenu-arrow').exists()).toBe(true)
   })
+
+  it('does not import or render reka-ui', () => {
+    const wrapper = mount(RsMenu, {
+      props: { items: flatItems, modelValue: 'dashboard' },
+    })
+    expect(wrapper.html().toLowerCase()).not.toContain('reka')
+    expect(wrapper.find('nav.rs-menu').exists()).toBe(true)
+  })
+
+  it('registers the Vue component name', () => {
+    const wrapper = mount(RsMenu, {
+      props: { items: flatItems, modelValue: 'dashboard' },
+    })
+    expect(wrapper.vm.$options.name).toBe('RsMenu')
+  })
+
+  it('uses ariaLabel when provided', () => {
+    const wrapper = mount(RsMenu, {
+      props: { items: flatItems, modelValue: 'dashboard', ariaLabel: 'App nav' },
+    })
+    expect(wrapper.find('nav.rs-menu').attributes('aria-label')).toBe('App nav')
+  })
+
+  it('does not rewrite openKeys when ancestors are already open', () => {
+    const wrapper = mount(RsMenu, {
+      props: {
+        items: nestedItems,
+        modelValue: 'projects',
+        openKeys: ['workspace'],
+      },
+    })
+    expect(wrapper.emitted('update:openKeys')).toBeUndefined()
+  })
+
+  it('closes sibling submenus when accordion is true', async () => {
+    const items: RsMenuItem[] = [
+      {
+        key: 'a',
+        label: 'A',
+        children: [{ key: 'a-1', label: 'A1' }],
+      },
+      {
+        key: 'b',
+        label: 'B',
+        children: [{ key: 'b-1', label: 'B1' }],
+      },
+    ]
+    const wrapper = mount(RsMenu, {
+      props: {
+        items,
+        modelValue: 'a-1',
+        openKeys: ['a'],
+        accordion: true,
+      },
+    })
+    const triggers = wrapper.findAll('.rs-menu__item--submenu-trigger')
+    await triggers[1]!.trigger('click')
+    await nextTick()
+    const keys = wrapper.emitted('update:openKeys')?.pop()?.[0] as string[]
+    expect(keys).toContain('b')
+    expect(keys).not.toContain('a')
+    expect(wrapper.emitted('openChange')?.pop()?.[0]).toEqual(keys)
+  })
+
+  it('renders leaf href as a native link and emits click', async () => {
+    const items: RsMenuItem[] = [
+      { key: 'docs', label: 'Docs', href: '#/docs', icon: 'file-text' },
+      { key: 'home', label: 'Home', icon: 'house' },
+    ]
+    const wrapper = mount(RsMenu, {
+      props: { items, modelValue: 'home' },
+    })
+    const link = wrapper.find('a.rs-menu__item')
+    expect(link.exists()).toBe(true)
+    expect(link.attributes('href')).toBe('#/docs')
+    await link.trigger('click')
+    expect(wrapper.emitted('update:modelValue')?.pop()).toEqual(['docs'])
+    expect(wrapper.emitted('select')?.[0]).toEqual(['docs'])
+    expect(wrapper.emitted('click')?.[0]?.[0]).toMatchObject({ key: 'docs' })
+  })
+
+  it('adds noopener noreferrer on target=_blank', () => {
+    const items: RsMenuItem[] = [
+      { key: 'ext', label: 'Docs', href: 'https://example.com', target: '_blank' },
+    ]
+    const wrapper = mount(RsMenu, { props: { items, modelValue: 'ext' } })
+    expect(wrapper.find('a.rs-menu__item').attributes('rel')).toBe('noopener noreferrer')
+  })
+
+  it('renders divider rows', () => {
+    const items: RsMenuItem[] = [
+      { key: 'home', label: 'Home' },
+      { key: 'd1', label: '', type: 'divider' },
+      { key: 'settings', label: 'Settings' },
+    ]
+    const wrapper = mount(RsMenu, { props: { items, modelValue: 'home' } })
+    expect(wrapper.find('hr.rs-menu__divider').exists()).toBe(true)
+  })
+
+  it('applies size class', () => {
+    const wrapper = mount(RsMenu, {
+      props: { items: flatItems, modelValue: 'dashboard', size: 'sm' },
+    })
+    expect(wrapper.classes()).toContain('rs-menu--sm')
+  })
+
+  it('exposes focus and blur', async () => {
+    const wrapper = mount(RsMenu, {
+      props: { items: flatItems, modelValue: 'dashboard' },
+      attachTo: document.body,
+    })
+    const vm = wrapper.vm as unknown as { focus: () => void; blur: () => void }
+    vm.focus()
+    await nextTick()
+    expect(document.activeElement?.classList.contains('rs-menu__item')).toBe(true)
+    vm.blur()
+    await nextTick()
+    expect(document.activeElement?.classList.contains('rs-menu__item')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('moves focus with arrow keys among siblings', async () => {
+    const wrapper = mount(RsMenu, {
+      props: { items: flatItems, modelValue: 'dashboard' },
+      attachTo: document.body,
+    })
+    const buttons = wrapper.findAll('.rs-menu__item')
+    await buttons[0]!.trigger('keydown', { key: 'ArrowDown' })
+    expect(document.activeElement?.textContent).toContain('对话')
+    await buttons[1]!.trigger('keydown', { key: 'Home' })
+    expect(document.activeElement?.textContent).toContain('仪表盘')
+    wrapper.unmount()
+  })
+
+  it('closes collapsed flyout on Escape and removes listeners', async () => {
+    const wrapper = mount(RsMenu, {
+      props: {
+        items: nestedItems,
+        modelValue: 'settings',
+        openKeys: [],
+        collapsed: true,
+      },
+      attachTo: document.body,
+    })
+    const parent = wrapper
+      .findAll('.rs-menu__item')
+      .find((btn) => btn.attributes('aria-label') === '工作区')
+    await parent!.trigger('mouseenter')
+    await nextTick()
+    await flushPromises()
+    expect(document.body.querySelector('.rs-menu__flyout')).not.toBeNull()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await nextTick()
+    expect(document.body.querySelector('.rs-menu__flyout')).toBeNull()
+    wrapper.unmount()
+    expect(document.body.querySelector('.rs-menu__flyout')).toBeNull()
+  })
+
+  it('renders item extra and the item slot', () => {
+    const items: RsMenuItem[] = [
+      { key: 'inbox', label: 'Inbox', extra: '12', icon: 'inbox' },
+    ]
+    const wrapper = mount(RsMenu, {
+      props: { items, modelValue: 'inbox' },
+      slots: {
+        item: ({ item }: { item: RsMenuItem }) => `slot:${item.label}`,
+      },
+    })
+    expect(wrapper.text()).toContain('slot:Inbox')
+  })
 })

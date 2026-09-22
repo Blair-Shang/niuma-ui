@@ -1,18 +1,25 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onUnmounted, ref } from 'vue'
 import { RsButton, RsLoading } from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 
 const panelLoading = ref(true)
 const inlineLoading = ref(false)
+let inlineTimer: ReturnType<typeof setTimeout> | undefined
 
 function simulateInlineLoad() {
   inlineLoading.value = true
-  globalThis.setTimeout(() => {
+  if (inlineTimer) clearTimeout(inlineTimer)
+  inlineTimer = globalThis.setTimeout(() => {
+    inlineTimer = undefined
     inlineLoading.value = false
   }, 1500)
 }
+
+onUnmounted(() => {
+  if (inlineTimer) clearTimeout(inlineTimer)
+})
 </script>
 
 <template>
@@ -81,6 +88,18 @@ function simulateInlineLoad() {
     <DemoBlock title="块级居中（block）">
       <div class="panel">
         <RsLoading block show-label />
+      </div>
+    </DemoBlock>
+
+    <DemoBlock title="默认插槽">
+      <p class="hint">有默认插槽时组件自己做宿主，不必再给父级写 position: relative。loading 期间内容 inert。</p>
+      <div class="panel">
+        <RsLoading :loading="panelLoading" show-label label="刷新列表中…">
+          <ul class="fake-list">
+            <li>项目 Alpha · 进行中</li>
+            <li>项目 Beta · 待评审</li>
+          </ul>
+        </RsLoading>
       </div>
     </DemoBlock>
 

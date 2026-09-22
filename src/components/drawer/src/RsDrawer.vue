@@ -1,32 +1,34 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import {
-  DialogContent,
-  DialogDescription,
-  DialogOverlay,
-  DialogPortal,
-  DialogRoot,
-  DialogTitle,
-} from '../../_shared/src/reka'
+import { computed, getCurrentInstance, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import RsButton from '../../button/src/RsButton.vue'
 import { useRsI18n } from '../../../composables/useRsI18n'
 import {
+  acquireRsDrawerPointerTracking,
+  acquireRsDrawerScrollLock,
+  clampRsDrawerSize,
+  isRsDrawerDismissExempt,
+  isTopRsDrawer,
+  listRsDrawerFocusables,
+  pushRsDrawerLayer,
   resolveDrawerOverlayStyle,
   resolveRsDrawerDimensionCss,
   resolveRsDrawerSizeCss,
   resolveRsDrawerSizePx,
-  clampRsDrawerSize,
-  RS_DRAWER_MIN_SIZE_PX,
+  rsDrawerMotionOutMs,
+  rsDrawerPointersDown,
   RS_DRAWER_MAX_VIEWPORT_RATIO,
+  RS_DRAWER_MIN_SIZE_PX,
+  RS_DRAWER_MOTION_IN_MS,
   runRsDrawerBeforeClose,
   type RsDrawerBeforeClose,
   type RsDrawerCloseReason,
   type RsDrawerDimension,
+  type RsDrawerExpose,
   type RsDrawerSide,
   type RsDrawerSize,
 } from './drawer-utils'
 
-defineOptions({ inheritAttrs: false })
+defineOptions({ name: 'RsDrawer', inheritAttrs: false })
 
 const open = defineModel<boolean>('open', { default: false })
 
@@ -67,21 +69,38 @@ const props = withDefaults(
     overlayBlur?: number | string
     showClose?: boolean
     /**
-     * 点击抽屉外是否关闭（含无遮罩时的 interact-outside）。
+     * 点击抽屉外是否关闭（含无遮罩时的外部指针）。
      * 与 modal 独立：非模态也可保持打开。
      */
     closeOnOverlayClick?: boolean
-    /** 按 Esc 是否关闭；默认 true */
+    /** 按 Esc 是否关闭；默认 true。上层浮层已 preventDefault 时不抢。 */
     closeOnEsc?: boolean
     /**
-     * DialogPortal 挂载目标
+     * 挂载目标
      * - string / HTMLElement：Teleport 到指定节点（容器需 position:relative）
      * - false：禁用 Teleport，就地渲染
-     * - undefined：走 Reka 默认（通常为 body）
+     * - undefined：挂到 body
      */
     teleportTo?: string | HTMLElement | false
     /** 关闭前钩子；返回 false 可阻止关闭（支持 async） */
     beforeClose?: RsDrawerBeforeClose
+    /**
+     * 关闭动画结束后卸掉面板。默认 true，与原先关闭即卸载一致。
+     * false 时保留子树，便于表单状态留在抽屉里。
+     */
+    destroyOnClose?: boolean
+    /** 首次打开前就挂载子树。关闭后是否留下仍看 destroyOnClose。 */
+    forceRender?: boolean
+    /**
+     * 是否锁 body 滚动。未传时：模态且挂到 body 才锁。
+     * 挂进局部容器默认不锁整页。
+     */
+    lockScroll?: boolean
+    /** 覆盖层叠。未传时与其它抽屉同用 --rs-z-modal，后打开的盖在上面。 */
+    zIndex?: number
+    /** 没有可见标题时的可访问名称 */
+    ariaLabel?: string
+    id?: string
   }>(),
   {
     title: '',
@@ -92,6 +111,8 @@ const props = withDefaults(
     closeOnOverlayClick: true,
     closeOnEsc: true,
     resizable: true,
+    destroyOnClose: true,
+    forceRender: false,
   },
 )
 
@@ -106,11 +127,36 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useRsI18n()
+const instance = getCurrentInstance()
+const autoId = useId()
+const layerId = autoId
+const titleId = computed(() => `${props.id || autoId}-title`)
+const descId = computed(() => `${props.id || autoId}-desc`)
+
+/** 可选布尔未传时会被收成 false。看这次 vnode 上有没有该字段，才能区分「没传」。 */
+function propWasPassed(name: 'modal' | 'lockScroll' | 'teleportTo'): boolean {
+  const raw = instance?.vnode.props
+  if (!raw) return false
+  const kebab = name.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`)
+  return Object.hasOwn(raw, name) || Object.hasOwn(raw, kebab)
+}
 
 /** 挂到自定义容器或就地渲染时按 contained 模式定位，避免盖住布局顶栏 */
-const contained = computed(() => props.teleportTo !== undefined)
+const contained = computed(() => propWasPassed('teleportTo'))
 /** 未显式传 modal 时：有遮罩=模态，无遮罩=可点背后 */
-const isModal = computed(() => props.modal ?? props.showOverlay)
+const isModal = computed(() => (propWasPassed('modal') ? Boolean(props.modal) : props.showOverlay))
+const teleportDisabled = computed(() => propWasPassed('teleportTo') && props.teleportTo === false)
+const teleportTarget = computed(() => {
+  if (typeof props.teleportTo === 'string') return props.teleportTo
+  if (typeof HTMLElement !== 'undefined' && props.teleportTo instanceof HTMLElement) {
+    return props.teleportTo
+  }
+  return 'body'
+})
+const shouldLockScroll = computed(() => {
+  if (propWasPassed('lockScroll')) return Boolean(props.lockScroll)
+  return isModal.value && !contained.value
+})
 
 const overlayStyle = computed(() =>
   resolveDrawerOverlayStyle({
@@ -119,73 +165,49 @@ const overlayStyle = computed(() =>
   }),
 )
 
+const zStyle = computed(() => {
+  if (props.zIndex == null || !Number.isFinite(props.zIndex)) return undefined
+  return { '--rs-drawer-z': String(Math.round(props.zIndex)) }
+})
+
 const isHorizontal = computed(() => props.side === 'left' || props.side === 'right')
 const enableResizable = computed(() => props.resizable && props.size !== 'full')
 
 /** 本次打开后拖拽得到的像素尺寸；关闭时清空，回到 size/width/height */
 const liveSizePx = ref<number | undefined>(undefined)
 const resizing = ref(false)
-const contentRef = ref<{ $el?: HTMLElement } | HTMLElement | null>(null)
+const anchorRef = ref<HTMLElement | null>(null)
+const contentRef = ref<HTMLElement | null>(null)
+const panelTheme = ref<string>()
+const panelDir = ref<string>()
+const panelLang = ref<string>()
+const present = ref(open.value || props.forceRender)
+const motion = ref<'open' | 'closed'>(open.value ? 'open' : 'closed')
+const dormant = ref(!open.value)
+const animating = ref(false)
+const boundMin = ref(RS_DRAWER_MIN_SIZE_PX)
+const boundMax = ref(Math.round(960 * RS_DRAWER_MAX_VIEWPORT_RATIO))
+
+/** 仅 width / height 或拖拽结果算自定义尺寸；sm / md / lg 预设不算。 */
+const customDimensionCss = computed(() => {
+  if (liveSizePx.value != null) return `${liveSizePx.value}px`
+  return isHorizontal.value
+    ? resolveRsDrawerDimensionCss(props.width)
+    : resolveRsDrawerDimensionCss(props.height)
+})
 
 const panelSizeCss = computed(() => {
-  if (liveSizePx.value != null) return `${liveSizePx.value}px`
-  if (isHorizontal.value) {
-    return (
-      resolveRsDrawerDimensionCss(props.width) ??
-      resolveRsDrawerSizeCss(props.size) ??
-      undefined
-    )
-  }
-  return (
-    resolveRsDrawerDimensionCss(props.height) ??
-    resolveRsDrawerSizeCss(props.size) ??
-    undefined
-  )
+  if (props.size === 'full') return undefined
+  return customDimensionCss.value ?? resolveRsDrawerSizeCss(props.size)
 })
 
 const contentStyle = computed(() => {
   const style: Record<string, string> = {}
   const size = panelSizeCss.value
-  if (size && props.size !== 'full') {
-    style['--rs-drawer-panel-size'] = size
-  }
+  if (size && props.size !== 'full') style['--rs-drawer-panel-size'] = size
   if (liveSizePx.value != null && props.size !== 'full') {
     if (isHorizontal.value) style.width = `${liveSizePx.value}px`
     else style.height = `${liveSizePx.value}px`
-  }
-  // Reka DialogContent 默认居中；抽屉必须钉在对应边缘，否则只剩一条标题。
-  if (props.side === 'right') {
-    style.left = 'auto'
-    style.right = '0'
-    style.top = '0'
-    style.bottom = '0'
-    style.height = '100%'
-    style.maxHeight = 'none'
-    style.transform = 'none'
-  } else if (props.side === 'left') {
-    style.left = '0'
-    style.right = 'auto'
-    style.top = '0'
-    style.bottom = '0'
-    style.height = '100%'
-    style.maxHeight = 'none'
-    style.transform = 'none'
-  } else if (props.side === 'top') {
-    style.left = '0'
-    style.right = '0'
-    style.top = '0'
-    style.bottom = 'auto'
-    style.width = '100%'
-    style.maxWidth = 'none'
-    style.transform = 'none'
-  } else if (props.side === 'bottom') {
-    style.left = '0'
-    style.right = '0'
-    style.top = 'auto'
-    style.bottom = '0'
-    style.width = '100%'
-    style.maxWidth = 'none'
-    style.transform = 'none'
   }
   return Object.keys(style).length ? style : undefined
 })
@@ -195,136 +217,316 @@ const contentClass = computed(() => [
   `rs-drawer__content--${props.size}`,
   {
     'rs-drawer__content--contained': contained.value,
-    'rs-drawer__content--custom-size': Boolean(panelSizeCss.value) && props.size !== 'full',
+    'rs-drawer__content--custom-size': props.size !== 'full' && customDimensionCss.value != null,
     'rs-drawer__content--resizable': enableResizable.value,
     'rs-drawer__content--resizing': resizing.value,
+    'rs-drawer__content--animate': animating.value,
+    'rs-drawer__content--dormant': dormant.value,
   },
 ])
 
+const labelledBy = computed(() => titleId.value)
+const describedBy = computed(() => (props.description ? descId.value : undefined))
+
 const closing = ref(false)
-let pendingCloseReason: RsDrawerCloseReason = 'programmatic'
 let afterOpenTimer = 0
+let exitTimer = 0
+let animTimer = 0
+let releasePointer: (() => void) | null = null
+let releaseLayer: (() => void) | null = null
+let releaseLock: (() => void) | null = null
+let layerBound = false
+let restoreEl: HTMLElement | null = null
 
-/** 跟踪当前按下指针数，用于判断打开是否发生在手势中途 */
-let pointersDown = 0
-let pointerTrackingBound = false
-
-function ensurePointerTracking(): void {
-  if (pointerTrackingBound || typeof window === 'undefined') return
-  pointerTrackingBound = true
-  window.addEventListener(
-    'pointerdown',
-    () => {
-      pointersDown += 1
-    },
-    true,
-  )
-  window.addEventListener(
-    'pointerup',
-    () => {
-      pointersDown = Math.max(0, pointersDown - 1)
-    },
-    true,
-  )
-  window.addEventListener(
-    'pointercancel',
-    () => {
-      pointersDown = Math.max(0, pointersDown - 1)
-    },
-    true,
-  )
-}
-
-/**
- * 打开若发生在 pointer 按下期间（或同轮事件冒泡中），抑制 outside dismiss，
- * 直到指针抬起，并再刷一次 macrotask（吞掉打开点击残留的 outside）。
- * 不使用固定毫秒锁，避免拖慢正常点遮罩关闭。
- */
+/** 打开若发生在 pointer 按下期间，抑制外部关闭，直到指针抬起再过一个宏任务。 */
 const suppressOutsideUntilGestureEnd = ref(false)
 let gestureReleaseBound = false
-let gestureMacrotaskTimer = 0
 
 function releaseOutsideSuppress(): void {
   suppressOutsideUntilGestureEnd.value = false
-  if (gestureMacrotaskTimer) {
-    window.clearTimeout(gestureMacrotaskTimer)
-    gestureMacrotaskTimer = 0
+  if (!gestureReleaseBound || typeof window === 'undefined') {
+    gestureReleaseBound = false
+    return
   }
-  if (!gestureReleaseBound) return
   gestureReleaseBound = false
   window.removeEventListener('pointerup', onGesturePointerRelease, true)
   window.removeEventListener('pointercancel', onGesturePointerRelease, true)
 }
 
 function onGesturePointerRelease(): void {
-  if (pointersDown > 0) return
-  // 指针已抬起：再等一个 macrotask，避开同次点击残留的 outside
-  if (gestureMacrotaskTimer) window.clearTimeout(gestureMacrotaskTimer)
-  gestureMacrotaskTimer = window.setTimeout(() => {
-    gestureMacrotaskTimer = 0
-    releaseOutsideSuppress()
-  }, 0)
+  if (rsDrawerPointersDown() > 0) return
+  if (gestureReleaseBound && typeof window !== 'undefined') {
+    gestureReleaseBound = false
+    window.removeEventListener('pointerup', onGesturePointerRelease, true)
+    window.removeEventListener('pointercancel', onGesturePointerRelease, true)
+  }
+  queueMicrotask(() => {
+    suppressOutsideUntilGestureEnd.value = false
+  })
 }
 
 function armOutsideSuppressForOpenGesture(): void {
-  ensurePointerTracking()
+  if (typeof window === 'undefined') return
   releaseOutsideSuppress()
   suppressOutsideUntilGestureEnd.value = true
-  if (pointersDown > 0) {
+  if (rsDrawerPointersDown() > 0) {
     gestureReleaseBound = true
     window.addEventListener('pointerup', onGesturePointerRelease, true)
     window.addEventListener('pointercancel', onGesturePointerRelease, true)
     return
   }
-  // 指针已抬起（常见于 click 打开）：仅吞掉本轮之后的同步/微任务 outside
-  gestureMacrotaskTimer = window.setTimeout(() => {
-    gestureMacrotaskTimer = 0
-    releaseOutsideSuppress()
-  }, 0)
+  queueMicrotask(() => {
+    suppressOutsideUntilGestureEnd.value = false
+  })
 }
 
 function clearAfterOpenTimer(): void {
-  if (!afterOpenTimer) return
+  if (!afterOpenTimer || typeof window === 'undefined') {
+    afterOpenTimer = 0
+    return
+  }
   window.clearTimeout(afterOpenTimer)
   afterOpenTimer = 0
 }
 
+function clearExitTimer(): void {
+  if (!exitTimer || typeof window === 'undefined') {
+    exitTimer = 0
+    return
+  }
+  window.clearTimeout(exitTimer)
+  exitTimer = 0
+}
+
+function clearAnimTimer(): void {
+  if (!animTimer || typeof window === 'undefined') {
+    animTimer = 0
+    return
+  }
+  window.clearTimeout(animTimer)
+  animTimer = 0
+}
+
 function queueAfterOpen(): void {
   clearAfterOpenTimer()
-  // 略晚于滑入动画，便于业务在可见后聚焦
+  if (typeof window === 'undefined') return
   afterOpenTimer = window.setTimeout(() => {
     afterOpenTimer = 0
     if (open.value) emit('afterOpen')
-  }, 280)
+  }, RS_DRAWER_MOTION_IN_MS + 40)
+}
+
+function markAnimating(): void {
+  clearAnimTimer()
+  if (rsDrawerMotionOutMs() === 0) {
+    animating.value = false
+    return
+  }
+  animating.value = true
+  if (typeof window === 'undefined') return
+  const ms = motion.value === 'closed' ? rsDrawerMotionOutMs() : RS_DRAWER_MOTION_IN_MS
+  animTimer = window.setTimeout(() => {
+    animTimer = 0
+    animating.value = false
+  }, ms + 40)
+}
+
+function finishExit(): void {
+  clearExitTimer()
+  animating.value = false
+  if (open.value) return
+  liveSizePx.value = undefined
+  if (props.destroyOnClose && !props.forceRender) {
+    present.value = false
+    return
+  }
+  dormant.value = true
+}
+
+function scheduleExit(): void {
+  clearExitTimer()
+  if (typeof window === 'undefined') return
+  const ms = rsDrawerMotionOutMs()
+  if (ms === 0) {
+    finishExit()
+    return
+  }
+  // 正常由 animationend 卸掉。定时器只作动画没播完时的兜底，避免和滑出抢同一帧。
+  exitTimer = window.setTimeout(() => {
+    exitTimer = 0
+    finishExit()
+  }, ms)
+}
+
+function syncChrome(): void {
+  const el = anchorRef.value
+  if (!el) {
+    panelTheme.value = undefined
+    panelDir.value = undefined
+    panelLang.value = undefined
+    return
+  }
+  const themed = el.closest('[data-rs-theme]')
+  const directed = el.closest('[dir]')
+  const langed = el.closest('[lang]')
+  panelTheme.value = themed instanceof HTMLElement ? themed.dataset.rsTheme : undefined
+  panelDir.value = directed?.getAttribute('dir') || undefined
+  panelLang.value = langed?.getAttribute('lang') || undefined
+}
+
+function resolveContentEl(): HTMLElement | null {
+  const el = contentRef.value
+  return el instanceof HTMLElement ? el : null
+}
+
+function focusPanel(force: boolean): void {
+  const content = resolveContentEl()
+  if (!content || typeof document === 'undefined') return
+  if (!force && !isModal.value) return
+  const active = document.activeElement
+  if (
+    active instanceof HTMLElement &&
+    active !== document.body &&
+    active !== document.documentElement &&
+    !content.contains(active)
+  ) {
+    restoreEl = active
+  }
+  if (!force && active instanceof HTMLElement && content.contains(active)) return
+  content.focus({ preventScroll: true })
+}
+
+function restoreFocus(): void {
+  const el = restoreEl
+  restoreEl = null
+  if (!el?.isConnected) return
+  const content = resolveContentEl()
+  if (content && (el === content || content.contains(el))) return
+  el.focus({ preventScroll: true })
+}
+
+function bindLayer(): void {
+  if (layerBound || typeof window === 'undefined') return
+  layerBound = true
+  releaseLayer = pushRsDrawerLayer(layerId)
+  if (shouldLockScroll.value) releaseLock = acquireRsDrawerScrollLock()
+  window.addEventListener('pointerdown', onWindowPointerDown)
+  window.addEventListener('keydown', onWindowKeydown)
+  refreshBounds()
+}
+
+function unbindLayer(): void {
+  if (!layerBound) return
+  layerBound = false
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('pointerdown', onWindowPointerDown)
+    window.removeEventListener('keydown', onWindowKeydown)
+  }
+  releaseLayer?.()
+  releaseLayer = null
+  releaseLock?.()
+  releaseLock = null
+}
+
+function shouldBlockOutsideDismiss(): boolean {
+  return !props.closeOnOverlayClick || suppressOutsideUntilGestureEnd.value || resizing.value
+}
+
+function onWindowPointerDown(event: PointerEvent): void {
+  if (!open.value || !isTopRsDrawer(layerId)) return
+  if (shouldBlockOutsideDismiss()) return
+  if (isRsDrawerDismissExempt(event.target, resolveContentEl())) return
+  void requestClose('overlay')
+}
+
+function onWindowKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'Escape' || event.defaultPrevented) return
+  if (!open.value || !isTopRsDrawer(layerId)) return
+  if (!props.closeOnEsc) {
+    event.preventDefault()
+    return
+  }
+  event.preventDefault()
+  void requestClose('escape')
+}
+
+function onContentKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'Tab' || !isModal.value || !open.value || !isTopRsDrawer(layerId)) return
+  const content = resolveContentEl()
+  if (!content) return
+  const items = listRsDrawerFocusables(content)
+  if (!items.length) {
+    event.preventDefault()
+    content.focus({ preventScroll: true })
+    return
+  }
+  const first = items[0]
+  const last = items[items.length - 1]
+  const active = document.activeElement
+  if (event.shiftKey && (active === first || active === content)) {
+    event.preventDefault()
+    last?.focus()
+    return
+  }
+  if (!event.shiftKey && active === last) {
+    event.preventDefault()
+    first?.focus()
+  }
 }
 
 watch(open, (isOpen, wasOpen) => {
   if (isOpen && !wasOpen) {
+    clearExitTimer()
+    syncChrome()
+    present.value = true
+    dormant.value = false
+    motion.value = 'open'
+    markAnimating()
     armOutsideSuppressForOpenGesture()
+    bindLayer()
     emit('openChange', true)
     queueAfterOpen()
+    void nextTick(() => focusPanel(false))
     return
   }
   if (!isOpen && wasOpen) {
-    liveSizePx.value = undefined
+    motion.value = 'closed'
+    markAnimating()
     stopResize()
     releaseOutsideSuppress()
     clearAfterOpenTimer()
+    unbindLayer()
+    restoreFocus()
+    scheduleExit()
     emit('openChange', false)
     if (!closing.value) emit('afterClose', 'programmatic')
   }
+})
+
+onMounted(() => {
+  releasePointer = acquireRsDrawerPointerTracking()
+  syncChrome()
+  if (!open.value) return
+  armOutsideSuppressForOpenGesture()
+  bindLayer()
+  void nextTick(() => focusPanel(false))
 })
 
 onBeforeUnmount(() => {
   stopResize()
   releaseOutsideSuppress()
   clearAfterOpenTimer()
+  clearExitTimer()
+  clearAnimTimer()
+  if (open.value) restoreFocus()
+  unbindLayer()
+  releasePointer?.()
+  releasePointer = null
 })
 
 async function requestClose(reason: RsDrawerCloseReason): Promise<boolean> {
   if (!open.value || closing.value) return false
   closing.value = true
-  pendingCloseReason = reason
   try {
     const allowed = await runRsDrawerBeforeClose(props.beforeClose, reason)
     if (!allowed) return false
@@ -337,72 +539,19 @@ async function requestClose(reason: RsDrawerCloseReason): Promise<boolean> {
   }
 }
 
-/** DialogRoot 受控更新：打开直通；关闭统一走 beforeClose */
-async function onUpdateOpen(next: boolean): Promise<void> {
-  if (next) {
-    open.value = true
-    return
-  }
-  await requestClose(pendingCloseReason)
-  pendingCloseReason = 'programmatic'
-}
-
-function onEscapeKeyDown(event: Event): void {
-  if (!props.closeOnEsc) {
-    event.preventDefault()
-    return
-  }
-  pendingCloseReason = 'escape'
-}
-
-function shouldBlockOutsideDismiss(): boolean {
-  return (
-    !props.closeOnOverlayClick ||
-    suppressOutsideUntilGestureEnd.value ||
-    resizing.value
-  )
-}
-
-function onPointerDownOutside(event: Event): void {
-  if (shouldBlockOutsideDismiss()) {
-    event.preventDefault()
-    return
-  }
-  pendingCloseReason = 'overlay'
-}
-
-function onInteractOutside(event: Event): void {
-  if (shouldBlockOutsideDismiss()) {
-    event.preventDefault()
-    return
-  }
-  pendingCloseReason = 'overlay'
-}
-
-function onFocusOutside(event: Event): void {
-  // 抽屉仅响应 pointer / Esc 关闭，聚焦到背后（尤其非模态）不得 dismiss
-  event.preventDefault()
-}
-
 async function onHeaderCloseClick(): Promise<void> {
   await requestClose('close')
 }
 
-function resolveContentEl(): HTMLElement | null {
-  const inst = contentRef.value
-  if (!inst) return null
-  if (inst instanceof HTMLElement) return inst
-  const el = inst.$el
-  return el instanceof HTMLElement ? el : null
-}
-
 function rootFontPx(): number {
+  if (typeof document === 'undefined') return 16
   const raw = getComputedStyle(document.documentElement).fontSize
   const n = Number.parseFloat(raw)
   return Number.isFinite(n) && n > 0 ? n : 16
 }
 
 function viewportPx(): number {
+  if (typeof window === 'undefined') return 0
   return isHorizontal.value ? window.innerWidth : window.innerHeight
 }
 
@@ -417,6 +566,12 @@ function sizeBounds(): { min: number; max: number } {
     vp,
   )
   return { min, max }
+}
+
+function refreshBounds(): void {
+  const next = sizeBounds()
+  boundMin.value = next.min
+  boundMax.value = next.max
 }
 
 function applyLiveSize(px: number): number {
@@ -436,15 +591,17 @@ let resizeStartClient = 0
 let resizeStartSize = 0
 
 function stopResize(): void {
-  if (resizePointerId != null) {
+  if (resizePointerId != null && typeof window !== 'undefined') {
     window.removeEventListener('pointermove', onResizePointerMove)
     window.removeEventListener('pointerup', onResizePointerUp)
     window.removeEventListener('pointercancel', onResizePointerUp)
     resizePointerId = null
   }
   resizing.value = false
-  document.body.style.removeProperty('cursor')
-  document.body.style.removeProperty('user-select')
+  if (typeof document !== 'undefined' && document.body) {
+    document.body.style.removeProperty('cursor')
+    document.body.style.removeProperty('user-select')
+  }
 }
 
 function currentPanelPx(): number {
@@ -462,8 +619,11 @@ function onResizePointerDown(event: PointerEvent): void {
   resizeStartSize = currentPanelPx()
   resizePointerId = event.pointerId
   resizing.value = true
-  document.body.style.cursor = isHorizontal.value ? 'ew-resize' : 'ns-resize'
-  document.body.style.userSelect = 'none'
+  refreshBounds()
+  if (typeof document !== 'undefined') {
+    document.body.style.cursor = isHorizontal.value ? 'ew-resize' : 'ns-resize'
+    document.body.style.userSelect = 'none'
+  }
   window.addEventListener('pointermove', onResizePointerMove)
   window.addEventListener('pointerup', onResizePointerUp)
   window.addEventListener('pointercancel', onResizePointerUp)
@@ -498,6 +658,17 @@ function onResizePointerUp(event: PointerEvent): void {
 
 function onResizeKeydown(event: KeyboardEvent): void {
   if (!enableResizable.value) return
+  refreshBounds()
+  if (event.key === 'Home') {
+    event.preventDefault()
+    commitResize(applyLiveSize(sizeBounds().min))
+    return
+  }
+  if (event.key === 'End') {
+    event.preventDefault()
+    commitResize(applyLiveSize(sizeBounds().max))
+    return
+  }
   const step = event.shiftKey ? 48 : 16
   let delta = 0
   if (props.side === 'right') {
@@ -518,99 +689,130 @@ function onResizeKeydown(event: KeyboardEvent): void {
   commitResize(applyLiveSize(currentPanelPx() + delta))
 }
 
-defineExpose({
-  /** 请求关闭（走 beforeClose） */
+function onContentAnimationEnd(event: AnimationEvent): void {
+  if (event.target !== resolveContentEl()) return
+  animating.value = false
+  if (!open.value && motion.value === 'closed') finishExit()
+}
+
+const exposed: RsDrawerExpose = {
   close: (reason: RsDrawerCloseReason = 'programmatic') => requestClose(reason),
-  /** 打开抽屉 */
   openDrawer: () => {
     open.value = true
   },
-})
+  focus: () => focusPanel(true),
+}
+
+defineExpose(exposed)
 </script>
 
 <template>
-  <DialogRoot :open="open" :modal="isModal" @update:open="onUpdateOpen">
-    <DialogPortal
-      :disabled="teleportTo === false"
-      :to="teleportTo === false ? undefined : teleportTo"
+  <span ref="anchorRef" class="rs-drawer__anchor" hidden aria-hidden="true" />
+  <Teleport :disabled="teleportDisabled" :to="teleportTarget">
+    <div
+      v-if="showOverlay && present"
+      class="rs-drawer__overlay rs-motion-reduce"
+      :class="{
+        'rs-drawer__overlay--contained': contained,
+        'rs-drawer__overlay--dormant': dormant,
+      }"
+      :style="[overlayStyle, zStyle]"
+      :data-state="motion"
+      :data-rs-theme="panelTheme"
+      :dir="panelDir"
+      :lang="panelLang"
+      aria-hidden="true"
+    />
+    <div
+      v-if="present"
+      :id="id"
+      ref="contentRef"
+      v-bind="$attrs"
+      class="rs-drawer rs-drawer__content rs-motion-reduce"
+      :class="contentClass"
+      :style="[contentStyle, zStyle]"
+      role="dialog"
+      :aria-modal="isModal && motion === 'open' ? 'true' : 'false'"
+      :aria-labelledby="labelledBy"
+      :aria-describedby="describedBy"
+      :aria-hidden="motion === 'open' ? undefined : 'true'"
+      :inert="motion === 'open' ? undefined : true"
+      :data-state="motion"
+      :data-rs-theme="panelTheme"
+      :dir="panelDir"
+      :lang="panelLang"
+      tabindex="-1"
+      @keydown="onContentKeydown"
+      @animationend="onContentAnimationEnd"
     >
-      <DialogOverlay
-        v-if="showOverlay"
-        class="rs-drawer__overlay rs-motion-reduce"
-        :class="{ 'rs-drawer__overlay--contained': contained }"
-        :style="overlayStyle"
-      />
-      <DialogContent
-        ref="contentRef"
-        class="rs-drawer__content rs-motion-reduce"
-        :class="contentClass"
-        :style="contentStyle"
-        @pointer-down-outside="onPointerDownOutside"
-        @interact-outside="onInteractOutside"
-        @focus-outside="onFocusOutside"
-        @escape-key-down="onEscapeKeyDown"
+      <header
+        v-if="title || description || showClose || $slots.header || $slots.extra"
+        class="rs-drawer__header"
       >
-        <button
-          v-if="enableResizable"
-          type="button"
-          class="rs-drawer__resize"
-          :aria-label="t('drawer.resize')"
-          :aria-orientation="isHorizontal ? 'vertical' : 'horizontal'"
-          :aria-valuenow="liveSizePx != null ? Math.round(liveSizePx) : undefined"
-          @pointerdown="onResizePointerDown"
-          @keydown="onResizeKeydown"
-        />
-        <header v-if="title || description || showClose || $slots.header" class="rs-drawer__header">
-          <slot name="header">
-            <div class="rs-drawer__heading">
-              <DialogTitle v-if="title" class="rs-drawer__title">{{ title }}</DialogTitle>
-              <DialogDescription v-if="description" class="rs-drawer__description">
-                {{ description }}
-              </DialogDescription>
-            </div>
-          </slot>
+        <slot name="header">
+          <div class="rs-drawer__heading">
+            <h2 v-if="title" :id="titleId" class="rs-drawer__title">{{ title }}</h2>
+            <p v-if="description" :id="descId" class="rs-drawer__description">{{ description }}</p>
+          </div>
+        </slot>
+        <div v-if="$slots.extra || showClose" class="rs-drawer__tools">
+          <div v-if="$slots.extra" class="rs-drawer__extra">
+            <slot name="extra" />
+          </div>
           <RsButton
             v-if="showClose"
+            class="rs-drawer__close"
             variant="ghost"
             size="sm"
             icon="x"
-            :tooltip="t('dialog.close')"
+            :tooltip="t('drawer.close')"
             @click="onHeaderCloseClick"
           />
-        </header>
-        <!--
-          自定义 #header 或不传 title 时，默认插槽内的 DialogTitle 不会挂载。
-          补一层仅供读屏的 Title，满足 Reka DialogContent 无障碍要求。
-        -->
-        <DialogTitle
-          v-if="$slots.header || !title"
-          class="rs-drawer__title rs-drawer__title--sr-only"
-        >
-          {{ title || ' ' }}
-        </DialogTitle>
-        <!-- 无可见 description 时仍提供 DialogDescription，避免 Reka a11y 警告 -->
-        <DialogDescription
-          v-if="!description || $slots.header"
-          class="rs-drawer__description rs-drawer__description--sr-only"
-        >
-          {{ description || title || ' ' }}
-        </DialogDescription>
-        <div class="rs-drawer__body">
-          <slot />
         </div>
-        <footer v-if="$slots.footer" class="rs-drawer__footer">
-          <slot name="footer" />
-        </footer>
-      </DialogContent>
-    </DialogPortal>
-  </DialogRoot>
+      </header>
+      <h2
+        v-if="$slots.header || !title"
+        :id="titleId"
+        class="rs-drawer__title rs-drawer__title--sr-only"
+      >
+        {{ title || ariaLabel || t('drawer.label') }}
+      </h2>
+      <p
+        v-if="description && $slots.header"
+        :id="descId"
+        class="rs-drawer__description rs-drawer__description--sr-only"
+      >
+        {{ description }}
+      </p>
+      <div class="rs-drawer__body">
+        <slot />
+      </div>
+      <footer v-if="$slots.footer" class="rs-drawer__footer">
+        <slot name="footer" />
+      </footer>
+      <div
+        v-if="enableResizable"
+        class="rs-drawer__resize"
+        role="separator"
+        tabindex="0"
+        :aria-label="t('drawer.resize')"
+        :aria-orientation="isHorizontal ? 'vertical' : 'horizontal'"
+        :aria-valuemin="boundMin"
+        :aria-valuemax="boundMax"
+        :aria-valuenow="liveSizePx != null ? Math.round(liveSizePx) : undefined"
+        :aria-controls="id || undefined"
+        @pointerdown="onResizePointerDown"
+        @keydown="onResizeKeydown"
+      />
+    </div>
+  </Teleport>
 </template>
 
 <style>
 .rs-drawer__overlay {
   position: fixed;
   inset: 0;
-  z-index: var(--rs-z-modal);
+  z-index: var(--rs-drawer-z, var(--rs-z-modal));
   background: var(--rs-drawer-overlay-bg, var(--rs-dialog-overlay-bg, rgb(0 0 0 / 0.24)));
   backdrop-filter: blur(var(--rs-drawer-overlay-blur, var(--rs-dialog-overlay-blur, 0px))) saturate(120%);
   -webkit-backdrop-filter: blur(var(--rs-drawer-overlay-blur, var(--rs-dialog-overlay-blur, 0px)))
@@ -620,14 +822,19 @@ defineExpose({
   animation: rs-drawer-overlay-in var(--rs-drawer-motion-duration-in, 240ms) ease;
 }
 .rs-drawer__overlay[data-state='closed'] {
-  animation: rs-drawer-overlay-out var(--rs-drawer-motion-duration-out, 180ms) ease;
+  /* forwards：结束后停在透明，避免卸掉前 Opacity 弹回 1 */
+  animation: rs-drawer-overlay-out var(--rs-drawer-motion-duration-out, 180ms) ease forwards;
 }
 .rs-drawer__overlay--contained {
   position: absolute;
 }
+.rs-drawer__overlay--dormant {
+  visibility: hidden;
+  pointer-events: none;
+}
 .rs-drawer__content {
   position: fixed;
-  z-index: calc(var(--rs-z-modal) + 1);
+  z-index: calc(var(--rs-drawer-z, var(--rs-z-modal)) + 1);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -638,7 +845,20 @@ defineExpose({
   color: var(--rs-text);
   box-shadow: var(--rs-shadow-lg);
   outline: none;
+}
+.rs-drawer__content--animate {
   will-change: transform;
+}
+.rs-drawer__content:focus {
+  outline: none;
+}
+.rs-drawer__content:focus-visible {
+  outline: var(--rs-focus-ring-width) solid var(--rs-focus-ring);
+  outline-offset: -2px;
+}
+.rs-drawer__content--dormant {
+  visibility: hidden;
+  pointer-events: none;
 }
 .rs-drawer__resize {
   position: absolute;
@@ -646,17 +866,17 @@ defineExpose({
   padding: 0;
   border: 0;
   background: transparent;
-  appearance: none;
+  touch-action: none;
 }
 .rs-drawer__resize:focus-visible {
-  outline: 2px solid var(--rs-primary);
+  outline: var(--rs-focus-ring-width) solid var(--rs-focus-ring);
   outline-offset: -2px;
 }
 .rs-drawer__content--right > .rs-drawer__resize,
 .rs-drawer__content--left > .rs-drawer__resize {
   top: 0;
   bottom: 0;
-  width: 6px;
+  width: 10px;
   cursor: ew-resize;
 }
 .rs-drawer__content--right > .rs-drawer__resize {
@@ -668,7 +888,7 @@ defineExpose({
 .rs-drawer__content--top > .rs-drawer__resize,
 .rs-drawer__content--bottom > .rs-drawer__resize {
   inset-inline: 0;
-  height: 6px;
+  height: 10px;
   cursor: ns-resize;
 }
 .rs-drawer__content--top > .rs-drawer__resize {
@@ -720,12 +940,14 @@ defineExpose({
   right: 0;
   border-right: 0;
   border-radius: var(--rs-radius) 0 0 var(--rs-radius);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 .rs-drawer__content--left {
   left: 0;
   right: auto;
   border-left: 0;
   border-radius: 0 var(--rs-radius) var(--rs-radius) 0;
+  padding-left: env(safe-area-inset-left, 0px);
 }
 .rs-drawer__content--top,
 .rs-drawer__content--bottom {
@@ -739,11 +961,13 @@ defineExpose({
   top: 0;
   border-top: 0;
   border-radius: 0 0 var(--rs-radius) var(--rs-radius);
+  padding-top: env(safe-area-inset-top, 0px);
 }
 .rs-drawer__content--bottom {
   bottom: 0;
   border-bottom: 0;
   border-radius: var(--rs-radius) var(--rs-radius) 0 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 .rs-drawer__content--sm:is(.rs-drawer__content--left, .rs-drawer__content--right) {
   --rs-drawer-panel-size: 20rem;
@@ -779,34 +1003,33 @@ defineExpose({
   height: 100%;
 }
 
-/* 滑入 / 滑出（与 Reka data-state 对齐；缓动接近主流 sheet） */
 .rs-drawer__content--right[data-state='open'] {
   animation: rs-drawer-slide-right-in var(--rs-drawer-motion-duration-in, 240ms)
     cubic-bezier(0.32, 0.72, 0, 1);
 }
 .rs-drawer__content--right[data-state='closed'] {
-  animation: rs-drawer-slide-right-out var(--rs-drawer-motion-duration-out, 180ms) ease;
+  animation: rs-drawer-slide-right-out var(--rs-drawer-motion-duration-out, 180ms) ease forwards;
 }
 .rs-drawer__content--left[data-state='open'] {
   animation: rs-drawer-slide-left-in var(--rs-drawer-motion-duration-in, 240ms)
     cubic-bezier(0.32, 0.72, 0, 1);
 }
 .rs-drawer__content--left[data-state='closed'] {
-  animation: rs-drawer-slide-left-out var(--rs-drawer-motion-duration-out, 180ms) ease;
+  animation: rs-drawer-slide-left-out var(--rs-drawer-motion-duration-out, 180ms) ease forwards;
 }
 .rs-drawer__content--top[data-state='open'] {
   animation: rs-drawer-slide-top-in var(--rs-drawer-motion-duration-in, 240ms)
     cubic-bezier(0.32, 0.72, 0, 1);
 }
 .rs-drawer__content--top[data-state='closed'] {
-  animation: rs-drawer-slide-top-out var(--rs-drawer-motion-duration-out, 180ms) ease;
+  animation: rs-drawer-slide-top-out var(--rs-drawer-motion-duration-out, 180ms) ease forwards;
 }
 .rs-drawer__content--bottom[data-state='open'] {
   animation: rs-drawer-slide-bottom-in var(--rs-drawer-motion-duration-in, 240ms)
     cubic-bezier(0.32, 0.72, 0, 1);
 }
 .rs-drawer__content--bottom[data-state='closed'] {
-  animation: rs-drawer-slide-bottom-out var(--rs-drawer-motion-duration-out, 180ms) ease;
+  animation: rs-drawer-slide-bottom-out var(--rs-drawer-motion-duration-out, 180ms) ease forwards;
 }
 
 @keyframes rs-drawer-overlay-in {
@@ -899,9 +1122,14 @@ defineExpose({
   box-sizing: border-box;
   height: var(--rs-drawer-header-height);
   min-height: var(--rs-drawer-header-min-height);
-  padding: var(--rs-drawer-header-padding-y) var(--rs-drawer-header-padding-x);
+  padding-block: var(--rs-drawer-header-padding-y);
+  padding-inline: var(--rs-drawer-header-padding-x);
   background: var(--rs-drawer-header-bg);
   border-bottom: 1px solid var(--rs-drawer-separator, var(--rs-border-subtle));
+}
+.rs-drawer__header > :first-child {
+  min-width: 0;
+  flex: 1;
 }
 .rs-drawer__heading {
   min-width: 0;
@@ -910,6 +1138,19 @@ defineExpose({
   display: flex;
   flex-direction: column;
   justify-content: center;
+}
+.rs-drawer__tools {
+  display: flex;
+  align-items: center;
+  gap: var(--rs-space-xs);
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
+.rs-drawer__extra {
+  display: flex;
+  align-items: center;
+  gap: var(--rs-space-xs);
+  flex-shrink: 0;
 }
 .rs-drawer__footer {
   display: flex;
@@ -920,7 +1161,8 @@ defineExpose({
   box-sizing: border-box;
   height: var(--rs-drawer-footer-height);
   min-height: var(--rs-drawer-footer-min-height);
-  padding: var(--rs-drawer-footer-padding-y) var(--rs-drawer-footer-padding-x);
+  padding-block: var(--rs-drawer-footer-padding-y);
+  padding-inline: var(--rs-drawer-footer-padding-x);
   background: var(--rs-drawer-footer-bg);
   border-top: 1px solid
     var(--rs-drawer-footer-border, var(--rs-drawer-separator, var(--rs-border-subtle)));
@@ -928,11 +1170,13 @@ defineExpose({
 .rs-drawer__body {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  padding: var(--rs-drawer-body-padding-y) var(--rs-drawer-body-padding-x);
+  padding-block: var(--rs-drawer-body-padding-y);
+  padding-inline: var(--rs-drawer-body-padding-x);
   background: var(--rs-drawer-body-bg);
 }
 .rs-drawer__title {
@@ -949,21 +1193,12 @@ defineExpose({
   white-space: nowrap;
 }
 .rs-drawer__description {
-  margin: var(--rs-space-xs) 0 0;
+  margin-block: var(--rs-space-xs) 0;
+  margin-inline: 0;
   color: var(--rs-drawer-description-fg, var(--rs-muted));
   font-size: var(--rs-font-size-sm);
 }
-.rs-drawer__description--sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
+.rs-drawer__description--sr-only,
 .rs-drawer__title--sr-only {
   position: absolute;
   width: 1px;

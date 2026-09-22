@@ -44,6 +44,13 @@ export type {
   RsDynamicTagsRejectReason,
 } from './components/dynamic-tags'
 export { RsAlert } from './components/alert'
+export type {
+  RsAlertExpose,
+  RsAlertInstance,
+  RsAlertSize,
+  RsAlertTone,
+  RsAlertVariant,
+} from './components/alert'
 export { RsDivider } from './components/divider'
 export type { RsDividerOrientation } from './components/divider'
 export { RsDescriptions } from './components/descriptions'
@@ -54,6 +61,13 @@ export type {
   RsDescriptionsSize,
 } from './components/descriptions'
 export { RsLoadingBar } from './components/loading-bar'
+export type {
+  RsLoadingBarAttach,
+  RsLoadingBarExpose,
+  RsLoadingBarInstance,
+  RsLoadingBarPosition,
+  RsLoadingBarTone,
+} from './components/loading-bar'
 export { useRsLoadingBar } from './composables/useRsLoadingBar'
 export type { RsLoadingBarApi } from './composables/useRsLoadingBar'
 export { RsDropdown } from './components/dropdown'
@@ -117,11 +131,29 @@ export type { RsAvatarShape, RsAvatarSize, RsAvatarTone } from './components/ava
 export { RsCard } from './components/card'
 export type { RsCardSize, RsCardVariant } from './components/card'
 export { RsEmpty } from './components/empty'
+export type { RsEmptyPreset, RsEmptySize } from './components/empty'
 export { RsLoading } from './components/loading'
+export type { RsLoadingSize, RsLoadingTone, RsLoadingVariant } from './components/loading'
 export { RsTabs } from './components/tabs'
 export { RsTooltip } from './components/tooltip'
 export { RsTooltipProvider } from './components/tooltip'
+export type {
+  RsTooltipAlign,
+  RsTooltipExpose,
+  RsTooltipGetContainer,
+  RsTooltipInstance,
+  RsTooltipSide,
+} from './components/tooltip'
 export { RsPopover } from './components/popover'
+export type {
+  RsPopoverAlign,
+  RsPopoverExpose,
+  RsPopoverGetPopupContainer,
+  RsPopoverInstance,
+  RsPopoverSide,
+  RsPopoverTrigger,
+  RsPopoverWidth,
+} from './components/popover'
 export { RsDialog } from './components/dialog'
 export { RsContextMenu } from './components/context-menu'
 export { RsConfirmDialog } from './components/dialog'
@@ -139,6 +171,8 @@ export type {
   RsConfirmOptions,
   RsDialogBeforeClose,
   RsDialogCloseReason,
+  RsDialogExpose,
+  RsDialogInstance,
   RsDialogLayout,
   RsDialogWidth,
   RsDialogWidthPreset,
@@ -156,6 +190,8 @@ export type {
   RsDrawerBeforeClose,
   RsDrawerCloseReason,
   RsDrawerDimension,
+  RsDrawerExpose,
+  RsDrawerInstance,
   RsDrawerSide,
   RsDrawerSize,
 } from './components/drawer'
@@ -195,13 +231,28 @@ export { RsTimePickerColumns } from './components/time-picker'
 export { RsSidebar } from './components/sidebar'
 export { RsSidebarGroup } from './components/sidebar'
 export { RsSidebarItem } from './components/sidebar'
+export type {
+  RsSidebarExpose,
+  RsSidebarInstance,
+  RsSidebarOrientation,
+  RsSidebarPlacement,
+  RsSidebarWidth,
+} from './components/sidebar'
 export { RsSplitPane } from './components/split-pane'
 export { RsStatCard } from './components/stat-card'
 export { RsSteps } from './components/steps'
 export { RsTable } from './components/table'
 export { RsTableCellEditor } from './components/table'
 export { RsPagination } from './components/pagination'
-export type { RsPaginationSize } from './components/pagination'
+export type {
+  RsPaginationAlign,
+  RsPaginationExpose,
+  RsPaginationInstance,
+  RsPaginationItemSlot,
+  RsPaginationItemType,
+  RsPaginationSize,
+  RsPaginationSummarySlot,
+} from './components/pagination'
 export { RsTree } from './components/tree'
 export { RsUpload } from './components/upload'
 export type {
@@ -328,10 +379,38 @@ export type {
   RsContainerResponsive,
 } from './components/container'
 export type { RsBreadcrumbItem } from './components/breadcrumb'
-export type { RsToolbarBorder, RsToolbarSize } from './components/toolbar'
+export type {
+  RsToolbarBorder,
+  RsToolbarExpose,
+  RsToolbarInstance,
+  RsToolbarOrientation,
+  RsToolbarSize,
+} from './components/toolbar'
 export type { RsContextMenuItem } from './components/context-menu'
-export type { RsDropdownContentWidth, RsDropdownItem, RsDropdownItemGroup, RsDropdownItems } from './components/dropdown'
-export type { RsMenuItem, RsMenuItemGroup, RsMenuItems } from './components/menu'
+export type {
+  RsDropdownContentWidth,
+  RsDropdownExpose,
+  RsDropdownGetPopupContainer,
+  RsDropdownInstance,
+  RsDropdownItem,
+  RsDropdownItemGroup,
+  RsDropdownItemSlot,
+  RsDropdownItems,
+  RsDropdownPlacement,
+  RsDropdownTone,
+  RsDropdownTrigger,
+} from './components/dropdown'
+export type {
+  RsMenuExpose,
+  RsMenuGetPopupContainer,
+  RsMenuItem,
+  RsMenuItemGroup,
+  RsMenuItemSlot,
+  RsMenuItems,
+  RsMenuInstance,
+  RsMenuMode,
+  RsMenuTriggerAction,
+} from './components/menu'
 export type { RsScrollbarOrientation, RsScrollbarType } from './components/scrollbar'
 export type {
   RsSelectFieldNames,
@@ -440,25 +519,46 @@ export {
 } from './components/form'
 export type {
   RsTabItem,
+  RsTabsActivation,
   RsTabsCloseAction,
   RsTabsContentGap,
+  RsTabsExpose,
+  RsTabsInstance,
   RsTabsOverflow,
+  RsTabsPosition,
   RsTabsSize,
   RsTabsJustify,
+  RsTabsTabSlot,
   RsTabsVariant,
 } from './components/tabs'
 export {
   buildTabContextMenuItems,
+  getAdjacentTabValue,
+  getEdgeTabValue,
+  getEnabledTabValues,
   getNextTabAfterBatchClose,
   getNextTabAfterClose,
   isTabClosable,
   isTabFixed,
   isTabRenamable,
+  isVerticalTabsPosition,
   reorderTabItems,
+  resolveTabKeyboardMove,
   resolveTabsToClose,
   resolveVisibleTabValues,
+  shouldRenderTabPanel,
 } from './components/tabs'
-export type { RsStepItem, RsStepStatus, RsStepsOrientation, RsStepsSize } from './components/steps'
+export type {
+  RsStepItem,
+  RsStepStatus,
+  RsStepsExpose,
+  RsStepsInstance,
+  RsStepsItemSlot,
+  RsStepsLabelPlacement,
+  RsStepsOrientation,
+  RsStepsSize,
+  RsStepsType,
+} from './components/steps'
 export { isStepSeparatorCompleted, resolveStepStatus } from './components/steps'
 export type {
   RsSplitConstraint,
@@ -467,6 +567,7 @@ export type {
   RsSplitPaneInstance,
   RsSplitPaneItem,
   RsSplitPaneSize,
+  RsSplitPaneSlot,
 } from './components/split-pane'
 export {
   applySplitResize,
@@ -906,11 +1007,18 @@ export type {
 } from './components/time-picker'
 export { validateTimeRangeValue } from './components/time-picker'
 export {
+  buildPaginationPagerItems,
   clampPage,
   createPageSizeSelectOptions,
   DEFAULT_PAGE_SIZE_OPTIONS,
   getPageCount,
   getPaginationRange,
+  paginationItemKey,
+  resolveAdjacentPagerKey,
+  resolveFocusablePagerKeys,
+  resolvePaginationKeyboardMove,
+  resolvePaginationSize,
+  shouldHidePagination,
   slicePageData,
 } from './components/pagination'
 export type {

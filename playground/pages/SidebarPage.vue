@@ -46,7 +46,7 @@ const longNavItems = Array.from({ length: 16 }, (_, i) => ({
 
     <DemoBlock title="可折叠">
       <p class="hint">
-        开启 collapsible 后点击折叠按钮；子组件需通过默认插槽的 collapsed 参数同步折叠态。
+        开启 collapsible 后点击折叠按钮。Group / Item 从 Sidebar 继承折叠态，不必再手传 collapsed。
       </p>
       <div class="frame frame--layout">
         <RsSidebar
@@ -55,31 +55,26 @@ const longNavItems = Array.from({ length: 16 }, (_, i) => ({
           subtitle="SaaS 控制台"
           collapsible
         >
-          <template #default="{ collapsed: isCollapsed }">
-            <RsSidebarGroup title="工作区" :collapsed="isCollapsed">
-              <RsSidebarItem
-                label="仪表盘"
-                icon="layout-dashboard"
-                :active="activeNav === 'dashboard'"
-                :collapsed="isCollapsed"
-                @click="activeNav = 'dashboard'"
-              />
-              <RsSidebarItem
-                label="项目"
-                icon="folder"
-                :active="activeNav === 'projects'"
-                :collapsed="isCollapsed"
-                @click="activeNav = 'projects'"
-              />
-              <RsSidebarItem
-                label="设置"
-                icon="settings"
-                :active="activeNav === 'settings'"
-                :collapsed="isCollapsed"
-                @click="activeNav = 'settings'"
-              />
-            </RsSidebarGroup>
-          </template>
+          <RsSidebarGroup title="工作区">
+            <RsSidebarItem
+              label="仪表盘"
+              icon="layout-dashboard"
+              :active="activeNav === 'dashboard'"
+              @click="activeNav = 'dashboard'"
+            />
+            <RsSidebarItem
+              label="项目"
+              icon="folder"
+              :active="activeNav === 'projects'"
+              @click="activeNav = 'projects'"
+            />
+            <RsSidebarItem
+              label="设置"
+              icon="settings"
+              :active="activeNav === 'settings'"
+              @click="activeNav = 'settings'"
+            />
+          </RsSidebarGroup>
         </RsSidebar>
         <div class="main-panel">
           <p class="main-panel__title">主内容区</p>
@@ -132,12 +127,10 @@ const longNavItems = Array.from({ length: 16 }, (_, i) => ({
       <p class="hint">底栏适合放置用户信息、版本号或次要操作。</p>
       <div class="frame frame--tall">
         <RsSidebar title="弱水" collapsible v-model:collapsed="layoutCollapsed">
-          <template #default="{ collapsed: isCollapsed }">
-            <RsSidebarGroup title="导航" :collapsed="isCollapsed">
-              <RsSidebarItem label="首页" icon="home" active :collapsed="isCollapsed" />
-              <RsSidebarItem label="文档" icon="book-open" :collapsed="isCollapsed" />
-            </RsSidebarGroup>
-          </template>
+          <RsSidebarGroup title="导航">
+            <RsSidebarItem label="首页" icon="home" active />
+            <RsSidebarItem label="文档" icon="book-open" />
+          </RsSidebarGroup>
           <template #footer="{ collapsed: isCollapsed }">
             <div v-if="!isCollapsed" class="footer-user">
               <span class="footer-user__avatar">U</span>
@@ -174,21 +167,18 @@ const longNavItems = Array.from({ length: 16 }, (_, i) => ({
           title="弱水"
           collapsible
         >
-          <template #default="{ collapsed: isCollapsed }">
-            <RsSidebarGroup title="导航" :collapsed="isCollapsed">
-              <RsSidebarItem
-                label="仪表盘"
-                icon="layout-dashboard"
-                active
-                :collapsed="isCollapsed"
-              />
-              <RsSidebarItem label="工作流" icon="workflow" :collapsed="isCollapsed" />
-              <RsSidebarItem label="数据集" icon="database" :collapsed="isCollapsed" />
-            </RsSidebarGroup>
-            <RsSidebarGroup title="系统" :collapsed="isCollapsed">
-              <RsSidebarItem label="设置" icon="settings" :collapsed="isCollapsed" />
-            </RsSidebarGroup>
-          </template>
+          <RsSidebarGroup title="导航">
+            <RsSidebarItem
+              label="仪表盘"
+              icon="layout-dashboard"
+              active
+            />
+            <RsSidebarItem label="工作流" icon="workflow" />
+            <RsSidebarItem label="数据集" icon="database" />
+          </RsSidebarGroup>
+          <RsSidebarGroup title="系统">
+            <RsSidebarItem label="设置" icon="settings" />
+          </RsSidebarGroup>
         </RsSidebar>
         <div class="app-main">
           <header class="app-main__top">

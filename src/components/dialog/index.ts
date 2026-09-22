@@ -6,6 +6,8 @@ export type {
   RsConfirmOptions,
   RsDialogBeforeClose,
   RsDialogCloseReason,
+  RsDialogExpose,
+  RsDialogInstance,
   RsDialogLayout,
   RsDialogWidth,
   RsDialogWidthPreset,

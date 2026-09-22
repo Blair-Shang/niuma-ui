@@ -48,6 +48,9 @@ export function useRsDialogWindow(options: {
   /** 交互中的目标面板；有值时 pointermove 只改 DOM，pointerup 再写回 bounds */
   let panelEl: HTMLElement | null = null
   let liveBounds: RsDialogBounds | null = null
+  let pointerBound = false
+  let savedUserSelect = ''
+  let savedCursor = ''
 
   let dragState: { startX: number; startY: number; origin: RsDialogBounds } | null = null
   let resizeState: {
@@ -71,7 +74,7 @@ export function useRsDialogWindow(options: {
     panelEl = el
   }
 
-  /** 优先用已绑定节点；否则从事件目标向上找面板（Reka DialogContent ref 不一定有 $el） */
+  /** 优先用已绑定节点；否则从事件目标向上找面板 */
   function ensurePanelEl(from?: EventTarget | null): HTMLElement | null {
     if (panelEl?.isConnected) return panelEl
     const node = from instanceof Element ? from : null
@@ -257,21 +260,42 @@ export function useRsDialogWindow(options: {
     }
     dragState = null
     resizeState = null
+    if (!pointerBound) return
+    pointerBound = false
     window.removeEventListener('pointermove', onPointerMove)
     window.removeEventListener('pointerup', stopInteractions)
-    document.body.style.userSelect = ''
-    document.body.style.cursor = ''
+    window.removeEventListener('pointercancel', stopInteractions)
+    document.body.style.userSelect = savedUserSelect
+    document.body.style.cursor = savedCursor
   }
 
-  function startInteraction(cursor: string): void {
+  function capturePointer(event: PointerEvent): void {
+    const el = panelEl
+    if (!el || typeof el.setPointerCapture !== 'function') return
+    try {
+      if (typeof el.hasPointerCapture === 'function' && el.hasPointerCapture(event.pointerId)) return
+      el.setPointerCapture(event.pointerId)
+    } catch {
+      // jsdom 没有指针捕获
+    }
+  }
+
+  function startInteraction(cursor: string, event: PointerEvent): void {
     boundsTransitionEnabled.value = false
     clearBoundsTransitionTimer()
     refreshCachedInsets()
     liveBounds = { ...bounds.value }
-    window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('pointerup', stopInteractions)
+    if (!pointerBound) {
+      savedUserSelect = document.body.style.userSelect
+      savedCursor = document.body.style.cursor
+      window.addEventListener('pointermove', onPointerMove)
+      window.addEventListener('pointerup', stopInteractions)
+      window.addEventListener('pointercancel', stopInteractions)
+      pointerBound = true
+    }
     document.body.style.userSelect = 'none'
     document.body.style.cursor = cursor
+    capturePointer(event)
   }
 
   function onHeaderPointerDown(event: PointerEvent): void {
@@ -282,7 +306,7 @@ export function useRsDialogWindow(options: {
     ensurePanelEl(event.target)
     dragState = { startX: event.clientX, startY: event.clientY, origin: { ...bounds.value } }
     // move：四向十字箭头，表示可自由拖移窗口
-    startInteraction('move')
+    startInteraction('move', event)
   }
 
   const resizeCursor: Record<RsDialogResizeHandle, string> = {
@@ -301,7 +325,7 @@ export function useRsDialogWindow(options: {
     event.preventDefault()
     ensurePanelEl(event.target)
     resizeState = { handle, startX: event.clientX, startY: event.clientY, origin: { ...bounds.value } }
-    startInteraction(resizeCursor[handle])
+    startInteraction(resizeCursor[handle], event)
   }
 
   onBeforeUnmount(() => {

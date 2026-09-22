@@ -5087,7 +5087,7 @@ export const formComponents: ComponentDoc[] = [
         q: '还要装 reka-ui 吗？',
         a: '不要。根仍是 DatePicker 的原生 button + Teleport。',
         qEn: 'Do I still need reka-ui?',
-        aEn: 'No. The root is still DatePicker’s native button plus Teleport.',
+        aEn: 'No. The root is still DatePicker native button plus Teleport.',
       },
       {
         q: 'v-model 为什么不是 Date？',

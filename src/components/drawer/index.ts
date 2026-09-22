@@ -3,6 +3,8 @@ export type {
   RsDrawerBeforeClose,
   RsDrawerCloseReason,
   RsDrawerDimension,
+  RsDrawerExpose,
+  RsDrawerInstance,
   RsDrawerSide,
   RsDrawerSize,
 } from './src/drawer-utils'

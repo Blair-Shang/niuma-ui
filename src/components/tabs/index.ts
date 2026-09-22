@@ -1,21 +1,32 @@
 export { default as RsTabs } from './src/RsTabs.vue'
 export type {
   RsTabItem,
+  RsTabsActivation,
   RsTabsCloseAction,
   RsTabsContentGap,
+  RsTabsExpose,
+  RsTabsInstance,
   RsTabsOverflow,
+  RsTabsPosition,
   RsTabsSize,
   RsTabsJustify,
+  RsTabsTabSlot,
   RsTabsVariant,
 } from './src/tabs-utils'
 export {
   buildTabContextMenuItems,
+  getAdjacentTabValue,
+  getEdgeTabValue,
+  getEnabledTabValues,
   getNextTabAfterBatchClose,
   getNextTabAfterClose,
   isTabClosable,
   isTabFixed,
   isTabRenamable,
+  isVerticalTabsPosition,
   reorderTabItems,
+  resolveTabKeyboardMove,
   resolveTabsToClose,
   resolveVisibleTabValues,
+  shouldRenderTabPanel,
 } from './src/tabs-utils'

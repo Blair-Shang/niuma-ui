@@ -1,13 +1,20 @@
 import { inject, type InjectionKey, type ShallowRef } from 'vue'
+import type { RsLoadingBarApi } from '../components/loading-bar/src/loading-bar-utils'
 
-export type RsLoadingBarApi = {
-  start: () => void
-  finish: () => void
-  error: () => void
-}
+export type { RsLoadingBarApi } from '../components/loading-bar/src/loading-bar-utils'
 
 export const RS_LOADING_BAR_KEY: InjectionKey<ShallowRef<RsLoadingBarApi | null>> =
   Symbol('rs-loading-bar')
+
+const noop: RsLoadingBarApi = {
+  start() {},
+  finish() {},
+  error() {},
+  set() {},
+  inc() {},
+  getProgress: () => 0,
+  isStarted: () => false,
+}
 
 /**
  * useRsLoadingBar 读取最近的 RsLoadingBar 实例 API。
@@ -16,11 +23,6 @@ export const RS_LOADING_BAR_KEY: InjectionKey<ShallowRef<RsLoadingBarApi | null>
  */
 export function useRsLoadingBar(): RsLoadingBarApi {
   const injected = inject(RS_LOADING_BAR_KEY, null)
-  const noop: RsLoadingBarApi = {
-    start() {},
-    finish() {},
-    error() {},
-  }
   if (!injected) return noop
   return {
     start() {
@@ -31,6 +33,18 @@ export function useRsLoadingBar(): RsLoadingBarApi {
     },
     error() {
       injected.value?.error()
+    },
+    set(progress: number) {
+      injected.value?.set(progress)
+    },
+    inc(amount?: number) {
+      injected.value?.inc(amount)
+    },
+    getProgress() {
+      return injected.value?.getProgress() ?? 0
+    },
+    isStarted() {
+      return injected.value?.isStarted() ?? false
     },
   }
 }

@@ -1,12 +1,16 @@
-import { defineComponent, h, ref } from 'vue'
+import { defineComponent, h, nextTick, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import RsConfigProvider from '../../config-provider/src/RsConfigProvider.vue'
 import RsDrawer from '../src/RsDrawer.vue'
+import { resetRsDrawerRuntime } from '../src/drawer-utils'
 
 describe('RsDrawer', () => {
   afterEach(() => {
     document.body.innerHTML = ''
+    document.body.style.overflow = ''
+    document.body.style.paddingRight = ''
+    resetRsDrawerRuntime()
   })
 
   it('renders title, description, and default slot when open', async () => {
@@ -21,6 +25,9 @@ describe('RsDrawer', () => {
     })
     await flushPromises()
     const content = document.body.querySelector('.rs-drawer__content')
+    expect(content?.getAttribute('role')).toBe('dialog')
+    expect(content?.getAttribute('aria-modal')).toBe('true')
+    expect(content?.getAttribute('aria-labelledby')).toBeTruthy()
     expect(content?.textContent).toContain('筛选条件')
     expect(content?.textContent).toContain('按状态与时间过滤。')
     expect(document.body.querySelector('.slot-body')?.textContent).toBe('正文内容')
@@ -59,6 +66,18 @@ describe('RsDrawer', () => {
     await flushPromises()
     const content = document.body.querySelector('.rs-drawer__content') as HTMLElement
     expect(content.style.getPropertyValue('--rs-drawer-panel-size')).toBe('420px')
+    expect(content.classList.contains('rs-drawer__content--custom-size')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('does not mark a size preset as a custom size', async () => {
+    const wrapper = mount(RsDrawer, {
+      props: { open: true, title: '预设', size: 'lg' },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const content = document.body.querySelector('.rs-drawer__content')
+    expect(content?.classList.contains('rs-drawer__content--custom-size')).toBe(false)
     wrapper.unmount()
   })
 
@@ -250,6 +269,7 @@ describe('RsDrawer', () => {
     await flushPromises()
     const handle = document.body.querySelector('.rs-drawer__resize') as HTMLElement | null
     expect(handle).toBeTruthy()
+    expect(handle?.getAttribute('role')).toBe('separator')
     expect(handle?.getAttribute('aria-orientation')).toBe('vertical')
     wrapper.unmount()
   })
@@ -288,5 +308,174 @@ describe('RsDrawer', () => {
     await flushPromises()
     expect(content.style.width).toBe('376px')
     wrapper.unmount()
+  })
+
+  it('locks body scroll while a modal drawer is open and restores it on unmount', async () => {
+    document.body.style.overflow = 'auto'
+    const wrapper = mount(RsDrawer, {
+      props: { open: true, title: '锁滚动' },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    expect(document.body.style.overflow).toBe('hidden')
+    wrapper.unmount()
+    expect(document.body.style.overflow).toBe('auto')
+  })
+
+  it('does not lock body scroll for a non-modal drawer', async () => {
+    document.body.style.overflow = 'auto'
+    const wrapper = mount(RsDrawer, {
+      props: { open: true, title: '非模态', showOverlay: false, modal: false },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    expect(document.body.style.overflow).toBe('auto')
+    wrapper.unmount()
+  })
+
+  it('closes the top drawer on Escape and leaves the one below open', async () => {
+    const Host = defineComponent({
+      components: { RsDrawer },
+      setup() {
+        const lower = ref(true)
+        const upper = ref(true)
+        return { lower, upper }
+      },
+      template: `
+        <RsDrawer v-model:open="lower" title="下层" />
+        <RsDrawer v-model:open="upper" title="上层" />
+      `,
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await flushPromises()
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await flushPromises()
+    expect(wrapper.findAllComponents(RsDrawer)[1]?.props('open')).toBe(false)
+    expect(wrapper.findAllComponents(RsDrawer)[0]?.props('open')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('keeps the drawer open when Escape is handled by a child', async () => {
+    const Host = defineComponent({
+      components: { RsDrawer },
+      setup() {
+        const open = ref(true)
+        function onInputKeydown(event: KeyboardEvent) {
+          if (event.key === 'Escape') event.preventDefault()
+        }
+        return { open, onInputKeydown }
+      },
+      template:
+        '<RsDrawer v-model:open="open" title="输入"><input class="inner" @keydown="onInputKeydown" /></RsDrawer>',
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await flushPromises()
+    const input = document.body.querySelector('.inner') as HTMLElement
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+    await flushPromises()
+    expect(wrapper.findComponent(RsDrawer).props('open')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('closes on an outside pointerdown after the open gesture', async () => {
+    const Host = defineComponent({
+      components: { RsDrawer },
+      setup() {
+        const open = ref(true)
+        return { open }
+      },
+      template: '<RsDrawer v-model:open="open" title="点外关" />',
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await flushPromises()
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    await flushPromises()
+    expect(wrapper.findComponent(RsDrawer).props('open')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('moves focus into the dialog and restores it on close', async () => {
+    const trigger = document.createElement('button')
+    trigger.type = 'button'
+    trigger.textContent = '打开'
+    document.body.appendChild(trigger)
+    trigger.focus()
+
+    const Host = defineComponent({
+      components: { RsDrawer },
+      setup() {
+        const open = ref(false)
+        return { open }
+      },
+      template: '<RsDrawer v-model:open="open" title="焦点" />',
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await flushPromises()
+    const vm = wrapper.vm as unknown as { open: boolean }
+    vm.open = true
+    await flushPromises()
+    await nextTick()
+    const content = document.body.querySelector('.rs-drawer__content')
+    expect(document.activeElement).toBe(content)
+    vm.open = false
+    await flushPromises()
+    expect(document.activeElement).toBe(trigger)
+    wrapper.unmount()
+    trigger.remove()
+  })
+
+  it('drops the panel after the close motion when destroyOnClose is true', async () => {
+    const Host = defineComponent({
+      components: { RsDrawer },
+      setup() {
+        const open = ref(true)
+        return { open }
+      },
+      template: '<RsDrawer v-model:open="open" title="卸载" />',
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await flushPromises()
+    vi.useFakeTimers()
+    const closeBtn = document.body.querySelector('.rs-drawer__header button') as HTMLElement
+    closeBtn.click()
+    await flushPromises()
+    expect(document.body.querySelector('.rs-drawer__content')?.getAttribute('data-state')).toBe('closed')
+    await vi.advanceTimersByTimeAsync(220)
+    expect(document.body.querySelector('.rs-drawer__content')).toBeNull()
+    vi.useRealTimers()
+    wrapper.unmount()
+  })
+
+  it('copies data-rs-theme onto the teleported panel', async () => {
+    const host = document.createElement('div')
+    host.setAttribute('data-rs-theme', 'dark')
+    host.setAttribute('dir', 'rtl')
+    host.lang = 'ar'
+    document.body.appendChild(host)
+    const wrapper = mount(RsDrawer, {
+      props: { open: true, title: '主题' },
+      attachTo: host,
+    })
+    await flushPromises()
+    const content = document.body.querySelector('.rs-drawer__content')
+    expect(content?.getAttribute('data-rs-theme')).toBe('dark')
+    expect(content?.getAttribute('dir')).toBe('rtl')
+    expect(content?.getAttribute('lang')).toBe('ar')
+    wrapper.unmount()
+    host.remove()
+  })
+
+  it('removes window listeners on unmount', async () => {
+    const remove = vi.spyOn(window, 'removeEventListener')
+    const wrapper = mount(RsDrawer, {
+      props: { open: true, title: '监听' },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    wrapper.unmount()
+    const types = remove.mock.calls.map((call) => call[0])
+    expect(types).toContain('pointerdown')
+    expect(types).toContain('keydown')
+    remove.mockRestore()
   })
 })

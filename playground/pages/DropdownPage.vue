@@ -152,6 +152,25 @@ const workspaceItems: RsDropdownItemGroup[] = [
       <RsDropdown v-model="engine" :items="engineItems" placeholder="选择模型" />
       <p class="value-hint">当前值：<code>{{ engine }}</code></p>
     </DemoBlock>
+
+    <DemoBlock title="悬停打开">
+      <RsDropdown v-model="scene" :items="sceneItems" trigger="hover" />
+    </DemoBlock>
+
+    <DemoBlock title="自定义触发器 + 子菜单">
+      <RsDropdown
+        :items="[
+          { label: '复制', value: 'copy' },
+          { label: '导出', value: 'export', children: [{ label: 'PDF', value: 'pdf' }] },
+        ]"
+        :show-selected="false"
+        content-width="fit"
+      >
+        <template #trigger>
+          <button type="button" class="ghost">更多</button>
+        </template>
+      </RsDropdown>
+    </DemoBlock>
   </DemoPage>
 </template>
 
@@ -170,5 +189,13 @@ const workspaceItems: RsDropdownItemGroup[] = [
 .value-hint code {
   font-size: inherit;
   color: var(--rs-text);
+}
+.ghost {
+  border: 1px solid var(--rs-border);
+  background: var(--rs-surface);
+  color: var(--rs-text);
+  border-radius: var(--rs-radius-sm);
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
 }
 </style>

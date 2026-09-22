@@ -108,6 +108,12 @@ html {
   /* 顶栏加载条：高于 modal，低于 toast，避免遮挡通知 */
   --rs-z-loading-bar: 190;
   --rs-z-toast: 200;
+  /* 挂到 body 的提示必须盖住 Dialog。--rs-z-tooltip 仍是页内低层，不要拿来做这层。 */
+  --rs-tooltip-z: calc(var(--rs-z-modal) + 2);
+  --rs-tooltip-max-width: min(20rem, 90vw);
+  --rs-tooltip-max-width-nowrap: min(48rem, 90vw);
+  --rs-tooltip-pad-block: 0.375rem;
+  --rs-tooltip-pad-inline: 0.625rem;
 
   --rs-transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --rs-transition-normal: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -152,6 +158,37 @@ html {
   --rs-menu-item-font-size: var(--rs-font-size-sm);
   --rs-menu-item-radius: var(--rs-radius-sm);
   --rs-menu-item-active-weight: var(--rs-font-weight-medium);
+  --rs-menu-item-pad-inline: var(--rs-space-sm);
+  --rs-menu-gap: calc(var(--rs-space-xs) / 2);
+  --rs-menu-indent: 0.875rem;
+  --rs-menu-flyout-min-width: 10rem;
+  --rs-menu-flyout-max-width: 16rem;
+  --rs-menu-flyout-pad: var(--rs-space-xs);
+  --rs-menu-disabled-opacity: 0.38;
+
+  /* Dropdown（命令菜单）。尺寸静态；颜色在主题块内。 */
+  --rs-dropdown-trigger-min-width: 10rem;
+  --rs-dropdown-fit-min-width: 10.5rem;
+  --rs-dropdown-pad: var(--rs-space-xs);
+  --rs-dropdown-item-gap: var(--rs-space-sm);
+  --rs-dropdown-item-pad-block: var(--rs-space-sm);
+  --rs-dropdown-item-pad-inline: var(--rs-space-md);
+  --rs-dropdown-item-radius: var(--rs-radius-sm);
+  --rs-dropdown-item-font-size: var(--rs-font-size-sm);
+  --rs-dropdown-trigger-height: var(--rs-control-height-md);
+  --rs-dropdown-max-height: 16rem;
+  --rs-dropdown-disabled-opacity: 0.38;
+
+  /* Popover（气泡卡片）。尺寸静态；颜色在主题块内。 */
+  --rs-popover-pad: 0.75rem;
+  --rs-popover-radius: var(--rs-radius-sm);
+  --rs-popover-font-size: var(--rs-font-size-sm);
+  --rs-popover-width-sm: 12rem;
+  --rs-popover-width-md: 16rem;
+  --rs-popover-width-lg: 22rem;
+  --rs-popover-width-auto-min: 10rem;
+  --rs-popover-title-gap: var(--rs-space-xs);
+  --rs-popover-shadow: var(--rs-shadow);
 
   /*
    * Anchor（页内目录）。颜色走主题 token 别名，随 data-rs-theme。
@@ -183,6 +220,69 @@ html {
   --rs-breadcrumb-font-size: var(--rs-font-size-sm);
   --rs-breadcrumb-current-weight: var(--rs-font-weight-medium);
   --rs-breadcrumb-disabled-opacity: 0.45;
+
+  /*
+   * Steps（向导进度）。尺寸静态；颜色在主题块内，随 data-rs-theme。
+   */
+  --rs-steps-gap: var(--rs-space-md);
+  --rs-steps-item-gap: var(--rs-space-md);
+  --rs-steps-trigger-gap: var(--rs-space-sm);
+  --rs-steps-indicator-size-ssm: 1.25rem;
+  --rs-steps-indicator-size-sm: 1.5rem;
+  --rs-steps-indicator-size-md: 1.75rem;
+  --rs-steps-indicator-size-lg: 2rem;
+  --rs-steps-dot-size: 0.5rem;
+  --rs-steps-separator-size: 1px;
+  --rs-steps-separator-min: 1.5rem;
+  --rs-steps-title-weight: var(--rs-font-weight-semibold);
+  --rs-steps-disabled-opacity: 0.45;
+
+  /*
+   * Pagination（页码条）。尺寸静态；颜色在主题块内，随 data-rs-theme。
+   */
+  --rs-pagination-gap: var(--rs-space-sm);
+  --rs-pagination-item-gap: var(--rs-space-xs);
+  --rs-pagination-item-pad-inline: var(--rs-space-sm);
+  --rs-pagination-jumper-width: 3rem;
+  --rs-pagination-size-width: 7.25rem;
+  --rs-pagination-radius: var(--rs-radius-sm);
+  --rs-pagination-active-weight: var(--rs-font-weight-semibold);
+  --rs-pagination-disabled-opacity: 0.45;
+
+  /*
+   * Tabs（同级切换）。尺寸静态；颜色在主题块内，随 data-rs-theme。
+   */
+  --rs-tabs-trigger-gap: 0.375rem;
+  --rs-tabs-label-max: 12rem;
+  --rs-tabs-more-label-max: 7rem;
+  --rs-tabs-close-size: 1rem;
+  --rs-tabs-ink-size: 2px;
+  --rs-tabs-disabled-opacity: 0.38;
+  --rs-tabs-rail-min: 7rem;
+  --rs-tabs-rail-max: 14rem;
+  --rs-tabs-content-gap: 0px;
+
+  /*
+   * Sidebar（工作台侧栏）。尺寸静态；颜色在主题块内，随 data-rs-theme。
+   */
+  --rs-sidebar-width-sm: 14rem;
+  --rs-sidebar-width-md: 17rem;
+  --rs-sidebar-width-lg: 21rem;
+  --rs-sidebar-width-collapsed: 4rem;
+  --rs-sidebar-pad: var(--rs-space-md);
+  --rs-sidebar-body-pad: var(--rs-space-sm);
+  --rs-sidebar-gap: var(--rs-space-sm);
+  --rs-sidebar-group-gap: var(--rs-space-md);
+  --rs-sidebar-disabled-opacity: 0.38;
+
+  /*
+   * SplitPane（可拖分栏）。尺寸静态；颜色在主题块内，随 data-rs-theme。
+   */
+  --rs-split-resizer-size: 1px;
+  --rs-split-hit-slop: 4px;
+  --rs-split-grip-inline: 0.875rem;
+  --rs-split-grip-block: 1.5rem;
+  --rs-split-disabled-opacity: 0.5;
 
   /*
    * 表单标签（RsLabel / .rs-field__label 共用）
@@ -357,6 +457,55 @@ html {
   --rs-breadcrumb-link-hover-bg: var(--rs-surface-hover);
   --rs-breadcrumb-current: var(--rs-text-primary);
   --rs-breadcrumb-sep: var(--rs-text-secondary);
+  --rs-steps-title: var(--rs-text-secondary);
+  --rs-steps-title-active: var(--rs-text-primary);
+  --rs-steps-title-error: var(--rs-on-danger-container);
+  --rs-steps-description: var(--rs-text-secondary);
+  --rs-steps-wait-bg: var(--rs-surface-hover);
+  --rs-steps-wait-fg: var(--rs-text-secondary);
+  --rs-steps-process-bg: var(--rs-primary);
+  --rs-steps-process-fg: var(--rs-primary-foreground);
+  --rs-steps-finish-bg: var(--rs-primary);
+  --rs-steps-finish-fg: var(--rs-primary-foreground);
+  --rs-steps-error-bg: var(--rs-danger-container);
+  --rs-steps-error-fg: var(--rs-on-danger-container);
+  --rs-steps-separator: var(--rs-border);
+  --rs-steps-separator-finish: var(--rs-primary);
+  --rs-pagination-text: var(--rs-text-secondary);
+  --rs-pagination-item: var(--rs-text-primary);
+  --rs-pagination-item-hover: var(--rs-surface-hover);
+  --rs-pagination-item-active: var(--rs-primary);
+  --rs-pagination-ellipsis: var(--rs-text-secondary);
+  --rs-tabs-text: var(--rs-text-secondary);
+  --rs-tabs-text-hover: var(--rs-text-primary);
+  --rs-tabs-text-active: var(--rs-primary);
+  --rs-tabs-surface: var(--rs-surface);
+  --rs-tabs-border: var(--rs-border);
+  --rs-tabs-border-subtle: var(--rs-border-subtle);
+  --rs-tabs-ink: var(--rs-primary);
+  --rs-tabs-badge-bg: var(--rs-surface-hover);
+  --rs-tabs-badge-active-bg: color-mix(in srgb, var(--rs-primary) 12%, transparent);
+  --rs-tabs-segmented-track: var(--rs-surface-hover);
+  --rs-sidebar-border: var(--rs-border-subtle);
+  --rs-sidebar-bg: color-mix(in srgb, var(--rs-surface) 88%, transparent);
+  --rs-sidebar-title: var(--rs-text-primary);
+  --rs-sidebar-subtitle: var(--rs-text-secondary);
+  --rs-sidebar-item: var(--rs-text-secondary);
+  --rs-sidebar-item-hover: var(--rs-text-primary);
+  --rs-sidebar-item-hover-bg: var(--rs-item-hover);
+  --rs-sidebar-item-active: var(--rs-primary);
+  --rs-sidebar-item-active-bg: color-mix(in srgb, var(--rs-primary) 12%, transparent);
+  --rs-sidebar-badge: var(--rs-text-inverse);
+  --rs-sidebar-badge-bg: var(--rs-primary);
+  --rs-split-resizer: var(--rs-border-subtle);
+  --rs-split-resizer-hover: var(--rs-border);
+  --rs-split-resizer-active: var(--rs-primary);
+  --rs-split-grip-fg: var(--rs-text-tertiary);
+  --rs-split-grip-bg: var(--rs-surface-elevated);
+  --rs-split-grip-border: var(--rs-border);
+  --rs-split-grip-active-fg: var(--rs-primary-foreground);
+  --rs-split-grip-active-bg: var(--rs-primary);
+  --rs-split-grip-active-border: var(--rs-primary);
   --rs-danger: #ff453a;
   --rs-danger-container: #3b1210;
   --rs-on-danger-container: #ff8a84;
@@ -417,13 +566,38 @@ html {
   --rs-dynamic-tags-disabled-opacity: 0.38;
 
   /* ── Menu（侧栏 / 导航；业务可在父级覆盖，无需 :deep）── */
-  --rs-menu-item-fg: var(--rs-muted);
-  --rs-menu-item-fg-hover: var(--rs-text);
+  --rs-menu-item-fg: var(--rs-text-secondary);
+  --rs-menu-item-fg-hover: var(--rs-text-primary);
   --rs-menu-item-bg-hover: var(--rs-surface-hover);
   --rs-menu-item-active-fg: var(--rs-primary);
   --rs-menu-item-active-bg: color-mix(in srgb, var(--rs-primary) 12%, transparent);
   --rs-menu-item-active-parent-fg: var(--rs-primary);
   --rs-menu-item-active-parent-bg: transparent;
+  --rs-menu-group-label-fg: var(--rs-text-secondary);
+  --rs-menu-arrow-fg: var(--rs-text-tertiary);
+
+  /* ── Dropdown（命令菜单；随 data-rs-theme）── */
+  --rs-dropdown-fg: var(--rs-text-primary);
+  --rs-dropdown-fg-muted: var(--rs-text-secondary);
+  --rs-dropdown-fg-placeholder: var(--rs-text-tertiary);
+  --rs-dropdown-bg: var(--rs-surface-elevated);
+  --rs-dropdown-border: var(--rs-border);
+  --rs-dropdown-divider: var(--rs-border-subtle);
+  --rs-dropdown-trigger-bg: var(--rs-input-bg);
+  --rs-dropdown-trigger-border: var(--rs-input-border, var(--rs-border));
+  --rs-dropdown-trigger-border-hover: var(--rs-input-border-hover, var(--rs-border));
+  --rs-dropdown-trigger-shadow: var(--rs-input-shadow, none);
+  --rs-dropdown-item-hover: var(--rs-item-hover);
+  --rs-dropdown-item-active-fg: var(--rs-primary);
+  --rs-dropdown-item-active-bg: color-mix(in srgb, var(--rs-primary) 12%, transparent);
+  --rs-dropdown-danger-fg: var(--rs-danger);
+
+  /* ── Popover（气泡卡片；随 data-rs-theme）── */
+  --rs-popover-fg: var(--rs-text-primary);
+  --rs-popover-fg-muted: var(--rs-text-secondary);
+  --rs-popover-bg: var(--rs-surface-elevated);
+  --rs-popover-border: var(--rs-border);
+  --rs-popover-title-fg: var(--rs-text-primary);
 
   /* ── Alert（反馈条；正文色可按主题单独调）── */
   --rs-alert-radius: var(--rs-radius);
@@ -431,7 +605,38 @@ html {
   --rs-alert-padding-y: var(--rs-space-md);
   --rs-alert-padding-x: var(--rs-space-lg);
   --rs-alert-border-alpha: 35%;
-  --rs-alert-content-fg: var(--rs-muted);
+  --rs-alert-content-fg: var(--rs-text-secondary);
+  --rs-alert-content-alpha: 78%;
+
+  /* ── Loading（指示器；tone 在组件上改 --rs-loading-accent）── */
+  --rs-loading-gap: var(--rs-space-sm);
+  --rs-loading-pad: var(--rs-space-xl);
+  --rs-loading-label: var(--rs-text-secondary);
+  --rs-loading-track: color-mix(in srgb, var(--rs-text-tertiary) 35%, transparent);
+  --rs-loading-accent: var(--rs-primary);
+  --rs-loading-overlay: color-mix(in srgb, var(--rs-surface) 72%, transparent);
+  --rs-loading-skeleton: var(--rs-surface-hover);
+  --rs-loading-skeleton-shine: color-mix(in srgb, var(--rs-border) 55%, transparent);
+  --rs-loading-stroke: 2px;
+  --rs-loading-spinner-sm: 0.875rem;
+  --rs-loading-spinner-md: 1.125rem;
+  --rs-loading-spinner-lg: 1.5rem;
+  --rs-loading-dot-sm: 0.25rem;
+  --rs-loading-dot-md: 0.375rem;
+  --rs-loading-dot-lg: 0.5rem;
+  --rs-loading-skeleton-h-sm: 0.5rem;
+  --rs-loading-skeleton-h-md: 0.75rem;
+  --rs-loading-skeleton-h-lg: 1rem;
+  --rs-loading-z: 1;
+  --rs-loading-blur: 0.125rem;
+  --rs-loading-spin-duration: 0.7s;
+  --rs-loading-bounce-duration: 1s;
+  --rs-loading-shimmer-duration: 1.2s;
+
+  /* ── LoadingBar（顶栏进度；色跟语义 token，可被 color / errorColor 覆盖）── */
+  --rs-loading-bar-size: 2px;
+  --rs-loading-bar-color: var(--rs-primary);
+  --rs-loading-bar-error: var(--rs-danger);
 
   /* ── Descriptions（描述列表栅格）── */
   --rs-descriptions-radius: var(--rs-radius);
@@ -620,6 +825,55 @@ html {
   --rs-breadcrumb-link-hover-bg: var(--rs-surface-hover);
   --rs-breadcrumb-current: var(--rs-text-primary);
   --rs-breadcrumb-sep: var(--rs-text-secondary);
+  --rs-steps-title: var(--rs-text-secondary);
+  --rs-steps-title-active: var(--rs-text-primary);
+  --rs-steps-title-error: var(--rs-on-danger-container);
+  --rs-steps-description: var(--rs-text-secondary);
+  --rs-steps-wait-bg: var(--rs-surface-hover);
+  --rs-steps-wait-fg: var(--rs-text-secondary);
+  --rs-steps-process-bg: var(--rs-primary);
+  --rs-steps-process-fg: var(--rs-primary-foreground);
+  --rs-steps-finish-bg: var(--rs-primary);
+  --rs-steps-finish-fg: var(--rs-primary-foreground);
+  --rs-steps-error-bg: var(--rs-danger-container);
+  --rs-steps-error-fg: var(--rs-on-danger-container);
+  --rs-steps-separator: var(--rs-border);
+  --rs-steps-separator-finish: var(--rs-primary);
+  --rs-pagination-text: var(--rs-text-secondary);
+  --rs-pagination-item: var(--rs-text-primary);
+  --rs-pagination-item-hover: var(--rs-surface-hover);
+  --rs-pagination-item-active: var(--rs-primary);
+  --rs-pagination-ellipsis: var(--rs-text-secondary);
+  --rs-tabs-text: var(--rs-text-secondary);
+  --rs-tabs-text-hover: var(--rs-text-primary);
+  --rs-tabs-text-active: var(--rs-primary);
+  --rs-tabs-surface: var(--rs-surface);
+  --rs-tabs-border: var(--rs-border);
+  --rs-tabs-border-subtle: var(--rs-border-subtle);
+  --rs-tabs-ink: var(--rs-primary);
+  --rs-tabs-badge-bg: var(--rs-surface-hover);
+  --rs-tabs-badge-active-bg: color-mix(in srgb, var(--rs-primary) 12%, transparent);
+  --rs-tabs-segmented-track: var(--rs-surface-hover);
+  --rs-sidebar-border: var(--rs-border-subtle);
+  --rs-sidebar-bg: color-mix(in srgb, var(--rs-surface) 88%, transparent);
+  --rs-sidebar-title: var(--rs-text-primary);
+  --rs-sidebar-subtitle: var(--rs-text-secondary);
+  --rs-sidebar-item: var(--rs-text-secondary);
+  --rs-sidebar-item-hover: var(--rs-text-primary);
+  --rs-sidebar-item-hover-bg: var(--rs-item-hover);
+  --rs-sidebar-item-active: var(--rs-primary);
+  --rs-sidebar-item-active-bg: color-mix(in srgb, var(--rs-primary) 12%, transparent);
+  --rs-sidebar-badge: var(--rs-text-inverse);
+  --rs-sidebar-badge-bg: var(--rs-primary);
+  --rs-split-resizer: var(--rs-border-subtle);
+  --rs-split-resizer-hover: var(--rs-border);
+  --rs-split-resizer-active: var(--rs-primary);
+  --rs-split-grip-fg: var(--rs-text-tertiary);
+  --rs-split-grip-bg: var(--rs-surface-elevated);
+  --rs-split-grip-border: var(--rs-border);
+  --rs-split-grip-active-fg: var(--rs-primary-foreground);
+  --rs-split-grip-active-bg: var(--rs-primary);
+  --rs-split-grip-active-border: var(--rs-primary);
   --rs-danger: #ff3b30;
   --rs-danger-container: #ffe5e3;
   --rs-on-danger-container: #c41e16;
@@ -678,13 +932,38 @@ html {
   --rs-dynamic-tags-disabled-opacity: 0.38;
 
   /* ── Menu（侧栏 / 导航；业务可在父级覆盖，无需 :deep）── */
-  --rs-menu-item-fg: var(--rs-muted);
-  --rs-menu-item-fg-hover: var(--rs-text);
+  --rs-menu-item-fg: var(--rs-text-secondary);
+  --rs-menu-item-fg-hover: var(--rs-text-primary);
   --rs-menu-item-bg-hover: var(--rs-surface-hover);
   --rs-menu-item-active-fg: var(--rs-primary);
   --rs-menu-item-active-bg: color-mix(in srgb, var(--rs-primary) 12%, transparent);
   --rs-menu-item-active-parent-fg: var(--rs-primary);
   --rs-menu-item-active-parent-bg: transparent;
+  --rs-menu-group-label-fg: var(--rs-text-secondary);
+  --rs-menu-arrow-fg: var(--rs-text-tertiary);
+
+  /* ── Dropdown（命令菜单；随 data-rs-theme）── */
+  --rs-dropdown-fg: var(--rs-text-primary);
+  --rs-dropdown-fg-muted: var(--rs-text-secondary);
+  --rs-dropdown-fg-placeholder: var(--rs-text-tertiary);
+  --rs-dropdown-bg: var(--rs-surface-elevated);
+  --rs-dropdown-border: var(--rs-border);
+  --rs-dropdown-divider: var(--rs-border-subtle);
+  --rs-dropdown-trigger-bg: var(--rs-input-bg);
+  --rs-dropdown-trigger-border: var(--rs-input-border, var(--rs-border));
+  --rs-dropdown-trigger-border-hover: var(--rs-input-border-hover, var(--rs-border));
+  --rs-dropdown-trigger-shadow: var(--rs-input-shadow, none);
+  --rs-dropdown-item-hover: var(--rs-item-hover);
+  --rs-dropdown-item-active-fg: var(--rs-primary);
+  --rs-dropdown-item-active-bg: color-mix(in srgb, var(--rs-primary) 12%, transparent);
+  --rs-dropdown-danger-fg: var(--rs-danger);
+
+  /* ── Popover（气泡卡片；随 data-rs-theme）── */
+  --rs-popover-fg: var(--rs-text-primary);
+  --rs-popover-fg-muted: var(--rs-text-secondary);
+  --rs-popover-bg: var(--rs-surface-elevated);
+  --rs-popover-border: var(--rs-border);
+  --rs-popover-title-fg: var(--rs-text-primary);
 
   /* ── Alert（反馈条；正文色可按主题单独调）── */
   --rs-alert-radius: var(--rs-radius);
@@ -692,7 +971,38 @@ html {
   --rs-alert-padding-y: var(--rs-space-md);
   --rs-alert-padding-x: var(--rs-space-lg);
   --rs-alert-border-alpha: 35%;
-  --rs-alert-content-fg: var(--rs-muted);
+  --rs-alert-content-fg: var(--rs-text-secondary);
+  --rs-alert-content-alpha: 78%;
+
+  /* ── Loading（指示器；tone 在组件上改 --rs-loading-accent）── */
+  --rs-loading-gap: var(--rs-space-sm);
+  --rs-loading-pad: var(--rs-space-xl);
+  --rs-loading-label: var(--rs-text-secondary);
+  --rs-loading-track: color-mix(in srgb, var(--rs-text-tertiary) 35%, transparent);
+  --rs-loading-accent: var(--rs-primary);
+  --rs-loading-overlay: color-mix(in srgb, var(--rs-surface) 72%, transparent);
+  --rs-loading-skeleton: var(--rs-surface-hover);
+  --rs-loading-skeleton-shine: color-mix(in srgb, var(--rs-border) 55%, transparent);
+  --rs-loading-stroke: 2px;
+  --rs-loading-spinner-sm: 0.875rem;
+  --rs-loading-spinner-md: 1.125rem;
+  --rs-loading-spinner-lg: 1.5rem;
+  --rs-loading-dot-sm: 0.25rem;
+  --rs-loading-dot-md: 0.375rem;
+  --rs-loading-dot-lg: 0.5rem;
+  --rs-loading-skeleton-h-sm: 0.5rem;
+  --rs-loading-skeleton-h-md: 0.75rem;
+  --rs-loading-skeleton-h-lg: 1rem;
+  --rs-loading-z: 1;
+  --rs-loading-blur: 0.125rem;
+  --rs-loading-spin-duration: 0.7s;
+  --rs-loading-bounce-duration: 1s;
+  --rs-loading-shimmer-duration: 1.2s;
+
+  /* ── LoadingBar（顶栏进度；色跟语义 token，可被 color / errorColor 覆盖）── */
+  --rs-loading-bar-size: 2px;
+  --rs-loading-bar-color: var(--rs-primary);
+  --rs-loading-bar-error: var(--rs-danger);
 
   /* ── Descriptions（描述列表栅格）── */
   --rs-descriptions-radius: var(--rs-radius);

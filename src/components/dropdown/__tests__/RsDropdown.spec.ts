@@ -154,4 +154,160 @@ describe('RsDropdown', () => {
     expect(document.body.querySelector('.rs-dropdown__item-hint')?.textContent).toContain('估算计划')
     wrapper.unmount()
   })
+
+  it('does not import or render reka-ui', async () => {
+    const wrapper = mount(RsDropdown, {
+      props: { items, modelValue: 'chat' },
+      attachTo: document.body,
+    })
+    await wrapper.find('.rs-dropdown__trigger').trigger('click')
+    await flushPromises()
+    expect(wrapper.html().toLowerCase()).not.toContain('reka')
+    expect(document.body.querySelector('[data-reka-popper-content-wrapper]')).toBeNull()
+    expect(document.body.querySelector('.rs-dropdown__content')?.getAttribute('role')).toBe('menu')
+    wrapper.unmount()
+  })
+
+  it('opens from the keyboard and moves with arrows', async () => {
+    const wrapper = mount(RsDropdown, {
+      props: { items, modelValue: 'chat' },
+      attachTo: document.body,
+    })
+    const trigger = wrapper.find('.rs-dropdown__trigger')
+    await trigger.trigger('keydown', { key: 'ArrowDown' })
+    await flushPromises()
+    expect(document.body.querySelector('.rs-dropdown__content')).not.toBeNull()
+    const panel = document.body.querySelector('.rs-dropdown__content')
+    panel?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    await flushPromises()
+    expect(document.body.querySelector('.rs-dropdown__item[data-highlighted]')?.textContent).toContain('编程')
+    wrapper.unmount()
+  })
+
+  it('closes on Escape and restores trigger focus', async () => {
+    const wrapper = mount(RsDropdown, {
+      props: { items, modelValue: 'chat' },
+      attachTo: document.body,
+    })
+    const trigger = wrapper.find('.rs-dropdown__trigger')
+    ;(trigger.element as HTMLButtonElement).focus()
+    await trigger.trigger('click')
+    await flushPromises()
+    const panel = document.body.querySelector('.rs-dropdown__content')
+    panel?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await flushPromises()
+    expect(document.body.querySelector('.rs-dropdown__content')).toBeNull()
+    expect(document.activeElement).toBe(trigger.element)
+    wrapper.unmount()
+  })
+
+  it('emits openChange and supports expose open/close/focus', async () => {
+    const wrapper = mount(RsDropdown, {
+      props: { items, modelValue: 'chat' },
+      attachTo: document.body,
+    })
+    const vm = wrapper.vm as unknown as {
+      open: () => void
+      close: () => void
+      focus: () => void
+    }
+    vm.open()
+    await flushPromises()
+    expect(document.body.querySelector('.rs-dropdown__content')).not.toBeNull()
+    expect(wrapper.emitted('openChange')?.pop()).toEqual([true])
+    vm.close()
+    await flushPromises()
+    expect(document.body.querySelector('.rs-dropdown__content')).toBeNull()
+    expect(wrapper.emitted('openChange')?.pop()).toEqual([false])
+    vm.focus()
+    expect(document.activeElement).toBe(wrapper.find('.rs-dropdown__trigger').element)
+    wrapper.unmount()
+  })
+
+  it('renders a divider and danger tone without checked state in action mode', async () => {
+    const wrapper = mount(RsDropdown, {
+      props: {
+        items: [
+          { label: '复制', value: 'copy' },
+          { label: '', value: 'div', type: 'divider' },
+          { label: '删除', value: 'delete', tone: 'danger' },
+        ],
+        showSelected: false,
+        placeholder: '更多',
+      },
+      attachTo: document.body,
+    })
+    await wrapper.find('.rs-dropdown__trigger').trigger('click')
+    await flushPromises()
+    expect(document.body.querySelector('.rs-dropdown__divider')).not.toBeNull()
+    expect(document.body.querySelector('.rs-dropdown__item--danger')?.textContent).toContain('删除')
+    expect(document.body.querySelector('.rs-dropdown__item[data-state="checked"]')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('opens a submenu and selects a child', async () => {
+    const wrapper = mount(RsDropdown, {
+      props: {
+        items: [
+          { label: '资料', value: 'profile' },
+          {
+            label: '主题',
+            value: 'theme',
+            children: [
+              { label: '浅色', value: 'light' },
+              { label: '深色', value: 'dark' },
+            ],
+          },
+        ],
+        showSelected: false,
+        placeholder: '账号',
+      },
+      attachTo: document.body,
+    })
+    await wrapper.find('.rs-dropdown__trigger').trigger('click')
+    await flushPromises()
+    const parent = [...document.body.querySelectorAll('.rs-dropdown__item')].find((node) =>
+      node.textContent?.includes('主题'),
+    ) as HTMLElement
+    parent.click()
+    await flushPromises()
+    const child = [...document.body.querySelectorAll('.rs-dropdown__submenu .rs-dropdown__item')].find((node) =>
+      node.textContent?.includes('深色'),
+    ) as HTMLElement
+    child.click()
+    await flushPromises()
+    expect(wrapper.emitted('select')?.[0]).toEqual(['dark'])
+    wrapper.unmount()
+  })
+
+  it('mounts the panel into getPopupContainer', async () => {
+    const host = document.createElement('div')
+    host.id = 'dropdown-host'
+    document.body.appendChild(host)
+    const wrapper = mount(RsDropdown, {
+      props: {
+        items,
+        modelValue: 'chat',
+        getPopupContainer: () => host,
+      },
+      attachTo: document.body,
+    })
+    await wrapper.find('.rs-dropdown__trigger').trigger('click')
+    await flushPromises()
+    expect(host.querySelector('.rs-dropdown__content')).not.toBeNull()
+    wrapper.unmount()
+    host.remove()
+  })
+
+  it('removes the panel and listeners when unmounted while open', async () => {
+    const wrapper = mount(RsDropdown, {
+      props: { items, modelValue: 'chat' },
+      attachTo: document.body,
+    })
+    await wrapper.find('.rs-dropdown__trigger').trigger('click')
+    await flushPromises()
+    expect(document.body.querySelector('.rs-dropdown__content')).not.toBeNull()
+    wrapper.unmount()
+    expect(document.body.querySelector('.rs-dropdown__content')).toBeNull()
+  })
 })

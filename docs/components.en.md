@@ -304,8 +304,8 @@ Stable `Rs*` components. Per-prop APIs live on the docs site. Additions must upd
 | `RsIcon` | Lucide (and custom) by name | `#/components/icon` |
 | `RsContainer` | Responsive width / padding | `#/components/container` |
 | `RsScrollbar` | Scroll area | `#/components/scrollbar` |
-| `RsLoading` | Loading indicator | `#/components/loading` |
-| `RsEmpty` | Empty state | `#/components/empty` |
+| `RsLoading` | Loading indicator; native div[role=status], no Reka; can cover slotted content | `#/components/loading` |
+| `RsEmpty` | Empty state; native div[role=status], no Reka | `#/components/empty` |
 | `RsLink` | Native `<a>` text link (no Reka) | `#/components/link` |
 | `RsBadge` | Status chip; optional count / dot overlay | `#/components/badge` |
 | `RsTag` | Status chip | `#/components/tag` |
@@ -313,9 +313,9 @@ Stable `Rs*` components. Per-prop APIs live on the docs site. Additions must upd
 | `RsLabel` | Form label (native label, no Reka) | `#/components/label` |
 | `RsCard` / `RsStatCard` | Content / metric card | `#/components/card` |
 | `RsDivider` | Divider | `#/components/divider` |
-| `RsAlert` | Inline alert | `#/components/alert` |
+| `RsAlert` | Inline alert; native div, no Reka | `#/components/alert` |
 | `RsDescriptions` / `RsDescriptionsItem` | Description list | `#/components/descriptions` |
-| `RsLoadingBar` | Top progress (`useRsLoadingBar`) | `#/components/loading-bar` |
+| `RsLoadingBar` | Top progress; native div[role=progressbar], no Reka (`useRsLoadingBar`) | `#/components/loading-bar` |
 
 ### Input
 
@@ -346,24 +346,24 @@ Stable `Rs*` components. Per-prop APIs live on the docs site. Additions must upd
 |-----------|------|------|
 | `RsBreadcrumb` | Breadcrumb; native nav + ol, no Reka | `#/components/breadcrumb` |
 | `RsAnchor` | In-page TOC; native nav, no Reka; hash routers need `changeHash=false` | `#/components/anchor` |
-| `RsToolbar` | Toolbar | `#/components/toolbar` |
-| `RsTabs` | Close / rename / overflow | `#/components/tabs` |
-| `RsSteps` | Steps | `#/components/steps` |
-| `RsMenu` | Menu | `#/components/menu` |
-| `RsDropdown` | Command menu | `#/components/dropdown` |
-| `RsSidebar` / `RsSidebarGroup` / `RsSidebarItem` | Sidebar | `#/components/sidebar` |
-| `RsSplitPane` | Resizable panes | `#/components/split-pane` |
-| `RsPagination` | Pagination | `#/components/pagination` |
+| `RsToolbar` | Toolbar; native header/div, no Reka; #start/#center/#end; optional APG keyboard | `#/components/toolbar` |
+| `RsTabs` | Tabs; native tablist, no Reka; close / rename / overflow | `#/components/tabs` |
+| `RsSteps` | Steps; native nav + ol, no Reka; v-model binds value | `#/components/steps` |
+| `RsMenu` | Menu; native nav + button / a, no Reka; collapsed flyout uses Teleport | `#/components/menu` |
+| `RsDropdown` | Command menu; native button + Teleport, no Reka | `#/components/dropdown` |
+| `RsSidebar` / `RsSidebarGroup` / `RsSidebarItem` | Sidebar chrome; native aside + nav, no Reka | `#/components/sidebar` |
+| `RsSplitPane` | Resizable panes; native group + hr, no Reka; percents, APG Window Splitter | `#/components/split-pane` |
+| `RsPagination` | Pagination; native nav + button, no Reka; jumper uses RsInput, page size uses RsSelect | `#/components/pagination` |
 | `RsVirtualList` | Virtual list | `#/components/virtual-list` |
 
 ### Overlay and feedback
 
 | Component | Role | Docs |
 |-----------|------|------|
-| `RsTooltip` / `RsTooltipProvider` | Tooltip | `#/components/tooltip` |
-| `RsPopover` | Popover | `#/components/popover` |
-| `RsDialog` / `RsConfirmDialog` | Dialog / confirm | `#/components/dialog` |
-| `RsDrawer` | Drawer | `#/components/drawer` |
+| `RsTooltip` / `RsTooltipProvider` | Tooltip; native trigger + Teleport, no Reka; hover / keyboard focus, collision flip | `#/components/tooltip` |
+| `RsPopover` | Popover; merged trigger props + Teleport, no Reka | `#/components/popover` |
+| `RsDialog` / `RsConfirmDialog` | Dialog: native dialog + Teleport, no Reka; confirm is a separate component | `#/components/dialog` |
+| `RsDrawer` | Drawer; native dialog + Teleport, no Reka; four edges, resize, modal focus trap | `#/components/drawer` |
 | `RsContextMenu` | Context menu | `#/components/context-menu` |
 | `RsToaster` | Toast host (`useRsToast`) | `#/components/toaster` |
 

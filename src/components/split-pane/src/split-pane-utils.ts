@@ -25,6 +25,19 @@ export interface RsSplitPaneItem {
   collapsedSize?: number
   /** 本面板右侧分隔条是否显示抓手；缺省时继承 RsSplitPane.withHandle */
   resizerHandle?: boolean
+  /**
+   * 本面板右侧 / 下方分隔条是否可拖、可键盘调整。
+   * 默认 true；false 时缝仍渲染，但不能改尺寸。
+   */
+  resizable?: boolean
+  /** 覆盖本缝的 aria-label；缺省走 split.resize */
+  resizerAriaLabel?: string
+}
+
+/** 具名插槽参数：当前占比与是否折叠 */
+export interface RsSplitPaneSlot {
+  size: number
+  collapsed: boolean
 }
 
 /**
@@ -36,6 +49,8 @@ export interface RsSplitPaneExpose {
   expand: (key: string, toSize?: number) => void
   reset: () => void
   getSizes: () => number[]
+  /** 聚焦第 index 条分隔条（默认第一条可交互缝） */
+  focus: (index?: number) => void
 }
 
 /** 模板 ref 实例：expose + 根节点 */
@@ -251,4 +266,32 @@ export function expandSplitPane(
 export function splitSizesEqual(a: number[], b: number[], epsilon = 0.01): boolean {
   if (a.length !== b.length) return false
   return a.every((value, index) => Math.abs(value - (b[index] ?? 0)) <= epsilon)
+}
+
+/**
+ * RTL 下行方向主轴与视觉左右对调：指针 / 左右键的增量要取反，
+ * 分隔条才跟手、且符合 APG「方向键按物理方向移动分隔条」。
+ */
+export function invertSplitAxisDelta(
+  orientation: RsSplitOrientation,
+  rtl: boolean,
+  delta: number,
+): number {
+  if (rtl && orientation === 'horizontal') return -delta
+  return delta
+}
+
+/** 面板 DOM id：给 separator 的 aria-controls 用 */
+export function splitPaneDomId(rootId: string, key: string): string {
+  const safe = key.replace(/[^a-zA-Z0-9_-]/g, '-')
+  return `${rootId}-pane-${safe}`
+}
+
+/** 第 index 条缝（pane[index] 右侧 / 下方）是否允许拖拽与键盘调整 */
+export function isSplitResizerInteractive(
+  pane: RsSplitPaneItem | undefined,
+  disabled: boolean,
+): boolean {
+  if (disabled) return false
+  return pane?.resizable !== false
 }

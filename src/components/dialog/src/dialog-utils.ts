@@ -1,4 +1,4 @@
-import type { Component } from 'vue'
+import { ref, type Component } from 'vue'
 import type { RsLocale } from '../../../locale/types'
 import type { RsThemeMode } from '../../../theme/types'
 import { dialogViewportSize } from './dialog-viewport'
@@ -180,4 +180,202 @@ export function resolveDialogOverlayStyle(options?: {
       typeof options.overlayBlur === 'number' ? `${options.overlayBlur}px` : String(options.overlayBlur)
   }
   return Object.keys(style).length ? style : undefined
+}
+
+/** 模板 ref 类型。close 走 beforeClose；focus 把焦点送进对话框。 */
+export interface RsDialogExpose {
+  close: (reason?: RsDialogCloseReason) => Promise<boolean>
+  openDialog: () => void
+  focus: () => void
+}
+
+export type RsDialogInstance = RsDialogExpose
+
+const DIALOG_TAB_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled]):not([type="hidden"])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(', ')
+
+/** 编辑器自己消费 Tab。对话框陷阱在这些节点上放手。 */
+const DIALOG_TAB_OWNER = '.monaco-editor, .cm-editor, .cm-content, .xterm, [data-rs-dialog-tab-owner]'
+
+const INERT_SKIP = 'script, style, link, meta, title'
+
+/** 对话框内可 Tab 到的控件。不按 client rect 过滤：jsdom 没有布局。 */
+export function listDialogTabbables(root: ParentNode | null | undefined): HTMLElement[] {
+  if (!root || typeof root.querySelectorAll !== 'function') return []
+  const nodes = root.querySelectorAll<HTMLElement>(DIALOG_TAB_SELECTOR)
+  const seen = new Set<HTMLElement>()
+  const out: HTMLElement[] = []
+  for (const el of nodes) {
+    if (seen.has(el)) continue
+    if (el.tabIndex < 0) continue
+    if (el.closest('[hidden], [inert]')) continue
+    if (el.getAttribute('aria-disabled') === 'true') continue
+    seen.add(el)
+    out.push(el)
+  }
+  return out
+}
+
+export function dialogTargetOwnsTab(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest(DIALOG_TAB_OWNER) != null
+}
+
+/** Tab 在对话框边界上的下一焦点。stay 表示交给浏览器。 */
+export function resolveDialogTabTarget(
+  root: HTMLElement,
+  active: Element | null,
+  shift: boolean,
+): HTMLElement | 'stay' {
+  const items = listDialogTabbables(root)
+  const inside = active != null && root.contains(active)
+  if (!items.length) return inside ? 'stay' : root
+  const first = items[0]!
+  const last = items[items.length - 1]!
+  if (!inside) return shift ? last : first
+  if (shift && (active === first || active === root)) return last
+  if (!shift && active === last) return first
+  return 'stay'
+}
+
+const dialogLayerIds: string[] = []
+
+/** 层栈变化时递增，让每个实例重新判断自己是不是最上层。 */
+export const dialogLayerTick = ref(0)
+
+export function pushDialogLayer(id: string): void {
+  const index = dialogLayerIds.indexOf(id)
+  if (index >= 0) dialogLayerIds.splice(index, 1)
+  dialogLayerIds.push(id)
+  dialogLayerTick.value += 1
+}
+
+export function removeDialogLayer(id: string): void {
+  const index = dialogLayerIds.indexOf(id)
+  if (index < 0) return
+  dialogLayerIds.splice(index, 1)
+  dialogLayerTick.value += 1
+}
+
+export function isTopDialogLayer(id: string): boolean {
+  return dialogLayerIds.at(-1) === id
+}
+
+let scrollLockCount = 0
+let scrollLockSnapshot: { overflow: string; paddingInlineEnd: string } | null = null
+
+/**
+ * 模态层锁 body 滚动，并补上滚动条宽度，避免页面横跳。
+ * 引用计数：嵌套对话框只在最后一层关闭时恢复。重复释放无操作。
+ */
+export function acquireDialogScrollLock(): () => void {
+  if (typeof document === 'undefined') return () => {}
+  if (scrollLockCount === 0) {
+    const body = document.body
+    scrollLockSnapshot = {
+      overflow: body.style.overflow,
+      paddingInlineEnd: body.style.paddingInlineEnd,
+    }
+    const gap = window.innerWidth - document.documentElement.clientWidth
+    body.style.overflow = 'hidden'
+    if (gap > 0) {
+      const current = Number.parseFloat(getComputedStyle(body).paddingInlineEnd) || 0
+      body.style.paddingInlineEnd = `${current + gap}px`
+    }
+  }
+  scrollLockCount += 1
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    scrollLockCount = Math.max(0, scrollLockCount - 1)
+    if (scrollLockCount !== 0 || !scrollLockSnapshot) return
+    document.body.style.overflow = scrollLockSnapshot.overflow
+    document.body.style.paddingInlineEnd = scrollLockSnapshot.paddingInlineEnd
+    scrollLockSnapshot = null
+  }
+}
+
+function markInert(el: HTMLElement, value: boolean): void {
+  if (value) {
+    el.setAttribute('inert', '')
+    if ('inert' in el) el.inert = true
+    return
+  }
+  if ('inert' in el) el.inert = false
+  el.removeAttribute('inert')
+}
+
+function isInert(el: HTMLElement): boolean {
+  if ('inert' in el && el.inert) return true
+  return el.hasAttribute('inert')
+}
+
+function markInertSiblings(parent: HTMLElement, current: HTMLElement, touched: HTMLElement[]): void {
+  for (const node of Array.from(parent.children)) {
+    if (node === current || !(node instanceof HTMLElement)) continue
+    if (node.matches(INERT_SKIP) || isInert(node)) continue
+    markInert(node, true)
+    touched.push(node)
+  }
+}
+
+/**
+ * 把对话框外壳的兄弟（以及祖先的兄弟）标成 inert，背后内容不可点、不可 Tab。
+ * 不 inert body 本身，否则 Teleport 进去的对话框也会被冻住。
+ * 已经 inert 的节点不动，释放时也不会被我们解开。
+ */
+export function inertDialogSiblings(layer: HTMLElement): () => void {
+  if (typeof document === 'undefined' || !layer.parentElement) return () => {}
+  const touched: HTMLElement[] = []
+  let current: HTMLElement | null = layer
+  while (current && current !== document.body) {
+    const parent = current.parentElement
+    if (!parent) break
+    markInertSiblings(parent, current, touched)
+    current = parent
+  }
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    for (const el of touched) markInert(el, false)
+  }
+}
+
+let inertRelease: (() => void) | null = null
+let inertOwner: string | null = null
+
+/** 只有最上层模态对话框持有 inert。别人释放不会清掉当前层。 */
+export function claimDialogInert(ownerId: string, layer: HTMLElement): void {
+  inertRelease?.()
+  inertRelease = inertDialogSiblings(layer)
+  inertOwner = ownerId
+}
+
+export function releaseDialogInert(ownerId: string): void {
+  if (inertOwner !== ownerId) return
+  inertRelease?.()
+  inertRelease = null
+  inertOwner = null
+}
+
+/** 测试收尾：清层栈、滚动锁和 inert，避免上一例失败把 body 留在 hidden。 */
+export function resetDialogGuardsForTests(): void {
+  dialogLayerIds.length = 0
+  dialogLayerTick.value += 1
+  inertRelease?.()
+  inertRelease = null
+  inertOwner = null
+  scrollLockCount = 0
+  if (scrollLockSnapshot && typeof document !== 'undefined') {
+    document.body.style.overflow = scrollLockSnapshot.overflow
+    document.body.style.paddingInlineEnd = scrollLockSnapshot.paddingInlineEnd
+  }
+  scrollLockSnapshot = null
 }

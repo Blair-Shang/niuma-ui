@@ -165,7 +165,7 @@ function mountLabel(mounted: boolean) {
     <DemoBlock title="挂载策略：lazyMount / forceMount">
       <p class="hint">
         默认 <code>lazy-mount</code> 关闭后卸载内容；<code>lazy-mount="false"</code> 或
-        <code>force-mount</code> 会通过 Reka <code>Presence</code> 保留 DOM（仅隐藏）。下方状态由内容区
+        <code>force-mount</code> 会保留 DOM（仅隐藏）。下方状态由内容区
         <code>onMounted</code> / <code>onUnmounted</code> 探测。
       </p>
       <div class="mount-grid">

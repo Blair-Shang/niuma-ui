@@ -6,16 +6,18 @@ import {
   RsInput,
   RsToolbar,
   type RsToolbarBorder,
+  type RsToolbarExpose,
   type RsToolbarSize,
 } from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 
-const sizes: RsToolbarSize[] = ['sm', 'md', 'lg']
+const sizes: RsToolbarSize[] = ['ssm', 'sm', 'md', 'lg']
 const borders: RsToolbarBorder[] = ['bottom', 'top', 'both', 'none']
 
 const running = ref(false)
 const filterText = ref('')
+const barRef = ref<RsToolbarExpose | null>(null)
 
 function toggleRun() {
   running.value = !running.value
@@ -159,6 +161,50 @@ function toggleRun() {
         </RsToolbar>
       </div>
     </DemoBlock>
+
+    <DemoBlock title="竖排 / wrap / sticky / 禁用">
+      <div class="stack">
+        <div class="frame frame--rail">
+          <RsToolbar orientation="vertical" aria-label="Side actions">
+            <template #start>
+              <RsButton variant="ghost" size="sm">格式化</RsButton>
+            </template>
+            <template #end>
+              <RsButton variant="primary" size="sm">运行</RsButton>
+            </template>
+          </RsToolbar>
+        </div>
+        <div class="frame">
+          <RsToolbar wrap>
+            <template #start>
+              <span class="identity">prod / analytics / public / fact_orders_daily_by_region</span>
+            </template>
+            <template #end>
+              <RsButton variant="ghost" size="sm">更多</RsButton>
+            </template>
+          </RsToolbar>
+        </div>
+        <div class="frame">
+          <RsToolbar disabled>
+            <template #end>
+              <RsButton variant="primary" size="sm">新建</RsButton>
+            </template>
+          </RsToolbar>
+        </div>
+      </div>
+    </DemoBlock>
+
+    <DemoBlock title="focus / blur">
+      <p class="hint">方向键在按钮间移动。输入框不拦截。</p>
+      <div class="frame">
+        <RsToolbar ref="barRef" aria-label="Methods toolbar">
+          <template #end>
+            <RsButton variant="ghost" size="sm" @click="barRef?.focus()">focus()</RsButton>
+            <RsButton variant="ghost" size="sm" @click="barRef?.blur()">blur()</RsButton>
+          </template>
+        </RsToolbar>
+      </div>
+    </DemoBlock>
   </DemoPage>
 </template>
 
@@ -181,6 +227,16 @@ function toggleRun() {
   border: 1px solid var(--rs-border);
   border-radius: var(--rs-radius);
   background: var(--rs-bg);
+}
+
+.frame--rail {
+  display: flex;
+  align-items: stretch;
+  min-height: 8rem;
+}
+
+.frame--rail :deep(.rs-toolbar) {
+  width: 7.5rem;
 }
 
 .frame__body {

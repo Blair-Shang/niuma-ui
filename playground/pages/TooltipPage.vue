@@ -33,7 +33,7 @@ const aligns = ['start', 'center', 'end'] as const
           <template #content>
             <div class="tooltip-rich">
               <p class="tooltip-rich__title">弱水 UI v0.1</p>
-              <p class="tooltip-rich__desc">基于 Reka UI，遵循 --rs-* 设计 token。</p>
+              <p class="tooltip-rich__desc">原生浮层，遵循 --rs-* 设计 token。</p>
             </div>
           </template>
         </RsTooltip>

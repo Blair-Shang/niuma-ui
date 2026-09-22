@@ -17,6 +17,26 @@ function mountSplit(props: Record<string, unknown> = {}) {
 }
 
 describe('RsSplitPane', () => {
+  it('does not import or render reka-ui', () => {
+    const wrapper = mountSplit()
+    expect(wrapper.html().toLowerCase()).not.toContain('reka')
+    expect(wrapper.find('.rs-split').exists()).toBe(true)
+    expect(wrapper.vm.$options.name).toBe('RsSplitPane')
+    expect(wrapper.find('.rs-split').attributes('role')).toBe('group')
+  })
+
+  it('writes id, aria-label, and aria-controls on the separator', () => {
+    const wrapper = mountSplit({ id: 'workbench', ariaLabel: 'Editor split' })
+    expect(wrapper.find('.rs-split').attributes('id')).toBe('workbench')
+    expect(wrapper.find('.rs-split').attributes('aria-label')).toBe('Editor split')
+    expect(wrapper.find('#workbench-pane-a').exists()).toBe(true)
+    expect(wrapper.find('#workbench-pane-b').exists()).toBe(true)
+    expect(wrapper.find('.rs-split__resizer').attributes('aria-controls')).toBe(
+      'workbench-pane-a workbench-pane-b',
+    )
+    expect(wrapper.find('.rs-split__resizer').attributes('aria-valuetext')).toBe('50%')
+  })
+
   it('passes size and collapsed to named slots', () => {
     const received: { size?: number; collapsed?: boolean }[] = []
     mount(RsSplitPane, {
@@ -56,8 +76,31 @@ describe('RsSplitPane', () => {
   it('resizes with the keyboard along the active axis', async () => {
     const wrapper = mountSplit({ keyboardStep: 4 })
     await wrapper.find('.rs-split__resizer').trigger('keydown', { key: 'ArrowRight' })
+    expect(wrapper.emitted('resize-start')?.pop()).toEqual([[50, 50]])
     expect(wrapper.emitted('update:sizes')?.pop()).toEqual([[54, 46]])
     expect(wrapper.emitted('resize-end')).toBeTruthy()
+  })
+
+  it('does not resize a pane marked resizable=false', async () => {
+    const wrapper = mount(RsSplitPane, {
+      props: {
+        panes: [{ key: 'a', resizable: false }, { key: 'b' }] satisfies RsSplitPaneItem[],
+      },
+      slots: { a: 'A', b: 'B' },
+    })
+    const resizer = wrapper.find('.rs-split__resizer')
+    expect(resizer.attributes('tabindex')).toBe('-1')
+    expect(resizer.attributes('aria-disabled')).toBe('true')
+    expect(wrapper.find('.rs-split__resizer-host').classes()).toContain(
+      'rs-split__resizer-host--disabled',
+    )
+    await resizer.trigger('keydown', { key: 'ArrowRight' })
+    expect(wrapper.emitted('update:sizes')).toBeFalsy()
+  })
+
+  it('unmounts without throwing', () => {
+    const wrapper = mountSplit()
+    expect(() => wrapper.unmount()).not.toThrow()
   })
 
   it('ignores cross-axis arrow keys', async () => {
@@ -133,6 +176,7 @@ describe('RsSplitPane', () => {
       expand: (key: string, size?: number) => void
       reset: () => void
       getSizes: () => number[]
+      focus: (index?: number) => void
     }
 
     vm.collapse('a')
@@ -155,6 +199,17 @@ describe('RsSplitPane', () => {
     vm.reset()
     await wrapper.vm.$nextTick()
     expect(vm.getSizes()).toEqual([40, 60])
+  })
+
+  it('focuses the first interactive separator', () => {
+    const wrapper = mount(RsSplitPane, {
+      attachTo: document.body,
+      props: { panes: twoPanes },
+      slots: { a: 'A', b: 'B' },
+    })
+    ;(wrapper.vm as unknown as { focus: (index?: number) => void }).focus()
+    expect(document.activeElement).toBe(wrapper.find('.rs-split__resizer').element)
+    wrapper.unmount()
   })
 
   it('does not emit when collapse / expand is already at the target', async () => {

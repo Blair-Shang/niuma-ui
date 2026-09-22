@@ -1,36 +1,42 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useSlots } from 'vue'
-import {
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuPortal,
-  DropdownMenuRoot,
-  DropdownMenuTrigger,
-  TabsContent,
-  TabsList,
-  TabsRoot,
-  TabsTrigger,
-} from '../../_shared/src/reka'
+import { computed, nextTick, onUnmounted, ref, useId, useSlots, watch } from 'vue'
+import { useRsConfigOptional } from '../../../composables/useRsConfig'
 import { useRsI18n } from '../../../composables/useRsI18n'
 import { useRsTabsNav } from '../../../composables/useRsTabsNav'
+import { resolveDirMode } from '../../../locale/apply'
+import { useResolvedRsComponentSize } from '../../_shared/src/resolve-size'
 import RsContextMenu from '../../context-menu/src/RsContextMenu.vue'
+import RsDropdown from '../../dropdown/src/RsDropdown.vue'
 import RsIcon from '../../icon/src/RsIcon.vue'
 import {
   buildTabContextMenuItems,
+  getAdjacentTabValue,
+  getEdgeTabValue,
   getNextTabAfterBatchClose,
   getNextTabAfterClose,
   isTabClosable,
   isTabFixed,
   isTabRenamable,
+  isVerticalTabsPosition,
+  resolveTabKeyboardMove,
+  resolveTabsSize,
   resolveTabsToClose,
+  shouldRenderTabPanel,
+  tabPanelId,
+  tabTriggerId,
   type RsTabItem,
+  type RsTabsActivation,
   type RsTabsCloseAction,
   type RsTabsContentGap,
+  type RsTabsExpose,
   type RsTabsJustify,
   type RsTabsOverflow,
+  type RsTabsPosition,
   type RsTabsSize,
   type RsTabsVariant,
 } from './tabs-utils'
+
+defineOptions({ name: 'RsTabs' })
 
 const model = defineModel<string>({ required: true })
 
@@ -58,14 +64,22 @@ const props = withDefaults(
      * 标签栏对齐方式；stretch/evenly 用于等分铺满，避免业务 :deep 改 list。
      */
     justify?: RsTabsJustify
+    /** 标签栏位置。竖排时 overflow=scroll 改为纵向滚动。 */
+    tabPosition?: RsTabsPosition
+    /**
+     * 键盘激活（APG）。automatic 方向键即切换；manual 只移焦点，Enter / Space 才切换。
+     */
+    activation?: RsTabsActivation
     closable?: boolean
     addable?: boolean
     maxCount?: number
     /** 双击标签重命名 */
     renamable?: boolean
-    /** 按住标签拖动排序（整项可拖，不展示手柄） */
+    /** 按住标签拖动排序（整项可拖） */
     draggable?: boolean
-    /** 标签过多：scroll 横向滚动 · dropdown 折叠到「更多」 */
+    /** 可拖时是否画左侧六点 grip。false 仍可整项拖，只是不显示图标。 */
+    showDragHandle?: boolean
+    /** 标签过多：scroll 横向/纵向滚动 · dropdown 折叠到「更多」 */
     overflow?: RsTabsOverflow | false
     /**
      * 顶栏导航右键菜单：关闭 / 关闭其他 / 关闭左侧 / 关闭右侧 / 关闭全部
@@ -77,24 +91,38 @@ const props = withDefaults(
      * 返回 false 时阻止切换；支持异步。
      */
     beforeLeave?: (to: string, from: string) => boolean | void | Promise<boolean | void>
+    /** 首次激活才挂载面板；已访问过的会保留。destroyInactive 优先。 */
+    lazy?: boolean
+    /**
+     * 离开即卸载面板（默认 true，与原先 Reka TabsContent 一致）。
+     * 需要保留表单状态时传 false。
+     */
+    destroyInactive?: boolean
+    id?: string
+    ariaLabel?: string
   }>(),
   {
-    size: 'md',
     variant: 'line',
     panelless: false,
     borderless: false,
     contentGap: 'none',
     justify: 'start',
+    tabPosition: 'top',
+    activation: 'automatic',
     closable: false,
     addable: false,
     renamable: false,
     draggable: false,
+    showDragHandle: true,
     overflow: false,
     contextMenu: false,
+    lazy: false,
+    destroyInactive: true,
   },
 )
 
 const emit = defineEmits<{
+  change: [value: string]
   close: [value: string]
   /** 批量关闭（右键菜单 / 中键以外的批量动作），values 为待移除的标签 value */
   closeBatch: [values: string[], action: RsTabsCloseAction, anchor?: string]
@@ -106,20 +134,36 @@ const emit = defineEmits<{
 }>()
 
 const slots = useSlots()
-const { t } = useRsI18n()
+const { t, locale } = useRsI18n()
+const config = useRsConfigOptional()
+const autoId = useId()
 const itemsRef = computed(() => props.items)
 const overflowMode = computed(() => props.overflow)
+const positionRef = computed(() => props.tabPosition)
 const hasExtra = computed(() => Boolean(slots.extra))
 const canAdd = computed(() => {
   if (!props.addable) return false
   if (props.maxCount == null) return true
   return props.items.length < props.maxCount
 })
+const resolvedSize = useResolvedRsComponentSize(() => props.size)
+const tabSize = computed(() => resolveTabsSize(resolvedSize.value))
+const writingDir = computed(() => resolveDirMode(config?.dir.value ?? 'auto', locale.value))
+const vertical = computed(() => isVerticalTabsPosition(props.tabPosition))
+const rootId = computed(() => props.id || `rs-tabs${autoId.replace(/[^a-zA-Z0-9_-]/g, '')}`)
+const navLabel = computed(() => props.ariaLabel || t('tabs.label'))
+const tabIconPx = computed(() => {
+  if (tabSize.value === 'sm') return 12
+  if (tabSize.value === 'lg') return 16
+  return 14
+})
+const chromeIconPx = computed(() => (tabSize.value === 'lg' ? 14 : 12))
 
 const navRef = ref<HTMLElement | null>(null)
 const measureRef = ref<HTMLElement | null>(null)
 const overflowWrapRef = ref<HTMLElement | null>(null)
 const extraRef = ref<HTMLElement | null>(null)
+const triggerEls = new Map<string, HTMLButtonElement>()
 
 const {
   navViewportRef,
@@ -145,14 +189,41 @@ const {
   overflowRef: overflowWrapRef,
   extraRef,
   addButtonWidth: 36,
+  position: positionRef,
 })
 
 const renamingValue = ref<string | null>(null)
 const renameDraft = ref('')
 const dragValue = ref<string | null>(null)
 const dragOverValue = ref<string | null>(null)
+const focusedValue = ref(model.value)
+const visited = ref(new Set<string>(model.value ? [model.value] : []))
 let renameInputEl: HTMLInputElement | null = null
 let leaveLock = false
+
+watch(model, (value) => {
+  focusedValue.value = value
+  if (!value || visited.value.has(value)) return
+  const next = new Set(visited.value)
+  next.add(value)
+  visited.value = next
+})
+
+watch(
+  () => props.items.map((item) => item.value).join('\0'),
+  () => {
+    const values = new Set(props.items.map((item) => item.value))
+    visited.value = new Set([...visited.value].filter((value) => values.has(value)))
+  },
+)
+
+function setTriggerRef(value: string, el: unknown) {
+  if (el instanceof HTMLButtonElement) {
+    triggerEls.set(value, el)
+    return
+  }
+  triggerEls.delete(value)
+}
 
 function setRenameInputRef(el: unknown, item: RsTabItem) {
   if (!(el instanceof HTMLInputElement) || renamingValue.value !== item.value) return
@@ -171,7 +242,7 @@ const moreLabel = computed(() => {
     return props.items.find((item) => item.value === model.value)?.label ?? t('tabs.more')
   }
   if (hiddenItems.value.length > 0) {
-    return `${t('tabs.more')} (${hiddenItems.value.length})`
+    return t('tabs.moreCount', { count: hiddenItems.value.length })
   }
   return t('tabs.more')
 })
@@ -184,36 +255,63 @@ const contextMenuLabels = computed(() => ({
   closeAll: t('tabs.closeAll'),
 }))
 
+const contextMenuMap = computed(() => {
+  if (!props.contextMenu) return new Map<string, ReturnType<typeof buildTabContextMenuItems>>()
+  const map = new Map<string, ReturnType<typeof buildTabContextMenuItems>>()
+  for (const item of props.items) {
+    map.set(
+      item.value,
+      buildTabContextMenuItems(props.items, item, props.closable, contextMenuLabels.value),
+    )
+  }
+  return map
+})
+
 function closeAriaLabel(item: RsTabItem): string {
-  return t('tabs.close', 'Close {label}').replace('{label}', item.label)
+  return t('tabs.close', { label: item.label })
 }
 
 function contextItemsFor(item: RsTabItem) {
-  return buildTabContextMenuItems(
-    props.items,
-    item,
-    props.closable,
-    contextMenuLabels.value,
-  )
+  return contextMenuMap.value.get(item.value) ?? []
 }
 
 function labelTitle(item: RsTabItem): string | undefined {
   return item.label.length > 12 ? item.label : undefined
 }
 
-async function onSelectTab(next: string | number): Promise<void> {
+function panelVisible(value: string): boolean {
+  return shouldRenderTabPanel(
+    value,
+    model.value,
+    visited.value,
+    props.lazy,
+    props.destroyInactive,
+  )
+}
+
+function setActive(value: string): void {
+  if (model.value === value) return
+  model.value = value
+  focusedValue.value = value
+  emit('change', value)
+}
+
+async function onSelectTab(next: string): Promise<boolean> {
   const value = String(next)
-  if (value === model.value || leaveLock) return
+  if (value === model.value || leaveLock) return value === model.value
+  const target = props.items.find((item) => item.value === value)
+  if (target?.disabled) return false
   if (props.beforeLeave) {
     leaveLock = true
     try {
       const ok = await props.beforeLeave(value, model.value)
-      if (ok === false) return
+      if (ok === false) return false
     } finally {
       leaveLock = false
     }
   }
-  model.value = value
+  setActive(value)
+  return true
 }
 
 function applyCloseValues(
@@ -225,15 +323,15 @@ function applyCloseValues(
   if (action === 'close' && values.length === 1) {
     const closed = values[0]!
     const next = getNextTabAfterClose(props.items, closed, model.value)
-    if (next && model.value === closed) model.value = next
+    if (next && model.value === closed) setActive(next)
     emit('close', closed)
     return
   }
 
   const remaining = props.items.filter((item) => !values.includes(item.value))
   const next = getNextTabAfterBatchClose(remaining, model.value, anchor)
-  if (next !== undefined && next !== model.value) model.value = next
-  else if (next === undefined) model.value = ''
+  if (next !== undefined && next !== model.value) setActive(next)
+  else if (next === undefined && model.value !== '') setActive('')
   emit('closeBatch', values, action, anchor)
 }
 
@@ -266,18 +364,6 @@ function onTabAuxClick(item: RsTabItem, event: MouseEvent): void {
   onCloseTab(item)
 }
 
-/** 纵向滚轮转为横向滚动（scroll 溢出模式） */
-function onNavWheel(event: WheelEvent): void {
-  if (!useScrollOverflow.value) return
-  const viewport = navViewportRef.value
-  if (!viewport) return
-  if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return
-  if (viewport.scrollWidth <= viewport.clientWidth) return
-  event.preventDefault()
-  viewport.scrollLeft += event.deltaY
-  onNavScroll()
-}
-
 async function startRename(item: RsTabItem): Promise<void> {
   if (!isTabRenamable(item, props.renamable) || item.disabled) return
   renamingValue.value = item.value
@@ -308,7 +394,6 @@ function onDragStart(item: RsTabItem, event: DragEvent): void {
     event.preventDefault()
     return
   }
-  // 关闭 / 重命名控件上不启动拖拽，避免误触
   const target = event.target
   if (
     target instanceof Element &&
@@ -348,17 +433,73 @@ function onDragEnd(): void {
   dragValue.value = null
   dragOverValue.value = null
 }
+
+async function moveFocus(value: string): Promise<void> {
+  focusedValue.value = value
+  await nextTick()
+  triggerEls.get(value)?.focus()
+  if (props.activation === 'automatic') {
+    void onSelectTab(value)
+  }
+}
+
+function onTabListKeydown(event: KeyboardEvent): void {
+  if (renamingValue.value) return
+  const move = resolveTabKeyboardMove(event.key, props.tabPosition, writingDir.value === 'rtl')
+  if (move === 'start' || move === 'end') {
+    const next = getEdgeTabValue(tabBarItems.value, move)
+    if (!next) return
+    event.preventDefault()
+    void moveFocus(next)
+    return
+  }
+  if (typeof move === 'number') {
+    const next = getAdjacentTabValue(tabBarItems.value, focusedValue.value || model.value, move)
+    if (!next) return
+    event.preventDefault()
+    void moveFocus(next)
+    return
+  }
+  if (event.key === 'Enter' || event.key === ' ') {
+    if (!focusedValue.value) return
+    event.preventDefault()
+    void onSelectTab(focusedValue.value)
+  }
+}
+
+function focus(value?: string): void {
+  const target = value ?? model.value
+  if (!target) return
+  focusedValue.value = target
+  triggerEls.get(target)?.focus()
+}
+
+async function selectTab(value: string): Promise<boolean> {
+  return onSelectTab(value)
+}
+
+onUnmounted(() => {
+  triggerEls.clear()
+  renameInputEl = null
+  leaveLock = false
+})
+
+defineExpose<RsTabsExpose>({
+  focus,
+  selectTab,
+})
 </script>
 
 <template>
-  <TabsRoot
-    :model-value="model"
+  <div
+    :id="id"
     class="rs-tabs"
     :class="[
       `rs-tabs--${variant}`,
-      `rs-tabs--${size}`,
+      `rs-tabs--${tabSize}`,
       `rs-tabs--justify-${justify}`,
       `rs-tabs--content-gap-${contentGap}`,
+      `rs-tabs--position-${tabPosition}`,
       {
         'rs-tabs--panelless': panelless,
         'rs-tabs--borderless': borderless,
@@ -366,10 +507,9 @@ function onDragEnd(): void {
         'rs-tabs--dropdown-overflow': useDropdownOverflow,
         'rs-tabs--has-extra': hasExtra,
         'rs-tabs--draggable': draggable,
+        'rs-tabs--vertical': vertical,
       },
     ]"
-    :aria-label="t('tabs.label')"
-    @update:model-value="onSelectTab"
   >
     <div :class="panelless ? 'rs-tabs__shell' : 'rs-tabs__body'">
       <div
@@ -383,11 +523,11 @@ function onDragEnd(): void {
           :key="`measure-${item.value}`"
           type="button"
           class="rs-tabs__trigger rs-tabs__measure-trigger"
-          :class="`rs-tabs__trigger--${size}`"
+          :class="`rs-tabs__trigger--${tabSize}`"
           :data-tab-value="item.value"
           tabindex="-1"
         >
-          <RsIcon v-if="item.icon" :name="item.icon" :size="14" class="rs-tabs__icon" />
+          <RsIcon v-if="item.icon" :name="item.icon" :size="tabIconPx" class="rs-tabs__icon" />
           <span class="rs-tabs__label">{{ item.label }}</span>
           <span v-if="item.badge != null && item.badge !== ''" class="rs-tabs__badge">
             {{ item.badge }}
@@ -401,18 +541,24 @@ function onDragEnd(): void {
           type="button"
           class="rs-tabs__scroll-btn rs-tabs__scroll-btn--prev"
           :aria-label="t('tabs.scrollPrev')"
+          tabindex="-1"
           @click="scrollNav(-1)"
         >
-          <RsIcon name="chevron-left" :size="14" />
+          <RsIcon name="chevron-left" :size="tabIconPx" />
         </button>
 
         <div
           ref="navViewportRef"
           class="rs-tabs__nav-viewport"
           @scroll.passive="onNavScroll"
-          v-bind="useScrollOverflow ? { onWheel: onNavWheel } : {}"
         >
-          <TabsList class="rs-tabs__list">
+          <div
+            class="rs-tabs__list"
+            role="tablist"
+            :aria-label="navLabel"
+            :aria-orientation="vertical ? 'vertical' : 'horizontal'"
+            @keydown="onTabListKeydown"
+          >
             <RsContextMenu
               v-for="item in tabBarItems"
               :key="item.value"
@@ -420,9 +566,11 @@ function onDragEnd(): void {
               :disabled="!contextMenu"
               @select="(key) => onContextSelect(key, item)"
             >
-              <TabsTrigger
-                :value="item.value"
-                :disabled="item.disabled"
+              <button
+                :id="tabTriggerId(rootId, item.value)"
+                :ref="(el) => setTriggerRef(item.value, el)"
+                type="button"
+                role="tab"
                 class="rs-tabs__trigger"
                 :class="{
                   'rs-tabs__trigger--dragging': dragValue === item.value,
@@ -430,9 +578,15 @@ function onDragEnd(): void {
                   'rs-tabs__trigger--fixed': isTabFixed(item),
                   'rs-tabs__trigger--movable': canDragItem(item),
                 }"
+                :aria-selected="model === item.value"
+                :aria-controls="panelless ? undefined : tabPanelId(rootId, item.value)"
+                :tabindex="(focusedValue || model) === item.value ? 0 : -1"
+                :disabled="item.disabled"
+                :data-state="model === item.value ? 'active' : 'inactive'"
                 :data-tab-value="item.value"
                 :data-fixed="isTabFixed(item) ? 'true' : undefined"
                 :draggable="canDragItem(item) || undefined"
+                @click="onSelectTab(item.value)"
                 @dragstart="onDragStart(item, $event)"
                 @dragover="onDragOver(item, $event)"
                 @dragleave="onDragLeave(item)"
@@ -440,57 +594,70 @@ function onDragEnd(): void {
                 @dragend="onDragEnd"
                 @auxclick="onTabAuxClick(item, $event)"
               >
-                <RsIcon
-                  v-if="isTabFixed(item)"
-                  name="pin"
-                  :size="12"
-                  class="rs-tabs__pin"
-                />
-                <RsIcon v-if="item.icon" :name="item.icon" :size="14" class="rs-tabs__icon" />
-                <input
-                  v-if="renamingValue === item.value"
-                  :ref="(el) => setRenameInputRef(el, item)"
-                  v-model="renameDraft"
-                  class="rs-tabs__rename-input"
-                  :aria-label="t('tabs.rename')"
-                  :placeholder="t('tabs.renamePlaceholder')"
-                  draggable="false"
-                  @keydown.enter.prevent="commitRename(item)"
-                  @keydown.escape.prevent="cancelRename"
-                  @blur="commitRename(item)"
-                  @mousedown.stop
-                  @click.stop
-                  @dblclick.stop
-                  @dragstart.stop.prevent
-                />
-                <span
-                  v-else
-                  class="rs-tabs__label"
-                  :title="labelTitle(item)"
-                  @dblclick.stop="startRename(item)"
+                <slot
+                  name="tab"
+                  :item="item"
+                  :active="model === item.value"
+                  :disabled="Boolean(item.disabled)"
                 >
-                  {{ item.label }}
-                </span>
-                <span v-if="item.badge != null && item.badge !== ''" class="rs-tabs__badge">
-                  {{ item.badge }}
-                </span>
-                <button
-                  v-if="isTabClosable(item, closable)"
-                  type="button"
-                  class="rs-tabs__close"
-                  :aria-label="closeAriaLabel(item)"
-                  :disabled="item.disabled"
-                  draggable="false"
-                  @mousedown.stop.prevent
-                  @click.stop="onCloseTab(item)"
-                  @auxclick.stop.prevent
-                  @dragstart.stop.prevent
-                >
-                  <RsIcon name="x" :size="12" />
-                </button>
-              </TabsTrigger>
+                  <span
+                    v-if="canDragItem(item) && showDragHandle"
+                    class="rs-tabs__drag"
+                    aria-hidden="true"
+                  />
+                  <RsIcon
+                    v-if="isTabFixed(item)"
+                    name="pin"
+                    :size="chromeIconPx"
+                    class="rs-tabs__pin"
+                  />
+                  <RsIcon v-if="item.icon" :name="item.icon" :size="tabIconPx" class="rs-tabs__icon" />
+                  <input
+                    v-if="renamingValue === item.value"
+                    :ref="(el) => setRenameInputRef(el, item)"
+                    v-model="renameDraft"
+                    class="rs-tabs__rename-input"
+                    :aria-label="t('tabs.rename')"
+                    :placeholder="t('tabs.renamePlaceholder')"
+                    draggable="false"
+                    @keydown.enter.prevent="commitRename(item)"
+                    @keydown.escape.prevent="cancelRename"
+                    @blur="commitRename(item)"
+                    @mousedown.stop
+                    @click.stop
+                    @dblclick.stop
+                    @dragstart.stop.prevent
+                  />
+                  <span
+                    v-else
+                    class="rs-tabs__label"
+                    :title="labelTitle(item)"
+                    @dblclick.stop="startRename(item)"
+                  >
+                    {{ item.label }}
+                  </span>
+                  <span v-if="item.badge != null && item.badge !== ''" class="rs-tabs__badge">
+                    {{ item.badge }}
+                  </span>
+                  <button
+                    v-if="isTabClosable(item, closable)"
+                    type="button"
+                    class="rs-tabs__close"
+                    :aria-label="closeAriaLabel(item)"
+                    :disabled="item.disabled"
+                    tabindex="-1"
+                    draggable="false"
+                    @mousedown.stop.prevent
+                    @click.stop="onCloseTab(item)"
+                    @auxclick.stop.prevent
+                    @dragstart.stop.prevent
+                  >
+                    <RsIcon name="x" :size="chromeIconPx" />
+                  </button>
+                </slot>
+              </button>
             </RsContextMenu>
-          </TabsList>
+          </div>
         </div>
 
         <div
@@ -498,32 +665,24 @@ function onDragEnd(): void {
           ref="overflowWrapRef"
           class="rs-tabs__overflow-wrap"
         >
-          <DropdownMenuRoot>
-            <DropdownMenuTrigger
-              class="rs-tabs__more"
-              :class="{ 'rs-tabs__more--active': activeInHidden }"
-            >
-              <span class="rs-tabs__more-label">{{ moreLabel }}</span>
-              <RsIcon name="chevron-down" :size="14" class="rs-tabs__more-icon" />
-            </DropdownMenuTrigger>
-            <DropdownMenuPortal>
-              <DropdownMenuContent
-                class="rs-tabs__more-menu"
-                :side-offset="4"
-                align="end"
+          <RsDropdown
+            :items="overflowMenuItems"
+            :show-selected="false"
+            content-width="fit"
+            @select="onOverflowSelect"
+          >
+            <template #trigger>
+              <button
+                type="button"
+                class="rs-tabs__more"
+                :class="{ 'rs-tabs__more--active': activeInHidden }"
+                :aria-label="moreLabel"
               >
-                <DropdownMenuItem
-                  v-for="item in overflowMenuItems"
-                  :key="item.value"
-                  class="rs-tabs__more-item"
-                  :class="{ 'rs-tabs__more-item--active': model === item.value }"
-                  @select="onOverflowSelect(item.value)"
-                >
-                  {{ item.label }}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenuPortal>
-          </DropdownMenuRoot>
+                <span class="rs-tabs__more-label">{{ moreLabel }}</span>
+                <RsIcon name="chevron-down" :size="tabIconPx" class="rs-tabs__more-icon" />
+              </button>
+            </template>
+          </RsDropdown>
         </div>
 
         <button
@@ -533,7 +692,7 @@ function onDragEnd(): void {
           :aria-label="t('tabs.add')"
           @click="onAddTab"
         >
-          <RsIcon name="plus" :size="14" />
+          <RsIcon name="plus" :size="tabIconPx" />
         </button>
 
         <button
@@ -541,9 +700,10 @@ function onDragEnd(): void {
           type="button"
           class="rs-tabs__scroll-btn rs-tabs__scroll-btn--next"
           :aria-label="t('tabs.scrollNext')"
+          tabindex="-1"
           @click="scrollNav(1)"
         >
-          <RsIcon name="chevron-right" :size="14" />
+          <RsIcon name="chevron-right" :size="tabIconPx" />
         </button>
 
         <div v-if="hasExtra" ref="extraRef" class="rs-tabs__extra">
@@ -552,19 +712,25 @@ function onDragEnd(): void {
       </div>
 
       <template v-if="!panelless">
-        <TabsContent
-          v-for="item in items"
-          :key="`panel-${item.value}`"
-          :value="item.value"
-          class="rs-tabs__panel"
-        >
-          <div class="rs-tabs__panel-inner">
-            <slot :name="item.value" />
+        <template v-for="item in items" :key="`panel-${item.value}`">
+          <div
+            v-if="panelVisible(item.value)"
+            :id="tabPanelId(rootId, item.value)"
+            role="tabpanel"
+            class="rs-tabs__panel"
+            :hidden="item.value !== model"
+            :data-state="item.value === model ? 'active' : 'inactive'"
+            :aria-labelledby="tabTriggerId(rootId, item.value)"
+            :tabindex="item.value === model ? 0 : undefined"
+          >
+            <div class="rs-tabs__panel-inner">
+              <slot :name="item.value" />
+            </div>
           </div>
-        </TabsContent>
+        </template>
       </template>
     </div>
-  </TabsRoot>
+  </div>
 </template>
 
 <style>
@@ -572,14 +738,16 @@ function onDragEnd(): void {
   display: flex;
   flex-direction: column;
   width: 100%;
-  /* 标题与内容间距；可由 contentGap 或样式覆盖 */
   --rs-tabs-content-gap: 0px;
 }
 
-/* 非激活面板必须彻底隐藏，避免多页内容叠层 */
 .rs-tabs__panel[data-state='inactive'],
 .rs-tabs__panel[hidden] {
   display: none !important;
+}
+
+.rs-tabs__panel {
+  outline: none;
 }
 
 .rs-tabs__shell,
@@ -645,10 +813,10 @@ function onDragEnd(): void {
 .rs-tabs__trigger {
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
+  gap: var(--rs-tabs-trigger-gap);
   border: none;
   background: transparent;
-  color: var(--rs-muted);
+  color: var(--rs-tabs-text);
   font-size: var(--rs-font-size-sm);
   line-height: var(--rs-line-height-tight);
   white-space: nowrap;
@@ -666,7 +834,7 @@ function onDragEnd(): void {
 }
 
 .rs-tabs__trigger:disabled {
-  opacity: 0.38;
+  opacity: var(--rs-tabs-disabled-opacity);
   cursor: not-allowed;
 }
 
@@ -675,20 +843,29 @@ function onDragEnd(): void {
 }
 
 .rs-tabs__trigger--drag-over {
-  box-shadow: inset 0 -2px 0 0 var(--rs-primary);
+  box-shadow: inset 0 -2px 0 0 var(--rs-tabs-ink);
 }
 
 .rs-tabs__trigger--fixed {
   font-weight: var(--rs-font-weight-medium);
 }
 
-.rs-tabs--draggable .rs-tabs__trigger--movable {
-  cursor: grab;
-}
-
+.rs-tabs--draggable .rs-tabs__trigger--movable,
 .rs-tabs--draggable .rs-tabs__trigger--movable:active,
 .rs-tabs--draggable .rs-tabs__trigger--dragging {
-  cursor: grabbing;
+  cursor: move;
+}
+
+.rs-tabs__drag {
+  display: inline-flex;
+  width: 0.5rem;
+  height: 0.75rem;
+  flex: 0 0 auto;
+  color: var(--rs-tabs-text);
+  opacity: 0.45;
+  background-image: radial-gradient(circle, currentColor 1px, transparent 1.15px);
+  background-size: 3px 3.333px;
+  background-repeat: repeat;
 }
 
 .rs-tabs__pin {
@@ -704,14 +881,14 @@ function onDragEnd(): void {
 
 .rs-tabs__label {
   min-width: 0;
-  max-width: 12rem;
+  max-width: var(--rs-tabs-label-max);
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .rs-tabs__rename-input {
   width: 6.5rem;
-  max-width: 12rem;
+  max-width: var(--rs-tabs-label-max);
   min-height: 1.5rem;
   padding: 0 0.375rem;
   border: 1px solid var(--rs-border);
@@ -730,8 +907,8 @@ function onDragEnd(): void {
 .rs-tabs__badge {
   padding: 0 0.375rem;
   border-radius: var(--rs-radius-full);
-  background: var(--rs-surface-hover);
-  color: var(--rs-muted);
+  background: var(--rs-tabs-badge-bg);
+  color: var(--rs-tabs-text);
   font-size: var(--rs-font-size-xs);
   font-weight: var(--rs-font-weight-medium);
   font-variant-numeric: tabular-nums;
@@ -739,25 +916,24 @@ function onDragEnd(): void {
 }
 
 .rs-tabs__trigger[data-state='active'] .rs-tabs__badge {
-  background: color-mix(in srgb, var(--rs-primary) 12%, transparent);
-  color: var(--rs-primary);
+  background: var(--rs-tabs-badge-active-bg);
+  color: var(--rs-tabs-text-active);
 }
 
 .rs-tabs__close {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1rem;
-  height: 1rem;
+  width: var(--rs-tabs-close-size);
+  height: var(--rs-tabs-close-size);
   flex: 0 0 auto;
   margin-inline-start: 0.125rem;
   padding: 0;
   border: none;
   border-radius: var(--rs-radius-xs);
   background: transparent;
-  color: var(--rs-muted);
+  color: var(--rs-tabs-text);
   cursor: pointer;
-  /* 非激活：默认隐藏，悬停标签时再显示；占位保留避免宽度跳动 */
   opacity: 0;
   pointer-events: none;
   transition:
@@ -792,11 +968,10 @@ function onDragEnd(): void {
 .rs-tabs__trigger:hover .rs-tabs__close:disabled,
 .rs-tabs__trigger:focus-within .rs-tabs__close:disabled,
 .rs-tabs__trigger[data-state='active'] .rs-tabs__close:disabled {
-  opacity: 0.38;
+  opacity: var(--rs-tabs-disabled-opacity);
   pointer-events: none;
 }
 
-/* 触摸设备无悬停：可关闭标签始终显示关闭按钮 */
 @media (hover: none) {
   .rs-tabs__close {
     opacity: 0.85;
@@ -809,7 +984,7 @@ function onDragEnd(): void {
 
   .rs-tabs__close:disabled,
   .rs-tabs__trigger[data-state='active'] .rs-tabs__close:disabled {
-    opacity: 0.38;
+    opacity: var(--rs-tabs-disabled-opacity);
     pointer-events: none;
   }
 }
@@ -825,7 +1000,7 @@ function onDragEnd(): void {
   border: none;
   border-radius: var(--rs-radius-xs);
   background: transparent;
-  color: var(--rs-muted);
+  color: var(--rs-tabs-text);
   cursor: pointer;
   transition:
     color var(--rs-transition-fast),
@@ -840,7 +1015,7 @@ function onDragEnd(): void {
 
 .rs-tabs__add:hover,
 .rs-tabs__scroll-btn:hover {
-  color: var(--rs-primary);
+  color: var(--rs-tabs-text-active);
   background: var(--rs-surface-hover);
 }
 
@@ -852,7 +1027,7 @@ function onDragEnd(): void {
   gap: var(--rs-space-xs);
   margin-inline-start: auto;
   padding-inline: var(--rs-space-sm);
-  border-inline-start: 1px solid var(--rs-border-subtle);
+  border-inline-start: 1px solid var(--rs-tabs-border-subtle);
 }
 
 .rs-tabs__overflow-wrap {
@@ -862,7 +1037,7 @@ function onDragEnd(): void {
   align-self: stretch;
   margin-inline-start: var(--rs-space-xs);
   padding-inline-start: var(--rs-space-sm);
-  border-inline-start: 1px solid var(--rs-border-subtle);
+  border-inline-start: 1px solid var(--rs-tabs-border-subtle);
 }
 
 .rs-tabs__more {
@@ -874,7 +1049,7 @@ function onDragEnd(): void {
   border: none;
   border-radius: 0;
   background: transparent;
-  color: var(--rs-muted);
+  color: var(--rs-tabs-text);
   font-size: var(--rs-font-size-sm);
   line-height: var(--rs-line-height-tight);
   white-space: nowrap;
@@ -886,7 +1061,7 @@ function onDragEnd(): void {
 }
 
 .rs-tabs__more:hover {
-  color: var(--rs-text);
+  color: var(--rs-tabs-text-hover);
 }
 
 .rs-tabs__more:focus-visible {
@@ -899,7 +1074,7 @@ function onDragEnd(): void {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 7rem;
+  max-width: var(--rs-tabs-more-label-max);
 }
 
 .rs-tabs__more-icon {
@@ -909,63 +1084,28 @@ function onDragEnd(): void {
 }
 
 .rs-tabs__more--active {
-  color: var(--rs-primary);
+  color: var(--rs-tabs-text-active);
   font-weight: var(--rs-font-weight-medium);
-}
-
-.rs-tabs__more-menu {
-  z-index: var(--rs-z-dropdown);
-  min-width: 8rem;
-  max-width: 14rem;
-  padding: var(--rs-space-xs);
-  border-radius: var(--rs-radius);
-  border: 1px solid var(--rs-border);
-  background: var(--rs-surface-elevated);
-  box-shadow: var(--rs-shadow);
-  outline: none;
-}
-
-.rs-tabs__more-item {
-  display: flex;
-  align-items: center;
-  padding: var(--rs-space-sm) var(--rs-space-md);
-  border-radius: var(--rs-radius-sm);
-  font-size: var(--rs-font-size-sm);
-  line-height: var(--rs-line-height-tight);
-  color: var(--rs-text);
-  cursor: pointer;
-  outline: none;
-}
-
-.rs-tabs__more-item[data-highlighted] {
-  background: var(--rs-item-hover);
-  color: var(--rs-text);
-}
-
-.rs-tabs__more-item--active {
-  color: var(--rs-primary);
-  font-weight: var(--rs-font-weight-medium);
-  background: color-mix(in srgb, var(--rs-primary) 12%, transparent);
 }
 
 /* —— line —— */
 .rs-tabs--line .rs-tabs__body {
-  border: 1px solid var(--rs-border);
+  border: 1px solid var(--rs-tabs-border);
   border-radius: var(--rs-radius);
-  background: var(--rs-surface);
+  background: var(--rs-tabs-surface);
   overflow: hidden;
 }
 
 .rs-tabs--line .rs-tabs__list {
   gap: 0;
   padding: 0 var(--rs-space-sm);
-  border-bottom: 1px solid var(--rs-border-subtle);
+  border-bottom: 1px solid var(--rs-tabs-border-subtle);
 }
 
 .rs-tabs--dropdown-overflow.rs-tabs--line .rs-tabs__nav {
   align-items: stretch;
   padding-inline: 0;
-  border-bottom: 1px solid var(--rs-border-subtle);
+  border-bottom: 1px solid var(--rs-tabs-border-subtle);
 }
 
 .rs-tabs--dropdown-overflow.rs-tabs--line .rs-tabs__list {
@@ -988,15 +1128,20 @@ function onDragEnd(): void {
   position: absolute;
   inset-inline: var(--rs-space-sm);
   bottom: 0;
-  height: 2px;
+  height: var(--rs-tabs-ink-size);
   border-radius: 2px 2px 0 0;
-  background: var(--rs-primary);
+  background: var(--rs-tabs-ink);
 }
 
 .rs-tabs--line.rs-tabs--sm .rs-tabs__more {
   min-height: var(--rs-control-height-sm);
   padding: 0 var(--rs-space-sm);
   font-size: var(--rs-font-size-xs);
+}
+
+.rs-tabs--line.rs-tabs--lg .rs-tabs__more {
+  min-height: var(--rs-control-height-lg);
+  padding: 0 var(--rs-space-lg);
 }
 
 .rs-tabs--line .rs-tabs__trigger {
@@ -1016,6 +1161,12 @@ function onDragEnd(): void {
   padding: 0 var(--rs-space-md);
 }
 
+.rs-tabs--line.rs-tabs--lg .rs-tabs__trigger {
+  min-height: var(--rs-control-height-lg);
+  padding: 0 var(--rs-space-lg);
+  font-size: var(--rs-font-size-base);
+}
+
 .rs-tabs--line .rs-tabs__add,
 .rs-tabs--line .rs-tabs__scroll-btn,
 .rs-tabs--line .rs-tabs__extra {
@@ -1028,12 +1179,18 @@ function onDragEnd(): void {
   min-height: var(--rs-control-height-sm);
 }
 
+.rs-tabs--line.rs-tabs--lg .rs-tabs__add,
+.rs-tabs--line.rs-tabs--lg .rs-tabs__scroll-btn,
+.rs-tabs--line.rs-tabs--lg .rs-tabs__extra {
+  min-height: var(--rs-control-height-lg);
+}
+
 .rs-tabs--line .rs-tabs__trigger:hover:not(:disabled):not([data-state='active']) {
-  color: var(--rs-text);
+  color: var(--rs-tabs-text-hover);
 }
 
 .rs-tabs--line .rs-tabs__trigger[data-state='active'] {
-  color: var(--rs-primary);
+  color: var(--rs-tabs-text-active);
   font-weight: var(--rs-font-weight-medium);
 }
 
@@ -1042,9 +1199,9 @@ function onDragEnd(): void {
   position: absolute;
   inset-inline: var(--rs-space-sm);
   bottom: 0;
-  height: 2px;
+  height: var(--rs-tabs-ink-size);
   border-radius: 2px 2px 0 0;
-  background: var(--rs-primary);
+  background: var(--rs-tabs-ink);
 }
 
 .rs-tabs--line .rs-tabs__panel-inner {
@@ -1059,9 +1216,14 @@ function onDragEnd(): void {
   font-size: var(--rs-font-size-xs);
 }
 
+.rs-tabs--line.rs-tabs--lg .rs-tabs__panel-inner {
+  padding: var(--rs-space-lg) var(--rs-space-xl);
+  font-size: var(--rs-font-size-base);
+}
+
 .rs-tabs--line.rs-tabs--panelless .rs-tabs__nav {
-  border-bottom: 1px solid var(--rs-border);
-  background: var(--rs-surface);
+  border-bottom: 1px solid var(--rs-tabs-border);
+  background: var(--rs-tabs-surface);
 }
 
 .rs-tabs--line.rs-tabs--panelless .rs-tabs__list {
@@ -1074,9 +1236,9 @@ function onDragEnd(): void {
 
 /* —— segmented —— */
 .rs-tabs--segmented .rs-tabs__body {
-  border: 1px solid var(--rs-border);
+  border: 1px solid var(--rs-tabs-border);
   border-radius: var(--rs-radius);
-  background: var(--rs-surface);
+  background: var(--rs-tabs-surface);
   overflow: hidden;
 }
 
@@ -1087,7 +1249,7 @@ function onDragEnd(): void {
   margin: var(--rs-space-sm);
   padding: 0.25rem;
   border-radius: var(--rs-radius-sm);
-  background: var(--rs-surface-hover);
+  background: var(--rs-tabs-segmented-track);
 }
 
 .rs-tabs--segmented .rs-tabs__trigger {
@@ -1105,14 +1267,20 @@ function onDragEnd(): void {
   padding: 0 0.75rem;
 }
 
+.rs-tabs--segmented.rs-tabs--lg .rs-tabs__trigger {
+  min-height: var(--rs-control-height-lg);
+  padding: 0 var(--rs-space-lg);
+  font-size: var(--rs-font-size-base);
+}
+
 .rs-tabs--segmented .rs-tabs__trigger:hover:not(:disabled):not([data-state='active']) {
-  color: var(--rs-text);
-  background: var(--rs-surface);
+  color: var(--rs-tabs-text-hover);
+  background: var(--rs-tabs-surface);
 }
 
 .rs-tabs--segmented .rs-tabs__trigger[data-state='active'] {
-  color: var(--rs-primary);
-  background: var(--rs-surface);
+  color: var(--rs-tabs-text-active);
+  background: var(--rs-tabs-surface);
   font-weight: var(--rs-font-weight-medium);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--rs-text) 8%, transparent);
 }
@@ -1126,14 +1294,14 @@ function onDragEnd(): void {
 
 .rs-tabs--segmented.rs-tabs--panelless .rs-tabs__list {
   margin: 0;
-  background: var(--rs-surface-hover);
+  background: var(--rs-tabs-segmented-track);
 }
 
-/* —— card（Ant editable-card） —— */
+/* —— card —— */
 .rs-tabs--card .rs-tabs__body {
-  border: 1px solid var(--rs-border);
+  border: 1px solid var(--rs-tabs-border);
   border-radius: var(--rs-radius);
-  background: var(--rs-surface);
+  background: var(--rs-tabs-surface);
   overflow: hidden;
 }
 
@@ -1161,24 +1329,30 @@ function onDragEnd(): void {
   padding: 0 var(--rs-space-md);
 }
 
+.rs-tabs--card.rs-tabs--lg .rs-tabs__trigger {
+  min-height: var(--rs-control-height-lg);
+  padding: 0 var(--rs-space-lg);
+  font-size: var(--rs-font-size-base);
+}
+
 .rs-tabs--card .rs-tabs__trigger:hover:not(:disabled):not([data-state='active']) {
-  color: var(--rs-text);
-  background: var(--rs-surface);
-  border-color: var(--rs-border-subtle);
+  color: var(--rs-tabs-text-hover);
+  background: var(--rs-tabs-surface);
+  border-color: var(--rs-tabs-border-subtle);
 }
 
 .rs-tabs--card .rs-tabs__trigger[data-state='active'] {
-  color: var(--rs-primary);
+  color: var(--rs-tabs-text-active);
   font-weight: var(--rs-font-weight-medium);
-  background: var(--rs-surface);
-  border-color: var(--rs-border);
+  background: var(--rs-tabs-surface);
+  border-color: var(--rs-tabs-border);
   margin-bottom: -1px;
   z-index: 1;
 }
 
 .rs-tabs--card .rs-tabs__panel-inner {
   padding: var(--rs-space-md) var(--rs-space-lg);
-  border-top: 1px solid var(--rs-border-subtle);
+  border-top: 1px solid var(--rs-tabs-border-subtle);
   color: var(--rs-text);
   font-size: var(--rs-font-size-sm);
   line-height: var(--rs-line-height-normal);
@@ -1194,7 +1368,6 @@ function onDragEnd(): void {
   border-inline-start: none;
 }
 
-/* —— contentGap：标题与内容间距（borderless 默认 0，业务可设 sm/md/lg/xl） —— */
 .rs-tabs--content-gap-sm {
   --rs-tabs-content-gap: var(--rs-space-sm);
 }
@@ -1211,7 +1384,6 @@ function onDragEnd(): void {
   --rs-tabs-content-gap: var(--rs-space-xl);
 }
 
-/* —— borderless：无外框 / 无导航底色（业务用具名插槽，无需 :deep） —— */
 .rs-tabs--borderless.rs-tabs--line .rs-tabs__body,
 .rs-tabs--borderless.rs-tabs--segmented .rs-tabs__body,
 .rs-tabs--borderless.rs-tabs--card .rs-tabs__body {
@@ -1249,14 +1421,13 @@ function onDragEnd(): void {
 }
 
 .rs-tabs--borderless .rs-tabs__panel-inner {
-  padding-top: var(--rs-tabs-content-gap);
+  padding-block-start: var(--rs-tabs-content-gap);
 }
 
 .rs-tabs--borderless.rs-tabs--card .rs-tabs__panel-inner {
   border-top: none;
 }
 
-/* —— justify：标签栏对齐（stretch/evenly 铺满，免业务 :deep） —— */
 .rs-tabs--justify-center .rs-tabs__list {
   justify-content: center;
 }
@@ -1279,5 +1450,155 @@ function onDragEnd(): void {
 
 .rs-tabs--justify-stretch.rs-tabs--line .rs-tabs__trigger[data-state='active']::after {
   inset-inline: 18%;
+}
+
+/* —— position：底 / 左 / 右 —— */
+.rs-tabs--position-bottom .rs-tabs__body,
+.rs-tabs--position-bottom .rs-tabs__shell {
+  flex-direction: column-reverse;
+}
+
+.rs-tabs--position-left .rs-tabs__body,
+.rs-tabs--position-left .rs-tabs__shell,
+.rs-tabs--position-right .rs-tabs__body,
+.rs-tabs--position-right .rs-tabs__shell {
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.rs-tabs--position-right .rs-tabs__body,
+.rs-tabs--position-right .rs-tabs__shell {
+  flex-direction: row-reverse;
+}
+
+.rs-tabs--vertical .rs-tabs__nav {
+  flex-direction: column;
+  width: auto;
+  min-width: var(--rs-tabs-rail-min);
+  max-width: var(--rs-tabs-rail-max);
+}
+
+.rs-tabs--vertical .rs-tabs__nav-viewport {
+  min-height: 0;
+}
+
+.rs-tabs--vertical.rs-tabs--scrollable .rs-tabs__nav-viewport {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.rs-tabs--vertical .rs-tabs__list {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.rs-tabs--vertical .rs-tabs__extra {
+  margin-inline-start: 0;
+  margin-block-start: auto;
+  border-inline-start: none;
+  border-block-start: 1px solid var(--rs-tabs-border-subtle);
+}
+
+.rs-tabs--vertical .rs-tabs__overflow-wrap {
+  margin-inline-start: 0;
+  padding-inline-start: 0;
+  border-inline-start: none;
+  border-block-start: 1px solid var(--rs-tabs-border-subtle);
+}
+
+.rs-tabs--position-left.rs-tabs--line .rs-tabs__list,
+.rs-tabs--position-left.rs-tabs--line.rs-tabs--panelless .rs-tabs__nav,
+.rs-tabs--position-left.rs-tabs--dropdown-overflow.rs-tabs--line .rs-tabs__nav {
+  border-bottom: none;
+  border-inline-end: 1px solid var(--rs-tabs-border-subtle);
+}
+
+.rs-tabs--position-right.rs-tabs--line .rs-tabs__list,
+.rs-tabs--position-right.rs-tabs--line.rs-tabs--panelless .rs-tabs__nav,
+.rs-tabs--position-right.rs-tabs--dropdown-overflow.rs-tabs--line .rs-tabs__nav {
+  border-bottom: none;
+  border-inline-start: 1px solid var(--rs-tabs-border-subtle);
+}
+
+.rs-tabs--position-bottom.rs-tabs--line .rs-tabs__list,
+.rs-tabs--position-bottom.rs-tabs--line.rs-tabs--panelless .rs-tabs__nav {
+  border-bottom: none;
+  border-top: 1px solid var(--rs-tabs-border-subtle);
+}
+
+.rs-tabs--vertical.rs-tabs--line .rs-tabs__trigger {
+  margin-bottom: 0;
+  width: 100%;
+}
+
+.rs-tabs--position-left.rs-tabs--line .rs-tabs__trigger[data-state='active']::after {
+  inset-inline: auto;
+  inset-inline-end: 0;
+  top: 18%;
+  bottom: 18%;
+  width: var(--rs-tabs-ink-size);
+  height: auto;
+  border-radius: 2px 0 0 2px;
+}
+
+.rs-tabs--position-right.rs-tabs--line .rs-tabs__trigger[data-state='active']::after {
+  inset-inline: auto;
+  inset-inline-start: 0;
+  top: 18%;
+  bottom: 18%;
+  width: var(--rs-tabs-ink-size);
+  height: auto;
+  border-radius: 0 2px 2px 0;
+}
+
+.rs-tabs--position-bottom.rs-tabs--line .rs-tabs__trigger[data-state='active']::after {
+  bottom: auto;
+  top: 0;
+  border-radius: 0 0 2px 2px;
+}
+
+.rs-tabs--vertical.rs-tabs--card .rs-tabs__list {
+  padding: var(--rs-space-sm) 0 var(--rs-space-sm) var(--rs-space-sm);
+}
+
+.rs-tabs--position-right.rs-tabs--card .rs-tabs__list {
+  padding: var(--rs-space-sm) var(--rs-space-sm) var(--rs-space-sm) 0;
+}
+
+.rs-tabs--vertical.rs-tabs--card .rs-tabs__trigger {
+  border-bottom: 1px solid transparent;
+  border-radius: var(--rs-radius-sm) 0 0 var(--rs-radius-sm);
+  margin-inline-end: -1px;
+}
+
+.rs-tabs--position-right.rs-tabs--card .rs-tabs__trigger {
+  border-radius: 0 var(--rs-radius-sm) var(--rs-radius-sm) 0;
+  margin-inline-end: 0;
+  margin-inline-start: -1px;
+}
+
+.rs-tabs--vertical.rs-tabs--card .rs-tabs__panel-inner {
+  border-top: none;
+  border-inline-start: 1px solid var(--rs-tabs-border-subtle);
+}
+
+.rs-tabs--position-right.rs-tabs--card .rs-tabs__panel-inner {
+  border-inline-start: none;
+  border-inline-end: 1px solid var(--rs-tabs-border-subtle);
+}
+
+.rs-tabs--vertical .rs-tabs__scroll-btn .rs-icon {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rs-tabs__trigger,
+  .rs-tabs__close,
+  .rs-tabs__add,
+  .rs-tabs__scroll-btn,
+  .rs-tabs__more {
+    transition: none;
+  }
 }
 </style>

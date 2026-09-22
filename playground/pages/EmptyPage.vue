@@ -6,9 +6,21 @@ import DemoPage from '../components/DemoPage.vue'
 
 <template>
   <DemoPage title="RsEmpty" test-file="RsEmpty.spec.ts">
+    <DemoBlock title="locale 默认文案">
+      <p class="hint">
+        未传 <code>description</code> 走 <code>empty.description</code>；
+        <code>preset="search"</code> 走 <code>empty.search</code>。组件不内置业务文案。
+      </p>
+      <div class="stack">
+        <RsEmpty />
+        <RsEmpty preset="simple" />
+        <RsEmpty preset="search" />
+      </div>
+    </DemoBlock>
+
     <DemoBlock title="仅描述">
       <p class="hint">
-        <code>description</code> 为必填，由业务方传入文案；组件不内置 i18n。
+        <code>description</code> 由业务方传入；显式空字符串隐藏说明。
       </p>
       <RsEmpty description="暂无数据，稍后再来看看。" />
     </DemoBlock>
@@ -18,6 +30,15 @@ import DemoPage from '../components/DemoPage.vue'
         title="还没有项目"
         description="创建第一个项目，开始协作与发布流程。"
       />
+    </DemoBlock>
+
+    <DemoBlock title="尺寸">
+      <p class="hint">三档 <code>sm | md | lg</code>，没有 ssm，不跟 Form。</p>
+      <div class="stack">
+        <RsEmpty size="sm" description="表格内紧凑空态。" />
+        <RsEmpty size="md" description="默认密度。" />
+        <RsEmpty size="lg" description="整页空态。" />
+      </div>
     </DemoBlock>
 
     <DemoBlock title="自定义图标">
@@ -41,8 +62,19 @@ import DemoPage from '../components/DemoPage.vue'
       </div>
     </DemoBlock>
 
+    <DemoBlock title="自定义插图">
+      <p class="hint">
+        <code>#image</code> 整块替换、不带徽章底；<code>imageSize</code> 覆盖边长。
+      </p>
+      <RsEmpty image-size="72" description="用插图槽代替远程 URL。">
+        <template #image>
+          <RsIcon name="inbox" :size="36" label="插图" />
+        </template>
+      </RsEmpty>
+    </DemoBlock>
+
     <DemoBlock title="操作区（默认插槽）">
-      <p class="hint">主操作、次要操作放在默认插槽，通常配合 <code>RsButton</code>。</p>
+      <p class="hint">主操作、次要操作放在默认插槽，通常配合 <code>RsButton</code>。没有 <code>#extra</code>。</p>
       <RsEmpty
         title="暂无团队成员"
         description="邀请同事加入工作区，一起编辑与评审。"
@@ -50,10 +82,8 @@ import DemoPage from '../components/DemoPage.vue'
         <template #icon>
           <RsIcon name="users" :size="22" label="无成员" />
         </template>
-        <div class="actions">
-          <RsButton variant="default">了解权限</RsButton>
-          <RsButton>邀请成员</RsButton>
-        </div>
+        <RsButton variant="default">了解权限</RsButton>
+        <RsButton>邀请成员</RsButton>
       </RsEmpty>
     </DemoBlock>
 
@@ -149,12 +179,6 @@ import DemoPage from '../components/DemoPage.vue'
   display: flex;
   flex-direction: column;
   gap: 1rem;
-}
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.5rem;
 }
 .panel {
   padding: 0.75rem;

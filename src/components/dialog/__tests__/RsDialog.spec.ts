@@ -1,8 +1,11 @@
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { defineComponent, h, ref } from 'vue'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import RsConfigProvider from '../../config-provider/src/RsConfigProvider.vue'
 import RsDialog from '../src/RsDialog.vue'
+import { resetDialogGuardsForTests } from '../src/dialog-utils'
 
 async function flushAnimationFrames(count = 2): Promise<void> {
   for (let i = 0; i < count; i += 1) {
@@ -14,7 +17,10 @@ async function flushAnimationFrames(count = 2): Promise<void> {
 
 describe('RsDialog', () => {
   afterEach(() => {
+    resetDialogGuardsForTests()
     document.body.innerHTML = ''
+    document.body.style.overflow = ''
+    document.body.style.paddingInlineEnd = ''
   })
   it('renders title, description, and body slot when open', async () => {
     const wrapper = mount(RsDialog, {
@@ -413,6 +419,28 @@ describe('RsDialog', () => {
     target.remove()
   })
 
+  it('defers teleport until a sibling target rendered by Vue is mounted', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const Host = defineComponent({
+      components: { RsDialog },
+      setup() {
+        const open = ref(true)
+        return { open }
+      },
+      template:
+        '<div id="rs-dialog-sibling-target"></div><RsDialog :open="open" teleport-to="#rs-dialog-sibling-target" title="Sibling" />',
+    })
+
+    const wrapper = mount(Host, { attachTo: document.body })
+    await flushPromises()
+
+    const dock = document.getElementById('rs-dialog-sibling-target')
+    expect(dock?.querySelector('.rs-dialog__content')).not.toBeNull()
+    expect(warn.mock.calls.some((call) => String(call[0]).includes('Teleport'))).toBe(false)
+    warn.mockRestore()
+    wrapper.unmount()
+  })
+
   it('re-teleports to body while fullscreen, then restores custom target', async () => {
     const target = document.createElement('div')
     target.id = 'rs-dialog-fullscreen-target'
@@ -456,7 +484,8 @@ describe('RsDialog', () => {
     target.remove()
   })
 
-  it('passes modal=false to DialogRoot for non-modal usage', async () => {
+  it('does not mark a non-modal dialog as a modal or lock scroll', async () => {
+    document.body.style.overflow = 'scroll'
     const wrapper = mount(RsDialog, {
       props: {
         open: true,
@@ -466,12 +495,16 @@ describe('RsDialog', () => {
       attachTo: document.body,
     })
     await flushPromises()
-    const root = wrapper.findComponent({ name: 'DialogRoot' })
-    expect(root.props('modal')).toBe(false)
+    const content = document.body.querySelector('.rs-dialog__content')
+    expect(content?.tagName).toBe('DIALOG')
+    expect(content?.hasAttribute('open')).toBe(true)
+    expect(content?.getAttribute('aria-modal')).toBe('false')
+    expect(document.body.querySelector('.rs-dialog__backdrop')).toBeNull()
+    expect(document.body.style.overflow).toBe('scroll')
     wrapper.unmount()
   })
 
-  it('prevents dismiss on outside interact for non-modal when closeOnOverlayClick is false', async () => {
+  it('keeps a non-modal dialog open when the pointer goes outside and closeOnOverlayClick is false', async () => {
     const wrapper = mount(RsDialog, {
       props: {
         open: true,
@@ -482,15 +515,13 @@ describe('RsDialog', () => {
       attachTo: document.body,
     })
     await flushPromises()
-    const content = wrapper.findComponent({ name: 'DialogContent' })
-    const vnodeProps = content.vm.$.vnode.props as Record<string, unknown> | null
-    const onOutside =
-      (vnodeProps?.onPointerDownOutside as ((e: Event) => void) | undefined) ??
-      (vnodeProps?.['onPointer-down-outside'] as ((e: Event) => void) | undefined)
-    expect(typeof onOutside).toBe('function')
-    const event = new Event('pointerdown', { cancelable: true })
-    onOutside!(event)
-    expect(event.defaultPrevented).toBe(true)
+    const outside = document.createElement('button')
+    outside.type = 'button'
+    document.body.appendChild(outside)
+    const event = new PointerEvent('pointerdown', { bubbles: true, cancelable: true })
+    outside.dispatchEvent(event)
+    await flushPromises()
+    expect(event.defaultPrevented).toBe(false)
     expect(wrapper.props('open')).toBe(true)
     wrapper.unmount()
   })
@@ -622,6 +653,166 @@ describe('RsDialog', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
     await flushPromises()
     expect(wrapper.findComponent(RsDialog).props('open')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('does not import or render reka-ui', async () => {
+    const source = readFileSync(path.resolve('src/components/dialog/src/RsDialog.vue'), 'utf8')
+    expect(source).not.toContain('reka-ui')
+    expect(source).not.toContain("from '../../_shared/src/reka'")
+    const wrapper = mount(RsDialog, {
+      props: { open: true, title: '原生', fullscreenable: false, deferBodyMount: false },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const content = document.body.querySelector('.rs-dialog__content')
+    expect(content?.tagName).toBe('DIALOG')
+    expect(content?.hasAttribute('open')).toBe(true)
+    expect(content?.getAttribute('aria-modal')).toBe('true')
+    expect(document.body.innerHTML.toLowerCase()).not.toContain('reka')
+    wrapper.unmount()
+  })
+
+  it('renders the default slot when body is omitted', async () => {
+    const wrapper = mount(RsDialog, {
+      props: { open: true, title: '默认插槽', fullscreenable: false, deferBodyMount: false },
+      slots: { default: '<p class="slot-body">默认正文</p>' },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    expect(document.body.querySelector('.slot-body')?.textContent).toBe('默认正文')
+    wrapper.unmount()
+  })
+
+  it('locks body scroll while modal and restores it on unmount', async () => {
+    document.body.style.overflow = 'scroll'
+    const wrapper = mount(RsDialog, {
+      props: { open: true, title: '锁滚动', fullscreenable: false },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    expect(document.body.style.overflow).toBe('hidden')
+    expect(document.body.querySelector('.rs-dialog__backdrop')).not.toBeNull()
+    wrapper.unmount()
+    expect(document.body.style.overflow).toBe('scroll')
+  })
+
+  it('does not lock scroll when lockScroll is false', async () => {
+    document.body.style.overflow = 'auto'
+    const wrapper = mount(RsDialog, {
+      props: { open: true, title: '不锁', fullscreenable: false, lockScroll: false },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    expect(document.body.style.overflow).toBe('auto')
+    wrapper.unmount()
+  })
+
+  it('keeps Escape from closing when closeOnEsc is false', async () => {
+    const Host = defineComponent({
+      components: { RsDialog },
+      setup() {
+        const open = ref(true)
+        return { open }
+      },
+      template: '<RsDialog v-model:open="open" title="Stay" :fullscreenable="false" :close-on-esc="false" />',
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await flushPromises()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+    await flushPromises()
+    expect(wrapper.findComponent(RsDialog).props('open')).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('closes only the top dialog when two are open', async () => {
+    const Host = defineComponent({
+      components: { RsDialog },
+      setup() {
+        const first = ref(true)
+        const second = ref(true)
+        return { first, second }
+      },
+      template: `
+        <RsDialog v-model:open="first" title="First" :fullscreenable="false" />
+        <RsDialog v-model:open="second" title="Second" :fullscreenable="false" />
+      `,
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await flushPromises()
+    expect(document.body.querySelectorAll('.rs-dialog__content').length).toBe(2)
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+    await flushPromises()
+    expect(wrapper.vm.second).toBe(false)
+    expect(wrapper.vm.first).toBe(true)
+    expect(document.body.querySelector('.rs-dialog__content')?.textContent).toContain('First')
+    wrapper.unmount()
+  })
+
+  it('wraps Tab inside a modal dialog', async () => {
+    const wrapper = mount(RsDialog, {
+      props: { open: true, title: 'Tab', fullscreenable: false, deferBodyMount: false },
+      slots: {
+        body: '<button type="button" class="one">One</button><button type="button" class="two">Two</button>',
+      },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const content = document.body.querySelector('.rs-dialog__content') as HTMLElement
+    const buttons = [...content.querySelectorAll('button')]
+    const last = buttons[buttons.length - 1] as HTMLButtonElement
+    const first = buttons[0] as HTMLButtonElement
+    last.focus()
+    const forward = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+    document.dispatchEvent(forward)
+    expect(forward.defaultPrevented).toBe(true)
+    expect(document.activeElement).toBe(first)
+    const backward = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true, shiftKey: true })
+    document.dispatchEvent(backward)
+    expect(document.activeElement).toBe(last)
+    wrapper.unmount()
+  })
+
+  it('restores focus to the trigger after close', async () => {
+    const trigger = document.createElement('button')
+    trigger.type = 'button'
+    trigger.textContent = 'Open'
+    document.body.appendChild(trigger)
+    trigger.focus()
+    const wrapper = mount(RsDialog, {
+      props: { open: false, title: 'Focus', fullscreenable: false },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    wrapper.vm.openDialog()
+    await flushPromises()
+    expect(document.activeElement).toBe(document.body.querySelector('.rs-dialog__content'))
+    await wrapper.vm.close()
+    await flushPromises()
+    expect(document.activeElement).toBe(trigger)
+    wrapper.unmount()
+  })
+
+  it('focuses an autofocus field inside the body', async () => {
+    const wrapper = mount(RsDialog, {
+      props: { open: true, title: 'Field', layout: 'form', fullscreenable: false, deferBodyMount: false },
+      slots: { default: '<input class="name" autofocus />' },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    expect(document.activeElement).toBe(document.body.querySelector('.name'))
+    wrapper.unmount()
+  })
+
+  it('exposes focus()', async () => {
+    const wrapper = mount(RsDialog, {
+      props: { open: true, title: 'Focus method', fullscreenable: false },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    document.body.focus()
+    wrapper.vm.focus()
+    expect(document.activeElement).toBe(document.body.querySelector('.rs-dialog__content'))
     wrapper.unmount()
   })
 })

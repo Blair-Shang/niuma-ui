@@ -3,9 +3,12 @@ import {
   applySplitResize,
   collapseSplitPane,
   expandSplitPane,
+  invertSplitAxisDelta,
   isSplitPaneCollapsed,
+  isSplitResizerInteractive,
   normalizeSplitSizes,
   resolveSplitConstraints,
+  splitPaneDomId,
   splitSizesEqual,
   type RsSplitPaneItem,
 } from '../src/split-pane-utils'
@@ -153,5 +156,27 @@ describe('splitSizesEqual', () => {
     expect(splitSizesEqual([50, 50], [50.005, 49.995])).toBe(true)
     expect(splitSizesEqual([50, 50], [60, 40])).toBe(false)
     expect(splitSizesEqual([50], [50, 50])).toBe(false)
+  })
+})
+
+describe('invertSplitAxisDelta', () => {
+  it('negates horizontal delta in RTL so the sash follows the pointer', () => {
+    expect(invertSplitAxisDelta('horizontal', true, 10)).toBe(-10)
+    expect(invertSplitAxisDelta('horizontal', false, 10)).toBe(10)
+    expect(invertSplitAxisDelta('vertical', true, 10)).toBe(10)
+  })
+})
+
+describe('splitPaneDomId', () => {
+  it('sanitizes keys for aria-controls', () => {
+    expect(splitPaneDomId('split', 'left/pane')).toBe('split-pane-left-pane')
+  })
+})
+
+describe('isSplitResizerInteractive', () => {
+  it('is off when the group is disabled or the pane sets resizable false', () => {
+    expect(isSplitResizerInteractive({ key: 'a' }, false)).toBe(true)
+    expect(isSplitResizerInteractive({ key: 'a', resizable: false }, false)).toBe(false)
+    expect(isSplitResizerInteractive({ key: 'a' }, true)).toBe(false)
   })
 })
