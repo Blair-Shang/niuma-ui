@@ -70,11 +70,21 @@ html {
   --rs-code-font-family: var(--rs-font-mono);
   --rs-code-font-size: var(--rs-font-size-sm);
   --rs-code-line-height: var(--rs-line-height-relaxed);
+  /* 行内编辑面板宽度。颜色不在这里，跟 data-rs-theme 的语义色。 */
+  --rs-code-editor-inline-width: 28rem;
 
   /* 富文本阅读面（RsProseEditor） */
   --rs-prose-font-family: var(--rs-font-serif);
   --rs-prose-font-size: var(--rs-font-size-base);
   --rs-prose-line-height: var(--rs-line-height-relaxed);
+
+  /* 日志排版。行高保持 1.45，虚拟行默认 24px 与之对齐。 */
+  --rs-log-font-family: var(--rs-font-mono);
+  --rs-log-font-size: var(--rs-font-size-xs);
+  --rs-log-line-height: 1.45;
+  --rs-log-marker-width: 0.2rem;
+  --rs-log-level-min: 3.6rem;
+  --rs-log-accent-width: 0.125rem;
 
   /* 终端排版（xterm 构造时读取；宿主可单独覆盖） */
   --rs-terminal-font-family: var(--rs-font-mono);
@@ -385,6 +395,23 @@ html {
   --rs-virtual-list-accent-width: 0.125rem;
   --rs-virtual-list-active-bg: color-mix(in srgb, var(--rs-primary) 14%, var(--rs-surface));
 
+  /* Monaco。语法色继承 vs / vs-dark，表面色跟主题 token。 */
+  --rs-monaco-border: var(--rs-border);
+  --rs-monaco-bg: var(--rs-surface-elevated);
+  --rs-monaco-fg: var(--rs-text-primary);
+  --rs-monaco-gutter: var(--rs-surface);
+  --rs-monaco-gutter-fg: var(--rs-text-tertiary);
+  --rs-monaco-line-highlight: var(--rs-surface-hover);
+  --rs-monaco-selection: var(--rs-primary-container);
+  --rs-monaco-widget-bg: var(--rs-surface-elevated);
+  --rs-monaco-widget-border: var(--rs-border);
+  --rs-monaco-radius: var(--rs-radius);
+  --rs-monaco-padding: 0.5rem;
+  --rs-monaco-scrollbar-size: 0.5rem;
+  --rs-monaco-glyph-width: 1rem;
+  --rs-monaco-decoration-width: 0.25rem;
+  --rs-monaco-disabled-opacity: 0.72;
+
   /* macOS 风格原生滚动条（与 RsScrollbar 视觉一致） */
   --rs-scrollbar-size: 13px;
   --rs-scrollbar-padding: 2px;
@@ -679,6 +706,17 @@ html {
   --rs-descriptions-label-fg: var(--rs-text-secondary);
   --rs-descriptions-value-fg: var(--rs-text-primary);
 
+  /* ── CodeBlock（只读代码；外壳跟语义 token，深色语法仍用 oneDark）── */
+  --rs-code-block-bg: var(--rs-surface-elevated);
+  --rs-code-block-fg: var(--rs-text-primary);
+  --rs-code-block-muted: var(--rs-text-tertiary);
+  --rs-code-block-border: var(--rs-border-subtle);
+  --rs-code-block-bar-bg: color-mix(in srgb, var(--rs-surface-elevated) 80%, var(--rs-border) 20%);
+  --rs-code-block-gutter: color-mix(in srgb, var(--rs-surface-elevated) 85%, var(--rs-border) 15%);
+  --rs-code-block-highlight: color-mix(in srgb, var(--rs-primary) 14%, transparent);
+  --rs-code-block-max-height: 32rem;
+  --rs-code-block-transition: 120ms;
+
   /* ── Card（macOS grouped panel / inset 分组卡片）── */
   --rs-card-border: #3a3a3a;
   --rs-card-separator: #484848;
@@ -756,6 +794,11 @@ html {
   --rs-log-fatal: var(--rs-danger);
   --rs-log-hit-bg: color-mix(in srgb, var(--rs-warning) 38%, var(--rs-log-bg));
   --rs-log-hit-fg: var(--rs-log-fg);
+  --rs-log-accent: var(--rs-primary);
+  --rs-log-active-bg: color-mix(in srgb, var(--rs-primary) 12%, var(--rs-log-bg));
+  --rs-log-chrome-bg: color-mix(in srgb, var(--rs-log-bg) 88%, var(--rs-surface-hover));
+  --rs-log-chip-on-bg: color-mix(in srgb, var(--rs-primary) 14%, transparent);
+  --rs-log-chip-on-border: color-mix(in srgb, var(--rs-primary) 45%, var(--rs-log-border));
 
   --rs-shadow-sm: 0 1px 3px rgb(0 0 0 / 0.4);
   --rs-shadow: 0 4px 16px rgb(0 0 0 / 0.45), 0 0 0 0.5px rgb(255 255 255 / 0.08);
@@ -1047,6 +1090,17 @@ html {
   --rs-descriptions-label-fg: var(--rs-text-secondary);
   --rs-descriptions-value-fg: var(--rs-text-primary);
 
+  /* ── CodeBlock（只读代码；外壳跟语义 token，深色语法仍用 oneDark）── */
+  --rs-code-block-bg: var(--rs-surface-elevated);
+  --rs-code-block-fg: var(--rs-text-primary);
+  --rs-code-block-muted: var(--rs-text-tertiary);
+  --rs-code-block-border: var(--rs-border-subtle);
+  --rs-code-block-bar-bg: color-mix(in srgb, var(--rs-surface-elevated) 80%, var(--rs-border) 20%);
+  --rs-code-block-gutter: color-mix(in srgb, var(--rs-surface-elevated) 85%, var(--rs-border) 15%);
+  --rs-code-block-highlight: color-mix(in srgb, var(--rs-primary) 14%, transparent);
+  --rs-code-block-max-height: 32rem;
+  --rs-code-block-transition: 120ms;
+
   /* ── Card（macOS systemGroupedBackground 上的圆角分组卡片）── */
   --rs-card-border: rgb(60 60 67 / 0.14);
   --rs-card-separator: #d4d4d6;
@@ -1122,6 +1176,11 @@ html {
   --rs-log-fatal: var(--rs-danger);
   --rs-log-hit-bg: color-mix(in srgb, var(--rs-warning) 32%, var(--rs-log-bg));
   --rs-log-hit-fg: var(--rs-log-fg);
+  --rs-log-accent: var(--rs-primary);
+  --rs-log-active-bg: color-mix(in srgb, var(--rs-primary) 12%, var(--rs-log-bg));
+  --rs-log-chrome-bg: color-mix(in srgb, var(--rs-log-bg) 88%, var(--rs-surface-hover));
+  --rs-log-chip-on-bg: color-mix(in srgb, var(--rs-primary) 14%, transparent);
+  --rs-log-chip-on-border: color-mix(in srgb, var(--rs-primary) 45%, var(--rs-log-border));
 
   --rs-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.04), 0 0 0 0.5px rgb(0 0 0 / 0.04);
   --rs-shadow: 0 4px 16px rgb(0 0 0 / 0.08), 0 0 0 0.5px rgb(0 0 0 / 0.06);

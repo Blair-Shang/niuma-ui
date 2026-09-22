@@ -156,6 +156,25 @@ describe('normalizeLogLines', () => {
     const rows = normalizeLogLines([{ id: 'j1', text: 'ok' }])
     expect(rows[0]?.key).toBe('j1')
   })
+
+  it('keeps a stable key when maxLines slides the window', () => {
+    const first = normalizeLogLines(['a', 'b', 'c'], { maxLines: 2 })
+    const second = normalizeLogLines(['a', 'b', 'c', 'd'], { maxLines: 2 })
+    expect(first[1]?.text).toBe('c')
+    expect(first[1]?.key).toBe(second[0]?.key)
+  })
+
+  it('strips ANSI for display and still infers the level', () => {
+    const rows = normalizeLogLines('\u001b[31m[ERROR] boom\u001b[0m')
+    expect(rows[0]?.text).toBe('\u001b[31m[ERROR] boom\u001b[0m')
+    expect(rows[0]?.plain).toBe('[ERROR] boom')
+    expect(rows[0]?.level).toBe('error')
+  })
+
+  it('keeps plain equal to text when there is no ANSI', () => {
+    const rows = normalizeLogLines('hello')
+    expect(rows[0]?.plain).toBe(rows[0]?.text)
+  })
 })
 
 describe('filter / highlight / live', () => {
@@ -167,6 +186,13 @@ describe('filter / highlight / live', () => {
   it('filters by level and search', () => {
     expect(filterLogLines(rows, { levels: ['error'] }).map((row) => row.text)).toEqual(['beta error'])
     expect(filterLogLines(rows, { search: 'ALPHA' }).map((row) => row.text)).toEqual(['alpha'])
+  })
+
+  it('matches a localized level name and a locale-specific case fold', () => {
+    expect(filterLogLines(rows, { search: '错误', levelText: (level) => (level === 'error' ? '错误' : level) })).toHaveLength(1)
+    const dotted = normalizeLogLines(['I'])
+    expect(filterLogLines(dotted, { search: 'ı', locale: 'tr' })).toHaveLength(1)
+    expect(filterLogLines(dotted, { search: 'ı', locale: 'en-US' })).toHaveLength(0)
   })
 
   it('splits highlight parts', () => {

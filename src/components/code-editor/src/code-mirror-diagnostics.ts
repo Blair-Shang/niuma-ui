@@ -1,4 +1,4 @@
-import { Compartment, RangeSetBuilder, StateEffect, StateField } from '@codemirror/state'
+import { RangeSetBuilder, StateEffect, StateField } from '@codemirror/state'
 import { Decoration, EditorView } from '@codemirror/view'
 import type { RsCodeEditorDiagnostic } from './code-editor-utils'
 
@@ -39,10 +39,8 @@ const diagnosticField = StateField.define({
   provide: (f) => EditorView.decorations.from(f),
 })
 
-export const diagnosticCompartment = new Compartment()
-
 export function diagnosticExtensions() {
-  return diagnosticCompartment.of([diagnosticField])
+  return [diagnosticField]
 }
 
 export function setEditorDiagnostics(view: EditorView, diags: RsCodeEditorDiagnostic[]) {

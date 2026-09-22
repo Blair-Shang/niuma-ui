@@ -41,7 +41,10 @@ export type RsLogLineInput = string | RsLogLine
 /** 渲染用的归一化行。key 稳定，供虚拟列表复用。 */
 export type RsNormalizedLogLine = {
   key: string
+  /** 源文本，保留 ANSI，供宿主再处理。 */
   text: string
+  /** 去掉 ANSI 后的可见正文。没有转义时与 text 是同一字符串。 */
+  plain: string
   level: RsLogLevel
   time?: string
   /** 裁剪后的 1-based 序号 */
@@ -256,6 +259,21 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+const MARKER_PATTERNS = new Map<string, RegExp>()
+const MARKER_PATTERN_LIMIT = 64
+
+function markerPattern(token: string): RegExp {
+  const cached = MARKER_PATTERNS.get(token)
+  if (cached) return cached
+  const pattern = new RegExp(`(?<![A-Za-z0-9_])${escapeRegExp(token)}(?![A-Za-z0-9_])`, 'i')
+  if (MARKER_PATTERNS.size >= MARKER_PATTERN_LIMIT) {
+    const oldest = MARKER_PATTERNS.keys().next().value
+    if (oldest !== undefined) MARKER_PATTERNS.delete(oldest)
+  }
+  MARKER_PATTERNS.set(token, pattern)
+  return pattern
+}
+
 function markerHits(text: string, marker: RsLogMarker): boolean {
   if (marker instanceof RegExp) {
     const flags = marker.global ? marker.flags : `${marker.flags}g`
@@ -265,8 +283,29 @@ function markerHits(text: string, marker: RsLogMarker): boolean {
   }
   const token = marker.trim()
   if (!token) return false
-  const pattern = new RegExp(`(?<![A-Za-z0-9_])${escapeRegExp(token)}(?![A-Za-z0-9_])`, 'i')
-  return pattern.test(text)
+  return markerPattern(token).test(text)
+}
+
+/**
+ * CSI / OSC / 单字符转义。与展示、搜索、级别推断共用。
+ * 全局正则每次重置 lastIndex，避免跨行漏切。
+ */
+const ANSI_PATTERN =
+  /[\u001B\u009B][[\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\d/#&.:=?%@~_]+)*|[a-zA-Z\d]+(?:;[-a-zA-Z\d/#&.:=?%@~_]*)*)?(?:\u0007|\u001B\\))|(?:\d{1,4}(?:;\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~])/g
+
+export function stripLogAnsi(text: string): string {
+  if (!text.includes('\u001B') && !text.includes('\u009B')) return text
+  ANSI_PATTERN.lastIndex = 0
+  return text.replace(ANSI_PATTERN, '')
+}
+
+function foldLogText(value: string, locale?: string): string {
+  if (!locale) return value.toLowerCase()
+  try {
+    return value.toLocaleLowerCase(locale)
+  } catch {
+    return value.toLowerCase()
+  }
 }
 
 function levelFromMarkers(text: string, markers?: RsLogInferMarkers): RsLogLevel | undefined {
@@ -303,6 +342,26 @@ const DEFAULT_TIME_FORMAT: Intl.DateTimeFormatOptions = {
   hour12: false,
 }
 
+const TIME_FORMATTERS = new Map<string, Intl.DateTimeFormat | null>()
+const TIME_FORMATTER_LIMIT = 24
+
+function logTimeFormatter(locale: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat | null {
+  const key = `${locale}\0${JSON.stringify(options)}`
+  if (TIME_FORMATTERS.has(key)) return TIME_FORMATTERS.get(key) ?? null
+  let formatter: Intl.DateTimeFormat | null
+  try {
+    formatter = new Intl.DateTimeFormat(locale, options)
+  } catch {
+    formatter = null
+  }
+  if (TIME_FORMATTERS.size >= TIME_FORMATTER_LIMIT) {
+    const oldest = TIME_FORMATTERS.keys().next().value
+    if (oldest !== undefined) TIME_FORMATTERS.delete(oldest)
+  }
+  TIME_FORMATTERS.set(key, formatter)
+  return formatter
+}
+
 /** 能解析的瞬间走 Intl；已是展示串则原样保留。 */
 export function formatLogTime(
   value: string | number | Date | undefined,
@@ -310,20 +369,22 @@ export function formatLogTime(
   options: Intl.DateTimeFormatOptions = DEFAULT_TIME_FORMAT,
 ): string | undefined {
   if (value == null || value === '') return undefined
+  const formatter = logTimeFormatter(locale, options)
   if (value instanceof Date) {
     if (Number.isNaN(value.getTime())) return undefined
-    return new Intl.DateTimeFormat(locale, options).format(value)
+    return formatter ? formatter.format(value) : value.toISOString()
   }
   if (typeof value === 'number' && Number.isFinite(value)) {
     const date = new Date(value)
     if (Number.isNaN(date.getTime())) return undefined
-    return new Intl.DateTimeFormat(locale, options).format(date)
+    return formatter ? formatter.format(date) : date.toISOString()
   }
   if (typeof value === 'string') {
     if (looksLikeInstant(value)) {
       const parsed = Date.parse(value)
       if (!Number.isNaN(parsed)) {
-        return new Intl.DateTimeFormat(locale, options).format(new Date(parsed))
+        const date = new Date(parsed)
+        return formatter ? formatter.format(date) : date.toISOString()
       }
     }
     return value
@@ -363,15 +424,18 @@ export function normalizeLogLines(
   const raw = source == null ? [] : typeof source === 'string' ? splitLogText(source) : source
   const max = options.maxLines
   const sliced = max != null && max > 0 && raw.length > max ? raw.slice(raw.length - max) : raw
+  const origin = raw.length - sliced.length
   const locale = options.locale ?? 'en-US'
   return sliced.map((item, index) => {
     const text = lineText(item)
-    const level = resolveLineLevel(item, text, options)
+    const plain = stripLogAnsi(text)
+    const level = resolveLineLevel(item, plain, options)
     const time =
       typeof item === 'string' ? undefined : formatLogTime(item.time, locale, options.timeFormat)
     return {
-      key: lineKey(item, index),
+      key: lineKey(item, origin + index),
       text,
+      plain,
       level,
       time,
       seq: index + 1,
@@ -404,14 +468,27 @@ export function clampLogCount<T>(items: T[], maxLines?: number): T[] {
 
 export function filterLogLines(
   lines: RsNormalizedLogLine[],
-  options?: { levels?: readonly RsLogLevel[]; search?: string },
+  options?: {
+    levels?: readonly RsLogLevel[]
+    search?: string
+    /** 传入后按该 locale 折叠大小写（土耳其 I 与 i 不同）。 */
+    locale?: string
+    /** 本地化级别名。传入后「错误 / Error」也能命中。 */
+    levelText?: (level: RsLogLevel) => string
+  },
 ): RsNormalizedLogLine[] {
   const levels = options?.levels?.filter((level) => isRsLogLevel(level)) ?? []
-  const query = options?.search?.trim().toLowerCase() ?? ''
+  const query = options?.search?.trim() ?? ''
+  const folded = query ? foldLogText(query, options?.locale) : ''
   return lines.filter((line) => {
     if (levels.length > 0 && !levels.includes(line.level)) return false
-    if (!query) return true
-    return line.text.toLowerCase().includes(query) || line.level.includes(query)
+    if (!folded) return true
+    const visible = line.plain || line.text
+    if (foldLogText(visible, options?.locale).includes(folded)) return true
+    if (line.level.includes(folded)) return true
+    const levelName = options?.levelText?.(line.level)
+    if (levelName && foldLogText(levelName, options?.locale).includes(folded)) return true
+    return Boolean(line.time && foldLogText(line.time, options?.locale).includes(folded))
   })
 }
 

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, shallowRef, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, useId, watch } from 'vue'
 import { basicSetup } from 'codemirror'
-import { EditorState, Compartment } from '@codemirror/state'
+import { Compartment, EditorState } from '@codemirror/state'
 import { EditorView, placeholder as cmPlaceholder, tooltips } from '@codemirror/view'
 import { oneDark } from '@codemirror/theme-one-dark'
+import { useRsI18n } from '../../../composables/useRsI18n'
 import type {
   RsCodeEditorDiagnostic,
   RsCodeEditorLanguage,
@@ -12,12 +13,14 @@ import type {
 } from './code-editor-utils'
 import {
   codeEditorLanguageLabel,
+  codeEditorModShortcut,
   readDocumentTheme,
   resolveCodeEditorLanguage,
   resolveCodeEditorSize,
   resolveCodeEditorTheme,
+  subscribeDocumentTheme,
 } from './code-editor-utils'
-import { isCodeMirrorLightTheme, resolveCodeMirrorLanguage } from './code-mirror-lang'
+import { resolveCodeMirrorLanguage } from './code-mirror-lang'
 import {
   diagnosticExtensions,
   setEditorDiagnostics,
@@ -31,6 +34,9 @@ import {
   replaceEditorRange,
   type InlineEditTrigger,
 } from './code-mirror-inline-edit'
+import { isEditorViewAlive } from './code-mirror-session'
+
+defineOptions({ name: 'RsCodeEditor' })
 
 const model = defineModel<string>({ default: '' })
 
@@ -67,20 +73,34 @@ const props = withDefaults(
     /** SQL 表/字段补全（language=sql 时生效） */
     sqlConfig?: RsCodeEditorSqlConfig
     filePath?: string
-    hoverRequest?: (line: number, column: number) => Promise<string | null>
-    definitionRequest?: (line: number, column: number) => Promise<{
+    hoverRequest?: (line: number, column: number, signal?: AbortSignal) => Promise<string | null>
+    definitionRequest?: (line: number, column: number, signal?: AbortSignal) => Promise<{
       file: string
       line: number
       column?: number
     } | null>
-    completionRequest?: (prefix: string, suffix: string, line: number, column: number) => Promise<string | null>
+    completionRequest?: (
+      prefix: string,
+      suffix: string,
+      line: number,
+      column: number,
+      signal?: AbortSignal,
+    ) => Promise<string | null>
     inlineEditRequest?: (params: {
       selection: string
       instruction: string
       from: number
       to: number
       surroundingContext: string
+      signal?: AbortSignal
     }) => Promise<string | null>
+    /** 折行。默认开，与原先 EditorView.lineWrapping 一致。 */
+    wrap?: boolean
+    /** 首次创建后聚焦。语言或 SQL 重载不再抢焦点。 */
+    autofocus?: boolean
+    /** 覆盖读屏名称。不传走 codeEditor.label。 */
+    ariaLabel?: string
+    id?: string
   }>(),
   {
     language: 'plaintext',
@@ -92,8 +112,13 @@ const props = withDefaults(
     rounded: true,
     foldGutter: true,
     diagnostics: () => [],
+    wrap: true,
+    autofocus: false,
   },
 )
+
+const { t } = useRsI18n()
+const inlineTitleId = useId()
 
 const rootStyle = computed(() => {
   const style: Record<string, string> = {
@@ -111,16 +136,26 @@ const documentTheme = ref(readDocumentTheme())
 const resolvedTheme = computed(() =>
   props.theme === 'auto' ? documentTheme.value : resolveCodeEditorTheme(props.theme),
 )
+/** auto 继承页面；显式 light/dark 在根上写 data-rs-theme，形成主题岛。 */
+const themeIsland = computed(() => (props.theme === 'auto' ? undefined : resolvedTheme.value))
+const editorLabel = computed(() => props.ariaLabel?.trim() || t('codeEditor.label'))
+const inlineShortcut = computed(() => codeEditorModShortcut('K'))
 
 const editorEl = ref<HTMLElement | null>(null)
+const inlineEditPanelRef = ref<HTMLElement | null>(null)
 const view = shallowRef<EditorView | null>(null)
 const editableCompartment = new Compartment()
 const themeCompartment = new Compartment()
-let themeObserver: MutationObserver | null = null
+const wrapCompartment = new Compartment()
+const placeholderCompartment = new Compartment()
+const contentCompartment = new Compartment()
+let stopTheme: (() => void) | null = null
 let unmounted = false
 let syncingFromModel = false
 let ghostTimer: ReturnType<typeof setTimeout> | null = null
 let initSeq = 0
+let didAutofocus = false
+let inlineAbort: AbortController | null = null
 const inlineEditOpen = ref(false)
 const inlineEditInstruction = ref('')
 const inlineEditLoading = ref(false)
@@ -129,17 +164,74 @@ const inlineEditError = ref('')
 const inlineEditInputRef = ref<HTMLInputElement | null>(null)
 let pendingInlineEdit: InlineEditTrigger | null = null
 
+function codeMirrorThemeExts(theme: 'light' | 'dark') {
+  return theme === 'light' ? [] : [oneDark]
+}
+
+function placeholderExt() {
+  return props.placeholder ? [cmPlaceholder(props.placeholder)] : []
+}
+
+function wrapExt() {
+  return props.wrap ? [EditorView.lineWrapping] : []
+}
+
+function contentAttributeExt() {
+  const attrs: Record<string, string> = {
+    'aria-label': editorLabel.value,
+    spellcheck: 'false',
+  }
+  if (props.disabled) {
+    attrs['aria-disabled'] = 'true'
+    attrs.tabindex = '-1'
+  } else if (props.readonly) {
+    attrs['aria-readonly'] = 'true'
+  }
+  return EditorView.contentAttributes.of(attrs)
+}
+
+function applyChrome() {
+  const current = view.value
+  if (!isEditorViewAlive(current)) return
+  const editable = !props.readonly && !props.disabled
+  current.dispatch({
+    effects: [
+      editableCompartment.reconfigure(EditorView.editable.of(editable)),
+      contentCompartment.reconfigure(contentAttributeExt()),
+    ],
+  })
+}
+
+function applyThemeExt() {
+  const current = view.value
+  if (!isEditorViewAlive(current)) return
+  current.dispatch({
+    effects: themeCompartment.reconfigure(codeMirrorThemeExts(resolvedTheme.value)),
+  })
+}
+
+function abortInlineEdit() {
+  inlineAbort?.abort()
+  inlineAbort = null
+}
+
 function closeInlineEdit() {
+  const wasOpen = inlineEditOpen.value
+  abortInlineEdit()
   inlineEditOpen.value = false
   inlineEditInstruction.value = ''
   inlineEditPreview.value = ''
   inlineEditError.value = ''
+  inlineEditLoading.value = false
   pendingInlineEdit = null
+  if (wasOpen && isEditorViewAlive(view.value) && !props.disabled) view.value.focus()
 }
 
 function onInlineEditTrigger(_view: EditorView, info: InlineEditTrigger) {
   if (!props.inlineEditRequest || props.readonly || props.disabled) return
-  if (view.value) clearGhostCompletion(view.value)
+  if (isEditorViewAlive(view.value)) clearGhostCompletion(view.value)
+  abortInlineEdit()
+  inlineEditLoading.value = false
   pendingInlineEdit = info
   inlineEditPreview.value = info.selection.length > 120
     ? `${info.selection.slice(0, 120)}…`
@@ -153,7 +245,11 @@ function onInlineEditTrigger(_view: EditorView, info: InlineEditTrigger) {
 async function submitInlineEdit() {
   const range = pendingInlineEdit
   const instruction = inlineEditInstruction.value.trim()
-  if (!range || !instruction || !props.inlineEditRequest || !view.value || inlineEditLoading.value) return
+  if (!range || !instruction || !props.inlineEditRequest || !isEditorViewAlive(view.value) || inlineEditLoading.value) return
+  abortInlineEdit()
+  const controller = new AbortController()
+  inlineAbort = controller
+  const signal = controller.signal
   inlineEditLoading.value = true
   inlineEditError.value = ''
   try {
@@ -164,16 +260,55 @@ async function submitInlineEdit() {
       from: range.from,
       to: range.to,
       surroundingContext: extractSurroundingContext(doc, range.from, range.to),
+      signal,
     })
+    if (signal.aborted || unmounted || !isEditorViewAlive(view.value)) return
     if (edited == null) {
-      inlineEditError.value = '未能生成替换代码，请调整指令后重试'
+      inlineEditError.value = t('codeEditor.inlineEditFailed')
       return
     }
     replaceEditorRange(view.value, range.from, range.to, edited)
     closeInlineEdit()
+  } catch {
+    if (signal.aborted || unmounted) return
+    inlineEditError.value = t('codeEditor.inlineEditFailed')
   } finally {
-    inlineEditLoading.value = false
+    if (inlineAbort === controller) inlineAbort = null
+    if (!unmounted && inlineEditOpen.value) inlineEditLoading.value = false
   }
+}
+
+function onInlineEditKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeInlineEdit()
+    return
+  }
+  if (event.key !== 'Tab') return
+  const root = inlineEditPanelRef.value
+  if (!root) return
+  const items = [...root.querySelectorAll<HTMLElement>('input:not(:disabled), button:not(:disabled)')]
+  if (items.length === 0) return
+  const first = items[0]
+  const last = items[items.length - 1]
+  if (!first || !last) return
+  const active = document.activeElement
+  if (event.shiftKey && (active === first || !root.contains(active))) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && active === last) {
+    event.preventDefault()
+    first.focus()
+  }
+}
+
+function jumpToDiagnostic(diagnostic: RsCodeEditorDiagnostic) {
+  if (!isEditorViewAlive(view.value) || props.disabled) return
+  if (diagnostic.line == null) {
+    view.value.focus()
+    return
+  }
+  goToPosition(view.value, diagnostic.line, diagnostic.column ?? 1)
 }
 
 function scheduleGhostCompletion(fn: () => void) {
@@ -188,23 +323,11 @@ function cancelGhostCompletionSchedule() {
   }
 }
 
-function codeMirrorThemeExts() {
-  return isCodeMirrorLightTheme() ? [] : [oneDark]
-}
-
-function applyDocumentTheme() {
-  documentTheme.value = readDocumentTheme()
-  if (!view.value) return
-  view.value.dispatch({
-    effects: themeCompartment.reconfigure(codeMirrorThemeExts()),
-  })
-  view.value.requestMeasure()
-}
-
 async function initEditor() {
   if (!editorEl.value || unmounted) return
   const seq = ++initSeq
   const targetEl = editorEl.value
+  const previous = isEditorViewAlive(view.value) ? view.value.state.selection.main : null
 
   view.value?.destroy()
   view.value = null
@@ -219,11 +342,11 @@ async function initEditor() {
     doc: model.value,
     extensions: [
       basicSetup,
-      // 嵌入 overflow:hidden 容器（如浏览过滤条）时，补全浮层挂到 body，避免被裁切后回车无法接受选项
-      ...(props.embedded ? [tooltips({ parent: document.body })] : []),
-      EditorView.lineWrapping,
+      ...(props.embedded && typeof document !== 'undefined' ? [tooltips({ parent: document.body })] : []),
+      wrapCompartment.of(wrapExt()),
       editableCompartment.of(EditorView.editable.of(editable)),
-      ...(props.placeholder ? [cmPlaceholder(props.placeholder)] : []),
+      placeholderCompartment.of(placeholderExt()),
+      contentCompartment.of(contentAttributeExt()),
       ...langExts,
       diagnosticExtensions(),
       ...codeMirrorIntelExtensions(() => ({
@@ -243,7 +366,7 @@ async function initEditor() {
       ...(props.inlineEditRequest
         ? [codeMirrorInlineEditExtension(onInlineEditTrigger)]
         : []),
-      themeCompartment.of(codeMirrorThemeExts()),
+      themeCompartment.of(codeMirrorThemeExts(resolvedTheme.value)),
       EditorView.updateListener.of((update) => {
         if (!update.docChanged || syncingFromModel) return
         const next = update.state.doc.toString()
@@ -252,70 +375,103 @@ async function initEditor() {
     ],
   })
 
-  view.value = new EditorView({ state, parent: targetEl })
-  setEditorDiagnostics(view.value, props.diagnostics ?? [])
+  if (unmounted || !targetEl.isConnected || seq !== initSeq) return
+  const created = new EditorView({ state, parent: targetEl })
+  view.value = created
+  if (previous) {
+    const length = created.state.doc.length
+    const anchor = Math.min(previous.anchor, length)
+    const head = Math.min(previous.head, length)
+    if (anchor !== 0 || head !== 0) {
+      created.dispatch({ selection: { anchor, head } })
+    }
+  }
+  setEditorDiagnostics(created, props.diagnostics ?? [])
+  if (props.autofocus && !didAutofocus && editable) {
+    didAutofocus = true
+    created.focus()
+  }
   emit('ready')
 }
 
 onMounted(() => {
   unmounted = false
   void initEditor()
-  themeObserver = new MutationObserver(() => { applyDocumentTheme() })
-  themeObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['data-rs-theme'],
+  stopTheme = subscribeDocumentTheme(() => {
+    documentTheme.value = readDocumentTheme()
   })
 })
 
 onUnmounted(() => {
   unmounted = true
-  if (ghostTimer) clearTimeout(ghostTimer)
+  initSeq += 1
+  abortInlineEdit()
+  cancelGhostCompletionSchedule()
+  stopTheme?.()
+  stopTheme = null
   view.value?.destroy()
   view.value = null
-  themeObserver?.disconnect()
-  themeObserver = null
 })
 
-watch(() => props.language, () => { void initEditor() })
-watch(() => props.inlineEditRequest, () => { void initEditor() })
 watch(
-  () => props.sqlConfig,
+  () => [props.language, Boolean(props.inlineEditRequest), resolvedLanguage.value === 'sql' ? props.sqlConfig : null] as const,
   () => {
-    if (resolvedLanguage.value === 'sql') void initEditor()
+    void initEditor()
   },
   { deep: true },
+)
+
+watch(resolvedTheme, () => {
+  applyThemeExt()
+})
+
+watch(
+  () => props.wrap,
+  () => {
+    const current = view.value
+    if (!isEditorViewAlive(current)) return
+    current.dispatch({ effects: wrapCompartment.reconfigure(wrapExt()) })
+  },
+)
+
+watch(
+  () => props.placeholder,
+  () => {
+    const current = view.value
+    if (!isEditorViewAlive(current)) return
+    current.dispatch({ effects: placeholderCompartment.reconfigure(placeholderExt()) })
+  },
+)
+
+watch(
+  () => [props.readonly, props.disabled, editorLabel.value] as const,
+  () => {
+    applyChrome()
+  },
 )
 
 watch(
   () => model.value,
   (newCode) => {
-    if (!view.value) return
+    if (!isEditorViewAlive(view.value)) return
     const current = view.value.state.doc.toString()
     if (current === newCode) return
     syncingFromModel = true
-    if (view.value) clearGhostCompletion(view.value)
-    view.value.dispatch({
-      changes: { from: 0, to: view.value.state.doc.length, insert: newCode },
-    })
-    syncingFromModel = false
-  },
-)
-
-watch(
-  () => [props.readonly, props.disabled] as const,
-  ([readonly, disabled]) => {
-    if (!view.value) return
-    const editable = !readonly && !disabled
-    view.value.dispatch({
-      effects: editableCompartment.reconfigure(EditorView.editable.of(editable)),
-    })
+    try {
+      clearGhostCompletion(view.value)
+      view.value.dispatch({
+        changes: { from: 0, to: view.value.state.doc.length, insert: newCode },
+      })
+    } finally {
+      syncingFromModel = false
+    }
   },
 )
 
 watch(
   () => props.diagnostics,
   (diags) => {
-    if (!view.value) return
+    if (!isEditorViewAlive(view.value)) return
     setEditorDiagnostics(view.value, diags ?? [])
   },
   { deep: true },
@@ -323,14 +479,19 @@ watch(
 
 defineExpose({
   goToPosition(line: number, column = 1) {
-    if (!view.value) return
+    if (!isEditorViewAlive(view.value)) return
     goToPosition(view.value, line, column)
+  },
+  focus() {
+    if (!isEditorViewAlive(view.value) || props.disabled) return
+    view.value.focus()
   },
 })
 </script>
 
 <template>
   <div
+    :id="id"
     class="rs-code-editor"
     :class="[
       `rs-code-editor--${resolvedTheme}`,
@@ -342,6 +503,10 @@ defineExpose({
       },
     ]"
     :style="rootStyle"
+    :data-rs-theme="themeIsland"
+    role="group"
+    :aria-label="editorLabel"
+    :aria-disabled="disabled ? 'true' : undefined"
   >
     <div v-if="showToolbar" class="rs-code-editor__toolbar">
       <span>{{ resolvedLanguageLabel }}</span>
@@ -353,10 +518,20 @@ defineExpose({
         class="rs-code-editor__surface"
         :class="{ 'rs-code-editor__surface--disabled': disabled }"
       />
-      <div v-if="inlineEditOpen" class="rs-code-editor__inline-edit">
+      <div
+        v-if="inlineEditOpen"
+        ref="inlineEditPanelRef"
+        class="rs-code-editor__inline-edit"
+        role="dialog"
+        aria-modal="false"
+        :aria-labelledby="inlineTitleId"
+        aria-keyshortcuts="Control+K Meta+K"
+        :aria-busy="inlineEditLoading ? 'true' : undefined"
+        @keydown="onInlineEditKeydown"
+      >
         <div class="rs-code-editor__inline-edit-head">
-          <span>Inline Edit</span>
-          <kbd>Ctrl+K</kbd>
+          <span :id="inlineTitleId">{{ t('codeEditor.inlineEdit') }}</span>
+          <kbd>{{ inlineShortcut }}</kbd>
         </div>
         <p class="rs-code-editor__inline-preview">{{ inlineEditPreview }}</p>
         <input
@@ -364,15 +539,14 @@ defineExpose({
           v-model="inlineEditInstruction"
           class="rs-code-editor__inline-input"
           type="text"
-          placeholder="描述要如何修改选区…"
+          :placeholder="t('codeEditor.inlineEditPlaceholder')"
           :disabled="inlineEditLoading"
           @keydown.enter.prevent="submitInlineEdit"
-          @keydown.esc.prevent="closeInlineEdit"
         />
-        <p v-if="inlineEditError" class="rs-code-editor__inline-error">{{ inlineEditError }}</p>
+        <p v-if="inlineEditError" class="rs-code-editor__inline-error" role="alert">{{ inlineEditError }}</p>
         <div class="rs-code-editor__inline-actions">
           <button type="button" class="rs-code-editor__inline-btn" :disabled="inlineEditLoading" @click="closeInlineEdit">
-            取消
+            {{ t('common.cancel') }}
           </button>
           <button
             type="button"
@@ -380,19 +554,25 @@ defineExpose({
             :disabled="inlineEditLoading || !inlineEditInstruction.trim()"
             @click="submitInlineEdit"
           >
-            {{ inlineEditLoading ? '生成中…' : '应用' }}
+            {{ inlineEditLoading ? t('codeEditor.inlineEditApplying') : t('codeEditor.inlineEditApply') }}
           </button>
         </div>
       </div>
     </div>
-    <ul v-if="diagnostics.length" class="rs-code-editor__diagnostics">
+    <ul
+      v-if="diagnostics.length"
+      class="rs-code-editor__diagnostics"
+      :aria-label="t('codeEditor.diagnostics')"
+    >
       <li
         v-for="(diagnostic, index) in diagnostics"
         :key="index"
         :class="`rs-code-editor__diagnostic--${diagnostic.severity ?? 'error'}`"
       >
-        <span v-if="diagnostic.line">{{ diagnostic.line }}:{{ diagnostic.column ?? 1 }}</span>
-        {{ diagnostic.message }}
+        <button type="button" class="rs-code-editor__diagnostic-btn" @click="jumpToDiagnostic(diagnostic)">
+          <span v-if="diagnostic.line">{{ diagnostic.line }}:{{ diagnostic.column ?? 1 }}</span>
+          {{ diagnostic.message }}
+        </button>
       </li>
     </ul>
   </div>
@@ -406,7 +586,7 @@ defineExpose({
   border: 1px solid var(--rs-border);
   border-radius: var(--rs-radius);
   background: var(--rs-input-bg);
-  color: var(--rs-text);
+  color: var(--rs-text-primary);
 }
 .rs-code-editor--square {
   border-radius: 0;
@@ -416,114 +596,125 @@ defineExpose({
   border-radius: 0;
   background: transparent;
   flex: 1 1 auto;
-  min-height: 0;
-  width: 100%;
+  min-block-size: 0;
+  inline-size: 100%;
 }
 .rs-code-editor__toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--rs-space-xs) var(--rs-space-sm);
-  border-bottom: 1px solid var(--rs-border-subtle);
-  color: var(--rs-muted);
+  padding-block: var(--rs-space-xs);
+  padding-inline: var(--rs-space-sm);
+  border-block-end: 1px solid var(--rs-border-subtle);
+  color: var(--rs-text-secondary);
   font-size: var(--rs-font-size-xs);
 }
 .rs-code-editor__body {
   position: relative;
   flex: 1;
-  min-height: 0;
+  min-block-size: 0;
   display: flex;
   flex-direction: column;
 }
 .rs-code-editor__surface {
   flex: 1;
-  min-height: 0;
+  min-block-size: 0;
   overflow: hidden;
 }
 .rs-code-editor--embedded .rs-code-editor__body,
 .rs-code-editor--embedded .rs-code-editor__surface {
-  height: 100%;
+  block-size: 100%;
 }
 .rs-code-editor__inline-edit {
   position: absolute;
-  left: 50%;
-  top: 12%;
-  z-index: 5;
-  width: min(28rem, calc(100% - 2rem));
-  transform: translateX(-50%);
-  padding: 0.75rem;
+  z-index: var(--rs-z-dropdown);
+  inset-block-start: 12%;
+  inset-inline: 0;
+  inline-size: min(var(--rs-code-editor-inline-width), calc(100% - 2 * var(--rs-space-lg)));
+  margin-inline: auto;
+  padding: var(--rs-space-md);
   border: 1px solid var(--rs-border);
   border-radius: var(--rs-radius);
   background: var(--rs-surface-elevated);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
+  box-shadow: var(--rs-shadow-lg);
 }
 .rs-code-editor__inline-edit-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.5rem;
+  margin-block-end: var(--rs-space-sm);
   font-size: var(--rs-font-size-xs);
   font-weight: var(--rs-font-weight-semibold);
-  color: var(--rs-foreground);
+  color: var(--rs-text-primary);
 }
 .rs-code-editor__inline-edit-head kbd {
-  padding: 0.1rem 0.35rem;
-  border-radius: 4px;
+  padding-block: var(--rs-space-xs);
+  padding-inline: var(--rs-space-xs);
+  border-radius: var(--rs-radius-xs);
   border: 1px solid var(--rs-border-subtle);
   font-size: var(--rs-font-size-xs);
-  color: var(--rs-muted);
+  color: var(--rs-text-secondary);
 }
 .rs-code-editor__inline-preview {
-  margin: 0 0 0.5rem;
-  padding: 0.35rem 0.5rem;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--rs-muted) 8%, transparent);
-  color: var(--rs-muted);
+  margin: 0;
+  margin-block-end: var(--rs-space-sm);
+  padding-block: var(--rs-space-xs);
+  padding-inline: var(--rs-space-sm);
+  border-radius: var(--rs-radius-xs);
+  background: color-mix(in srgb, var(--rs-text-secondary) 8%, transparent);
+  color: var(--rs-text-secondary);
   font-family: var(--rs-code-font-family, var(--rs-font-mono));
   font-size: var(--rs-font-size-xs);
-  line-height: 1.4;
+  line-height: var(--rs-line-height-tight);
   white-space: pre-wrap;
-  max-height: 4.5rem;
+  max-block-size: 4.5rem;
   overflow: hidden;
 }
 .rs-code-editor__inline-input {
-  width: 100%;
+  inline-size: 100%;
   box-sizing: border-box;
-  margin-bottom: 0.5rem;
-  padding: 0.45rem 0.55rem;
+  margin-block-end: var(--rs-space-sm);
+  padding-block: var(--rs-space-sm);
+  padding-inline: var(--rs-space-sm);
   border: 1px solid var(--rs-border);
-  border-radius: var(--rs-radius-sm, 4px);
+  border-radius: var(--rs-radius-sm);
   background: var(--rs-input-bg);
-  color: var(--rs-foreground);
+  color: var(--rs-text-primary);
   font-size: var(--rs-font-size-sm);
+  font-family: inherit;
 }
-.rs-code-editor__inline-input:focus {
-  outline: 2px solid color-mix(in srgb, var(--rs-primary) 35%, transparent);
+.rs-code-editor__inline-input:focus-visible,
+.rs-code-editor__inline-btn:focus-visible,
+.rs-code-editor__diagnostic-btn:focus-visible {
+  outline: var(--rs-focus-ring-width) solid var(--rs-focus-ring);
   outline-offset: 1px;
 }
 .rs-code-editor__inline-error {
-  margin: -0.25rem 0 0.5rem;
+  margin: 0;
+  margin-block-end: var(--rs-space-sm);
   font-size: var(--rs-font-size-xs);
   color: var(--rs-danger);
 }
 .rs-code-editor__inline-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.35rem;
+  gap: var(--rs-space-xs);
 }
 .rs-code-editor__inline-btn {
-  padding: 0.3rem 0.65rem;
+  padding-block: var(--rs-space-xs);
+  padding-inline: var(--rs-space-sm);
   border: 1px solid var(--rs-border);
-  border-radius: var(--rs-radius-sm, 4px);
+  border-radius: var(--rs-radius-sm);
   background: transparent;
-  color: var(--rs-foreground);
+  color: var(--rs-text-primary);
   font-size: var(--rs-font-size-xs);
+  font-family: inherit;
   cursor: pointer;
 }
 .rs-code-editor__inline-btn--primary {
   border-color: var(--rs-primary);
   background: var(--rs-primary);
-  color: var(--rs-primary-foreground, #fff);
+  color: var(--rs-primary-foreground);
 }
 .rs-code-editor__inline-btn:disabled {
   opacity: 0.55;
@@ -534,6 +725,7 @@ defineExpose({
   pointer-events: none;
 }
 .rs-code-editor__surface :deep(.cm-editor) {
+  /* CodeMirror 自己写 height / width / border-right，逻辑属性盖不住。 */
   height: 100%;
   background: var(--rs-surface-elevated) !important;
 }
@@ -545,7 +737,7 @@ defineExpose({
 .rs-code-editor__surface :deep(.cm-gutters) {
   background: color-mix(in srgb, var(--rs-surface-elevated) 85%, var(--rs-border) 15%) !important;
   border-right-color: var(--rs-border-subtle) !important;
-  color: var(--rs-muted);
+  color: var(--rs-text-secondary);
 }
 .rs-code-editor--embedded .rs-code-editor__surface :deep(.cm-editor) {
   height: 100%;
@@ -563,10 +755,10 @@ defineExpose({
   min-width: var(--rs-code-editor-gutter-width);
 }
 .rs-code-editor--gutter-fixed.rs-code-editor--no-fold .rs-code-editor__surface :deep(.cm-lineNumbers .cm-gutterElement) {
-  min-width: calc(var(--rs-code-editor-gutter-width) - 8px);
+  min-width: calc(var(--rs-code-editor-gutter-width) - var(--rs-space-sm));
 }
 .rs-code-editor__surface :deep(.cm-content) {
-  color: var(--rs-foreground);
+  color: var(--rs-text-primary);
 }
 .rs-code-editor__surface :deep(.cm-lintRange-error) {
   background: color-mix(in srgb, var(--rs-danger) 12%, transparent);
@@ -578,30 +770,44 @@ defineExpose({
   background: color-mix(in srgb, var(--rs-info) 10%, transparent);
 }
 .rs-code-editor__surface :deep(.rs-code-editor__ghost) {
-  color: var(--rs-muted);
+  color: var(--rs-text-secondary);
   opacity: 0.55;
   pointer-events: none;
 }
 .rs-code-editor__surface :deep(.rs-code-editor__hover) {
-  max-width: 28rem;
-  padding: 0.45rem 0.65rem;
-  border-radius: var(--rs-radius-sm, 4px);
+  max-inline-size: var(--rs-code-editor-inline-width);
+  padding-block: var(--rs-space-sm);
+  padding-inline: var(--rs-space-sm);
+  border-radius: var(--rs-radius-sm);
   border: 1px solid var(--rs-border);
   background: var(--rs-surface-elevated);
-  color: var(--rs-foreground);
+  color: var(--rs-text-primary);
   font-family: var(--rs-code-font-family, var(--rs-font-mono));
   font-size: var(--rs-font-size-xs);
-  line-height: 1.45;
+  line-height: var(--rs-line-height-normal);
   white-space: pre-wrap;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--rs-shadow);
 }
 .rs-code-editor__diagnostics {
   margin: 0;
-  padding: var(--rs-space-sm) var(--rs-space-md);
-  border-top: 1px solid var(--rs-border-subtle);
-  color: var(--rs-muted);
+  padding-block: var(--rs-space-sm);
+  padding-inline: var(--rs-space-md);
+  border-block-start: 1px solid var(--rs-border-subtle);
+  color: var(--rs-text-secondary);
   font-size: var(--rs-font-size-xs);
   list-style: none;
+}
+.rs-code-editor__diagnostic-btn {
+  display: block;
+  inline-size: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
 }
 .rs-code-editor__diagnostic--error {
   color: var(--rs-danger);

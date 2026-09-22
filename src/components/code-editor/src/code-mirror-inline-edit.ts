@@ -1,5 +1,6 @@
 import { Prec, type Extension } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
+import { isEditorViewAlive } from './code-mirror-session'
 
 export interface InlineEditTrigger {
   selection: string
@@ -47,9 +48,13 @@ export function codeMirrorInlineEditExtension(
 }
 
 export function replaceEditorRange(view: EditorView, from: number, to: number, insert: string) {
+  if (!isEditorViewAlive(view)) return
+  const length = view.state.doc.length
+  const start = Math.max(0, Math.min(from, length))
+  const end = Math.max(start, Math.min(to, length))
   view.dispatch({
-    changes: { from, to, insert },
-    selection: { anchor: from + insert.length },
+    changes: { from: start, to: end, insert },
+    selection: { anchor: start + insert.length },
   })
   view.focus()
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onUnmounted, ref, useSlots, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, useId, useSlots, watch } from 'vue'
 import type { RsRadius } from '../../../theme/types'
 import { useRsI18n } from '../../../composables/useRsI18n'
 import { copyTextToClipboard } from '../../../utils/rs-clipboard'
@@ -8,21 +8,20 @@ import RsButton from '../../button/src/RsButton.vue'
 import RsEmpty from '../../empty/src/RsEmpty.vue'
 import RsInput from '../../input/src/RsInput.vue'
 import RsVirtualList from '../../virtual-list/src/RsVirtualList.vue'
+import RsLogRow from './RsLogRow.vue'
 import {
   asLogLineInputs,
   clampLogCount,
   countDroppedLines,
   filterLogLines,
-  joinLogLines,
   normalizeLogLines,
   resolveLogCopyText,
   resolveLogLive,
   RS_LOG_FILTER_LEVELS,
-  splitLogHighlight,
+  RS_LOG_LEVELS,
   splitLogText,
   toLogLineInput,
   type RsLogCopySource,
-  type RsLogHighlightPart,
   type RsLogInferMarkers,
   type RsLogLevel,
   type RsLogLine,
@@ -48,6 +47,8 @@ export interface RsLogExpose {
 
 export type RsLogLive = boolean | 'off' | 'polite' | 'assertive'
 
+defineOptions({ name: 'RsLog' })
+
 const emit = defineEmits<{
   followChange: [following: boolean]
   overflow: [payload: { dropped: number; kept: number }]
@@ -56,6 +57,7 @@ const emit = defineEmits<{
 
 const { t, locale } = useRsI18n()
 const slots = useSlots()
+const matchId = useId()
 
 const lines = defineModel<string | RsLogLineInput[]>('lines', { default: '' })
 const search = defineModel<string>('search', { default: '' })
@@ -91,6 +93,7 @@ const props = withDefaults(
     dir?: 'ltr' | 'rtl' | 'auto'
     severityScale?: RsLogSeverityScale
     timeFormat?: Intl.DateTimeFormatOptions
+    id?: string
   }>(),
   {
     height: 280,
@@ -124,8 +127,10 @@ const listRef = ref<{ scrollToIndex: (index: number, align?: 'nearest' | 'center
   null,
 )
 const stuckToBottom = ref(true)
+const followAnchor = ref<number | null>(null)
 const activeIndex = ref(-1)
 const announcement = ref('')
+let announceTick = 0
 const resolvedRadius = useResolvedRsRadius(() => props.radius, 'sm')
 
 const liveMode = computed(() => resolveLogLive(props.live))
@@ -161,10 +166,18 @@ const resolvedLines = computed(() =>
   }),
 )
 
+const levelNames = computed(() => {
+  const names = new Map<RsLogLevel, string>()
+  for (const level of RS_LOG_LEVELS) names.set(level, t(`log.level.${level}`, level))
+  return names
+})
+
 const displayLines = computed(() =>
   filterLogLines(resolvedLines.value, {
     levels: filterLevels.value,
     search: search.value,
+    locale: locale.value,
+    levelText: (level) => levelNames.value.get(level) ?? level,
   }),
 )
 
@@ -186,19 +199,11 @@ const rootStyle = computed(() => ({
 }))
 
 function levelLabel(level: RsLogLevel): string {
-  return t(`log.level.${level}`, level)
+  return levelNames.value.get(level) ?? level
 }
 
-function rowLabel(item: RsNormalizedLogLine): string {
-  const parts = [levelLabel(item.level)]
-  if (props.showLineNo) parts.push(t('log.lineNo', 'Line {n}', { n: item.seq }))
-  if (item.time) parts.push(item.time)
-  parts.push(item.text)
-  return parts.filter(Boolean).join(', ')
-}
-
-function highlightParts(text: string): RsLogHighlightPart[] {
-  return splitLogHighlight(text, search.value)
+function logItemKey(item: RsNormalizedLogLine): string {
+  return item.key
 }
 
 function writeLines(next: string | RsLogLineInput[]): void {
@@ -213,8 +218,12 @@ function append(input: string | RsLogLineInput | RsLogLineInput[]): void {
     const chunk = added.map((item) => (typeof item === 'string' ? item : item.text)).join('\n')
     const base = typeof current === 'string' ? current : ''
     const merged = base ? `${base}\n${chunk}` : chunk
-    const normalized = normalizeLogLines(merged, { inferLevel: false, maxLines: props.maxLines })
-    writeLines(joinLogLines(normalized))
+    const parts = splitLogText(merged)
+    const kept =
+      props.maxLines != null && props.maxLines > 0 && parts.length > props.maxLines
+        ? parts.slice(parts.length - props.maxLines)
+        : parts
+    writeLines(kept.join('\n'))
     return
   }
   writeLines([...current, ...added])
@@ -267,24 +276,34 @@ function readDomSelection(): string {
   return text
 }
 
-function markCopied(): void {
-  copied.value = true
-  copyFailed.value = false
+let alive = true
+
+function armCopyTimer(delay: number, apply: () => void): void {
+  if (!alive) return
   if (copiedTimer) window.clearTimeout(copiedTimer)
   copiedTimer = window.setTimeout(() => {
-    copied.value = false
     copiedTimer = 0
-  }, 1500)
+    if (!alive) return
+    apply()
+  }, delay)
+}
+
+function markCopied(): void {
+  if (!alive) return
+  copied.value = true
+  copyFailed.value = false
+  armCopyTimer(1500, () => {
+    copied.value = false
+  })
 }
 
 function markCopyFailed(): void {
+  if (!alive) return
   copyFailed.value = true
   copied.value = false
-  if (copiedTimer) window.clearTimeout(copiedTimer)
-  copiedTimer = window.setTimeout(() => {
+  armCopyTimer(2500, () => {
     copyFailed.value = false
-    copiedTimer = 0
-  }, 2500)
+  })
 }
 
 async function writeCopy(text: string, source: RsLogCopySource): Promise<boolean> {
@@ -302,14 +321,14 @@ async function writeCopy(text: string, source: RsLogCopySource): Promise<boolean
 async function copy(): Promise<boolean> {
   const resolved = resolveLogCopyText({
     selection: readDomSelection(),
-    visibleTexts: displayLines.value.map((line) => line.text),
-    allTexts: resolvedLines.value.map((line) => line.text),
+    visibleTexts: displayLines.value.map((line) => line.plain),
+    allTexts: resolvedLines.value.map((line) => line.plain),
   })
   return writeCopy(resolved.text, resolved.source)
 }
 
 async function copyAll(): Promise<boolean> {
-  return writeCopy(joinLogLines(resolvedLines.value), 'all')
+  return writeCopy(resolvedLines.value.map((line) => line.plain).join('\n'), 'all')
 }
 
 function focusSearch(): void {
@@ -333,7 +352,16 @@ function focus(): void {
 function setStuck(next: boolean): void {
   if (stuckToBottom.value === next) return
   stuckToBottom.value = next
+  followAnchor.value = next ? null : displayLines.value.length
   emit('followChange', next)
+}
+
+function hasTextSelectionInside(): boolean {
+  const sel = typeof document === 'undefined' ? null : document.getSelection()
+  if (!sel || sel.isCollapsed) return false
+  const root = rootRef.value
+  const node = sel.anchorNode
+  return Boolean(root && node && root.contains(node))
 }
 
 function onListScroll(event: Event): void {
@@ -384,6 +412,24 @@ function onRootKeydown(event: KeyboardEvent): void {
     event.preventDefault()
     void copy()
   }
+}
+
+function onSearchKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'Enter' || event.isComposing || event.altKey || event.ctrlKey || event.metaKey) return
+  if (!search.value.trim() || displayLines.value.length === 0) return
+  event.preventDefault()
+  const max = displayLines.value.length - 1
+  const current = activeIndex.value
+  const delta = event.shiftKey ? -1 : 1
+  const next = current < 0 ? (delta > 0 ? 0 : max) : (current + delta + displayLines.value.length) % displayLines.value.length
+  activeIndex.value = next
+  setStuck(next >= max)
+  if (useVirtual.value) {
+    listRef.value?.scrollToIndex(next, 'nearest')
+    return
+  }
+  const row = plainRef.value?.querySelector<HTMLElement>(`[data-log-index="${next}"]`)
+  if (typeof row?.scrollIntoView === 'function') row.scrollIntoView({ block: 'nearest' })
 }
 
 function onViewportKeydown(event: KeyboardEvent): void {
@@ -438,13 +484,19 @@ watch(
   async (count, prev) => {
     const delta = count - (prev ?? 0)
     if (liveMode.value !== 'off' && delta > 0) {
-      announcement.value = t(
+      const message = t(
         'log.newLines',
         '{count, plural, one {# new line} other {# new lines}}',
         { count: delta },
       )
+      announceTick += 1
+      announcement.value = announceTick % 2 === 0 ? `${message}\u200b` : message
     }
     if (!props.follow || delta <= 0 || !stuckToBottom.value) return
+    if (hasTextSelectionInside()) {
+      setStuck(false)
+      return
+    }
     await nextTick()
     scrollToBottom()
   },
@@ -458,8 +510,27 @@ watch(
   },
 )
 
+const pendingLines = computed(() => {
+  if (stuckToBottom.value || followAnchor.value == null) return 0
+  return Math.max(0, displayLines.value.length - followAnchor.value)
+})
+const showJump = computed(() => props.follow && !stuckToBottom.value && displayLines.value.length > 0)
+const jumpLabel = computed(() =>
+  pendingLines.value > 0
+    ? t('log.newLines', '{count, plural, one {# new line} other {# new lines}}', { count: pendingLines.value })
+    : t('log.jump', 'Jump to latest'),
+)
+const matchCount = computed(() => (search.value.trim() ? displayLines.value.length : null))
+const matchLabel = computed(() =>
+  matchCount.value == null
+    ? ''
+    : t('log.matchCount', '{count, plural, one {# match} other {# matches}}', { count: matchCount.value }),
+)
+
 onUnmounted(() => {
+  alive = false
   if (copiedTimer) window.clearTimeout(copiedTimer)
+  copiedTimer = 0
 })
 
 defineExpose<RsLogExpose>({
@@ -485,13 +556,13 @@ defineExpose<RsLogExpose>({
       'rs-log--zebra': zebra,
       'rs-log--chrome': hasChrome,
     }"
+    :id="id"
     :style="rootStyle"
-    :dir="dir"
     @keydown="onRootKeydown"
   >
     <div v-if="hasChrome" class="rs-log__chrome">
       <slot name="toolbar">
-        <div v-if="showSearch" ref="searchRef" class="rs-log__search">
+        <div v-if="showSearch" ref="searchRef" class="rs-log__search" @keydown="onSearchKeydown">
           <RsInput
             v-model="search"
             type="search"
@@ -499,8 +570,10 @@ defineExpose<RsLogExpose>({
             clearable
             :placeholder="t('log.searchPlaceholder', 'Filter lines…')"
             :aria-label="t('log.search', 'Search logs')"
+            :aria-describedby="matchCount != null ? matchId : undefined"
           />
         </div>
+        <p v-if="matchCount != null" :id="matchId" class="rs-log__matches" role="status">{{ matchLabel }}</p>
         <fieldset v-if="showFilter" class="rs-log__filters">
           <legend class="rs-log__sr-only">{{ t('log.filter', 'Filter levels') }}</legend>
           <button
@@ -544,6 +617,7 @@ defineExpose<RsLogExpose>({
       class="rs-log__viewport"
       role="region"
       tabindex="0"
+      :dir="dir"
       :aria-label="regionLabel"
       :aria-busy="busy ? 'true' : undefined"
       @keydown="onViewportKeydown"
@@ -557,6 +631,7 @@ defineExpose<RsLogExpose>({
         class="rs-log__list"
         role="list"
         :items="displayLines"
+        :item-key="logItemKey"
         :item-size="resolvedItemSize"
         :height="0"
         :overscan="overscan"
@@ -565,34 +640,23 @@ defineExpose<RsLogExpose>({
         @scroll="onListScroll"
       >
         <template #default="{ item, index }">
-          <div
-            class="rs-log__row"
-            :class="[
-              `rs-log__row--${item.level}`,
-              {
-                'rs-log__row--odd': index % 2 === 1,
-                'rs-log__row--active': index === activeIndex,
-              },
-            ]"
-            role="listitem"
-            :aria-label="rowLabel(item)"
-            :data-log-index="index"
-            @click="onRowClick(index)"
+          <RsLogRow
+            :item="item"
+            :index="index"
+            :active="index === activeIndex"
+            :zebra="zebra"
+            :wrap="wrap"
+            :fill="!wrap"
+            :show-line-no="showLineNo"
+            :show-time="showTime"
+            :show-level="showLevel"
+            :search="search"
+            @select="onRowClick(index)"
           >
-            <span class="rs-log__marker" aria-hidden="true" />
-            <span v-if="showLineNo" class="rs-log__no">{{ item.seq }}</span>
-            <span v-if="showTime && item.time" class="rs-log__time">{{ item.time }}</span>
-            <span v-if="showLevel && item.level !== 'plain'" class="rs-log__level">{{ levelLabel(item.level) }}</span>
-            <span v-else class="rs-log__sr-only">{{ levelLabel(item.level) }}</span>
-            <slot name="row" :item="item" :index="index" :level-label="levelLabel(item.level)" :parts="highlightParts(item.text)">
-              <span class="rs-log__text">
-                <template v-for="(part, partIndex) in highlightParts(item.text)" :key="partIndex">
-                  <mark v-if="part.hit" class="rs-log__hit">{{ part.text }}</mark>
-                  <template v-else>{{ part.text }}</template>
-                </template>
-              </span>
-            </slot>
-          </div>
+            <template v-if="slots.row" #default="slotProps">
+              <slot name="row" v-bind="slotProps" />
+            </template>
+          </RsLogRow>
         </template>
       </RsVirtualList>
       <div
@@ -602,37 +666,35 @@ defineExpose<RsLogExpose>({
         role="list"
         @scroll="onListScroll"
       >
-        <div
+        <RsLogRow
           v-for="(item, index) in displayLines"
           :key="item.key"
-          class="rs-log__row"
-          :class="[
-            `rs-log__row--${item.level}`,
-            {
-              'rs-log__row--odd': index % 2 === 1,
-              'rs-log__row--active': index === activeIndex,
-            },
-          ]"
-          role="listitem"
-          :aria-label="rowLabel(item)"
-          :data-log-index="index"
-          @click="onRowClick(index)"
+          :item="item"
+          :index="index"
+          :active="index === activeIndex"
+          :zebra="zebra"
+          :wrap="wrap"
+          :fill="false"
+          :show-line-no="showLineNo"
+          :show-time="showTime"
+          :show-level="showLevel"
+          :search="search"
+          @select="onRowClick(index)"
         >
-          <span class="rs-log__marker" aria-hidden="true" />
-          <span v-if="showLineNo" class="rs-log__no">{{ item.seq }}</span>
-          <span v-if="showTime && item.time" class="rs-log__time">{{ item.time }}</span>
-          <span v-if="showLevel && item.level !== 'plain'" class="rs-log__level">{{ levelLabel(item.level) }}</span>
-          <span v-else class="rs-log__sr-only">{{ levelLabel(item.level) }}</span>
-          <slot name="row" :item="item" :index="index" :level-label="levelLabel(item.level)" :parts="highlightParts(item.text)">
-            <span class="rs-log__text">
-              <template v-for="(part, partIndex) in highlightParts(item.text)" :key="partIndex">
-                <mark v-if="part.hit" class="rs-log__hit">{{ part.text }}</mark>
-                <template v-else>{{ part.text }}</template>
-              </template>
-            </span>
-          </slot>
-        </div>
+          <template v-if="slots.row" #default="slotProps">
+            <slot name="row" v-bind="slotProps" />
+          </template>
+        </RsLogRow>
       </div>
+      <RsButton
+        v-if="showJump"
+        class="rs-log__jump"
+        size="sm"
+        variant="default"
+        @click="scrollToBottom"
+      >
+        {{ jumpLabel }}
+      </RsButton>
     </div>
   </div>
 </template>
@@ -646,24 +708,31 @@ defineExpose<RsLogExpose>({
   border: 1px solid var(--rs-log-border, var(--rs-border));
   border-radius: var(--rs-log-radius, var(--rs-radius-sm));
   background: var(--rs-log-bg, var(--rs-surface));
-  color: var(--rs-log-fg, var(--rs-text));
+  color: var(--rs-log-fg, var(--rs-text-primary));
   font-family: var(--rs-log-font-family, var(--rs-font-mono));
   font-size: var(--rs-log-font-size, var(--rs-font-size-xs));
-  line-height: 1.45;
-  height: var(--rs-log-box-height, 280px);
+  line-height: var(--rs-log-line-height, 1.45);
+  height: var(--rs-log-box-height);
 }
 .rs-log__chrome {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
+  gap: var(--rs-space-sm);
   align-items: center;
-  padding: 0.4rem 0.55rem;
+  padding-block: var(--rs-space-xs);
+  padding-inline: var(--rs-space-sm);
   border-bottom: 1px solid var(--rs-log-border, var(--rs-border));
-  background: color-mix(in srgb, var(--rs-log-bg, var(--rs-surface)) 88%, var(--rs-surface-hover));
+  background: var(--rs-log-chrome-bg, color-mix(in srgb, var(--rs-log-bg, var(--rs-surface)) 88%, var(--rs-surface-hover)));
 }
 .rs-log__search {
-  min-width: 10rem;
+  min-inline-size: 10rem;
   flex: 1 1 12rem;
+}
+.rs-log__matches {
+  margin: 0;
+  color: var(--rs-log-muted, var(--rs-text-secondary));
+  font-size: var(--rs-font-size-xs);
+  font-variant-numeric: tabular-nums;
 }
 .rs-log__copy {
   flex-shrink: 0;
@@ -672,7 +741,7 @@ defineExpose<RsLogExpose>({
 .rs-log__filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3rem;
+  gap: var(--rs-space-xs);
   margin: 0;
   padding: 0;
   border: 0;
@@ -680,21 +749,27 @@ defineExpose<RsLogExpose>({
 }
 .rs-log__chip {
   margin: 0;
-  padding: 0.1rem 0.4rem;
+  padding-block: 0.1rem;
+  padding-inline: var(--rs-space-xs);
   border: 1px solid var(--rs-log-border, var(--rs-border));
   border-radius: var(--rs-radius-sm);
   background: transparent;
-  color: var(--rs-log-muted, var(--rs-text-muted));
+  color: var(--rs-log-muted, var(--rs-text-secondary));
   font: inherit;
   font-size: var(--rs-font-size-xs);
   cursor: pointer;
 }
+.rs-log__chip:focus-visible {
+  outline: var(--rs-focus-ring-width, 2px) solid var(--rs-focus-border);
+  outline-offset: 1px;
+}
 .rs-log__chip--on {
-  color: var(--rs-log-fg, var(--rs-text));
-  border-color: color-mix(in srgb, var(--rs-primary) 45%, var(--rs-log-border, var(--rs-border)));
-  background: color-mix(in srgb, var(--rs-primary) 14%, transparent);
+  color: var(--rs-log-fg, var(--rs-text-primary));
+  border-color: var(--rs-log-chip-on-border, color-mix(in srgb, var(--rs-primary) 45%, var(--rs-log-border, var(--rs-border))));
+  background: var(--rs-log-chip-on-bg, color-mix(in srgb, var(--rs-primary) 14%, transparent));
 }
 .rs-log__viewport {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -714,84 +789,13 @@ defineExpose<RsLogExpose>({
 .rs-log__plain {
   overflow: auto;
 }
-.rs-log__row {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.55rem;
-  box-sizing: border-box;
-  padding: 0 0.7rem;
-  white-space: nowrap;
-  color: var(--rs-log-row-fg, var(--rs-log-fg));
-}
-.rs-log:not(.rs-log--wrap) .rs-log__list .rs-log__row {
-  min-height: 100%;
-}
 .rs-log--wrap .rs-log__plain {
   display: block;
 }
-.rs-log--wrap .rs-log__row {
-  height: auto;
-  max-height: none;
-  min-height: 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  padding-block: 0.25rem;
-}
-.rs-log--zebra .rs-log__row--odd {
-  background: var(--rs-log-stripe, transparent);
-}
-.rs-log__row--active {
-  background: color-mix(in srgb, var(--rs-primary) 12%, var(--rs-log-bg, transparent));
-  box-shadow: inset 2px 0 0 var(--rs-primary);
-}
-.rs-log__marker {
-  flex-shrink: 0;
-  width: 0.2rem;
-  align-self: stretch;
-  min-height: 0.9em;
-  margin-block: 0.2rem;
-  border-radius: 99px;
-  background: currentColor;
-  user-select: none;
-}
-.rs-log__no,
-.rs-log__time {
-  flex-shrink: 0;
-  color: var(--rs-log-muted, var(--rs-text-muted));
-  font-variant-numeric: tabular-nums;
-  unicode-bidi: isolate;
-  user-select: none;
-}
-.rs-log__level {
-  flex-shrink: 0;
-  min-width: 3.6rem;
-  font-weight: var(--rs-font-weight-semibold);
-  letter-spacing: 0.02em;
-  unicode-bidi: isolate;
-  user-select: none;
-}
-.rs-log__text {
-  min-width: 0;
-  flex: 1;
-  font-weight: inherit;
-  unicode-bidi: plaintext;
-  user-select: text;
-}
-.rs-log--wrap .rs-log__text {
-  overflow: visible;
-  height: auto;
-  min-height: 0;
-}
-.rs-log:not(.rs-log--wrap) .rs-log__text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.rs-log__hit {
-  padding: 0 0.1em;
-  background: var(--rs-log-hit-bg);
-  color: var(--rs-log-hit-fg);
-  font: inherit;
+.rs-log__jump {
+  position: absolute;
+  inset-inline-end: var(--rs-space-sm);
+  inset-block-end: var(--rs-space-sm);
 }
 .rs-log__sr-only {
   position: absolute;
@@ -804,49 +808,15 @@ defineExpose<RsLogExpose>({
   white-space: nowrap;
   border: 0;
 }
-.rs-log__row--plain {
-  --rs-log-row-fg: var(--rs-log-fg);
-  font-weight: var(--rs-font-weight-regular);
-}
-.rs-log__row--trace {
-  --rs-log-row-fg: var(--rs-log-trace);
-  font-weight: var(--rs-font-weight-regular);
-}
-.rs-log__row--debug {
-  --rs-log-row-fg: var(--rs-log-debug);
-  font-weight: var(--rs-font-weight-regular);
-}
-.rs-log__row--info,
-.rs-log__row--notice {
-  --rs-log-row-fg: var(--rs-log-info);
-  font-weight: var(--rs-font-weight-medium);
-}
-.rs-log__row--notice {
-  --rs-log-row-fg: var(--rs-log-notice);
-}
-.rs-log__row--success {
-  --rs-log-row-fg: var(--rs-log-success);
-  font-weight: var(--rs-font-weight-medium);
-}
-.rs-log__row--warn {
-  --rs-log-row-fg: var(--rs-log-warn);
-  font-weight: var(--rs-font-weight-semibold);
-}
-.rs-log__row--error {
-  --rs-log-row-fg: var(--rs-log-error);
-  font-weight: var(--rs-font-weight-bold);
-}
-.rs-log__row--fatal {
-  --rs-log-row-fg: var(--rs-log-fatal);
-  font-weight: var(--rs-font-weight-bold);
-}
 @media (forced-colors: active) {
-  .rs-log__marker {
-    background: ButtonText;
+  .rs-log {
+    background: Canvas;
+    color: CanvasText;
+    border-color: ButtonText;
   }
-  .rs-log__row--active {
-    outline: 2px solid Highlight;
-    outline-offset: -2px;
+  .rs-log__viewport:focus-visible,
+  .rs-log__chip:focus-visible {
+    outline: var(--rs-focus-ring-width, 2px) solid Highlight;
   }
 }
 </style>

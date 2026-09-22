@@ -283,6 +283,8 @@ export type {
   MonacoCompletionRequest,
   MonacoCompletionSnippet,
   RsMonacoEditorExpose,
+  RsMonacoEditorInstance,
+  RsMonacoEditorTheme,
 } from './components/monaco-editor'
 export type {
   MonacoBuiltinLanguage,
@@ -306,8 +308,9 @@ export {
 } from './monaco'
 export type { MonacoDebugDecorationState } from './monaco'
 export { RsCodeBlock } from './components/code-block'
+export type { RsCodeBlockExpose, RsCodeBlockSelection } from './components/code-block'
 export { RsMarkdown } from './components/markdown'
-export type { RsMarkdownMode, RsMarkdownRenderOptions } from './components/markdown'
+export type { RsMarkdownExpose, RsMarkdownMode, RsMarkdownRenderOptions } from './components/markdown'
 export {
   escapeHtml,
   isSafeHref,
@@ -903,6 +906,7 @@ export type {
 export { resolveItemSize, resolveVirtualListHeight } from './components/virtual-list'
 export type {
   RsCodeEditorDiagnostic,
+  RsCodeEditorExpose,
   RsCodeEditorLanguage,
   RsCodeEditorSqlColumn,
   RsCodeEditorSqlConfig,

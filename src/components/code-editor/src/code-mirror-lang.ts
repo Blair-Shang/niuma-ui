@@ -96,6 +96,13 @@ export async function resolveCodeMirrorLanguage(
         const { yaml } = await import('@codemirror/lang-yaml')
         return [yaml()]
       }
+      case 'toml': {
+        const [{ StreamLanguage }, { toml }] = await Promise.all([
+          import('@codemirror/language'),
+          import('@codemirror/legacy-modes/mode/toml'),
+        ])
+        return [StreamLanguage.define(toml)]
+      }
       case 'vue': {
         const { html } = await import('@codemirror/lang-html')
         return [html()]

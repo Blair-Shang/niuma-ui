@@ -376,18 +376,18 @@ Stable `Rs*` components. Per-prop APIs live on the docs site. Additions must upd
 | `RsTableCellEditor` | Cell editor | `#/components/table-cell-edit` |
 | `RsTableHeader` / `RsTableBody` / `RsTableColGroup` | Table view parts (ViewContext) | With Table |
 | `RsTree` | Check, drag, virtual | `#/components/tree` |
-| `RsCodeBlock` | Read-only by default; `editable` / `showBar` | `#/components/code-block` |
-| `RsMarkdown` | Markdown | `#/components/markdown` |
+| `RsCodeBlock` | Read-only code; native figure, no Reka. `editable` / `showBar`; theme changes do not rebuild the document | `#/components/code-block` |
+| `RsMarkdown` | Markdown edit and preview; named section, no Reka; sanitized GFM; theme follows data-rs-theme | `#/components/markdown` |
 | `RsProseEditor` | Rich-text surface | Editor family |
 
 ### Editors and terminal (heavy)
 
 | Component | Role | Docs |
 |-----------|------|------|
-| `RsCodeEditor` | CodeMirror | `#/components/code-editor` |
-| `RsMonacoEditor` | Monaco | `#/components/monaco-editor` |
+| `RsCodeEditor` | Lightweight CodeMirror editor; native region, no Reka; `theme=auto` follows `data-rs-theme` | `#/components/code-editor` |
+| `RsMonacoEditor` | Monaco; native frame, no Reka; theme follows data-rs-theme | `#/components/monaco-editor` |
 | `RsTerminal` | xterm | `#/components/terminal` |
-| `RsLog` | Read-only log (not a PTY) | `#/components/log` |
+| `RsLog` | Read-only log (not a PTY). Native region, no Reka. Display strips ANSI; getLines().text keeps the source | `#/components/log` |
 
 ### Registered host helpers (excerpt)
 

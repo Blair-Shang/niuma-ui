@@ -2,6 +2,7 @@ export { default as RsCodeEditor } from './src/RsCodeEditor.vue'
 export { resolveCodeMirrorLanguage, isCodeMirrorLightTheme, prewarmCodeMirrorEditor } from './src/code-mirror-lang'
 export type {
   RsCodeEditorDiagnostic,
+  RsCodeEditorExpose,
   RsCodeEditorLanguage,
   RsCodeEditorSqlColumn,
   RsCodeEditorSqlConfig,

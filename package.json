@@ -1,6 +1,6 @@
 {
   "name": "niuma-ui",
-  "version": "2.0.7",
+  "version": "2.0.8",
   "license": "Apache-2.0",
   "type": "module",
   "description": "Vue 3 workbench design system — Rs* components, --rs-* tokens, optional Monaco / CodeMirror / xterm",

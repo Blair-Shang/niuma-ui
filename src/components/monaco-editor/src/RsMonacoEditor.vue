@@ -1,71 +1,60 @@
 <script setup lang="ts">
 import * as monaco from 'monaco-editor'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
-import { readCodeFontFamily, readCodeFontSizePx, readCssVar } from '../../../theme/css-token'
+import { computed, onMounted, onUnmounted, ref, useId, watch } from 'vue'
+import { useRsI18n } from '../../../composables/useRsI18n'
+import { rsRadiusCss, useResolvedRsRadius } from '../../_shared/src/resolve-radius'
+import type { RsRadius } from '../../../theme/types'
 import { applyMonacoDebugDecorations } from '../../../monaco/debug-decorations'
-import type { MonacoLanguage } from '../../../monaco/languages'
-import {
-  ensureMongodbShellLanguage,
-  MONACO_MONGODB_SHELL_LANGUAGE,
-  MONACO_MYSQL_LANGUAGE,
-  MONACO_DAMENG_LANGUAGE,
-  MONACO_KINGBASE_LANGUAGE,
-  MONACO_POSTGRESQL_LANGUAGE,
-  MONACO_CLICKHOUSE_LANGUAGE,
-  MONACO_SQLITE_LSP_LANGUAGE,
-  MONACO_SQLSERVER_LANGUAGE,
-  MONACO_ORACLE_LANGUAGE,
-} from '../../../monaco/languages'
+import { ensureMongodbShellLanguage, MONACO_MONGODB_SHELL_LANGUAGE } from '../../../monaco/languages'
 /** VS Code 式调试装饰样式（断点 / 当前行）；业务组件勿再自定义 glyph CSS */
 import '../../../monaco/debug-decorations.css'
+import {
+  applySharedMonacoTheme,
+  completionLanguages,
+  completionReplaceRange,
+  createMonacoModelUri,
+  isManagedSqlDialect,
+  mergeMonacoEditorOptions,
+  mergeMonacoJsonSchemas,
+  monacoMotionOptions,
+  prefersReducedMotion,
+  readDocumentRsTheme,
+  readMonacoMetrics,
+  readMonacoThemeColors,
+  resolveCompletionPrefix,
+  resolveMonacoHeight,
+  resolveMonacoThemeName,
+  RS_MONACO_SCHEMA_PREFIX,
+  setOwnedMonacoJsonSchema,
+  subscribeDocumentTheme,
+  subscribeReducedMotion,
+  syncMonacoCompletionProvider,
+  type MonacoCompletionSnippet,
+  type MonacoJsonSchemaEntry,
+  type RsMonacoEditorExpose,
+} from './monaco-editor-utils'
 
-/** 实例级补全片段（仅作用于当前编辑器 Model）。 */
-export interface MonacoCompletionSnippet {
-  label: string
-  insertText: string
-  detail?: string
-  documentation?: string
-  filterText?: string
-  sortText?: string
-  kind?: 'snippet' | 'keyword' | 'property' | 'field' | 'function' | 'value'
-  preselect?: boolean
-}
+export type {
+  MonacoCompletionContext,
+  MonacoCompletionPrefixResolver,
+  MonacoCompletionRequest,
+  MonacoCompletionSnippet,
+  RsMonacoEditorExpose,
+  RsMonacoEditorInstance,
+  RsMonacoEditorTheme,
+} from './monaco-editor-utils'
 
-/**
- * RsMonacoEditor 模板 ref 请用此类型。
- * 不要写 `InstanceType<typeof RsMonacoEditor>`：组件实例类型过深，vue-tsc 会报 Excessive stack depth。
- */
-export interface RsMonacoEditorExpose {
-  format: () => void
-  getEditor: () => import('monaco-editor').editor.IStandaloneCodeEditor | null
-  revealLine: (line: number) => void
-}
-
-/** MonacoCompletionContext 描述一次补全请求的编辑器上下文。 */
-export interface MonacoCompletionContext {
-  text: string
-  offset: number
-  line: number
-  column: number
-  prefix: string
-  triggerCharacter?: string
-}
-
-/** MonacoCompletionRequest 按当前文本和光标位置返回实例级候选。 */
-export type MonacoCompletionRequest = (
-  context: MonacoCompletionContext,
-) => MonacoCompletionSnippet[] | Promise<MonacoCompletionSnippet[]>
-
-/** 补全前缀解析：由业务侧按方言注入，默认按标识符切词。 */
-export type MonacoCompletionPrefixResolver = (linePrefix: string) => string
+defineOptions({ name: 'RsMonacoEditor' })
 
 const props = withDefaults(
   defineProps<{
-    language?: MonacoLanguage
+    language?: import('../../../monaco/languages').MonacoLanguage
     /** px 整数或 CSS 字符串如 '100%' / '20rem' */
     height?: number | string
     readonly?: boolean
-    /** 深色/浅色主题：auto 跟随 data-rs-theme 属性 */
+    /** 不可编辑，且不再弹出只读提示。与 readonly 可同时开，disabled 优先锁 DOM。 */
+    disabled?: boolean
+    /** 深色/浅色：auto 跟随 documentElement 的 data-rs-theme。Monaco 主题是进程级的。 */
     theme?: 'auto' | 'vs-dark' | 'light'
     /** 是否显示 minimap */
     minimap?: boolean
@@ -80,35 +69,48 @@ const props = withDefaults(
     debugCurrentLine?: number
     /** 调试：断点行号列表（1-based，编辑器行号） */
     debugBreakpoints?: number[]
-    /** 嵌入面板：无边框/圆角，铺满父级（调试/源码等） */
+    /**
+     * 嵌入面板：去掉自己的边框和底色，圆角跟父级，铺满父级。
+     * height 仍生效；父级是 flex 时也会 flex: 1。
+     */
     embedded?: boolean
+    /** 外框圆角。embedded 时忽略，改跟父级。 */
+    radius?: RsRadius
     /**
      * JSON Schema 对象（仅 language="json" 有效）。
      * 每个编辑器实例使用独立的 Model URI，schema 通过 fileMatch 精确绑定，
      * 不会污染其他 JSON 编辑器。
      */
     jsonSchema?: object
-    /** 实例级补全片段（language="json" 时 Ctrl+Space / 触发字符生效）。 */
+    /** 实例级补全片段（Ctrl+Space / 触发字符生效）。 */
     snippets?: MonacoCompletionSnippet[]
     /** 按光标上下文动态生成候选；设置后与 snippets 合并。 */
-    completionRequest?: MonacoCompletionRequest
+    completionRequest?: import('./monaco-editor-utils').MonacoCompletionRequest
     /** 自动触发动态补全的字符。 */
     completionTriggerCharacters?: string[]
     /**
      * 自定义补全前缀（决定替换范围）。
      * 默认按标识符字符切词；Mongo Shell / SQL 等方言由业务 composable 注入，勿写进本组件。
      */
-    completionPrefixResolver?: MonacoCompletionPrefixResolver
+    completionPrefixResolver?: import('./monaco-editor-utils').MonacoCompletionPrefixResolver
     /**
      * 覆盖/合并 Monaco Editor 构造选项（如 automaticLayout、suggest）。
      * 浅合并顶层；`suggest` 会与默认 suggest 再浅合并一层。
+     * 请保持对象引用稳定，不要在模板里每次新建。
      */
     options?: Record<string, unknown>
+    /** 空文档时的占位。不进 v-model。 */
+    placeholder?: string
+    /** 传给 Monaco 文本框的可访问名称。缺省走 monaco.label。 */
+    ariaLabel?: string
+    /** 根节点 id。不传时用 useId。 */
+    id?: string
   }>(),
   {
     language: 'json',
     height: '100%',
     readonly: false,
+    disabled: false,
     theme: 'auto',
     minimap: false,
     glyphMargin: false,
@@ -122,21 +124,42 @@ const props = withDefaults(
 const emit = defineEmits<{
   /** glyph 槽点击（仅 glyphMargin=true）；业务据此切换断点 */
   glyphMarginClick: [line: number]
+  /** 文本区获得焦点 */
+  focus: []
+  /** 文本区失去焦点 */
+  blur: []
+  /** 编辑器完成创建（含 language 变化后的重建） */
+  ready: []
 }>()
 
 const model = defineModel<string>({ default: '' })
+
+const { t } = useRsI18n()
+const autoId = useId()
+const rootId = computed(() => props.id || autoId)
+const resolvedAriaLabel = computed(() => props.ariaLabel || t('monaco.label'))
+const resolvedRadius = useResolvedRsRadius(() => props.radius, 'md')
+const frameStyle = computed(() => ({
+  height: resolveMonacoHeight(props.height),
+  '--rs-monaco-radius': props.embedded ? 'inherit' : rsRadiusCss(resolvedRadius.value),
+}))
 
 const editorEl = ref<HTMLElement | null>(null)
 
 let editor: monaco.editor.IStandaloneCodeEditor | null = null
 let editorModel: monaco.editor.ITextModel | null = null
-/** 每个实例的唯一 schema URI，用于 fileMatch 精确匹配，避免全局污染 */
+/** 每个 JSON 实例的唯一 schema URI，用于 fileMatch 精确匹配 */
 let schemaUri = ''
-let snippetDisposable: monaco.IDisposable | null = null
+let contentDisposable: monaco.IDisposable | null = null
+let focusDisposable: monaco.IDisposable | null = null
+let blurDisposable: monaco.IDisposable | null = null
 let glyphClickDisposable: monaco.IDisposable | null = null
 let debugDecoIds: string[] = []
 let suppressChange = false
 let unmounted = false
+let completionGeneration = 0
+let unsubscribeTheme: (() => void) | null = null
+let unsubscribeMotion: (() => void) | null = null
 
 function syncDebugDecorations(): void {
   if (!editor || !props.glyphMargin) {
@@ -155,62 +178,33 @@ function bindGlyphClick(): void {
   glyphClickDisposable?.dispose()
   glyphClickDisposable = null
   if (!editor || !props.glyphMargin) return
-  glyphClickDisposable = editor.onMouseDown((e) => {
-    if (e.target.type !== monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) return
-    const line = e.target.position?.lineNumber
+  glyphClickDisposable = editor.onMouseDown((event) => {
+    if (event.target.type !== monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) return
+    const line = event.target.position?.lineNumber
     if (!line) return
     emit('glyphMarginClick', line)
   })
 }
 
-// ── Theme ──────────────────────────────────────────────────────────────
-function resolveTheme(): string {
-  if (props.theme !== 'auto') return props.theme
-  return document.documentElement.dataset['rsTheme'] === 'light' ? 'light' : 'vs-dark'
+function publishJsonSchemas(): void {
+  const defaults = monaco.json.jsonDefaults
+  const existing = defaults.diagnosticsOptions
+  const schemas = mergeMonacoJsonSchemas(existing.schemas as MonacoJsonSchemaEntry[] | undefined)
+  const owned = schemas.some((item) => item.uri.startsWith(RS_MONACO_SCHEMA_PREFIX))
+  defaults.setDiagnosticsOptions({
+    ...existing,
+    ...(owned ? { validate: true } : {}),
+    schemas,
+  })
 }
 
-function applyTheme(): void {
-  monaco.editor.setTheme(resolveTheme())
-}
-
-// ── JSON Schema ─────────────────────────────────────────────────────────
-/**
- * 将当前 jsonSchema 应用到 JSON Language Defaults。
- * Monaco v0.55+ 使用顶层 `monaco.json` 命名空间（原 `monaco.languages.json` 已废弃）。
- * 每实例使用独立 schemaUri，通过 fileMatch 精确绑定，不污染其他编辑器。
- */
 function applyJsonSchema(): void {
-  if (props.language !== 'json') return
-
-  // monaco.json 是 v0.55 的顶层 JSON 命名空间
-  const defaults = monaco.json.jsonDefaults
-  const existing = defaults.diagnosticsOptions
-  const schemas = (existing.schemas ?? []).filter(
-    (s: { uri: string }) => s.uri !== schemaUri,
-  )
-
-  if (props.jsonSchema && schemaUri) {
-    schemas.push({
-      uri: schemaUri,
-      fileMatch: [schemaUri],
-      schema: props.jsonSchema,
-    })
+  if (props.language === 'json' && props.jsonSchema && schemaUri) {
+    setOwnedMonacoJsonSchema(schemaUri, props.jsonSchema)
+  } else if (schemaUri) {
+    setOwnedMonacoJsonSchema(schemaUri, null)
   }
-
-  defaults.setDiagnosticsOptions({ ...existing, validate: true, schemas })
-}
-
-function removeJsonSchema(): void {
-  if (!schemaUri) return
-  const defaults = monaco.json.jsonDefaults
-  const existing = defaults.diagnosticsOptions
-  const schemas = (existing.schemas ?? []).filter((s: { uri: string }) => s.uri !== schemaUri)
-  defaults.setDiagnosticsOptions({ ...existing, schemas })
-}
-
-function disposeSnippets(): void {
-  snippetDisposable?.dispose()
-  snippetDisposable = null
+  publishJsonSchemas()
 }
 
 function completionKind(kind: MonacoCompletionSnippet['kind']): monaco.languages.CompletionItemKind {
@@ -224,132 +218,97 @@ function completionKind(kind: MonacoCompletionSnippet['kind']): monaco.languages
   }
 }
 
-function completionPrefix(line: string): string {
-  if (props.completionPrefixResolver) {
-    return props.completionPrefixResolver(line)
+function applySnippets(): void {
+  const uri = editorModel?.uri.toString() ?? ''
+  const languages = completionLanguages(props.language)
+  const enabled = languages.length > 0 && Boolean(props.snippets?.length || props.completionRequest)
+  if (!uri || !enabled) {
+    if (uri) syncMonacoCompletionProvider(monaco, uri, null)
+    return
   }
-  // 默认：按标识符字符向前切词（与 JSON / 多数脚本方言够用）
-  let start = line.length
-  while (start > 0 && /[\w$.-]/.test(line[start - 1] ?? '')) start -= 1
-  return line.slice(start)
+  const language = languages[0]
+  if (!language) return
+  const generation = completionGeneration
+  syncMonacoCompletionProvider(monaco, uri, {
+    language,
+    triggers: props.completionTriggerCharacters ?? [],
+    provide: async (textModel, position, context, token) => {
+      if (generation !== completionGeneration || unmounted || token.isCancellationRequested) {
+        return { suggestions: [] }
+      }
+      const linePrefix = textModel.getLineContent(position.lineNumber).slice(0, position.column - 1)
+      const prefix = resolveCompletionPrefix(linePrefix, props.completionPrefixResolver)
+      const range = completionReplaceRange(position.lineNumber, position.column, prefix)
+      const dynamic = props.completionRequest
+        ? await props.completionRequest({
+          text: textModel.getValue(),
+          offset: textModel.getOffsetAt(position),
+          line: position.lineNumber,
+          column: position.column,
+          prefix,
+          triggerCharacter: context.triggerCharacter,
+        })
+        : []
+      if (generation !== completionGeneration || unmounted || token.isCancellationRequested) {
+        return { suggestions: [] }
+      }
+      const snippets = [...(props.snippets ?? []), ...dynamic]
+      return {
+        incomplete: true,
+        suggestions: snippets.map((snippet) => ({
+          label: snippet.label,
+          kind: completionKind(snippet.kind),
+          insertText: snippet.insertText,
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          detail: snippet.detail,
+          documentation: snippet.documentation,
+          filterText: snippet.filterText ?? snippet.label,
+          sortText: snippet.sortText,
+          preselect: snippet.preselect,
+          range,
+        })),
+      }
+    },
+  })
 }
 
-function isManagedSqlDialect(language: string | undefined): boolean {
-  // Bridge LSP 接管补全；勿再注册实例级 Provider / wordBased
-  return (
-    language === MONACO_MYSQL_LANGUAGE ||
-    language === MONACO_DAMENG_LANGUAGE ||
-    language === MONACO_KINGBASE_LANGUAGE ||
-    language === MONACO_POSTGRESQL_LANGUAGE ||
-    language === MONACO_CLICKHOUSE_LANGUAGE ||
-    language === MONACO_SQLITE_LSP_LANGUAGE ||
-    language === MONACO_SQLSERVER_LANGUAGE ||
-    language === MONACO_ORACLE_LANGUAGE
+function applyTheme(): void {
+  if (!editor || !editorEl.value || unmounted) return
+  const host = editorEl.value
+  const metrics = readMonacoMetrics(host)
+  const motion = monacoMotionOptions(prefersReducedMotion())
+  editor.updateOptions({
+    fontFamily: metrics.fontFamily,
+    fontSize: metrics.fontSize,
+    lineHeight: metrics.lineHeight,
+    smoothScrolling: motion.smoothScrolling,
+    cursorSmoothCaretAnimation: motion.cursorSmoothCaretAnimation,
+    ariaLabel: resolvedAriaLabel.value,
+  })
+  const overrides = mergeMonacoEditorOptions(props.options, props.language)
+  if (typeof overrides.theme === 'string') {
+    monaco.editor.setTheme(overrides.theme)
+    return
+  }
+  applySharedMonacoTheme(
+    monaco,
+    resolveMonacoThemeName(props.theme, readDocumentRsTheme()),
+    readMonacoThemeColors(host),
   )
 }
 
-/** 合并业务侧 options；suggest 做一层浅合并，避免整对象覆盖默认。 */
-function mergeEditorOptions(
-  overrides: Record<string, unknown> | undefined,
-): Record<string, unknown> {
-  if (!overrides) return {}
-  const out: Record<string, unknown> = { ...overrides }
-  if (
-    overrides.suggest &&
-    typeof overrides.suggest === 'object' &&
-    !Array.isArray(overrides.suggest)
-  ) {
-    out.suggest = {
-      snippetsPreventQuickSuggestions: false,
-      filterGraceful: !isManagedSqlDialect(props.language),
-      matchOnWordStartOnly: isManagedSqlDialect(props.language),
-      ...(overrides.suggest as Record<string, unknown>),
-    }
-  }
-  return out
-}
-
-function completionLanguages(): string[] {
-  if (isManagedSqlDialect(props.language)) {
-    return []
-  }
-  if (
-    props.language === 'javascript' ||
-    props.language === 'typescript' ||
-    props.language === MONACO_MONGODB_SHELL_LANGUAGE ||
-    props.language === 'plaintext' ||
-    props.language === 'sql' ||
-    props.language === 'yaml'
-  ) {
-    return [props.language]
-  }
-  if (props.language === 'json') {
-    return ['json']
-  }
-  return []
-}
-
-function applySnippets(): void {
-  disposeSnippets()
-  const languages = completionLanguages()
-  if (
-    languages.length === 0 ||
-    !editorModel ||
-    (!props.snippets?.length && !props.completionRequest)
-  ) return
-
-  const modelUri = editorModel.uri.toString()
-  for (const language of languages) {
-    snippetDisposable = monaco.languages.registerCompletionItemProvider(language, {
-      triggerCharacters: props.completionTriggerCharacters,
-      async provideCompletionItems(model, position, context, token) {
-        if (model.uri.toString() !== modelUri) {
-          return { suggestions: [] }
-        }
-        const linePrefix = model.getLineContent(position.lineNumber).slice(0, position.column - 1)
-        const prefix = completionPrefix(linePrefix)
-        const startColumn = position.column - prefix.length
-        const range = {
-          startLineNumber: position.lineNumber,
-          endLineNumber: position.lineNumber,
-          startColumn,
-          endColumn: position.column,
-        }
-        const dynamic = props.completionRequest
-          ? await props.completionRequest({
-              text: model.getValue(),
-              offset: model.getOffsetAt(position),
-              line: position.lineNumber,
-              column: position.column,
-              prefix,
-              triggerCharacter: context.triggerCharacter,
-            })
-          : []
-        if (token.isCancellationRequested) return { suggestions: [] }
-        const snippets = [...(props.snippets ?? []), ...dynamic]
-        return {
-          incomplete: true,
-          suggestions: snippets.map((snippet) => ({
-            label: snippet.label,
-            kind: completionKind(snippet.kind),
-            insertText: snippet.insertText,
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            detail: snippet.detail,
-            documentation: snippet.documentation,
-            filterText: snippet.filterText ?? snippet.label,
-            sortText: snippet.sortText,
-            preselect: snippet.preselect,
-            range,
-          })),
-        }
-      },
-    })
-  }
-}
-
 function disposeEditor(): void {
-  removeJsonSchema()
-  disposeSnippets()
+  completionGeneration += 1
+  const uri = editorModel?.uri.toString() ?? ''
+  if (uri) syncMonacoCompletionProvider(monaco, uri, null)
+  const hadSchema = Boolean(schemaUri)
+  if (schemaUri) setOwnedMonacoJsonSchema(schemaUri, null)
+  contentDisposable?.dispose()
+  contentDisposable = null
+  focusDisposable?.dispose()
+  focusDisposable = null
+  blurDisposable?.dispose()
+  blurDisposable = null
   glyphClickDisposable?.dispose()
   glyphClickDisposable = null
   debugDecoIds = []
@@ -357,137 +316,139 @@ function disposeEditor(): void {
   editorModel?.dispose()
   editor = null
   editorModel = null
+  schemaUri = ''
+  if (hadSchema) publishJsonSchemas()
 }
 
-// ── Editor ──────────────────────────────────────────────────────────────
 function initEditor(): void {
   if (!editorEl.value || unmounted) return
-
   disposeEditor()
+  const host = editorEl.value
+  if (!host || unmounted) return
 
   if (props.language === MONACO_MONGODB_SHELL_LANGUAGE) {
     ensureMongodbShellLanguage(monaco)
   }
 
-  // 为每个实例生成唯一 URI，使 JSON Schema 精准匹配
-  schemaUri = `inmemory://rs-monaco/${crypto.randomUUID()}.json`
+  const metrics = readMonacoMetrics(host)
+  const motion = monacoMotionOptions(prefersReducedMotion())
+  const overrides = mergeMonacoEditorOptions(props.options, props.language)
+  const forcedTheme = typeof overrides.theme === 'string' ? overrides.theme : ''
+  const themeName = forcedTheme || resolveMonacoThemeName(props.theme, readDocumentRsTheme())
+  if (!forcedTheme) {
+    applySharedMonacoTheme(monaco, themeName, readMonacoThemeColors(host))
+  }
 
+  schemaUri = props.language === 'json' ? createMonacoModelUri() : ''
   editorModel = monaco.editor.createModel(
     model.value,
     props.language,
-    props.language === 'json' ? monaco.Uri.parse(schemaUri) : undefined,
+    schemaUri ? monaco.Uri.parse(schemaUri) : undefined,
   )
 
-  const host = editorEl.value
-  const fontSize = readCodeFontSizePx(host)
-  const lineHeightRatio =
-    Number.parseFloat(readCssVar('--rs-code-line-height', host) || readCssVar('--rs-line-height-relaxed', host)) || 1.625
-
-  editor = monaco.editor.create(editorEl.value, {
+  editor = monaco.editor.create(host, {
     model: editorModel,
-    theme: resolveTheme(),
-    readOnly: props.readonly,
+    theme: themeName,
+    readOnly: props.readonly || props.disabled,
+    domReadOnly: props.disabled,
+    ariaLabel: resolvedAriaLabel.value,
+    placeholder: props.placeholder ?? '',
     automaticLayout: true,
     minimap: { enabled: props.minimap },
     scrollBeyondLastLine: false,
-    fontFamily: readCodeFontFamily(host),
-    fontSize,
-    lineHeight: Math.round(fontSize * lineHeightRatio),
+    fontFamily: metrics.fontFamily,
+    fontSize: metrics.fontSize,
+    lineHeight: metrics.lineHeight,
     tabSize: 2,
     wordWrap: 'on',
     bracketPairColorization: { enabled: true },
-    padding: { top: 8, bottom: 8 },
+    padding: { top: metrics.padding, bottom: metrics.padding },
     renderLineHighlight: 'line',
-    smoothScrolling: true,
-    cursorSmoothCaretAnimation: 'on',
+    smoothScrolling: motion.smoothScrolling,
+    cursorSmoothCaretAnimation: motion.cursorSmoothCaretAnimation,
     folding: true,
     glyphMargin: props.glyphMargin,
-    // 行号区域仅保留 3 位宽度（≤999 行绰绰有余），减少左侧空白
     lineNumbersMinChars: 3,
-    // glyph 断点 + linesDecorations 执行箭头时需留出装饰槽宽度
-    lineDecorationsWidth: props.glyphMargin ? 16 : 4,
+    lineDecorationsWidth: props.glyphMargin ? metrics.glyphWidth : metrics.decorationWidth,
     overviewRulerLanes: 0,
     hideCursorInOverviewRuler: true,
-    // Shell：业务 completionRequest；SQL 方言：Bridge LSP；避免 wordBased 抢补全
     quickSuggestions: props.language === MONACO_MONGODB_SHELL_LANGUAGE
       ? { other: true, comments: false, strings: true }
       : true,
     suggestOnTriggerCharacters: true,
-    wordBasedSuggestions:
-      props.language === MONACO_MONGODB_SHELL_LANGUAGE ||
-      isManagedSqlDialect(props.language)
-        ? 'off'
-        : 'currentDocument',
+    wordBasedSuggestions: props.language === MONACO_MONGODB_SHELL_LANGUAGE || isManagedSqlDialect(props.language)
+      ? 'off'
+      : 'currentDocument',
     suggest: {
       snippetsPreventQuickSuggestions: false,
-      // catalog 已按前缀检索；关闭宽松模糊，避免短前缀下列表「看起来像乱匹配」
       filterGraceful: !isManagedSqlDialect(props.language),
       matchOnWordStartOnly: isManagedSqlDialect(props.language),
     },
     scrollbar: {
-      verticalScrollbarSize: 8,
-      horizontalScrollbarSize: 8,
+      verticalScrollbarSize: metrics.scrollbarSize,
+      horizontalScrollbarSize: metrics.scrollbarSize,
     },
-    // Find Widget 等溢出控件使用 fixed 定位，避免被 overflow:hidden 裁剪
     fixedOverflowWidgets: true,
-    ...mergeEditorOptions(props.options),
+    ...overrides,
   })
 
-  editorModel.onDidChangeContent(() => {
+  contentDisposable = editorModel.onDidChangeContent(() => {
     if (suppressChange) return
     const value = editorModel?.getValue() ?? ''
     if (value !== model.value) model.value = value
   })
+  focusDisposable = editor.onDidFocusEditorText(() => emit('focus'))
+  blurDisposable = editor.onDidBlurEditorText(() => emit('blur'))
 
   applyJsonSchema()
   applySnippets()
   bindGlyphClick()
   syncDebugDecorations()
+  emit('ready')
 }
-
-// ── Lifecycle ──────────────────────────────────────────────────────────
-let themeObserver: MutationObserver | null = null
 
 onMounted(() => {
   unmounted = false
   initEditor()
-  themeObserver = new MutationObserver(applyTheme)
-  themeObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['data-rs-theme'],
-  })
+  unsubscribeTheme = subscribeDocumentTheme(() => applyTheme())
+  unsubscribeMotion = subscribeReducedMotion(() => applyTheme())
 })
 
 onUnmounted(() => {
   unmounted = true
-  glyphClickDisposable?.dispose()
-  glyphClickDisposable = null
-  debugDecoIds = []
+  unsubscribeTheme?.()
+  unsubscribeTheme = null
+  unsubscribeMotion?.()
+  unsubscribeMotion = null
   disposeEditor()
-  themeObserver?.disconnect()
-  themeObserver = null
 })
 
-// ── Watchers ──────────────────────────────────────────────────────────
 watch(
   () => model.value,
   (val) => {
-    if (!editorModel) return
-    if (editorModel.getValue() === val) return
+    if (!editorModel || editorModel.getValue() === val) return
     suppressChange = true
-    editorModel.setValue(val)
-    suppressChange = false
+    try {
+      editorModel.setValue(val)
+    } finally {
+      suppressChange = false
+    }
   },
 )
 
-watch(() => props.readonly, (val) => editor?.updateOptions({ readOnly: val }))
+watch(() => [props.readonly, props.disabled] as const, ([readonly, disabled]) => {
+  editor?.updateOptions({ readOnly: readonly || disabled, domReadOnly: disabled })
+})
 watch(() => props.minimap, (val) => editor?.updateOptions({ minimap: { enabled: val } }))
+watch(resolvedAriaLabel, (label) => editor?.updateOptions({ ariaLabel: label }))
+watch(() => props.placeholder, (value) => editor?.updateOptions({ placeholder: value ?? '' }))
 watch(
   () => props.glyphMargin,
   (val) => {
+    const metrics = readMonacoMetrics(editorEl.value)
     editor?.updateOptions({
       glyphMargin: val,
-      lineDecorationsWidth: val ? 16 : 4,
+      lineDecorationsWidth: val ? metrics.glyphWidth : metrics.decorationWidth,
     })
     bindGlyphClick()
     syncDebugDecorations()
@@ -495,19 +456,22 @@ watch(
 )
 watch(
   () => [props.debugCurrentLine, props.debugBreakpoints] as const,
-  () => {
-    syncDebugDecorations()
-  },
+  () => syncDebugDecorations(),
   { deep: true },
 )
 watch(() => props.language, () => initEditor())
+watch(() => props.theme, () => applyTheme())
 watch(() => props.jsonSchema, () => applyJsonSchema(), { deep: true })
 watch(() => props.snippets, () => applySnippets(), { deep: true })
 watch(() => props.completionRequest, () => applySnippets())
 watch(() => props.completionTriggerCharacters, () => applySnippets(), { deep: true })
 watch(() => props.completionPrefixResolver, () => applySnippets())
+watch(() => props.options, () => {
+  if (!editor || !props.options) return
+  editor.updateOptions(mergeMonacoEditorOptions(props.options, props.language) as monaco.editor.IEditorOptions)
+  applyTheme()
+})
 
-// ── Expose ────────────────────────────────────────────────────────────
 defineExpose<RsMonacoEditorExpose>({
   /** 格式化文档（等价于 Shift+Alt+F） */
   format(): void {
@@ -521,47 +485,77 @@ defineExpose<RsMonacoEditorExpose>({
     if (!editor || line <= 0) return
     editor.revealLineInCenter(line)
   },
+  focus(): void {
+    editor?.focus()
+  },
+  blur(): void {
+    const node = editor?.getDomNode()
+    if (!node) return
+    const active = node.ownerDocument.activeElement
+    if (active instanceof HTMLElement && node.contains(active)) active.blur()
+  },
 })
 </script>
 
 <template>
   <div
+    :id="rootId"
     ref="editorEl"
     class="rs-monaco"
-    :class="{ 'rs-monaco--embedded': embedded }"
-    :style="{ height: typeof height === 'number' ? `${height}px` : height }"
+    :class="{ 'rs-monaco--embedded': embedded, 'rs-monaco--disabled': disabled }"
+    :style="frameStyle"
+    dir="ltr"
+    :aria-disabled="disabled || undefined"
   />
 </template>
 
 <style scoped>
 .rs-monaco {
-  /* hover tooltip 的定位上下文；勿加 overflow:hidden，否则会裁剪 Find Widget 的 tooltip */
   position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
   width: 100%;
-  border: 1px solid var(--rs-border);
-  border-radius: var(--rs-radius);
-  background: var(--rs-surface-elevated);
+  overflow: hidden;
+  border: 1px solid var(--rs-monaco-border, var(--rs-border));
+  border-radius: var(--rs-monaco-radius, var(--rs-radius));
+  background: var(--rs-monaco-bg, var(--rs-surface-elevated));
+  color: var(--rs-monaco-fg, var(--rs-text-primary));
+}
+
+.rs-monaco:not(.rs-monaco--embedded):focus-within {
+  outline: var(--rs-focus-ring-width, 2px) solid var(--rs-focus-border);
+  outline-offset: 1px;
 }
 
 .rs-monaco--embedded {
   border: 0;
-  border-radius: 0;
+  background: transparent;
   flex: 1 1 auto;
-  min-height: 0;
-  height: 100%;
+  min-block-size: 0;
 }
 
-:deep(.monaco-editor) {
+.rs-monaco--disabled {
+  opacity: var(--rs-monaco-disabled-opacity, 0.72);
+}
+
+:deep(.monaco-editor),
+:deep(.monaco-editor .overflow-guard),
+:deep(.monaco-editor .monaco-scrollable-element) {
   border-radius: inherit;
 }
 
 :deep(.monaco-editor .overflow-guard) {
-  border-radius: inherit;
   overflow: hidden;
 }
 
-/* Find Widget z-index:35；Monaco hover 内联 z-index≈2575，层级本身足够 */
 :deep(.monaco-editor .find-widget) {
-  z-index: 40;
+  z-index: var(--rs-z-dropdown);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rs-monaco:not(.rs-monaco--embedded):focus-within {
+    outline-offset: 0;
+  }
 }
 </style>

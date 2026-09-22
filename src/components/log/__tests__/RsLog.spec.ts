@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { nextTick } from 'vue'
+import { h, nextTick } from 'vue'
 import RsLog from '../src/RsLog.vue'
 import type { RsLogExpose, RsLogLine } from '../src/RsLog.vue'
 import { copyTextToClipboard } from '../../../utils/rs-clipboard'
@@ -250,6 +250,65 @@ describe('RsLog', () => {
     expect(wrapper.findAll('.rs-log__row')).toHaveLength(3)
     expect(wrapper.find('.rs-virtual-list').exists()).toBe(false)
     wrapper.unmount()
+  })
+
+  it('shows stripped ANSI text and keeps the source on getLines', () => {
+    const wrapper = mount(RsLog, {
+      props: {
+        lines: '\u001b[31m[ERROR] boom\u001b[0m',
+        height: 120,
+        itemSize: 24,
+        showSearch: false,
+      },
+    })
+    expect(wrapper.find('.rs-log__text').text()).toBe('[ERROR] boom')
+    expect(wrapper.find('.rs-log__row--error').exists()).toBe(true)
+    expect(expose(wrapper).getLines()[0]?.text).toContain('\u001b')
+    expect(expose(wrapper).getLines()[0]?.plain).toBe('[ERROR] boom')
+    wrapper.unmount()
+  })
+
+  it('renders a custom row from the slot', () => {
+    const wrapper = mount(RsLog, {
+      props: {
+        lines: '[ERROR] boom',
+        height: 120,
+        itemSize: 24,
+        showSearch: false,
+      },
+      slots: {
+        row: (props: { levelLabel: string; item: { plain: string } }) =>
+          h('span', { class: 'custom' }, `${props.levelLabel}:${props.item.plain}`),
+      },
+    })
+    expect(wrapper.find('.custom').text()).toBe('Error:[ERROR] boom')
+    expect(wrapper.find('.rs-log__text').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows a match count while searching', () => {
+    const wrapper = mount(RsLog, {
+      props: {
+        lines: 'alpha info\nbeta error',
+        search: 'beta',
+        height: 160,
+        itemSize: 24,
+      },
+    })
+    expect(wrapper.find('.rs-log__matches').text()).toMatch(/1/)
+    wrapper.unmount()
+  })
+
+  it('does not leave a copy timer after unmount', async () => {
+    vi.useFakeTimers()
+    const wrapper = mount(RsLog, {
+      props: { lines: 'hello', height: 80, itemSize: 24 },
+    })
+    const pending = expose(wrapper).copy()
+    wrapper.unmount()
+    await pending
+    vi.runAllTimers()
+    vi.useRealTimers()
   })
 
   it('emits overflow when maxLines drops old rows', async () => {

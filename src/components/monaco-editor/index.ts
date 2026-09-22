@@ -5,4 +5,6 @@ export type {
   MonacoCompletionRequest,
   MonacoCompletionSnippet,
   RsMonacoEditorExpose,
+  RsMonacoEditorInstance,
+  RsMonacoEditorTheme,
 } from './src/RsMonacoEditor.vue'

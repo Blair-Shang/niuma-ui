@@ -1,6 +1,7 @@
 import { Prec, StateEffect, StateField, type Extension } from '@codemirror/state'
 import { Decoration, EditorView, keymap, WidgetType } from '@codemirror/view'
 import { posToLineColumn } from './code-mirror-intel'
+import { editorAbortSession, isEditorViewAlive } from './code-mirror-session'
 
 export const setGhostCompletion = StateEffect.define<string | null>()
 
@@ -77,7 +78,13 @@ const ghostField = StateField.define<ReturnType<typeof Decoration.set>>({
 })
 
 export interface CodeMirrorGhostHandlers {
-  completionRequest?: (prefix: string, suffix: string, line: number, column: number) => Promise<string | null>
+  completionRequest?: (
+    prefix: string,
+    suffix: string,
+    line: number,
+    column: number,
+    signal?: AbortSignal,
+  ) => Promise<string | null>
 }
 
 function readGhostAtCursor(view: EditorView): GhostMeta | null {
@@ -93,7 +100,12 @@ export function codeMirrorGhostExtensions(
   cancelScheduled?: () => void,
 ): Extension[] {
   let seq = 0
+  const session = editorAbortSession(() => {
+    seq += 1
+    cancelScheduled?.()
+  })
   return [
+    session,
     ghostMetaField,
     ghostField,
     EditorView.updateListener.of((update) => {
@@ -104,20 +116,24 @@ export function codeMirrorGhostExtensions(
       const id = ++seq
       scheduleDebounced(() => {
         const view = update.view
+        if (!isEditorViewAlive(view)) return
         const pos = view.state.selection.main.head
         const prefix = view.state.doc.sliceString(0, pos)
         const suffix = view.state.doc.sliceString(pos)
         const { line, column } = posToLineColumn(view, pos)
-        void h.completionRequest!(prefix, suffix, line, column).then((text) => {
-          if (id !== seq) return
-          if (!text?.trim()) {
-            view.dispatch({ effects: setGhostCompletion.of(null) })
-            return
-          }
-          const current = view.state.selection.main.head
-          if (view.state.doc.sliceString(current) !== suffix) return
-          view.dispatch({ effects: setGhostCompletion.of(text) })
-        })
+        const signal = view.plugin(session)?.nextSignal()
+        void Promise.resolve(h.completionRequest!(prefix, suffix, line, column, signal))
+          .then((text) => {
+            if (signal?.aborted || id !== seq || !isEditorViewAlive(view)) return
+            if (!text?.trim()) {
+              view.dispatch({ effects: setGhostCompletion.of(null) })
+              return
+            }
+            const current = view.state.selection.main.head
+            if (view.state.doc.sliceString(current) !== suffix) return
+            view.dispatch({ effects: setGhostCompletion.of(text) })
+          })
+          .catch(() => {})
       })
     }),
     Prec.highest(
@@ -154,5 +170,6 @@ export function codeMirrorGhostExtensions(
 }
 
 export function clearGhostCompletion(view: EditorView) {
+  if (!isEditorViewAlive(view)) return
   view.dispatch({ effects: setGhostCompletion.of(null) })
 }

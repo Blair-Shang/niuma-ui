@@ -105,3 +105,52 @@ export function resolveCodeEditorSize(height?: number | string): string {
   if (height === undefined) return '20rem'
   return typeof height === 'number' ? `${height}px` : height
 }
+
+/** 修饰键文案。Mac 显示 ⌘，其它显示 Ctrl。无 navigator 时按 Ctrl。 */
+export function codeEditorModShortcut(key: string): string {
+  if (typeof navigator === 'undefined') return `Ctrl+${key}`
+  const platform = `${navigator.platform || ''} ${navigator.userAgent || ''}`
+  return /Mac|iPhone|iPad|iPod/i.test(platform) ? `⌘${key}` : `Ctrl+${key}`
+}
+
+type ThemeListener = () => void
+
+const themeListeners = new Set<ThemeListener>()
+let themeObserver: MutationObserver | null = null
+
+/**
+ * 多个编辑器共用一个 MutationObserver。最后一个退订时断开。
+ * 无 document / MutationObserver（SSR）时返回空操作。
+ */
+export function subscribeDocumentTheme(listener: ThemeListener): () => void {
+  if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') {
+    return () => {}
+  }
+  themeListeners.add(listener)
+  if (!themeObserver) {
+    themeObserver = new MutationObserver(() => {
+      for (const fn of themeListeners) fn()
+    })
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-rs-theme'],
+    })
+  }
+  let active = true
+  return () => {
+    if (!active) return
+    active = false
+    themeListeners.delete(listener)
+    if (themeListeners.size === 0 && themeObserver) {
+      themeObserver.disconnect()
+      themeObserver = null
+    }
+  }
+}
+
+export interface RsCodeEditorExpose {
+  /** 跳到 1-based 行列并聚焦。编辑器未就绪时无操作。 */
+  goToPosition: (line: number, column?: number) => void
+  /** 聚焦编辑区。禁用或未就绪时无操作。 */
+  focus: () => void
+}

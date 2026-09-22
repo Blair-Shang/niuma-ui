@@ -443,18 +443,18 @@ Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
 | `RsTableCellEditor` | 单元格编辑器 | `#/components/table-cell-edit` |
 | `RsTableHeader` / `RsTableBody` / `RsTableColGroup` | 表格视图子件（ViewContext） | 随 Table |
 | `RsTree` | 勾选、拖拽、虚拟 | `#/components/tree` |
-| `RsCodeBlock` | 默认只读；`editable` / `showBar` | `#/components/code-block` |
-| `RsMarkdown` | Markdown 渲染 | `#/components/markdown` |
+| `RsCodeBlock` | 只读代码；原生 figure，不包 Reka。`editable` / `showBar`；主题切换不重建文档 | `#/components/code-block` |
+| `RsMarkdown` | Markdown 编辑与预览；带名称的 section，不包 Reka；GFM 消毒，主题跟 data-rs-theme | `#/components/markdown` |
 | `RsProseEditor` | 富文本表面 | 随编辑器族 |
 
 ### 编辑器与终端（重型）
 
 | 组件 | 说明 | 文档站 |
 |------|------|--------|
-| `RsCodeEditor` | CodeMirror | `#/components/code-editor` |
-| `RsMonacoEditor` | Monaco | `#/components/monaco-editor` |
+| `RsCodeEditor` | CodeMirror 轻量编辑；原生区域，不包 Reka；`theme=auto` 跟 `data-rs-theme` | `#/components/code-editor` |
+| `RsMonacoEditor` | Monaco；原生容器，不包 Reka；主题跟 data-rs-theme | `#/components/monaco-editor` |
 | `RsTerminal` | xterm | `#/components/terminal` |
-| `RsLog` | 只读日志（不是 PTY） | `#/components/log` |
+| `RsLog` | 只读日志（不是 PTY）；原生区域，不包 Reka。展示去掉 ANSI，源文本留在 getLines().text | `#/components/log` |
 
 ### 已登记的宿主 helper（摘）
 

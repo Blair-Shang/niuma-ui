@@ -1,13 +1,18 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RsMarkdown from '../src/RsMarkdown.vue'
 import {
+  applyMarkdownTabMove,
   escapeHtml,
   isSafeHref,
   isSafeImageSrc,
+  nearestMarkdownThemeHost,
   renderMarkdown,
+  resolveMarkdownEditorTheme,
   resolveMarkdownHeight,
   resolveMarkdownMode,
+  resolveMarkdownTabMove,
 } from '../src/markdown-utils'
 
 describe('markdown-utils', () => {
@@ -98,9 +103,99 @@ describe('markdown-utils', () => {
     expect(resolveMarkdownMode('split', false)).toBe('split')
     expect(resolveMarkdownMode(undefined, false)).toBe('edit')
   })
+
+  it('keeps hash and relative links in the same tab', () => {
+    const hash = renderMarkdown('[top](#top)')
+    expect(hash).toContain('href="#top"')
+    expect(hash).not.toContain('target="_blank"')
+    const page = renderMarkdown('[guide](docs/guide)')
+    expect(page).toContain('href="docs/guide"')
+    expect(page).not.toContain('target="_blank"')
+  })
+
+  it('allows tel links and rejects control characters', () => {
+    expect(isSafeHref('tel:+1-555-0100')).toBe(true)
+    expect(renderMarkdown('[call](tel:+1-555-0100)')).toContain('href="tel:+1-555-0100"')
+    expect(isSafeHref('java\nscript:alert(1)')).toBe(false)
+    expect(isSafeHref('//evil.example')).toBe(false)
+  })
+
+  it('allows same-origin images and rejects svg data urls', () => {
+    expect(isSafeImageSrc('/img/a.png')).toBe(true)
+    expect(isSafeImageSrc('images/a.png')).toBe(true)
+    expect(isSafeImageSrc('data:image/svg+xml;base64,PHN2Zy8+')).toBe(false)
+    const kept = renderMarkdown('![diagram](/img/a.png)')
+    expect(kept).toContain('src="/img/a.png"')
+    const dropped = renderMarkdown('![diagram](data:image/svg+xml;base64,PHN2Zy8+)')
+    expect(dropped).not.toContain('svg')
+    expect(dropped).toContain('diagram')
+  })
+
+  it('adds stable heading ids and keeps code left to right', () => {
+    const html = renderMarkdown('# Hello World\n\n# Hello World\n\n```js\nconst a = 1\n```')
+    expect(html).toContain('id="hello-world"')
+    expect(html).toContain('id="hello-world-2"')
+    expect(html).toContain('dir="ltr"')
+    expect(renderMarkdown('# 发布说明')).toContain('id="发布说明"')
+  })
+
+  it('names task items and external links for assistive tech', () => {
+    const tasks = renderMarkdown('- [x] done', { taskDoneLabel: 'done-label', taskOpenLabel: 'open-label' })
+    expect(tasks).toContain('done-label')
+    expect(tasks).not.toContain('<input')
+    const link = renderMarkdown('[docs](https://example.com)', { externalLabel: 'new-tab' })
+    expect(link).toContain('new-tab')
+    expect(link).toContain('rel="noopener noreferrer"')
+  })
+
+  it('returns empty html when document is missing', () => {
+    const doc = globalThis.document
+    // @ts-expect-error 模拟 SSR
+    delete globalThis.document
+    try {
+      expect(renderMarkdown('# Hi')).toBe('')
+    } finally {
+      globalThis.document = doc
+    }
+  })
+
+  it('resolves tab moves and theme islands', () => {
+    expect(resolveMarkdownTabMove('ArrowRight', false)).toBe(1)
+    expect(resolveMarkdownTabMove('ArrowRight', true)).toBe(-1)
+    expect(resolveMarkdownTabMove('ArrowLeft', true)).toBe(1)
+    expect(resolveMarkdownTabMove('Home', false)).toBe('start')
+    expect(resolveMarkdownTabMove('Enter', false)).toBeNull()
+    expect(applyMarkdownTabMove('edit', 1)).toBe('preview')
+    expect(applyMarkdownTabMove('edit', -1)).toBe('split')
+    expect(applyMarkdownTabMove('preview', 'end')).toBe('split')
+    expect(resolveMarkdownEditorTheme('dark', null)).toBe('dark')
+    expect(resolveMarkdownEditorTheme('auto', null)).toBe('auto')
+    expect(resolveMarkdownEditorTheme('auto', 'dark')).toBe('dark')
+
+    const island = document.createElement('div')
+    island.setAttribute('data-rs-theme', 'dark')
+    const child = document.createElement('div')
+    island.append(child)
+    document.body.append(island)
+    expect(nearestMarkdownThemeHost(child)).toBe(island)
+    expect(nearestMarkdownThemeHost(document.body)).toBeNull()
+    island.remove()
+  })
 })
 
 describe('RsMarkdown', () => {
+  it('registers the public name and does not import reka-ui', () => {
+    const source = readFileSync('src/components/markdown/src/RsMarkdown.vue', 'utf8')
+    const utils = readFileSync('src/components/markdown/src/markdown-utils.ts', 'utf8')
+    expect(source).not.toContain('reka-ui')
+    expect(utils).not.toContain('reka-ui')
+    expect(source).toContain("name: 'RsMarkdown'")
+    expect(source).toContain('clearTimeout')
+    expect(source).toContain('observer.disconnect')
+    expect(source).not.toContain('setInterval')
+    expect(source).not.toContain('addEventListener')
+  })
+
   it('renders mode toggle and editor by default', async () => {
     const wrapper = mount(RsMarkdown, {
       props: { modelValue: '# hi', height: 200 },
@@ -108,8 +203,13 @@ describe('RsMarkdown', () => {
     })
     await new Promise((r) => setTimeout(r, 50))
     expect(wrapper.find('.rs-markdown__toolbar').exists()).toBe(true)
+    expect(wrapper.find('[role="tablist"]').exists()).toBe(true)
     expect(wrapper.find('.rs-markdown__editor').exists()).toBe(true)
+    expect(wrapper.find('.rs-markdown__prose').exists()).toBe(false)
     expect(wrapper.classes()).toContain('rs-markdown--edit')
+    expect(wrapper.element.tagName).toBe('SECTION')
+    expect(wrapper.attributes('role')).toBeUndefined()
+    expect(wrapper.attributes('aria-label')).toBeTruthy()
     wrapper.unmount()
   })
 
@@ -174,7 +274,60 @@ describe('RsMarkdown', () => {
     })
     const buttons = wrapper.findAll('.rs-markdown__toolbar button')
     expect(buttons.length).toBeGreaterThanOrEqual(2)
+    expect(buttons[0]!.attributes('role')).toBe('tab')
+    expect(buttons[0]!.attributes('aria-selected')).toBe('true')
+    expect(buttons[0]!.attributes('tabindex')).toBe('0')
+    expect(buttons[1]!.attributes('tabindex')).toBe('-1')
     await buttons[1]!.trigger('click')
     expect(wrapper.emitted('update:mode')?.[0]).toEqual(['preview'])
+    wrapper.unmount()
+  })
+
+  it('moves the mode from the tablist keyboard', async () => {
+    const wrapper = mount(RsMarkdown, {
+      props: { modelValue: 'x', mode: 'edit', height: 160 },
+      attachTo: document.body,
+    })
+    await wrapper.get('[role="tablist"]').trigger('keydown', { key: 'ArrowRight' })
+    expect(wrapper.emitted('update:mode')?.[0]).toEqual(['preview'])
+    await wrapper.get('[role="tablist"]').trigger('keydown', { key: 'End' })
+    expect(wrapper.emitted('update:mode')?.at(-1)).toEqual(['split'])
+    wrapper.unmount()
+  })
+
+  it('paints an explicit dark island and focuses the preview', () => {
+    const wrapper = mount(RsMarkdown, {
+      props: { modelValue: 'Hello', mode: 'preview', theme: 'dark' },
+      attachTo: document.body,
+    })
+    expect(wrapper.attributes('data-rs-theme')).toBe('dark')
+    wrapper.vm.focus()
+    expect(document.activeElement).toBe(wrapper.get('.rs-markdown__body').element)
+    wrapper.unmount()
+  })
+
+  it('does not focus while disabled', () => {
+    const wrapper = mount(RsMarkdown, {
+      props: { modelValue: 'Hello', mode: 'preview', disabled: true },
+      attachTo: document.body,
+    })
+    wrapper.vm.focus()
+    expect(document.activeElement).not.toBe(wrapper.get('.rs-markdown__body').element)
+    expect(wrapper.attributes('aria-disabled')).toBe('true')
+    wrapper.unmount()
+  })
+
+  it('debounces preview updates and drops them after unmount', async () => {
+    const wrapper = mount(RsMarkdown, {
+      props: { modelValue: 'Hello', mode: 'preview' },
+    })
+    expect(wrapper.get('.rs-markdown__prose').text()).toContain('Hello')
+    await wrapper.setProps({ modelValue: 'Next' })
+    expect(wrapper.get('.rs-markdown__prose').text()).toContain('Hello')
+    await new Promise((resolve) => setTimeout(resolve, 80))
+    expect(wrapper.get('.rs-markdown__prose').text()).toContain('Next')
+    await wrapper.setProps({ modelValue: 'Later' })
+    wrapper.unmount()
+    await new Promise((resolve) => setTimeout(resolve, 80))
   })
 })

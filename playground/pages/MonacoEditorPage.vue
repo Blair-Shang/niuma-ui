@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { RsButton, RsMonacoEditor } from 'niuma-ui'
-import type { MonacoLanguage } from 'niuma-ui'
+import type { MonacoLanguage, RsMonacoEditorInstance, RsMonacoEditorTheme } from 'niuma-ui'
 import DemoBlock from '../components/DemoBlock.vue'
 import DemoPage from '../components/DemoPage.vue'
 
@@ -55,7 +55,7 @@ const userSchema = {
 }
 
 // ── MongoDB 聚合管道（实际使用场景） ──────────────────────────────────────
-const mongoEditorRef = ref<InstanceType<typeof RsMonacoEditor> | null>(null)
+const mongoEditorRef = ref<RsMonacoEditorInstance | null>(null)
 const mongoPipeline = ref(`[
   {
     "$match": {
@@ -84,6 +84,7 @@ function formatMongoPipeline(): void {
 
 // ── 主题 ─────────────────────────────────────────────────────────────────
 const themeCode = ref('{\n  "theme": "示例",\n  "value": 42\n}')
+const themePick = ref<RsMonacoEditorTheme>('auto')
 </script>
 
 <template>
@@ -182,23 +183,15 @@ const themeCode = ref('{\n  "theme": "示例",\n  "value": 42\n}')
     <!-- 主题 -->
     <DemoBlock title="主题 theme">
       <p class="hint">
-        <code>auto</code> 跟随文档 <code>data-rs-theme</code>（默认）；
-        也可强制 <code>vs-dark</code> / <code>light</code>。
+        <code>auto</code> 跟随文档 <code>data-rs-theme</code>（未写时为浅色）。
+        <code>light</code> / <code>vs-dark</code> 使用 token 色。Monaco 主题是进程级的，本页只挂一个，避免互相覆盖。
       </p>
-      <div class="row">
-        <div class="editor-col">
-          <span class="label">auto</span>
-          <RsMonacoEditor v-model="themeCode" language="json" theme="auto" :height="120" />
-        </div>
-        <div class="editor-col">
-          <span class="label">light</span>
-          <RsMonacoEditor v-model="themeCode" language="json" theme="light" :height="120" />
-        </div>
-        <div class="editor-col">
-          <span class="label">vs-dark</span>
-          <RsMonacoEditor v-model="themeCode" language="json" theme="vs-dark" :height="120" />
-        </div>
+      <div class="lang-tabs">
+        <RsButton size="sm" :variant="themePick === 'auto' ? 'primary' : 'default'" @click="themePick = 'auto'">auto</RsButton>
+        <RsButton size="sm" :variant="themePick === 'light' ? 'primary' : 'default'" @click="themePick = 'light'">light</RsButton>
+        <RsButton size="sm" :variant="themePick === 'vs-dark' ? 'primary' : 'default'" @click="themePick = 'vs-dark'">vs-dark</RsButton>
       </div>
+      <RsMonacoEditor v-model="themeCode" language="json" :theme="themePick" :height="140" />
     </DemoBlock>
 
     <!-- 高度 -->
