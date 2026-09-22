@@ -311,10 +311,10 @@ Stable `Rs*` components. Per-prop APIs live on the docs site. Additions must upd
 | `RsTag` | Status chip | `#/components/tag` |
 | `RsAvatar` | Avatar / fallback (native img, no Reka) | `#/components/avatar` |
 | `RsLabel` | Form label (native label, no Reka) | `#/components/label` |
-| `RsCard` / `RsStatCard` | Content / metric card | `#/components/card` |
+| `RsCard` | Content card; native section, no Reka | `#/components/card` |
 | `RsDivider` | Divider | `#/components/divider` |
 | `RsAlert` | Inline alert; native div, no Reka | `#/components/alert` |
-| `RsDescriptions` / `RsDescriptionsItem` | Description list | `#/components/descriptions` |
+| `RsDescriptions` / `RsDescriptionsItem` | Description list; native dl / dt / dd, no Reka | `#/components/descriptions` |
 | `RsLoadingBar` | Top progress; native div[role=progressbar], no Reka (`useRsLoadingBar`) | `#/components/loading-bar` |
 
 ### Input
@@ -354,7 +354,7 @@ Stable `Rs*` components. Per-prop APIs live on the docs site. Additions must upd
 | `RsSidebar` / `RsSidebarGroup` / `RsSidebarItem` | Sidebar chrome; native aside + nav, no Reka | `#/components/sidebar` |
 | `RsSplitPane` | Resizable panes; native group + hr, no Reka; percents, APG Window Splitter | `#/components/split-pane` |
 | `RsPagination` | Pagination; native nav + button, no Reka; jumper uses RsInput, page size uses RsSelect | `#/components/pagination` |
-| `RsVirtualList` | Virtual list | `#/components/virtual-list` |
+| `RsVirtualList` | Virtual list; native overflow, no Reka; fixed / function / auto sizes, optional horizontal axis and keyboard | `#/components/virtual-list` |
 
 ### Overlay and feedback
 
@@ -371,6 +371,7 @@ Stable `Rs*` components. Per-prop APIs live on the docs site. Additions must upd
 
 | Component | Role | Docs |
 |-----------|------|------|
+| `RsStatCard` | Metric card; native section, no Reka. Numbers stay raw until `format` / `precision` uses `Intl` | `#/components/stat-card` |
 | `RsTable` | Sort, select, virtual, edit. Architecture [rs-table-architecture.md](./rs-table-architecture.md); SSR [rs-table-ssr.md](./rs-table-ssr.md); charts [rs-table-chart-adapter.md](./rs-table-chart-adapter.md); pixels [rs-table-visual.md](./rs-table-visual.md) | `#/components/table` |
 | `RsTableCellEditor` | Cell editor | `#/components/table-cell-edit` |
 | `RsTableHeader` / `RsTableBody` / `RsTableColGroup` | Table view parts (ViewContext) | With Table |

@@ -377,6 +377,14 @@ html {
   /* Lucide / 线性图标。品牌 mark 色在可选 niuma-ui/brand-icons.css */
   --rs-icon-color: currentColor;
 
+  /* 虚拟列表。超长时滚动条压缩，行本身仍是真实像素。 */
+  --rs-virtual-list-border: var(--rs-border-subtle);
+  --rs-virtual-list-bg: var(--rs-surface);
+  --rs-virtual-list-fg: var(--rs-text-primary);
+  --rs-virtual-list-accent: var(--rs-primary);
+  --rs-virtual-list-accent-width: 0.125rem;
+  --rs-virtual-list-active-bg: color-mix(in srgb, var(--rs-primary) 14%, var(--rs-surface));
+
   /* macOS 风格原生滚动条（与 RsScrollbar 视觉一致） */
   --rs-scrollbar-size: 13px;
   --rs-scrollbar-padding: 2px;
@@ -664,10 +672,12 @@ html {
   /* ── Descriptions（描述列表栅格）── */
   --rs-descriptions-radius: var(--rs-radius);
   --rs-descriptions-border: var(--rs-border);
+  --rs-descriptions-label-width: 7.5rem;
+  --rs-descriptions-title: var(--rs-text-primary);
   /* 标签列用实色表面混合，避免 surface-hover 被桥成透明 overlay 时失效 */
   --rs-descriptions-label-bg: color-mix(in srgb, var(--rs-surface-hover) 72%, var(--rs-surface));
-  --rs-descriptions-label-fg: var(--rs-muted);
-  --rs-descriptions-value-fg: var(--rs-text);
+  --rs-descriptions-label-fg: var(--rs-text-secondary);
+  --rs-descriptions-value-fg: var(--rs-text-primary);
 
   /* ── Card（macOS grouped panel / inset 分组卡片）── */
   --rs-card-border: #3a3a3a;
@@ -1030,10 +1040,12 @@ html {
   /* ── Descriptions（描述列表栅格）── */
   --rs-descriptions-radius: var(--rs-radius);
   --rs-descriptions-border: var(--rs-border);
+  --rs-descriptions-label-width: 7.5rem;
+  --rs-descriptions-title: var(--rs-text-primary);
   /* 标签列用实色表面混合，避免 surface-hover 被桥成透明 overlay 时失效 */
   --rs-descriptions-label-bg: color-mix(in srgb, var(--rs-surface-hover) 72%, var(--rs-surface));
-  --rs-descriptions-label-fg: var(--rs-muted);
-  --rs-descriptions-value-fg: var(--rs-text);
+  --rs-descriptions-label-fg: var(--rs-text-secondary);
+  --rs-descriptions-value-fg: var(--rs-text-primary);
 
   /* ── Card（macOS systemGroupedBackground 上的圆角分组卡片）── */
   --rs-card-border: rgb(60 60 67 / 0.14);

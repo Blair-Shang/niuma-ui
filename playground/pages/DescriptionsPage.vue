@@ -19,6 +19,10 @@ const api: DemoApiRow[] = [
   { name: 'bordered', type: 'boolean', default: 'true', description: '是否显示边框' },
   { name: 'size', type: "'ssm' | 'sm' | 'md' | 'lg'", default: 'ConfigProvider', description: '尺寸' },
   { name: 'radius', type: 'RsRadius', default: "'md'", description: '边框圆角' },
+  { name: 'colon', type: 'boolean', default: 'false', description: '本地化冒号' },
+  { name: 'labelWidth', type: 'number | string', description: '左标签列宽' },
+  { name: "labelAlign", type: "'start' | 'center' | 'end'", default: "'start'", description: '标签对齐' },
+  { name: 'emptyText', type: 'string', description: '空值占位' },
 ]
 </script>
 
@@ -44,6 +48,12 @@ const api: DemoApiRow[] = [
         <RsDescriptionsItem label="备注" :span="2">
           最近一次健康检查通过。
         </RsDescriptionsItem>
+      </RsDescriptions>
+    </DemoBlock>
+
+    <DemoBlock title="冒号 / 标签列宽 / 标题操作">
+      <RsDescriptions title="发布信息" :items="items.slice(0, 3)" colon label-width="8rem" label-align="end">
+        <template #extra>编辑</template>
       </RsDescriptions>
     </DemoBlock>
 

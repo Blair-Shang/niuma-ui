@@ -6,6 +6,14 @@
 
 ## [Unreleased]
 
+## [2.0.7] - 2026-09-22
+
+### 变更
+
+- `RsVirtualList`：控件已是原生 overflow，无 Reka。`items` / `itemSize` / `height` / `overscan` / `activeIndex` / `layoutActive` / `radius` / 默认插槽 `{ item, index }` / `scrollToIndex(index, align = 'center')` 语义不变；`scroll` 仍把原生 `Event` 交给监听方（日志跟底靠 `target.scrollTop`）。`itemSize` 为函数时按索引变高（原先只用第 0 项的高度）。补 `itemSize="auto"` / `estimateSize` / `orientation` / `itemKey` / `keyboard` / `bordered` / `ariaLabel` / `id`、`#empty`、`change` 与 `scrollToOffset` / `getScrollOffset` / `getViewport` / `focus`。键盘默认关，避免抢走日志的方向键；打开后根是 listbox，方向键 / Home / End 移动当前项（横向在 RTL 对调）。滚动位置同一事件里更新窗口，避免慢一帧；`activeIndex` 的对齐、测量和 keep-alive 恢复仍走 rAF，卸载取消帧、断开 ResizeObserver、清掉滚动中的定时器。`auto` 只观察可见行，离开视口就 `unobserve`。总高度超过 800 万像素时压缩滚动条，行高仍是真实像素。当前项色条用逻辑起点。空态与 listbox 名称走 `virtualList.*`。描边与表面走 `--rs-virtual-list-*`。文档站按 site README 补全中英 props / events / slots / methods / tokens / FAQ，演示可点定高、变高、当前项、横向、测量、空态、键盘、事件、无限滚动（滚近底部追加下一页，并显示已加载条数）与 `scrollToIndex()` / `scrollToOffset()` / `getScrollOffset()` / `getViewport()` / `focus()`。
+- `RsDescriptions` / `RsDescriptionsItem`：原先就不引用 Reka。`title` / `items` / `columns` / `labelPlacement` / `bordered` / `size` / `radius` 与 `#title` / 默认插槽 / `item-${key}` 语义不变；空值仍只替换 null / undefined（默认 —，空字符串和 0 原样）。根改为包一层 `dl`，条目是 `dt` / `dd`。补 `colon`（走 `label.colon`，默认关）/ `labelWidth` / `labelAlign`（start / center / end，跟书写方向）/ `emptyText` / `ariaLabel` / `id`、`#extra` / `label-${key}` / `#label` 与公开类型 `RsDescriptionsLabelAlign`。未传 `size` 仍跟 Form / ConfigProvider。描边、标题、标签与值改走 `--rs-descriptions-*`（文字用 `--rs-text-primary` / `--rs-text-secondary`），间距用逻辑属性。无窗口监听、无定时器、无 ResizeObserver。不提供 `column` 别名、响应式列对象或 labelStyle。文档站按 site README 补全中英 props / events / slots / methods / tokens / FAQ。
+- `RsStatCard`：控件已是原生 `section`，无 Reka。`label` / `value` / `description` / `accent` / `loading` 与 `#value` / 默认插槽语义不变；未开 `format` 时数字仍是原文（12480 不会变成 12,480）。补 `prefix` / `suffix` / `trend` / `delta` / `trendTone` / `format` / `precision` / `size` / `id` / `ariaLabel`、`#prefix` / `#suffix` / `#icon` / `#trend` / `#description` 与公开类型 `RsStatAccent` / `RsStatTrend` / `RsStatTrendTone` / `RsStatSize` / `RsStatFormat`。涨跌方向与好坏分开，箭头对读屏隐藏，方向文案走 `statCard.trend.*`。加载态 `aria-busy`，文案走 `statCard.loading`，不设 live region。`Intl.NumberFormat` 最多缓存 24 个，非法选项回退原文。无窗口监听、无定时器、无 ResizeObserver。颜色走 `--rs-*`，间距用逻辑属性，骨架脉冲在减少动态时停住。文档站按 site README 补全中英 props / events / slots / methods / tokens / FAQ。
+
 ## [2.0.6] - 2026-09-22
 
 ### 变更

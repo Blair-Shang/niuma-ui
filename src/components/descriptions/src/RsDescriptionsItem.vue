@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue'
-import { RS_DESCRIPTIONS_KEY } from './descriptions-utils'
+import { RS_DESCRIPTIONS_KEY, clampRsDescriptionsSpan } from './descriptions-utils'
+
+defineOptions({ name: 'RsDescriptionsItem' })
 
 const props = withDefaults(
   defineProps<{
@@ -14,19 +16,22 @@ const props = withDefaults(
 
 const ctx = inject(RS_DESCRIPTIONS_KEY, null)
 
-const columns = computed(() => ctx?.columns ?? 3)
 const spanStyle = computed(() => ({
-  gridColumn: `span ${Math.min(props.span, columns.value)}`,
+  gridColumn: `span ${clampRsDescriptionsSpan(props.span, ctx?.columns ?? 3)}`,
 }))
+
+const showColon = computed(() => Boolean(ctx?.colon))
+const colonMark = computed(() => ctx?.colonMark ?? '')
 </script>
 
 <template>
   <div class="rs-descriptions__item" :style="spanStyle">
-    <div class="rs-descriptions__label">
+    <dt class="rs-descriptions__label">
       <slot name="label">{{ label }}</slot>
-    </div>
-    <div class="rs-descriptions__value">
+      <span v-if="showColon" class="rs-descriptions__colon" aria-hidden="true">{{ colonMark }}</span>
+    </dt>
+    <dd class="rs-descriptions__value">
       <slot />
-    </div>
+    </dd>
   </div>
 </template>

@@ -57,6 +57,7 @@ export { RsDescriptions } from './components/descriptions'
 export { RsDescriptionsItem } from './components/descriptions'
 export type {
   RsDescriptionsItem as RsDescriptionsItemData,
+  RsDescriptionsLabelAlign,
   RsDescriptionsLabelPlacement,
   RsDescriptionsSize,
 } from './components/descriptions'
@@ -242,6 +243,13 @@ export type {
 } from './components/sidebar'
 export { RsSplitPane } from './components/split-pane'
 export { RsStatCard } from './components/stat-card'
+export type {
+  RsStatAccent,
+  RsStatFormat,
+  RsStatSize,
+  RsStatTrend,
+  RsStatTrendTone,
+} from './components/stat-card'
 export { RsSteps } from './components/steps'
 export { RsTable } from './components/table'
 export { RsTableCellEditor } from './components/table'
@@ -884,7 +892,14 @@ export {
   resolveUploadFileIcon,
   validateUploadFiles,
 } from './components/upload'
-export type { RsVirtualListItemSize } from './components/virtual-list'
+export type {
+  RsVirtualListAlign,
+  RsVirtualListExpose,
+  RsVirtualListInstance,
+  RsVirtualListItemKey,
+  RsVirtualListItemSize,
+  RsVirtualListOrientation,
+} from './components/virtual-list'
 export { resolveItemSize, resolveVirtualListHeight } from './components/virtual-list'
 export type {
   RsCodeEditorDiagnostic,

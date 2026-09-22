@@ -378,10 +378,10 @@ Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
 | `RsTag` | 标签芯片 | `#/components/tag` |
 | `RsAvatar` | 头像 / 回退（原生 img，不包 Reka） | `#/components/avatar` |
 | `RsLabel` | 表单标签（原生 label，不包 Reka） | `#/components/label` |
-| `RsCard` / `RsStatCard` | 内容卡 / 指标卡 | `#/components/card` |
+| `RsCard` | 内容卡；原生 section，不包 Reka | `#/components/card` |
 | `RsDivider` | 分隔线 | `#/components/divider` |
 | `RsAlert` | 反馈提示条；原生 div，不包 Reka | `#/components/alert` |
-| `RsDescriptions` / `RsDescriptionsItem` | 描述列表 | `#/components/descriptions` |
+| `RsDescriptions` / `RsDescriptionsItem` | 描述列表；原生 dl / dt / dd，不包 Reka | `#/components/descriptions` |
 | `RsLoadingBar` | 顶栏进度；原生 div[role=progressbar]，不包 Reka（`useRsLoadingBar`） | `#/components/loading-bar` |
 
 ### 操作与输入
@@ -421,7 +421,7 @@ Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
 | `RsSidebar` / `RsSidebarGroup` / `RsSidebarItem` | 侧栏壳；原生 aside + nav，不包 Reka | `#/components/sidebar` |
 | `RsSplitPane` | 可拖拽分栏；原生 group + hr，不包 Reka；百分比、APG Window Splitter | `#/components/split-pane` |
 | `RsPagination` | 分页；原生 nav + button，不包 Reka；跳转走 RsInput，每页条数走 RsSelect | `#/components/pagination` |
-| `RsVirtualList` | 虚拟列表 | `#/components/virtual-list` |
+| `RsVirtualList` | 虚拟列表；原生 overflow，不包 Reka；定高 / 函数 / auto，横向与键盘可选 | `#/components/virtual-list` |
 
 ### 浮层与反馈
 
@@ -438,6 +438,7 @@ Tooltip / Popover / Dropdown / Dialog / Drawer / ContextMenu / Select 面板：
 
 | 组件 | 说明 | 文档站 |
 |------|------|--------|
+| `RsStatCard` | 指标卡；原生 section，不包 Reka。数值默认原样，`format` / `precision` 才走 `Intl` | `#/components/stat-card` |
 | `RsTable` | 排序、选择、虚拟、编辑。架构 [rs-table-architecture.md](./rs-table-architecture.md)；SSR [rs-table-ssr.md](./rs-table-ssr.md)；图表 [rs-table-chart-adapter.md](./rs-table-chart-adapter.md)；像素 [rs-table-visual.md](./rs-table-visual.md) | `#/components/table` |
 | `RsTableCellEditor` | 单元格编辑器 | `#/components/table-cell-edit` |
 | `RsTableHeader` / `RsTableBody` / `RsTableColGroup` | 表格视图子件（ViewContext） | 随 Table |
