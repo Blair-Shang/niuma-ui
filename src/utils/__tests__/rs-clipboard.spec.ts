@@ -22,6 +22,7 @@ describe('rs-clipboard', () => {
   afterEach(() => {
     __resetClipboardStateForTests()
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
   })
 
   it('uses prefetched text when menu opens before paste', async () => {
@@ -86,9 +87,28 @@ describe('rs-clipboard', () => {
     Object.defineProperty(window, 'isSecureContext', { configurable: true, value: true })
   })
 
-  it('falls back to execCommand when writeText fails', async () => {
-    const writeText = vi.fn().mockRejectedValue(new Error('denied'))
-    const execCommand = vi.fn().mockReturnValue(true)
+  it('copies from inside an open dialog', () => {
+    const dialog = document.createElement('dialog')
+    dialog.open = true
+    document.body.appendChild(dialog)
+    const button = document.createElement('button')
+    dialog.appendChild(button)
+    button.focus()
+    const previous = document.execCommand
+    document.execCommand = vi.fn(() => {
+      expect(dialog.contains(document.activeElement)).toBe(true)
+      return true
+    }) as typeof document.execCommand
+    expect(copyTextWithExecCommand('{"header":"x"}')).toBe(true)
+    expect(dialog.querySelector('textarea')).toBeNull()
+    expect(document.execCommand).toHaveBeenCalledWith('copy')
+    document.execCommand = previous
+    dialog.remove()
+  })
+
+  it('uses the clipboard API when execCommand cannot copy', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    const execCommand = vi.fn().mockReturnValue(false)
     vi.stubGlobal('navigator', { clipboard: { readText: vi.fn(), writeText } })
     vi.stubGlobal('document', {
       body: { appendChild: vi.fn(), removeChild: vi.fn() },
@@ -103,6 +123,7 @@ describe('rs-clipboard', () => {
     })
     await expect(copyTextToClipboard('fallback')).resolves.toBe(true)
     expect(execCommand).toHaveBeenCalledWith('copy')
+    expect(writeText).toHaveBeenCalledWith('fallback')
   })
 
   it('falls back to shell bridge when clipboard read fails', async () => {

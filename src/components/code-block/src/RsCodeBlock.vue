@@ -141,7 +141,7 @@ async function initEditor() {
     extensions: [
       basicSetup,
       wrapCompartment.of(props.wordWrap ? EditorView.lineWrapping : []),
-      editableCompartment.of(EditorView.editable.of(props.editable)),
+      editableCompartment.of(props.editable ? [] : [EditorState.readOnly.of(true)]),
       ...langExts,
       codeBlockHighlightExtension(),
       themeCompartment.of(dark ? [oneDark] : []),
@@ -195,7 +195,7 @@ watch(() => props.lang, () => { void initEditor() })
 
 watch(() => props.editable, (editable) => {
   view.value?.dispatch({
-    effects: editableCompartment.reconfigure(EditorView.editable.of(editable)),
+    effects: editableCompartment.reconfigure(editable ? [] : [EditorState.readOnly.of(true)]),
   })
 })
 

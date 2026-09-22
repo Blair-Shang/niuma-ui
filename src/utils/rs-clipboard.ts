@@ -226,6 +226,20 @@ export async function writeClipboardText(text: string): Promise<boolean> {
   }
 }
 
+/** 打开的 dialog 会把焦点留在框内。临时输入框必须挂在这个 dialog 里，挂到 body 上选不中，复制是空的。 */
+function clipboardMount(): HTMLElement {
+  const active = document.activeElement
+  if (active instanceof Element) {
+    const dialog = active.closest('dialog')
+    if (dialog instanceof HTMLElement) return dialog
+  }
+  if (typeof document.querySelector === 'function') {
+    const open = document.querySelector('dialog[open]')
+    if (open instanceof HTMLElement) return open
+  }
+  return document.body
+}
+
 /** execCommand 兜底：CEF / 无 Clipboard API 权限时菜单复制仍可用 */
 export function copyTextWithExecCommand(text: string): boolean {
   if (!text || typeof document === 'undefined') {
@@ -237,7 +251,8 @@ export function copyTextWithExecCommand(text: string): boolean {
     textarea.setAttribute('readonly', '')
     textarea.style.cssText =
       'position:fixed;left:0;top:0;width:1px;height:1px;padding:0;border:0;opacity:0.01'
-    document.body.appendChild(textarea)
+    const mount = clipboardMount()
+    mount.appendChild(textarea)
     if (typeof textarea.focus === 'function') {
       textarea.focus()
     }
@@ -258,22 +273,19 @@ export function isInsecureClipboardContext(): boolean {
   return typeof globalThis !== 'undefined' && globalThis.isSecureContext === false
 }
 
-/** 写入系统剪贴板。HTTP 先同步 execCommand，避免 await 丢掉用户手势。 */
+/** 写入系统剪贴板。先同步 execCommand，避免 await 丢掉点击手势；对话框里也要在这一拍写完。 */
 export async function copyTextToClipboard(text: string): Promise<boolean> {
   if (!text) {
     return false
   }
+  if (copyTextWithExecCommand(text)) {
+    return true
+  }
   if (isInsecureClipboardContext()) {
-    if (copyTextWithExecCommand(text)) {
-      return true
-    }
     return writeClipboardViaShell(text)
   }
   await syncClipboardPermissionState()
   if (!writeApiBlocked && (await writeClipboardText(text))) {
-    return true
-  }
-  if (copyTextWithExecCommand(text)) {
     return true
   }
   return writeClipboardViaShell(text)
