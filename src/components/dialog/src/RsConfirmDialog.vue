@@ -160,6 +160,7 @@ const hasDescribedBy = computed(
 const labelledBy = computed(() => (props.ariaLabel?.trim() ? undefined : titleDomId.value))
 const accessibleName = computed(() => props.ariaLabel?.trim() || undefined)
 
+// Teleport 只在打开时挂载。挂载时解析不到 to 会被记成 null，之后打开不会再查。
 const teleportDisabled = computed(() => props.teleportTo === false)
 const teleportTarget = computed(() => {
   const target = props.teleportTo
@@ -404,9 +405,8 @@ defineExpose({
 
 <template>
   <span ref="anchorRef" hidden class="rs-confirm-dialog__anchor" aria-hidden="true" />
-  <Teleport defer :to="teleportTarget" :disabled="teleportDisabled">
+  <Teleport v-if="open" defer :to="teleportTarget" :disabled="teleportDisabled">
     <div
-      v-if="open"
       ref="shellRef"
       class="rs-confirm-dialog"
       :data-rs-theme="panelTheme"

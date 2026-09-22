@@ -188,29 +188,33 @@ html {
   --rs-dropdown-max-height: 16rem;
   --rs-dropdown-disabled-opacity: 0.38;
 
-  /* Context menu。尺寸在此；颜色别名语义 token，随 data-rs-theme。挂到 body 须盖住 Dialog。 */
+  /*
+   * Context menu。macOS 菜单：12px 面板、6px 选中条、约 26px 行、13px 字。
+   * 选中用主题色铺底、文字反白。颜色别名语义 token，随 data-rs-theme。
+   * 挂到 body 须盖住 Dialog。实色底，不用 backdrop-filter。
+   */
   --rs-ctx-z: calc(var(--rs-z-modal) + 2);
-  --rs-ctx-min-width: 11rem;
+  --rs-ctx-min-width: 11.5rem;
   --rs-ctx-max-width: 22rem;
   --rs-ctx-pad: 5px;
-  --rs-ctx-radius: 10px;
-  --rs-ctx-item-height: 1.5rem;
+  --rs-ctx-radius: 12px;
+  --rs-ctx-item-height: 1.625rem;
   --rs-ctx-item-radius: 6px;
-  --rs-ctx-font-size: var(--rs-font-size-xs);
-  --rs-ctx-icon-col: 28px;
+  --rs-ctx-font-size: 0.8125rem;
+  --rs-ctx-icon-col: 1.75rem;
   --rs-ctx-disabled-opacity: 0.38;
-  --rs-ctx-motion-in: 0.13s;
+  --rs-ctx-motion-in: 0.14s;
   --rs-ctx-motion-sub: 0.1s;
   --rs-ctx-bg: var(--rs-surface-elevated);
   --rs-ctx-fg: var(--rs-text-primary);
   --rs-ctx-muted: var(--rs-text-tertiary);
-  --rs-ctx-border: var(--rs-border);
-  --rs-ctx-separator: var(--rs-border-subtle);
-  --rs-ctx-shadow: var(--rs-shadow-lg);
+  --rs-ctx-border: color-mix(in srgb, var(--rs-text-primary) 8%, transparent);
+  --rs-ctx-separator: color-mix(in srgb, var(--rs-text-primary) 10%, transparent);
+  --rs-ctx-shadow: 0 16px 40px rgb(0 0 0 / 0.12), 0 2px 8px rgb(0 0 0 / 0.06);
   --rs-ctx-danger: var(--rs-danger);
   --rs-ctx-item-active-bg: var(--rs-primary);
   --rs-ctx-item-active-fg: var(--rs-primary-foreground);
-  --rs-ctx-item-active-muted: color-mix(in srgb, var(--rs-primary-foreground) 75%, transparent);
+  --rs-ctx-item-active-muted: color-mix(in srgb, var(--rs-primary-foreground) 78%, transparent);
 
   /* Popover（气泡卡片）。尺寸静态；颜色在主题块内。 */
   --rs-popover-pad: 0.75rem;
@@ -805,6 +809,7 @@ html {
   --rs-shadow-sm: 0 1px 3px rgb(0 0 0 / 0.4);
   --rs-shadow: 0 4px 16px rgb(0 0 0 / 0.45), 0 0 0 0.5px rgb(255 255 255 / 0.08);
   --rs-shadow-lg: 0 12px 32px rgb(0 0 0 / 0.5), 0 0 0 0.5px rgb(255 255 255 / 0.1);
+  --rs-ctx-shadow: 0 16px 40px rgb(0 0 0 / 0.46), 0 2px 8px rgb(0 0 0 / 0.28);
 }
 
 /* ── 公共亮色：无属性 = light，避免盖住后面的 dark（:root 与属性选择器同权）── */
@@ -1190,6 +1195,7 @@ html {
   --rs-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.04), 0 0 0 0.5px rgb(0 0 0 / 0.04);
   --rs-shadow: 0 4px 16px rgb(0 0 0 / 0.08), 0 0 0 0.5px rgb(0 0 0 / 0.06);
   --rs-shadow-lg: 0 12px 32px rgb(0 0 0 / 0.12), 0 0 0 0.5px rgb(0 0 0 / 0.08);
+  --rs-ctx-shadow: 0 16px 40px rgb(0 0 0 / 0.12), 0 2px 8px rgb(0 0 0 / 0.06);
 }
 
 /**
@@ -1247,6 +1253,16 @@ html {
     --rs-shadow-sm: none;
     --rs-shadow: none;
     --rs-shadow-lg: none;
+    --rs-ctx-bg: Canvas;
+    --rs-ctx-fg: CanvasText;
+    --rs-ctx-muted: GrayText;
+    --rs-ctx-border: CanvasText;
+    --rs-ctx-separator: CanvasText;
+    --rs-ctx-shadow: none;
+    --rs-ctx-danger: Mark;
+    --rs-ctx-item-active-bg: Highlight;
+    --rs-ctx-item-active-fg: HighlightText;
+    --rs-ctx-item-active-muted: HighlightText;
     --rs-card-border: CanvasText;
     --rs-card-separator: CanvasText;
     --rs-card-header-bg: Canvas;

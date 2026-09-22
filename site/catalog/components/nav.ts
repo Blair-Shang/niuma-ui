@@ -1158,10 +1158,10 @@ export const navComponents: ComponentDoc[] = [
       {
         name: 'showDragHandle',
         type: 'boolean',
-        default: 'true',
-        defaultEn: 'true',
-        description: '可拖时是否画左侧六点 grip。false 仍可整项拖，只是不显示图标。',
-        descriptionEn: 'Show the six-dot grip when a tab is movable. false keeps whole-tab drag and hides the icon.',
+        default: 'false',
+        defaultEn: 'false',
+        description: '可拖时是否画左侧六点 grip。默认不画，整项仍可拖。',
+        descriptionEn: 'Draw the six-dot grip when a tab is movable. Off by default; the whole tab still drags.',
       },
       {
         name: 'overflow',

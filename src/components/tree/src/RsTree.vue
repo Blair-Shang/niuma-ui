@@ -277,24 +277,30 @@ const useVirtualScroll = computed(() =>
 )
 
 if (import.meta.env.DEV) {
-  watch(useVirtualScroll, (enabled, wasEnabled) => {
-    if (!enabled || wasEnabled) return
-    let heightInfo: string
-    if (_measuredHeight.value > 0) {
-      heightInfo = `${Math.round(_measuredHeight.value)}px (ResizeObserver)`
-    } else if (props.height !== undefined && !isVirtualListFillHeight(props.height)) {
-      heightInfo = `${props.height} (prop)`
-    } else {
-      heightInfo = '320px (fallback)'
-    }
-    console.info(
-      '[RsTree] 虚拟滚动已开启',
-      '| 节点数:',
-      flatNodes.value.length,
-      '| 视口高度:',
-      heightInfo,
-    )
-  }, { immediate: true })
+  let virtualScrollLogged = false
+  watch(
+    () => useVirtualScroll.value && flatNodes.value.length > 0,
+    (enabled) => {
+      if (!enabled || virtualScrollLogged) return
+      virtualScrollLogged = true
+      let heightInfo: string
+      if (_measuredHeight.value > 0) {
+        heightInfo = `${Math.round(_measuredHeight.value)}px (ResizeObserver)`
+      } else if (props.height !== undefined && !isVirtualListFillHeight(props.height)) {
+        heightInfo = `${props.height} (prop)`
+      } else {
+        heightInfo = '320px (fallback)'
+      }
+      console.info(
+        '[RsTree] 虚拟滚动已开启',
+        '| 节点数:',
+        flatNodes.value.length,
+        '| 视口高度:',
+        heightInfo,
+      )
+    },
+    { immediate: true },
+  )
 }
 
 const viewportHeightPx = computed(() => {

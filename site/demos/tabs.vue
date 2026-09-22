@@ -34,7 +34,7 @@ const addTab = ref('page-1')
 let addSeed = 1
 const addItems = ref<RsTabItem[]>([{ value: 'page-1', label: 'Tab 1' }])
 const workTab = ref('one')
-const showGrip = ref(true)
+const showGrip = ref(false)
 const workItems = ref<RsTabItem[]>([
   { value: 'one', label: 'Query 1' },
   { value: 'two', label: 'Query 2' },
@@ -72,7 +72,7 @@ const { copy } = useSiteDemo({
     bodyOverflow: 'Resize the pane. scroll keeps every tab; dropdown folds the rest into More.',
     bodyEdit: 'closable + fixed. Close emits; the host removes the item. Home stays.',
     bodyAdd: 'Click + to append a tab and select it. + hides when maxCount is reached.',
-    bodyWork: 'Double-click to rename. Drag a tab to reorder (cursor is move). showDragHandle=false hides the six-dot grip.',
+    bodyWork: 'Double-click to rename. Drag a tab to reorder (cursor is move). The six-dot grip stays hidden unless showDragHandle is true.',
     hideGrip: 'Hide grip',
     showGrip: 'Show grip',
     untitled: (n: number) => `Untitled ${n}`,
@@ -109,7 +109,7 @@ const { copy } = useSiteDemo({
     bodyOverflow: '收窄容器。scroll 保留全部标签；dropdown 把其余收进「更多」。',
     bodyEdit: 'closable + fixed。关闭只发事件，由宿主删项。Home 常驻。',
     bodyAdd: '点 + 追加一页并选中。到 maxCount 后 + 消失。',
-    bodyWork: '双击重命名。整项可拖（光标是 move）。showDragHandle=false 不画六点 grip。',
+    bodyWork: '双击重命名。整项可拖（光标是 move）。默认不画六点 grip，showDragHandle 才显示。',
     hideGrip: '隐藏 grip',
     showGrip: '显示 grip',
     untitled: (n: number) => `未命名 ${n}`,

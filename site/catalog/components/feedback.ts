@@ -3060,8 +3060,8 @@ export const feedbackComponents: ComponentDoc[] = [
       {
         name: 'radius',
         type: 'RsRadius',
-        description: '面板与条目圆角，写入 --rs-ctx-radius。不传用主题默认 10px。',
-        descriptionEn: 'Panel and item radius. Writes --rs-ctx-radius. Omit it to use the 10px theme default.',
+        description: '面板与条目圆角，写入 --rs-ctx-radius。不传用主题默认 12px。',
+        descriptionEn: 'Panel and item radius. Writes --rs-ctx-radius. Omit it to use the 12px theme default.',
       },
       {
         name: 'hideOnSelect',

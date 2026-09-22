@@ -77,7 +77,7 @@ const props = withDefaults(
     renamable?: boolean
     /** 按住标签拖动排序（整项可拖） */
     draggable?: boolean
-    /** 可拖时是否画左侧六点 grip。false 仍可整项拖，只是不显示图标。 */
+    /** 可拖时是否画左侧六点 grip。默认不画，整项仍可拖。 */
     showDragHandle?: boolean
     /** 标签过多：scroll 横向/纵向滚动 · dropdown 折叠到「更多」 */
     overflow?: RsTabsOverflow | false
@@ -113,7 +113,7 @@ const props = withDefaults(
     addable: false,
     renamable: false,
     draggable: false,
-    showDragHandle: true,
+    showDragHandle: false,
     overflow: false,
     contextMenu: false,
     lazy: false,

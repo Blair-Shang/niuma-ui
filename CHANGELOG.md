@@ -6,6 +6,19 @@
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-09-22
+
+### 修复
+
+- `RsDialog` / `RsConfirmDialog`：关闭时不挂 Teleport，打开时再解析 `teleportTo`。1.x 的 Reka 只在打开时传送；2.x 若在组件挂载时就解析，宿主在 `onMounted` 才创建的挂载点会被记成 null，再次打开会在空节点上更新。
+- 开发时宿主插件对纯再导出再跟一层。`isRsBrandIconName` 改写到 `icons/brand.ts`，不再经过 `icons/registry.ts`，具名导入不会把 Lucide 全库一起求值。导出表在进程启动时建立；遇到尚未收录的运行时导出会重读一次，避免长开的 dev server 对新增导出回 500。
+
+### 变更
+
+- `RsIcon`：业务用 `registerRsIcon(name, component)` 登记自己的 kebab-case 图标。页签、菜单、树、右键的 `icon` 字符串可以引用。内置 Lucide 名和品牌 mark 不能被盖掉。这个登记模块不引入 Lucide。
+- `RsTabs`：`draggable` 仍整项可拖。`showDragHandle` 默认改为 `false`，不再默认画出六点 grip（与 1.x 一致）。要图标时显式传 `showDragHandle`。
+- `RsDialog`：可拖动的窗口对话框改挂到 `body`。业务挂载点常有 `overflow: hidden`，拖出后背景会被裁掉。全屏逻辑不变。KeepAlive 切走页签时卸掉 body 上的浮层，并放开滚动锁、inert 和 document 监听，回到该页再占上。
+
 ## [2.1.0] - 2026-09-22
 
 ### 变更

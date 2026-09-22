@@ -70,6 +70,21 @@ describe('parseRuntimeBindings', () => {
       kind: 'named',
       sourceName: 'supportsRsButtonTone',
     })
+    expect(followed.get('isRsBrandIconName')).toEqual({
+      from: './icons/brand',
+      kind: 'named',
+      sourceName: 'isRsBrandIconName',
+    })
+    expect(followed.get('rsCommonIconNames')).toEqual({
+      from: './icons/registry',
+      kind: 'named',
+      sourceName: 'rsCommonIconNames',
+    })
+    expect(followed.get('registerRsIcon')).toEqual({
+      from: './icons/host',
+      kind: 'named',
+      sourceName: 'registerRsIcon',
+    })
   })
 
   it('maps real dist monaco named exports onto files, not ./monaco', () => {

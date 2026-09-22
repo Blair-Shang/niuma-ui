@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { defineComponent, h } from 'vue'
 import { mount } from '@vue/test-utils'
 import RsIcon from '../src/RsIcon.vue'
 import {
@@ -15,6 +16,7 @@ import {
   rsBrandIconNames,
   rsCommonIconNames,
 } from '../../../icons/registry'
+import { registerRsIcon, unregisterRsIcon } from '../../../icons/host'
 
 describe('RsIcon', () => {
   it('loads lucide icon module', () => {
@@ -286,5 +288,77 @@ describe('RsIcon', () => {
     expect(rsBrandIconAccentVar('mysql')).toBe('--rs-icon-mysql-accent')
     const wrapper = mount(RsIcon, { props: { name: 'mysql' } })
     expect(wrapper.find('svg').classes()).toContain('rs-icon--brand')
+  })
+
+  it('renders an icon registered by the host', () => {
+    const HostMark = defineComponent({
+      name: 'HostMark',
+      props: { size: { type: [Number, String], default: 16 } },
+      setup(props) {
+        return () =>
+          h('svg', {
+            class: 'host-mark',
+            width: Number(props.size) || 16,
+            height: Number(props.size) || 16,
+          })
+      },
+    })
+    registerRsIcon('host-mark', HostMark)
+    expect(isRsIconName('host-mark')).toBe(true)
+    expect(isRsBrandIconName('host-mark')).toBe(false)
+    const wrapper = mount(RsIcon, { props: { name: 'host-mark', size: 20 } })
+    const svg = wrapper.find('svg')
+    expect(svg.classes()).toContain('rs-icon')
+    expect(svg.classes()).not.toContain('rs-icon--brand')
+    expect(svg.attributes('width')).toBe('20')
+  })
+
+  it('replaces a host icon when the same name is registered again', () => {
+    const First = defineComponent({
+      name: 'HostFirst',
+      setup() {
+        return () => h('svg', { class: 'host-first' })
+      },
+    })
+    const Second = defineComponent({
+      name: 'HostSecond',
+      setup() {
+        return () => h('svg', { class: 'host-second' })
+      },
+    })
+    registerRsIcon('host-swap', First)
+    registerRsIcon('host-swap', Second)
+    const wrapper = mount(RsIcon, { props: { name: 'host-swap' } })
+    expect(wrapper.find('.host-second').exists()).toBe(true)
+    expect(wrapper.find('.host-first').exists()).toBe(false)
+  })
+
+  it('rejects names that are not kebab-case or that replace a brand mark', () => {
+    const Mark = defineComponent({
+      name: 'RejectedMark',
+      setup() {
+        return () => h('svg')
+      },
+    })
+    expect(() => registerRsIcon('My Mark', Mark)).toThrow(/kebab-case/)
+    expect(() => registerRsIcon('mysql', Mark)).toThrow(/brand mark/)
+    expect(() => registerRsIcon('ok-name', 'nope' as never)).toThrow(/Vue component/)
+  })
+
+  it('keeps a built-in Lucide icon when the host registers the same name', () => {
+    const Mark = defineComponent({
+      name: 'ShadowHouse',
+      setup() {
+        return () => h('svg', { class: 'shadow-house' })
+      },
+    })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    registerRsIcon('house', Mark)
+    const wrapper = mount(RsIcon, { props: { name: 'house' } })
+    expect(wrapper.find('.shadow-house').exists()).toBe(false)
+    expect(wrapper.find('svg').exists()).toBe(true)
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('built-in icon'))
+    warn.mockRestore()
+    unregisterRsIcon('house')
   })
 })

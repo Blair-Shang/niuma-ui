@@ -1085,6 +1085,7 @@ export {
   isRsIconName,
   isRsBrandIconName,
 } from './icons/registry'
+export { registerRsIcon } from './icons/host'
 export type { RsBrandIconName } from './icons/registry'
 export type {
   RsThemeMode,

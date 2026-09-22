@@ -12,7 +12,7 @@ defineOptions({ name: 'RsIcon' })
 
 const props = withDefaults(
   defineProps<{
-    /** Lucide kebab-case 名称（如 `house`、`trash-2`），或内置品牌 mark */
+    /** Lucide kebab-case（如 `house`）、内置品牌 mark，或 `registerRsIcon` 登记的名字 */
     name: string
     /** 数字 px、CSS 长度，或与控件同一套 ssm / sm / md / lg */
     size?: number | string | RsComponentSize

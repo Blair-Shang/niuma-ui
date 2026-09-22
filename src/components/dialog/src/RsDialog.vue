@@ -3,7 +3,9 @@ import {
   computed,
   getCurrentInstance,
   nextTick,
+  onActivated,
   onBeforeUnmount,
+  onDeactivated,
   onMounted,
   ref,
   toRef,
@@ -420,10 +422,20 @@ watch(bodyReady, (ready) => {
   if (!root || active === root || !(active instanceof Node) || !root.contains(active)) queueFocus()
 })
 
+/** KeepAlive 切走时为 false。必须在 open 的 immediate watch 之前声明。 */
+const pageActive = ref(true)
+let presentedSuspended = false
+
 watch(
   open,
   (isOpen, wasOpen) => {
     if (isOpen) {
+      if (!pageActive.value) {
+        // 页已被 KeepAlive 藏起，对话框节点不在文档里，不要占滚动锁和 inert。
+        presentedSuspended = true
+        if (wasOpen === false) emit('openChange', true)
+        return
+      }
       if (wasOpen !== true) {
         rememberTrigger()
         syncChrome()
@@ -438,6 +450,7 @@ watch(
       void syncInert()
       return
     }
+    presentedSuspended = false
     clearAfterOpenTimer()
     removeDialogLayer(layerId)
     unbindKey()
@@ -458,7 +471,7 @@ watch(
   () =>
     [props.modal, props.lockScroll, props.closeOnOverlayClick, dialogLayerTick.value] as const,
   () => {
-    if (!open.value || disposed) return
+    if (!open.value || !pageActive.value || disposed) return
     syncScrollLock()
     syncOutside()
     void syncInert()
@@ -599,6 +612,7 @@ const {
   dialogStyle,
   resizeHandles,
   setPanelEl,
+  stopInteractions,
   toggleFullscreen,
   onHeaderPointerDown,
   onResizePointerDown,
@@ -614,11 +628,51 @@ const {
 })
 
 /**
- * 全屏时跳出业务挂载点，挂到 body，
- * 还原后仍回到 props.teleportTo，以保留页签内浮层的生命周期绑定。
+ * 全屏或可拖动窗口跳出业务挂载点，挂到 body。
+ * 挂载点常有 overflow: hidden，拖出后背景会被裁成透明。
+ * 还原全屏后，不可拖的对话框仍回到 props.teleportTo。
+ * KeepAlive 切走页签时卸掉 body 上的浮层，并放开滚动锁、inert 和 document 监听。
  */
+function suspendPresentedDialog(): void {
+  if (presentedSuspended || !open.value || disposed) return
+  presentedSuspended = true
+  stopInteractions()
+  clearAfterOpenTimer()
+  removeDialogLayer(layerId)
+  unbindKey()
+  unbindOutside()
+  releaseScroll?.()
+  releaseScroll = null
+  inertGeneration += 1
+  releaseDialogInert(layerId)
+}
+
+function resumePresentedDialog(): void {
+  if (!presentedSuspended || disposed) return
+  presentedSuspended = false
+  if (!open.value || !pageActive.value) return
+  syncChrome()
+  pushDialogLayer(layerId)
+  bindKey()
+  syncScrollLock()
+  syncOutside()
+  void syncInert()
+  queueFocus()
+}
+
+onActivated(() => {
+  pageActive.value = true
+  resumePresentedDialog()
+})
+onDeactivated(() => {
+  pageActive.value = false
+  suspendPresentedDialog()
+})
+
+// Teleport 只在打开时挂载。挂载时解析不到 to 会被记成 null，之后打开不会再查。
 const resolvedTeleportTo = computed(() => {
-  if (isFullscreen.value && props.teleportTo !== false) return undefined
+  if (props.teleportTo === false) return false
+  if (isFullscreen.value || enableDraggable.value) return undefined
   return props.teleportTo
 })
 
@@ -630,7 +684,7 @@ const teleportTarget = computed(() => {
 })
 
 watch(resolvedTeleportTo, () => {
-  if (!open.value || disposed) return
+  if (!open.value || !pageActive.value || disposed) return
   void syncInert()
 })
 
@@ -653,9 +707,8 @@ defineExpose({
 
 <template>
   <span ref="anchorRef" hidden class="rs-dialog__anchor" aria-hidden="true" />
-  <Teleport defer :to="teleportTarget" :disabled="teleportDisabled">
+  <Teleport v-if="open && pageActive" defer :to="teleportTarget" :disabled="teleportDisabled">
     <div
-      v-if="open"
       ref="shellRef"
       class="rs-dialog"
       :data-rs-theme="panelTheme"

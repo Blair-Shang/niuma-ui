@@ -151,9 +151,17 @@ function niumaUiHostRewrite(ctx: HostContext): Plugin {
     async transform(code, id) {
       if (!ctx.filter(id)) return null
       if (!code.includes('@niuma/ui') && !code.includes('niuma-ui')) return null
-      return rewriteHostModule(code, id, ctx.map, (from, spec) =>
-        resolveTarget(from, spec, ctx.root, ctx.useSource),
-      )
+      const rewrite = () =>
+        rewriteHostModule(code, id, ctx.map, (from, spec) =>
+          resolveTarget(from, spec, ctx.root, ctx.useSource),
+        )
+      try {
+        return await rewrite()
+      } catch (err) {
+        if (!(err instanceof Error) || !err.message.includes('未找到运行时导出')) throw err
+        ctx.map = loadRuntimeBindings(ctx.root, ctx.useSource)
+        return rewrite()
+      }
     },
   }
 }
@@ -472,24 +480,33 @@ function loadRuntimeBindings(root: string, useSource: boolean): Map<string, Nium
 }
 
 /**
- * FollowSourceBarrels 把 `./components/button` 这类目录再导出展开到实现文件。
+ * FollowSourceBarrels 把目录 index，以及 `icons/registry.ts` 这类纯再导出，展开到实现文件。
  * 只跟一层，避免评估整桶 `src/index.ts`。
+ * 非 index 只有名字本身是 `export { x } from` 时才改指向，这样 `isRsBrandIconName` 落到 `brand.ts`，不会把同文件再导出的 Lucide 一起求值。
  */
 export function followSourceBarrels(
   root: string,
   map: Map<string, NiumaUiBinding>,
 ): Map<string, NiumaUiBinding> {
   const next = new Map<string, NiumaUiBinding>()
+  const parsed = new Map<string, Map<string, NiumaUiBinding>>()
+  const bindingsIn = (file: string): Map<string, NiumaUiBinding> => {
+    const cached = parsed.get(file)
+    if (cached) return cached
+    const child = parseRuntimeBindings(readFileSync(file, 'utf8'))
+    parsed.set(file, child)
+    return child
+  }
   for (const [name, binding] of map) {
     const file = resolveSourceModule(root, binding.from)
-    if (!file || !/[/\\]index\.(ts|js)$/.test(file)) {
+    if (!file) {
       next.set(name, binding)
       continue
     }
-    const child = parseRuntimeBindings(readFileSync(file, 'utf8'))
-    const inner = child.get(name)
+    const barrel = /[/\\]index\.(ts|js)$/.test(file)
+    const inner = bindingsIn(file).get(name)
     if (!inner) {
-      next.set(name, { ...binding, from: toSrcRel(root, file) })
+      next.set(name, barrel ? { ...binding, from: toSrcRel(root, file) } : binding)
       continue
     }
     const innerAbs = resolveRelativeModule(file, inner.from)

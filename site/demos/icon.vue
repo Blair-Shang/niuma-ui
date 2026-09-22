@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { RsButton, RsIcon, rsBrandIconNames } from 'niuma-ui'
+import { computed, defineComponent, h, ref } from 'vue'
+import { registerRsIcon, RsButton, RsIcon, rsBrandIconNames } from 'niuma-ui'
 import DocDemo from '../components/DocDemo.vue'
 import { useSiteDemo } from '../composables/use-site-i18n'
 
@@ -76,6 +76,35 @@ const brandCode = `import 'niuma-ui/brand-icons.css'
 <RsIcon name="mysql" />
 <RsIcon name="postgres" />
 <RsIcon name="redis" />`
+
+const SiteMark = defineComponent({
+  name: 'SiteMark',
+  props: {
+    size: { type: [Number, String], default: 16 },
+    color: { type: String, default: 'currentColor' },
+  },
+  setup(props) {
+    return () =>
+      h(
+        'svg',
+        {
+          xmlns: 'http://www.w3.org/2000/svg',
+          width: props.size,
+          height: props.size,
+          viewBox: '0 0 24 24',
+          fill: props.color,
+        },
+        [h('circle', { cx: '12', cy: '12', r: '8' })],
+      )
+  },
+})
+registerRsIcon('site-mark', SiteMark)
+
+const registerCode = `import { registerRsIcon } from 'niuma-ui'
+
+registerRsIcon('site-mark', SiteMark)
+
+<RsIcon name="site-mark" />`
 
 const composeCode = `<RsButton icon="plus">New chat</RsButton>
 <RsButton icon="search" icon-only tooltip="Search" />
@@ -247,6 +276,22 @@ function inspectIconRef() {
       <span v-for="name in rsBrandIconNames" :key="name" class="item">
         <RsIcon :name="name" size="lg" />
         <code>{{ name }}</code>
+      </span>
+    </div>
+  </DocDemo>
+
+  <DocDemo
+    id="demo-register"
+    title="登记业务图标"
+    title-en="Register an icon"
+    description="应用启动时 registerRsIcon。名字用 kebab-case。不要把 SVG 放进组件库。内置品牌名不能覆盖。"
+    description-en="Call registerRsIcon at startup. Names are kebab-case. Do not add SVG files to the component library. Built-in brand names cannot be replaced."
+    :code="registerCode"
+  >
+    <div class="row">
+      <span class="item">
+        <RsIcon name="site-mark" size="lg" />
+        <code>site-mark</code>
       </span>
     </div>
   </DocDemo>

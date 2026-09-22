@@ -1,5 +1,6 @@
 import type { Component } from 'vue'
 import * as LucideVue from '@lucide/vue'
+import { resolveHostIcon } from './host'
 import { ApiIcon } from './custom/api'
 import { FtpIcon } from './custom/ftp'
 import { MongodbIcon } from './custom/mongodb'
@@ -70,20 +71,45 @@ function resolveIconName(name: string): string {
 }
 
 const iconCache = new Map<string, Component>()
+const shadowedHostNames = new Set<string>()
+
+function hasBuiltinIcon(resolvedName: string): boolean {
+  return customIconMap.has(resolvedName) || getLucideComponent(resolvedName) !== undefined
+}
+
+/** 内置名优先。业务若登记了同名，开发环境只警告一次，不替换图形。 */
+function warnIfHostShadows(requested: string, resolvedName: string): void {
+  if (!import.meta.env.DEV) return
+  if (!resolveHostIcon(requested) && !resolveHostIcon(resolvedName)) return
+  if (shadowedHostNames.has(requested)) return
+  shadowedHostNames.add(requested)
+  console.warn(`registerRsIcon: "${requested}" is a built-in icon and was not used`)
+}
 
 export function isRsIconName(name: string): boolean {
   const resolvedName = resolveIconName(name)
-  return customIconMap.has(resolvedName) || getLucideComponent(resolvedName) !== undefined
+  return (
+    hasBuiltinIcon(resolvedName) ||
+    resolveHostIcon(name) !== undefined ||
+    resolveHostIcon(resolvedName) !== undefined
+  )
 }
 
 export function resolveLucideIcon(name: string): Component | undefined {
   const resolvedName = resolveIconName(name)
   const cached = iconCache.get(resolvedName)
-  if (cached) return cached
+  if (cached) {
+    warnIfHostShadows(name, resolvedName)
+    return cached
+  }
 
   const icon = customIconMap.get(resolvedName) ?? getLucideComponent(resolvedName)
-  if (icon) iconCache.set(resolvedName, icon)
-  return icon
+  if (icon) {
+    iconCache.set(resolvedName, icon)
+    warnIfHostShadows(name, resolvedName)
+    return icon
+  }
+  return resolveHostIcon(name) ?? resolveHostIcon(resolvedName)
 }
 
 /** 可解析的图标数量（自定义 + Lucide 命名导出） */

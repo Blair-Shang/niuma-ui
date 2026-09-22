@@ -339,6 +339,7 @@ export function useRsDialogWindow(options: {
     dialogStyle,
     resizeHandles,
     setPanelEl,
+    stopInteractions,
     toggleFullscreen,
     onHeaderPointerDown,
     onResizePointerDown,

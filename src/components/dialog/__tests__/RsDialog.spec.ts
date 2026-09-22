@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { defineComponent, h, ref } from 'vue'
+import { defineComponent, h, onBeforeUnmount, onMounted, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import RsConfigProvider from '../../config-provider/src/RsConfigProvider.vue'
@@ -441,6 +441,37 @@ describe('RsDialog', () => {
     wrapper.unmount()
   })
 
+  it('resolves a teleport target created in the host onMounted when the dialog opens', async () => {
+    const Host = defineComponent({
+      components: { RsDialog },
+      setup() {
+        const open = ref(false)
+        const targetId = 'rs-dialog-late-target'
+        onMounted(() => {
+          const target = document.createElement('div')
+          target.id = targetId
+          document.body.appendChild(target)
+        })
+        onBeforeUnmount(() => {
+          document.getElementById(targetId)?.remove()
+        })
+        return { open, targetId }
+      },
+      template:
+        '<RsDialog v-model:open="open" :teleport-to="`#${targetId}`" title="Late" :defer-body-mount="false" />',
+    })
+
+    const wrapper = mount(Host, { attachTo: document.body })
+    await flushPromises()
+    expect(document.body.querySelector('.rs-dialog__content')).toBeNull()
+
+    await wrapper.findComponent(RsDialog).setValue(true, 'open')
+    await flushPromises()
+    const dock = document.getElementById('rs-dialog-late-target')
+    expect(dock?.querySelector('.rs-dialog__content')).not.toBeNull()
+    wrapper.unmount()
+  })
+
   it('re-teleports to body while fullscreen, then restores custom target', async () => {
     const target = document.createElement('div')
     target.id = 'rs-dialog-fullscreen-target'
@@ -482,6 +513,78 @@ describe('RsDialog', () => {
 
     wrapper.unmount()
     target.remove()
+  })
+
+  it('mounts a draggable window on body so drag can leave a clipping host', async () => {
+    const target = document.createElement('div')
+    target.id = 'rs-dialog-drag-target'
+    target.style.overflow = 'hidden'
+    document.body.appendChild(target)
+
+    const wrapper = mount(RsDialog, {
+      props: {
+        open: true,
+        title: '可拖挂载',
+        layout: 'window',
+        draggable: true,
+        teleportTo: '#rs-dialog-drag-target',
+      },
+      attachTo: document.body,
+    })
+
+    await flushPromises()
+    expect(target.querySelector('.rs-dialog__content')).toBeNull()
+    const bodyContent = document.body.querySelector('.rs-dialog__content') as HTMLElement
+    expect(bodyContent).not.toBeNull()
+    expect(bodyContent.classList.contains('rs-dialog__content--draggable')).toBe(true)
+    expect(target.contains(bodyContent)).toBe(false)
+
+    wrapper.unmount()
+    target.remove()
+  })
+
+  it('releases scroll lock and inert when a KeepAlive page hides an open dialog', async () => {
+    const probe = document.createElement('button')
+    probe.type = 'button'
+    document.body.appendChild(probe)
+    document.body.style.overflow = 'scroll'
+
+    const show = ref(true)
+    const Page = defineComponent({
+      name: 'RsDialogKeepAlivePage',
+      components: { RsDialog },
+      template:
+        '<RsDialog open title="缓存页" layout="window" :draggable="true" :defer-body-mount="false" />',
+    })
+    const Host = defineComponent({
+      components: { Page },
+      setup() {
+        return { show }
+      },
+      template: '<KeepAlive><Page v-if="show" /></KeepAlive>',
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await flushPromises()
+    expect(document.body.querySelector('.rs-dialog__content')).not.toBeNull()
+    expect(document.body.style.overflow).toBe('hidden')
+    expect(probe.hasAttribute('inert')).toBe(true)
+
+    show.value = false
+    await flushPromises()
+    expect(document.body.querySelector('.rs-dialog__content')).toBeNull()
+    expect(document.body.style.overflow).toBe('scroll')
+    expect(probe.hasAttribute('inert')).toBe(false)
+
+    show.value = true
+    await flushPromises()
+    expect(document.body.querySelector('.rs-dialog__content')).not.toBeNull()
+    expect(document.body.style.overflow).toBe('hidden')
+    expect(probe.hasAttribute('inert')).toBe(true)
+
+    wrapper.unmount()
+    expect(document.body.style.overflow).toBe('scroll')
+    expect(probe.hasAttribute('inert')).toBe(false)
+    probe.remove()
   })
 
   it('does not mark a non-modal dialog as a modal or lock scroll', async () => {

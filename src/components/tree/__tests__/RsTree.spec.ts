@@ -670,6 +670,12 @@ describe('RsTree', () => {
     expect(info).not.toHaveBeenCalled()
     quiet.unmount()
 
+    const empty = mount(RsTree, {
+      props: { nodes: [], virtual: true, height: 200 },
+    })
+    expect(info).not.toHaveBeenCalled()
+    empty.unmount()
+
     const wrapper = mount(RsTree, {
       props: {
         nodes: Array.from({ length: 20 }, (_, index) => ({ key: String(index), label: `N${index}` })),

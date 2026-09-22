@@ -357,12 +357,17 @@ describe('RsTabs', () => {
     expect(wrapper.find('.rs-tabs').classes()).toContain('rs-tabs--card')
   })
 
-  it('marks movable tabs with a grip, not a hand cursor', () => {
+  it('marks movable tabs without a grip by default', () => {
     const wrapper = mountTabs({ draggable: true })
     expect(wrapper.find('.rs-tabs').classes()).toContain('rs-tabs--draggable')
-    expect(wrapper.findAll('.rs-tabs__drag')).toHaveLength(items.length)
+    expect(wrapper.find('.rs-tabs__drag').exists()).toBe(false)
     expect(wrapper.findAll('.rs-tabs__trigger--movable')).toHaveLength(items.length)
     expect(wrapper.find('.rs-tabs__trigger--movable').attributes('draggable')).toBe('true')
+  })
+
+  it('shows the grip when showDragHandle is true', () => {
+    const wrapper = mountTabs({ draggable: true, showDragHandle: true })
+    expect(wrapper.findAll('.rs-tabs__drag')).toHaveLength(items.length)
   })
 
   it('hides the grip when showDragHandle is false', () => {

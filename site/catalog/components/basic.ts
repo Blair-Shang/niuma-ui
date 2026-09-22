@@ -237,11 +237,12 @@ export const basicComponents: ComponentDoc[] = [
     group: 'basic',
     summary: '按名称渲染 Lucide 与业务图标。',
     description:
-      '按字符串名称渲染 Lucide 线标，以及工作台内置品牌 mark（mysql、redis、postgres 等）。默认继承 currentColor。按钮、输入框里的图标请走父组件的 icon 属性，不要再包一层 RsIcon 改颜色。',
+      '按字符串名称渲染 Lucide 线标、内置品牌 mark（mysql、redis、postgres 等），以及业务用 registerRsIcon 登记的图标。默认继承 currentColor。按钮、输入框里的图标请走父组件的 icon 属性，不要再包一层 RsIcon 改颜色。',
     descriptionEn:
-      'Renders a Lucide stroke, or a built-in brand mark (mysql, redis, postgres, …), by string name. Color inherits currentColor. Inside buttons and inputs, pass the parent icon prop — do not wrap RsIcon just to restyle it.',
+      'Renders a Lucide stroke, a built-in brand mark (mysql, redis, postgres, …), or an icon registered with registerRsIcon, by string name. Color inherits currentColor. Inside buttons and inputs, pass the parent icon prop — do not wrap RsIcon just to restyle it.',
     whenToUse: [
       '运行时按名称切换图标，而不是每个文件静态 import SVG。',
+      '业务系统用 registerRsIcon 登记自己的 mark，再在 RsIcon、页签、菜单、树、右键的 icon 字符串里引用。',
       '状态、空态、行内说明等需要独立图标时。',
       '连接树 / 数据源用内置品牌名（rsBrandIconNames），不要另画一套。',
       '可点击的操作请用 RsButton icon，不要给 RsIcon 绑点击。',
@@ -249,6 +250,7 @@ export const basicComponents: ComponentDoc[] = [
     ],
     whenToUseEn: [
       'Switch icons by name at runtime instead of statically importing each SVG.',
+      'Register product marks with registerRsIcon, then use that name on RsIcon and on icon strings in tabs, menus, trees, and context menus.',
       'Standalone status, empty-state, or inline illustration.',
       'Connection trees / data sources: use built-in brand names (rsBrandIconNames). Do not redraw them.',
       'Clickable actions belong on RsButton icon — do not bind click on RsIcon.',
@@ -261,6 +263,7 @@ export const basicComponents: ComponentDoc[] = [
       { id: 'demo-label', title: '无障碍', titleEn: 'Accessibility' },
       { id: 'demo-transform', title: '翻转与旋转', titleEn: 'Flip and spin' },
       { id: 'demo-brand', title: '品牌 mark', titleEn: 'Brand marks' },
+      { id: 'demo-register', title: '登记业务图标', titleEn: 'Register an icon' },
       { id: 'demo-compose', title: '组合', titleEn: 'Composition' },
       { id: 'demo-events', title: '事件', titleEn: 'Events' },
       { id: 'demo-methods', title: '方法', titleEn: 'Methods' },
@@ -269,8 +272,8 @@ export const basicComponents: ComponentDoc[] = [
       {
         name: 'name',
         type: 'string',
-        description: 'Lucide kebab-case（如 house、trash-2），或内置品牌名如 mysql。未知名称不渲染。',
-        descriptionEn: 'Lucide kebab-case (house, trash-2) or a built-in brand name such as mysql. Unknown names render nothing.',
+        description: 'Lucide kebab-case（如 house、trash-2）、内置品牌名如 mysql，或 registerRsIcon 登记的名字。未知名称不渲染。',
+        descriptionEn: 'Lucide kebab-case (house, trash-2), a built-in brand name such as mysql, or a name passed to registerRsIcon. Unknown names render nothing.',
       },
       {
         name: 'size',
@@ -375,6 +378,12 @@ export const basicComponents: ComponentDoc[] = [
       },
     ],
     faq: [
+      {
+        q: '业务自己的图标怎么给 RsIcon 用？',
+        a: '在应用启动时 registerRsIcon("my-product", MyMark)。名字用 kebab-case。组件接收 size、strokeWidth、color，颜色默认 currentColor。不要把 SVG 放进 niuma-ui 的 src/icons。内置品牌名会抛错；与 Lucide 重名时仍显示内置图形。',
+        qEn: 'How does a product icon get into RsIcon?',
+        aEn: 'Call registerRsIcon("my-product", MyMark) at startup. The name is kebab-case. The component receives size, strokeWidth, and color (default currentColor). Do not add SVG files under niuma-ui src/icons. Built-in brand names throw. A Lucide name still renders the built-in glyph.',
+      },
       {
         q: '找不到图标名怎么办？',
         a: 'Lucide 用 kebab-case（trash-2，不是 Trash2）。未知 name 不渲染、不报错。品牌名见 rsBrandIconNames。',
