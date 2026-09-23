@@ -3,6 +3,7 @@ html[data-rs-theme='light'] {
   --site-header-bg: rgb(255 255 255 / 92%);
   --site-canvas: #ffffff;
   --site-home-canvas: #f6f7fb;
+  --site-home-grid: color-mix(in srgb, var(--site-line) 80%, transparent);
   --site-aside-bg: #ffffff;
   --site-article-bg: #ffffff;
   --site-line: #eceef2;
@@ -12,6 +13,8 @@ html[data-rs-theme='light'] {
 html[data-rs-theme='dark'] {
   --site-header-bg: color-mix(in srgb, var(--rs-bg) 88%, transparent);
   --site-canvas: color-mix(in srgb, var(--rs-bg) 94%, #000);
+  --site-home-canvas: var(--rs-bg);
+  --site-home-grid: color-mix(in srgb, #fff 8%, transparent);
   --site-aside-bg: color-mix(in srgb, var(--rs-surface) 80%, #000);
   --site-article-bg: var(--rs-surface);
   --site-line: var(--rs-border-subtle);

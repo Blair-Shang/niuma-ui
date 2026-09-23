@@ -3,10 +3,13 @@ html {
   --site-header-bg: rgb(255 255 255 / 92%);
   --site-canvas: #fff;
   --site-home-canvas: #f6f7fb;
+  --site-home-grid: color-mix(in srgb, var(--site-line) 80%, transparent);
   --site-aside-bg: #fff;
   --site-article-bg: #fff;
   --site-line: #eceef2;
   --site-footer-bg: #f7f8fa;
+  --site-panel-radius: 1.05rem;
+  --site-panel-bg: color-mix(in srgb, var(--rs-surface) 88%, transparent);
   scroll-padding-top: calc(var(--site-header-h) + 1rem);
 }
 
@@ -35,4 +38,99 @@ body {
 
 #app {
   min-height: 100vh;
+}
+
+.site-doc__header {
+  margin-bottom: 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--rs-border-subtle);
+}
+
+.site-doc__kicker {
+  margin: 0 0 0.35rem;
+  color: var(--rs-primary);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.site-doc__title {
+  margin: 0 0 0.5rem;
+  scroll-margin-top: calc(var(--site-header-h) + 1rem);
+  font-size: clamp(1.85rem, 2.6vw, 2.35rem);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+  color: var(--rs-text);
+}
+
+.site-doc__lead,
+.site-doc__copy {
+  margin: 0;
+  max-width: 46rem;
+  color: var(--rs-muted);
+  line-height: 1.75;
+}
+
+.site-doc__lead {
+  font-size: 1.02rem;
+}
+
+.site-doc__copy {
+  margin-bottom: 0.85rem;
+  font-size: 0.92rem;
+}
+
+.site-doc__section {
+  margin-bottom: 2.5rem;
+}
+
+.site-doc__h2 {
+  margin: 0 0 0.85rem;
+  scroll-margin-top: calc(var(--site-header-h) + 1rem);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--rs-text);
+}
+
+.site-doc__list {
+  margin: 0 0 0.85rem;
+  padding-inline-start: 1.2rem;
+  color: var(--rs-text);
+  font-size: 0.92rem;
+  line-height: 1.8;
+}
+
+.site-doc__panel,
+.site-doc__code {
+  border: 1px solid var(--rs-border-subtle);
+  border-radius: var(--site-panel-radius);
+  background: var(--site-panel-bg);
+}
+
+.site-doc__panel {
+  padding: 1.5rem 1.4rem;
+}
+
+.site-doc__code {
+  overflow: hidden;
+}
+
+.site-doc__copy + .site-doc__panel,
+.site-doc__copy + .site-doc__code,
+.site-doc__list + .site-doc__panel,
+.site-doc__list + .site-doc__code,
+.site-doc__panel + .site-doc__code {
+  margin-top: 0.85rem;
+}
+
+.site-doc__code .rs-code-block.rs-code-block {
+  border: 0;
+  border-radius: 0;
+}
+
+.site-doc__panel .theme-demo.theme-demo {
+  margin-bottom: 0;
 }

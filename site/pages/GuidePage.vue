@@ -9,7 +9,7 @@ import { useDocToc } from '../composables/doc-toc'
 import { useSiteI18n } from '../composables/use-site-i18n'
 
 const route = useRoute()
-const { pair, t } = useSiteI18n()
+const { chrome, pair, t } = useSiteI18n()
 const toc = useDocToc()
 
 const guide = computed(() => getGuide(String(route.params.slug)))
@@ -35,66 +35,29 @@ watchEffect(() => {
 </script>
 
 <template>
-  <article v-if="guide" class="guide">
-    <header class="guide__header">
-      <h1>{{ heading }}</h1>
-      <p>{{ lead }}</p>
+  <article v-if="guide">
+    <header class="site-doc__header">
+      <p class="site-doc__kicker">{{ chrome.groups.guide }}</p>
+      <h1 class="site-doc__title">{{ heading }}</h1>
+      <p class="site-doc__lead">{{ lead }}</p>
     </header>
 
-    <section v-for="section in guide.sections" :id="section.id" :key="section.id" class="guide__section">
-      <h2>{{ pair(section.title, section.titleEn) }}</h2>
-      <p v-if="pair(section.body, section.bodyEn)">{{ pair(section.body, section.bodyEn) }}</p>
-      <ul v-if="pair(section.bullets, section.bulletsEn)?.length">
+    <section v-for="section in guide.sections" :id="section.id" :key="section.id" class="site-doc__section">
+      <h2 class="site-doc__h2">{{ pair(section.title, section.titleEn) }}</h2>
+      <p v-if="pair(section.body, section.bodyEn)" class="site-doc__copy">{{ pair(section.body, section.bodyEn) }}</p>
+      <ul v-if="pair(section.bullets, section.bulletsEn)?.length" class="site-doc__list">
         <li v-for="item in pair(section.bullets, section.bulletsEn)" :key="item">{{ item }}</li>
       </ul>
-      <ThemeColorDemo v-if="section.demo === 'color-theme'" />
-      <RsCodeBlock v-if="section.code" :code="section.code.content" :lang="section.code.lang" />
+      <div v-if="section.demo === 'color-theme'" class="site-doc__panel">
+        <ThemeColorDemo />
+      </div>
+      <div v-if="section.code" class="site-doc__code">
+        <RsCodeBlock :code="section.code.content" :lang="section.code.lang" />
+      </div>
     </section>
     <DocPager />
   </article>
-  <article v-else class="guide">
-    <h1>{{ missing }}</h1>
+  <article v-else>
+    <h1 class="site-doc__title">{{ missing }}</h1>
   </article>
 </template>
-
-<style scoped>
-.guide__header {
-  margin-bottom: 2.25rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--rs-border-subtle);
-}
-
-.guide__header h1 {
-  margin: 0 0 var(--rs-space-sm);
-  scroll-margin-top: calc(var(--site-header-h) + 1rem);
-  font-size: clamp(1.85rem, 2.6vw, 2.35rem);
-  font-weight: 700;
-  letter-spacing: -0.035em;
-}
-
-.guide__header p,
-.guide__section p {
-  margin: 0 0 var(--rs-space-md);
-  max-width: 46rem;
-  color: var(--rs-muted);
-  font-size: var(--rs-font-size-sm);
-  line-height: 1.75;
-}
-
-.guide__section {
-  margin-bottom: 2.25rem;
-}
-
-.guide__section h2 {
-  margin: 0 0 var(--rs-space-md);
-  scroll-margin-top: calc(var(--site-header-h) + 1rem);
-  font-size: var(--rs-font-size-lg);
-}
-
-.guide__section ul {
-  margin: 0 0 var(--rs-space-md);
-  padding-inline-start: 1.2rem;
-  font-size: var(--rs-font-size-sm);
-  line-height: 1.8;
-}
-</style>

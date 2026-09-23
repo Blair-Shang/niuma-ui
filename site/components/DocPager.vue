@@ -54,7 +54,8 @@ function label(item: { title: string; titleEn: string }) {
   min-width: 0;
   padding: 0.85rem 1rem;
   border: 1px solid var(--site-line, var(--rs-border-subtle));
-  border-radius: 0.75rem;
+  border-radius: var(--site-panel-radius, 1.05rem);
+  background: var(--site-panel-bg);
   color: inherit;
   text-decoration: none;
 }

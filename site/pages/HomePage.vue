@@ -269,9 +269,9 @@ onMounted(() => {
   grid-template-columns: repeat(4, 1fr);
   margin-bottom: 5rem;
   border: 1px solid var(--rs-border-subtle);
-  border-radius: 1.2rem;
+  border-radius: var(--site-panel-radius);
   overflow: hidden;
-  background: color-mix(in srgb, var(--rs-surface) 86%, transparent);
+  background: var(--site-panel-bg);
   backdrop-filter: blur(10px);
 }
 
@@ -326,8 +326,8 @@ onMounted(() => {
 .features article {
   padding: 1.3rem 1.25rem 1.4rem;
   border: 1px solid var(--rs-border-subtle);
-  border-radius: 1.05rem;
-  background: color-mix(in srgb, var(--rs-surface) 88%, transparent);
+  border-radius: var(--site-panel-radius);
+  background: var(--site-panel-bg);
   transition:
     border-color 160ms ease,
     transform 160ms ease,
@@ -380,8 +380,8 @@ onMounted(() => {
   align-items: center;
   padding: 1.15rem 1.15rem;
   border: 1px solid var(--rs-border-subtle);
-  border-radius: 1.05rem;
-  background: color-mix(in srgb, var(--rs-surface) 88%, transparent);
+  border-radius: var(--site-panel-radius);
+  background: var(--site-panel-bg);
   color: inherit;
   text-decoration: none;
   transition:
@@ -427,10 +427,10 @@ onMounted(() => {
   gap: 1.5rem;
   padding: 1.9rem 2rem;
   border: 1px solid color-mix(in srgb, var(--rs-primary) 22%, var(--rs-border-subtle));
-  border-radius: 1.25rem;
+  border-radius: var(--site-panel-radius);
   background:
     radial-gradient(520px 180px at 100% 0%, color-mix(in srgb, var(--rs-primary) 22%, transparent), transparent 60%),
-    color-mix(in srgb, var(--rs-surface) 88%, transparent);
+    var(--site-panel-bg);
 }
 
 .oss p {

@@ -106,19 +106,15 @@ async function copyCode() {
 .doc-demo__preview {
   padding: 1.5rem 1.4rem;
   border: 1px solid var(--rs-border-subtle);
-  border-radius: 0.9rem;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--rs-surface) 88%, #fff), var(--rs-surface));
-}
-
-:global([data-rs-theme='dark']) .doc-demo__preview {
-  background: var(--rs-surface-elevated);
+  border-radius: var(--site-panel-radius);
+  background: var(--site-panel-bg);
 }
 
 .doc-demo__code {
   border: 1px solid var(--rs-border-subtle);
-  border-radius: var(--rs-radius);
+  border-radius: var(--site-panel-radius);
   overflow: hidden;
+  background: var(--site-panel-bg);
 }
 
 .doc-demo__code :deep(.rs-code-block) {

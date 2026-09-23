@@ -57,7 +57,7 @@ watchEffect(() => {
     <p v-else class="missing">{{ copy.missingDemo }}</p>
   </DocPage>
   <article v-else>
-    <h1>{{ copy.notFound }}</h1>
+    <h1 class="site-doc__title">{{ copy.notFound }}</h1>
   </article>
 </template>
 

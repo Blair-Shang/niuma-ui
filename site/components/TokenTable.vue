@@ -42,12 +42,8 @@ function rowDesc(row: TokenRow) {
 .token-table__wrap {
   overflow-x: auto;
   border: 1px solid var(--rs-border-subtle);
-  border-radius: var(--rs-radius);
-  background: var(--rs-surface);
-}
-
-:global([data-rs-theme='dark']) .token-table__wrap {
-  background: var(--rs-surface-elevated);
+  border-radius: var(--site-panel-radius, 1.05rem);
+  background: var(--site-panel-bg, var(--rs-surface));
 }
 
 table {

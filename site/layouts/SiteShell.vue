@@ -118,7 +118,7 @@ onUnmounted(() => {
 <style scoped>
 .shell {
   min-height: 100vh;
-  background: var(--site-canvas, var(--rs-bg));
+  background: var(--site-home-canvas, var(--site-canvas));
   color: var(--rs-text);
 }
 
@@ -126,8 +126,8 @@ onUnmounted(() => {
   background:
     radial-gradient(920px 460px at 8% -12%, color-mix(in srgb, var(--rs-primary) 20%, transparent), transparent 58%),
     radial-gradient(720px 380px at 96% 4%, color-mix(in srgb, var(--rs-primary) 12%, transparent), transparent 52%),
-    linear-gradient(color-mix(in srgb, var(--site-line) 80%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--site-line) 80%, transparent) 1px, transparent 1px),
+    linear-gradient(var(--site-home-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--site-home-grid) 1px, transparent 1px),
     var(--site-home-canvas, var(--site-canvas));
   background-size: auto, auto, 56px 56px, 56px 56px, auto;
 }
@@ -137,6 +137,10 @@ onUnmounted(() => {
   grid-template-columns: 16rem minmax(0, 1fr);
   align-items: start;
   min-height: calc(100vh - var(--site-header-h));
+  background:
+    radial-gradient(920px 460px at 8% -12%, color-mix(in srgb, var(--rs-primary) 20%, transparent), transparent 58%),
+    radial-gradient(720px 380px at 96% 4%, color-mix(in srgb, var(--rs-primary) 12%, transparent), transparent 52%),
+    var(--site-home-canvas, var(--site-canvas));
 }
 
 .shell__docs:has(.shell__toc) {
