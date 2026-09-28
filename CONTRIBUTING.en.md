@@ -47,20 +47,13 @@ Use your own git identity. Do not commit as Cursor or another bot account.
 
 ## Release
 
-1. Move `[Unreleased]` notes in [CHANGELOG.md](./CHANGELOG.md) under `## [X.Y.Z] - YYYY-MM-DD`.
-2. Set `package.json` `version`.
-3. After merge to `main`, create an **annotated** tag (the message appears in `git show vX.Y.Z`):
+1. Move `[Unreleased]` notes in [CHANGELOG.md](./CHANGELOG.md) under `## [X.Y.Z] - YYYY-MM-DD`. Prereleases use a hyphenated version such as `X.Y.Z-beta.1`.
+2. Set `package.json` `version` to that same number.
+3. Merge to `main`. **Release** reads the first `## [x.y.z]` in the changelog. It fails when that number differs from `package.json`, and it stops when `vX.Y.Z` already exists. For a new version it runs `pnpm test` and `pnpm build`, then creates an annotated tag (message `niuma-ui X.Y.Z` plus that changelog section, visible in `git show vX.Y.Z`) and pushes it.
+4. That tag push uses the Actions token, so it does not start other workflows. Release then starts **Publish** with `workflow_dispatch`: tests, `prepublishOnly` build of `dist/`, `pnpm publish`, and a **GitHub Release** from that CHANGELOG section. **Deploy Docs** publishes the docs site for the same commit when `main` is pushed. Stable versions use the npm dist-tag `latest`; hyphenated prereleases use `next`.
+5. When the tag is already on the remote but npm or the Release notes are missing: Actions → Publish → **Run workflow**, set `tag` (for example `v1.1.1`). Check `skip_npm` when only the notes need filling in.
 
-   ```bash
-   git tag -a vX.Y.Z -m "niuma-ui X.Y.Z
-
-   Copy the highlights for this version from CHANGELOG."
-   git push origin main
-   git push origin vX.Y.Z
-   ```
-
-4. GitHub Actions **Publish** runs tests, builds `dist/` via `prepublishOnly`, runs `pnpm publish`, and creates a **GitHub Release** from that CHANGELOG section.
-5. If a tag was pushed without Release notes: Actions → Publish → **Run workflow**, set `tag` (for example `v1.3.8`), check `skip_npm`.
+Pushing `vX.Y.Z` from a local checkout starts Publish directly.
 
 The repository needs a Secret named `NPM_TOKEN`.
 

@@ -6,6 +6,15 @@
 
 ## [Unreleased]
 
+## [2.1.5] - 2026-09-28
+
+### 变更
+
+- 发版：推到 `main` 后，**Release** 读取 changelog 第一条 `## [x.y.z]`（含 `x.y.z-beta.1` 这类预发布）。与 `package.json` 的 `version` 不一致则失败；`vX.Y.Z` 已存在则跳过。新版本先跑 `pnpm test` 和 `pnpm build`，再打附注 tag（说明是 `niuma-ui X.Y.Z` 加上该版本段落）。Actions 令牌推 tag 不会触发其它工作流，随后以 `workflow_dispatch` 启动 **Publish**（npm 与 GitHub Release）。同一提交的文档站仍由推 `main` 时的 **Deploy Docs** 部署。步骤见 `CONTRIBUTING.md`。
+
+### 修复
+
+- `RsMenu`：折叠后悬停弹出的子菜单，模板 ref 可能不是元素，`ResizeObserver.observe` 会抛错，浮层尺寸变化后不再重新摆放。ref 现在只保留 `HTMLElement`；定位和点击外部关闭也先确认是元素。
 
 ## [2.1.4] - 2026-09-23
 

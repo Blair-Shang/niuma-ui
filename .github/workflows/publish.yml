@@ -1,5 +1,6 @@
 name: Publish
 
+# 本机推 v* 会直接跑。Release 用 Actions 令牌打的 tag 不会触发这里，改由 workflow_dispatch 拉起。
 on:
   push:
     tags:

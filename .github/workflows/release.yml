@@ -1,0 +1,99 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(grep -m1 -E '^## \[[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?\]' CHANGELOG.md \
+            | sed -E 's/^## \[([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?)\].*/\1/')
+          if [[ -z "${VERSION}" ]]; then
+            echo "CHANGELOG.md has no ## [x.y.z] heading" >&2
+            exit 1
+          fi
+          PKG="$(node -p "require('./package.json').version")"
+          if [[ "${VERSION}" != "${PKG}" ]]; then
+            echo "CHANGELOG ${VERSION} != package.json ${PKG}" >&2
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          if git rev-parse --verify "refs/tags/v${VERSION}" >/dev/null 2>&1; then
+            echo "v${VERSION} already published"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup pnpm
+        if: steps.ver.outputs.skip != 'true'
+        uses: pnpm/action-setup@v5
+
+      - name: Setup Node.js
+        if: steps.ver.outputs.skip != 'true'
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        if: steps.ver.outputs.skip != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Test
+        if: steps.ver.outputs.skip != 'true'
+        run: pnpm test
+
+      - name: Build
+        if: steps.ver.outputs.skip != 'true'
+        run: pnpm build
+
+      - name: Tag and start Publish
+        if: steps.ver.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --tags origin "refs/tags/v${VERSION}" >/dev/null 2>&1; then
+            echo "v${VERSION} already published"
+            exit 0
+          fi
+          awk -v ver="${VERSION}" '
+            BEGIN { gsub(/[.]/, "\\.", ver) }
+            $0 ~ "^## \\[" ver "\\]" { found=1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          {
+            printf 'niuma-ui %s\n\n' "${VERSION}"
+            cat release-notes.md
+          } > tag-message.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${VERSION}" -F tag-message.md
+          git push origin "v${VERSION}"
+          # GITHUB_TOKEN 推上去的 tag 不会触发其它工作流，这里显式拉起 Publish。
+          gh workflow run publish.yml --ref main -f "tag=v${VERSION}"

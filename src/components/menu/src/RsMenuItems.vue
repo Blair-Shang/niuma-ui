@@ -160,12 +160,17 @@ function syncFlyoutTheme(el: HTMLElement | null) {
   flyoutTheme.value = themed instanceof HTMLElement ? themed.dataset.rsTheme : undefined
 }
 
+function setFlyoutEl(el: unknown) {
+  flyoutEl.value = el instanceof HTMLElement ? el : null
+}
+
 function placeFlyout() {
   if (typeof window === 'undefined' || !flyoutKey.value) return
   const trigger = triggerEls.get(flyoutKey.value)
   if (!trigger) return
   const anchor = trigger.getBoundingClientRect()
-  const measured = flyoutEl.value?.getBoundingClientRect()
+  const panel = flyoutEl.value
+  const measured = panel instanceof HTMLElement ? panel.getBoundingClientRect() : undefined
   flyoutBox.value = placeSidePopup(
     { top: anchor.top, left: anchor.left, height: anchor.height, width: anchor.width },
     {
@@ -192,7 +197,7 @@ function onDocPointerDown(event: PointerEvent) {
   if (!(target instanceof Node)) return
   const trigger = flyoutKey.value ? triggerEls.get(flyoutKey.value) : null
   if (trigger?.contains(target)) return
-  if (flyoutEl.value?.contains(target)) return
+  if (flyoutEl.value instanceof HTMLElement && flyoutEl.value.contains(target)) return
   closeFlyout()
 }
 
@@ -244,10 +249,11 @@ function openFlyout(key: string) {
   syncFlyoutTheme(trigger)
   attachOverlay()
   void nextTick(() => {
-    if (flyoutEl.value && typeof ResizeObserver !== 'undefined') {
+    const panel = flyoutEl.value
+    if (panel instanceof HTMLElement && typeof ResizeObserver !== 'undefined') {
       panelResize?.disconnect()
       panelResize = new ResizeObserver(() => requestPlace())
-      panelResize.observe(flyoutEl.value)
+      panelResize.observe(panel)
     }
     requestPlace()
   })
@@ -517,7 +523,7 @@ onBeforeUnmount(() => {
           </button>
           <Teleport v-if="flyoutKey === item.key" :to="portalTarget">
             <section
-              ref="flyoutEl"
+              :ref="setFlyoutEl"
               class="rs-menu__flyout"
               :aria-label="item.label"
               :data-rs-theme="flyoutTheme"

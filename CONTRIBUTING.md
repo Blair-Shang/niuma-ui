@@ -47,20 +47,13 @@ pnpm test:watch
 
 ## 发版
 
-1. 把变更写进 [CHANGELOG.md](./CHANGELOG.md) 的 `[Unreleased]`，再把它改成 `## [X.Y.Z] - YYYY-MM-DD`。
-2. 更新 `package.json` 的 `version`。
-3. 合并到 `main` 后打 **附注 tag**（说明会出现在 `git show vX.Y.Z`）：
+1. 把变更写进 [CHANGELOG.md](./CHANGELOG.md) 的 `[Unreleased]`，再把它改成 `## [X.Y.Z] - YYYY-MM-DD`。预发布写成 `X.Y.Z-beta.1` 这种带连字符的版本。
+2. 把 `package.json` 的 `version` 改成同一个号。
+3. 合并到 `main`。**Release** 读取 changelog 第一条 `## [x.y.z]`：与 `package.json` 不一致则失败；`vX.Y.Z` 已存在则结束。新版本先跑 `pnpm test` 和 `pnpm build`，再打附注 tag（说明是 `niuma-ui X.Y.Z` 加上该版本 changelog，能在 `git show vX.Y.Z` 里看到）并推送。
+4. 这次推 tag 用的是 Actions 令牌，不会连带触发别的工作流。Release 随后以 `workflow_dispatch` 启动 **Publish**：跑测试、`prepublishOnly` 构建 `dist/`、`pnpm publish`，并从 CHANGELOG 该版本段落生成 **GitHub Release**。同一提交的文档站由推 `main` 时的 **Deploy Docs** 部署。正式版打 npm dist-tag `latest`，带连字符的预发布打 `next`。
+5. tag 已经在远程、npm 或 Release 说明还没有：Actions → Publish → **Run workflow**，填写 `tag`（如 `v1.1.1`）。只补说明时勾选 `skip_npm`。
 
-   ```bash
-   git tag -a vX.Y.Z -m "niuma-ui X.Y.Z
-
-   从 CHANGELOG 复制本版本的修复/新增要点。"
-   git push origin main
-   git push origin vX.Y.Z
-   ```
-
-4. GitHub Actions **Publish** 会：跑测试、`prepublishOnly` 构建 `dist/`、`pnpm publish`，并从 CHANGELOG 该版本段落生成 **GitHub Release** 说明（npm 页面与 Releases 都能看到）。
-5. 已推过的 tag 若漏了 Release 说明：Actions → Publish → **Run workflow**，填写 `tag`（如 `v1.1.1`），勾选 `skip_npm`。
+本地补打 tag 时推 `vX.Y.Z` 即可，那次推送会直接跑 Publish。
 
 仓库需配置 Secret：`NPM_TOKEN`。
 

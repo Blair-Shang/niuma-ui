@@ -370,6 +370,41 @@ describe('RsMenu', () => {
     wrapper.unmount()
   })
 
+  it('observes the collapsed flyout element', async () => {
+    const observed: unknown[] = []
+    const Original = globalThis.ResizeObserver
+    class MockResizeObserver {
+      observe(target: unknown) {
+        observed.push(target)
+      }
+      disconnect() {}
+      unobserve() {}
+    }
+    globalThis.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver
+    const wrapper = mount(RsMenu, {
+      props: {
+        items: nestedItems,
+        modelValue: 'settings',
+        openKeys: [],
+        collapsed: true,
+      },
+      attachTo: document.body,
+    })
+    const parent = wrapper
+      .findAll('.rs-menu__item')
+      .find((btn) => btn.attributes('aria-label') === '工作区')
+    expect(parent).toBeDefined()
+    await parent!.trigger('mouseenter')
+    await nextTick()
+    await flushPromises()
+    expect(observed.length).toBeGreaterThan(0)
+    for (const target of observed) {
+      expect(target).toBeInstanceOf(HTMLElement)
+    }
+    wrapper.unmount()
+    globalThis.ResizeObserver = Original
+  })
+
   it('shows flyout submenu on hover when collapsed vertically', async () => {
     const wrapper = mount(RsMenu, {
       props: {
