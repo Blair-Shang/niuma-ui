@@ -633,6 +633,12 @@ function onWindowScroll(event: Event) {
   if (!open.value) return
   const target = event.target
   if (target instanceof Node && isInsideMenu(target)) return
+  // 只在触发器自己的滚动链上关闭。旁边面板（如 AI 流式输出）滚动不应取消这一侧的菜单。
+  const trigger = triggerEl.value
+  if (trigger && target instanceof Node) {
+    const movesTrigger = target.contains(trigger) || trigger.contains(target)
+    if (!movesTrigger) return
+  }
   restoreOnClose = false
   setOpen(false)
 }

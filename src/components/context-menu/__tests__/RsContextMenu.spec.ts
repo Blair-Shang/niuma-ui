@@ -11,6 +11,29 @@ describe('RsContextMenu', () => {
     { key: 'rename', label: '重命名', icon: 'pen-line' },
   ]
 
+  it('keeps the menu open when an unrelated pane scrolls', async () => {
+    const wrapper = mount(RsContextMenu, {
+      props: { items },
+      slots: { default: '<div class="trigger">Right click</div>' },
+      attachTo: document.body,
+    })
+    await wrapper.find('.trigger').trigger('contextmenu')
+    await flushPromises()
+    expect(document.body.querySelector('.rs-context-menu__content')).not.toBeNull()
+
+    const other = document.createElement('div')
+    document.body.appendChild(other)
+    other.dispatchEvent(new Event('scroll'))
+    await flushPromises()
+    expect(document.body.querySelector('.rs-context-menu__content')).not.toBeNull()
+
+    wrapper.element.dispatchEvent(new Event('scroll'))
+    await flushPromises()
+    expect(document.body.querySelector('.rs-context-menu__content')).toBeNull()
+    other.remove()
+    wrapper.unmount()
+  })
+
   it('opens menu on contextmenu', async () => {
     const wrapper = mount(RsContextMenu, {
       props: { items },
