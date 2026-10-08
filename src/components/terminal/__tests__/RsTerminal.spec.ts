@@ -8,6 +8,7 @@ import {
   findTerminalHttpLinks,
   isSafeTerminalLink,
   normalizeTerminalHexColor,
+  readTerminalThemeFromCss,
   resolveTerminalTheme,
   terminalCellIndexForString,
   terminalLinkCellRange,
@@ -136,6 +137,34 @@ describe('terminal-utils', () => {
     expect(demo).toContain('ls --color symlink')
     expect(demo).toContain('\x1b[01;36;40m')
     expect(demo).toContain('\x1b[40;31;01m')
+  })
+
+  it('samples a connected host and falls back to the document when the host is detached', () => {
+    document.documentElement.dataset.rsTheme = 'light'
+    const sampled: HTMLElement[] = []
+    const original = window.getComputedStyle.bind(window)
+    const spy = vi.spyOn(window, 'getComputedStyle').mockImplementation((elt) => {
+      if (elt instanceof HTMLElement && elt.parentElement) {
+        sampled.push(elt.parentElement)
+      }
+      return original(elt)
+    })
+    try {
+      const detached = document.createElement('div')
+      readTerminalThemeFromCss('light', detached)
+      expect(sampled.some((node) => node === detached)).toBe(false)
+      expect(sampled.some((node) => node === document.documentElement)).toBe(true)
+
+      sampled.length = 0
+      const island = document.createElement('div')
+      island.dataset.rsTheme = 'dark'
+      document.body.appendChild(island)
+      readTerminalThemeFromCss('dark', island)
+      expect(sampled.some((node) => node === island)).toBe(true)
+      island.remove()
+    } finally {
+      spy.mockRestore()
+    }
   })
 
   it('resolves document theme and a nested theme island', () => {
@@ -291,6 +320,43 @@ describe('RsTerminal', () => {
     onDataHandlers.at(-1)?.('ls')
     expect(wrapper.emitted('data')).toBeUndefined()
     wrapper.unmount()
+  })
+
+  it('does not rewrite an unchanged palette', async () => {
+    document.documentElement.dataset.rsTheme = 'light'
+    const wrapper = mount(RsTerminal, { attachTo: document.body })
+    await nextTick()
+    await nextTick()
+    const term = wrapper.vm.getTerminal()
+    expect(term).toBeTruthy()
+    const current = term!.options.theme
+    document.documentElement.setAttribute('data-rs-color-theme', 'noop-tick')
+    await nextTick()
+    expect(term!.options.theme).toBe(current)
+    wrapper.unmount()
+    document.documentElement.removeAttribute('data-rs-color-theme')
+  })
+
+  it('does not resample the palette while the host is outside the document', async () => {
+    document.documentElement.dataset.rsTheme = 'light'
+    const wrapper = mount(RsTerminal, { attachTo: document.body })
+    await nextTick()
+    await nextTick()
+    const term = wrapper.vm.getTerminal()
+    expect(term).toBeTruthy()
+    const sentinel = { foreground: '#112233' }
+    term!.options.theme = sentinel
+    wrapper.get('.rs-terminal').element.remove()
+    document.documentElement.setAttribute('data-rs-color-theme', 'hidden-tick')
+    await nextTick()
+    expect(term!.options.theme).toBe(sentinel)
+
+    document.body.appendChild(wrapper.get('.rs-terminal').element)
+    document.documentElement.setAttribute('data-rs-color-theme', 'shown-tick')
+    await nextTick()
+    expect(term!.options.theme).not.toBe(sentinel)
+    wrapper.unmount()
+    document.documentElement.removeAttribute('data-rs-color-theme')
   })
 
   it('drops the shared theme listener on unmount', async () => {

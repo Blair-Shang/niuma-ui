@@ -212,7 +212,9 @@ export function resolveTerminalTheme(
 }
 
 function pickThemeSource(mode: RsResolvedTerminalTheme, el?: HTMLElement | null): HTMLElement {
-  if (el && resolveTerminalTheme('auto', el) === mode) {
+  // keep-alive 把页签挪出文档后，宿主不再继承根上的 --rs-terminal-*。
+  // 继续从宿主采样会得到黑底，minimumContrastRatio 再把正文抬成灰色。
+  if (el?.isConnected && resolveTerminalTheme('auto', el) === mode) {
     return el
   }
   return themeSourceElement(mode)

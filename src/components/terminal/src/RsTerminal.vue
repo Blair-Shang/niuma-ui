@@ -4,7 +4,7 @@ import { SearchAddon } from '@xterm/addon-search'
 import type { ITheme } from '@xterm/xterm'
 import { Terminal } from '@xterm/xterm'
 import '@xterm/xterm/css/xterm.css'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
+import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import { useRsI18n } from '../../../composables/useRsI18n'
 import {
   readTerminalFontFamily,
@@ -372,11 +372,31 @@ function labelTerminalInput(): void {
   }
 }
 
+function terminalThemesEqual(current: ITheme | undefined, next: ITheme): boolean {
+  const prev = current ?? {}
+  const prevKeys = Object.keys(prev)
+  const nextKeys = Object.keys(next)
+  if (prevKeys.length !== nextKeys.length) {
+    return false
+  }
+  for (const key of nextKeys) {
+    if (prev[key as keyof ITheme] !== next[key as keyof ITheme]) {
+      return false
+    }
+  }
+  return true
+}
+
 function applyThemeToTerminal(): void {
   if (!terminal) {
     return
   }
-  terminal.options.theme = buildXtermTheme()
+  const next = buildXtermTheme()
+  // 赋 options.theme 会清对比度缓存并重画视口。调色板没变时不要写。
+  if (terminalThemesEqual(terminal.options.theme, next)) {
+    return
+  }
+  terminal.options.theme = next
 }
 
 function syncZebraRowStepFromDom(): void {
@@ -409,8 +429,18 @@ function attachWheelGuard(): void {
   })
 }
 
+/** 收起期间有人要求重读调色板。回到文档后再采，避免每次激活都重画。 */
+let themeRefreshPending = false
+
 function refreshResolvedTheme(): void {
-  resolvedThemeMode.value = resolveTerminalTheme(props.themeMode, hostEl.value)
+  const host = hostEl.value
+  // 页签被 keep-alive 收起后不在文档里，继承不到根上的令牌。先不写进 xterm。
+  if (host && !host.isConnected) {
+    themeRefreshPending = true
+    return
+  }
+  themeRefreshPending = false
+  resolvedThemeMode.value = resolveTerminalTheme(props.themeMode, host)
   applyThemeToTerminal()
 }
 
@@ -1073,6 +1103,18 @@ onMounted(async () => {
     if (alive && props.themeMode === 'auto') {
       refreshResolvedTheme()
     }
+  })
+})
+
+onActivated(() => {
+  if (!alive || !themeRefreshPending) {
+    return
+  }
+  void nextTick(() => {
+    if (!alive || !themeRefreshPending) {
+      return
+    }
+    refreshResolvedTheme()
   })
 })
 
