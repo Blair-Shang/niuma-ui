@@ -3,6 +3,7 @@ import {
   acquireDialogScrollLock,
   dialogTargetOwnsTab,
   inertDialogSiblings,
+  resolveRsConfirmContain,
   listDialogTabbables,
   resetDialogGuardsForTests,
   resolveRsDialogCssWidth,
@@ -87,6 +88,35 @@ describe('dialog guards', () => {
     expect(other.hasAttribute('inert') || other.inert).toBeFalsy()
     release()
     expect(other.hasAttribute('inert') || other.inert).toBeFalsy()
+  })
+
+  it('keeps viewport unless contain=container has a page target', () => {
+    expect(resolveRsConfirmContain(undefined, '#page')).toBe('viewport')
+    expect(resolveRsConfirmContain('viewport', '#page')).toBe('viewport')
+    expect(resolveRsConfirmContain('container', undefined)).toBe('viewport')
+    expect(resolveRsConfirmContain('container', 'body')).toBe('viewport')
+    expect(resolveRsConfirmContain('container', ' HTML ')).toBe('viewport')
+    expect(resolveRsConfirmContain('container', document.body)).toBe('viewport')
+    expect(resolveRsConfirmContain('container', '#page')).toBe('container')
+    const page = document.createElement('div')
+    expect(resolveRsConfirmContain('container', page)).toBe('container')
+  })
+
+  it('stops inert at the mount boundary so nodes outside stay usable', () => {
+    const outside = document.createElement('button')
+    const page = document.createElement('div')
+    const behind = document.createElement('button')
+    const layer = document.createElement('div')
+    page.append(behind, layer)
+    document.body.append(outside, page)
+    const release = inertDialogSiblings(layer, page)
+    expect(behind.hasAttribute('inert') || behind.inert).toBe(true)
+    expect(outside.hasAttribute('inert') || outside.inert).toBeFalsy()
+    expect(layer.hasAttribute('inert') || layer.inert).toBeFalsy()
+    release()
+    expect(behind.hasAttribute('inert') || behind.inert).toBeFalsy()
+    outside.remove()
+    page.remove()
   })
 
   it('lists tabbables and leaves editor Tab alone', () => {

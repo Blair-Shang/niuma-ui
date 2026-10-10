@@ -2288,9 +2288,9 @@ export const feedbackComponents: ComponentDoc[] = [
     group: 'feedback',
     summary: '危险或不可逆操作的确认。',
     description:
-      '根是原生 dialog，role 为 alertdialog，Teleport 到 body，不包 Reka，不调用 showModal。始终模态：锁焦点、挡住背后点击，默认锁 body 滚动。点遮罩不关闭。删除和不可逆操作用本组件，不要用 Dialog 页脚临时拼。命令式用 rsConfirm。',
+      '根是原生 dialog，Teleport 到 body，不包 Reka，不调用 showModal。默认盖住窗口：role 为 alertdialog，aria-modal 为 true，锁焦点，挡住背后点击，并锁 body 滚动。contain="container" 时 role 为 dialog，只挡住 teleportTo 指向的页面，页签栏仍可用。点遮罩不关闭。删除和不可逆操作用本组件，不要用 Dialog 页脚临时拼。命令式用 rsConfirm。',
     descriptionEn:
-      'The root is a native dialog with role alertdialog, teleported to body — no Reka, and it does not call showModal. It is always modal: focus is trapped, the page behind is blocked, and body scroll locks by default. A click on the overlay does not dismiss. Use this for delete and other irreversible actions. Use rsConfirm for the imperative API.',
+      'The root is a native dialog, teleported to body — no Reka, and it does not call showModal. The default covers the viewport: role is alertdialog, aria-modal is true, focus is trapped, the page behind is blocked, and body scroll locks. contain="container" uses role dialog and blocks only the teleportTo page, so the tab bar stays usable. A click on the overlay does not dismiss. Use this for delete and other irreversible actions. Use rsConfirm for the imperative API.',
     whenToUse: [
       '删除、断开、覆盖等必须明确确认的操作。',
       '只告诉用户一件事、一颗按钮时，把 showCancel 设为 false。',
@@ -2432,8 +2432,18 @@ export const feedbackComponents: ComponentDoc[] = [
       {
         name: 'teleportTo',
         type: 'string | HTMLElement | false',
-        description: '挂载目标。未传挂 body。false 就地渲染。与目标写在同一页时会等目标挂上再传送。',
-        descriptionEn: 'Mount target. Omitted mounts on body. false renders in place. A target in the same page is resolved after that page mounts.',
+        description: '只决定节点挂到哪里，不改变是否盖住窗口。未传挂 body。false 就地渲染。与目标写在同一页时会等目标挂上再传送。',
+        descriptionEn: 'Chooses the DOM parent only. It does not change whether the layer covers the viewport. Omitted mounts on body. false renders in place. A target in the same page is resolved after that page mounts.',
+      },
+      {
+        name: 'contain',
+        type: "'viewport' | 'container'",
+        default: "'viewport'",
+        defaultEn: "'viewport'",
+        description:
+          'viewport 盖住窗口，role 为 alertdialog，aria-modal 为 true，焦点困在框内，锁 body 滚动。container 只盖住 teleportTo 的页面节点：该节点不能是 body 或 html；若 position 为 static，打开期间临时设为 relative。role 为 dialog，aria-modal 为 false，Tab 可以到页签栏，只锁该容器的滚动。没有页面挂载点时退回 viewport。',
+        descriptionEn:
+          'viewport covers the window with role alertdialog, sets aria-modal, traps focus, and locks body scroll. container covers only the teleportTo page: the node cannot be body or html, and a static position becomes relative while open. Role is dialog, aria-modal is false, Tab can reach the tab bar, and only that container’s scroll locks. Without a page target it falls back to viewport.',
       },
       {
         name: 'closeOnEsc',
@@ -2448,8 +2458,8 @@ export const feedbackComponents: ComponentDoc[] = [
         type: 'boolean',
         default: 'true',
         defaultEn: 'true',
-        description: '锁 body 滚动并补滚动条宽度。嵌套时引用计数，最后一层关闭才恢复。',
-        descriptionEn: 'Lock body scroll and compensate the scrollbar gap. Nested layers share a refcount and restore when the last one closes.',
+        description: 'viewport 锁 body 滚动并补滚动条宽度，嵌套时引用计数，最后一层关闭才恢复。container 只把挂载容器的 overflow 设为 hidden，关闭后还原。',
+        descriptionEn: 'viewport locks body scroll, compensates the scrollbar gap, and uses a refcount so nested layers restore when the last one closes. container sets overflow:hidden on the mount node and restores it on close.',
       },
       {
         name: 'zIndex',
@@ -2565,15 +2575,15 @@ export const feedbackComponents: ComponentDoc[] = [
     faq: [
       {
         q: '和 Dialog 怎么选？',
-        a: '确认框是 alertdialog，用来做不可逆确认或单按钮提示。短表单和可拖的工作窗用 Dialog。',
+        a: '默认是 alertdialog，用来做不可逆确认或单按钮提示。contain="container" 时改为 dialog，因为页签栏仍可用。短表单和可拖的工作窗用 Dialog。',
         qEn: 'Confirm dialog or Dialog?',
-        aEn: 'A confirm dialog is an alertdialog for an irreversible choice or a single-button notice. Use Dialog for a short form or a draggable work window.',
+        aEn: 'The default is an alertdialog for an irreversible choice or a single-button notice. contain="container" uses role dialog because the tab bar stays usable. Use Dialog for a short form or a draggable work window.',
       },
       {
         q: '没铺遮罩为什么页面还不能点？',
-        a: '确认框始终模态。showOverlay 只负责涂暗。点遮罩不会关闭。',
+        a: '默认 viewport 是模态：showOverlay 只负责涂暗，点遮罩不会关闭。contain="container" 只挡住挂载页，aria-modal 为 false，页签栏仍可点。',
         qEn: 'Why is the page blocked when the overlay is off?',
-        aEn: 'A confirm dialog is always modal. showOverlay only paints the dim layer. Clicking it does not close.',
+        aEn: 'The default viewport mode is modal. showOverlay only paints the dim layer, and clicking it does not close. contain="container" blocks only the mounted page, sets aria-modal to false, and leaves the tab bar usable.',
       },
       {
         q: '两层一起开时 Esc 关了哪一层？',

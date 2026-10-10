@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { defineComponent, h, ref } from 'vue'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import RsConfigProvider from '../../config-provider/src/RsConfigProvider.vue'
 import RsConfirmDialog from '../src/RsConfirmDialog.vue'
@@ -318,9 +318,11 @@ describe('RsConfirmDialog', () => {
   })
 
   it('mounts portal into custom target via teleportTo', async () => {
+    const outside = document.createElement('button')
+    outside.type = 'button'
     const target = document.createElement('div')
     target.id = 'rs-confirm-target'
-    document.body.appendChild(target)
+    document.body.append(outside, target)
 
     const wrapper = mount(RsConfirmDialog, {
       props: {
@@ -332,8 +334,144 @@ describe('RsConfirmDialog', () => {
     })
 
     await flushPromises()
-    expect(target.querySelector('.rs-confirm-dialog__content')).not.toBeNull()
+    const content = target.querySelector('.rs-confirm-dialog__content')
+    expect(content).not.toBeNull()
+    expect(content?.getAttribute('aria-modal')).toBe('true')
+    expect(target.querySelector('.rs-confirm-dialog--container')).toBeNull()
+    expect(outside.hasAttribute('inert')).toBe(true)
+    const confirmBtn = target.querySelector(
+      '.rs-confirm-dialog__footer button:last-of-type',
+    ) as HTMLElement
+    confirmBtn.focus()
+    const tabKey = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+    document.dispatchEvent(tabKey)
+    expect(tabKey.defaultPrevented).toBe(true)
     wrapper.unmount()
+    outside.remove()
+    target.remove()
+  })
+
+  it('covers only the page when contain is container', async () => {
+    const tab = document.createElement('button')
+    tab.type = 'button'
+    const page = document.createElement('div')
+    page.id = 'rs-confirm-page'
+    const behind = document.createElement('button')
+    behind.type = 'button'
+    page.append(behind)
+    document.body.append(tab, page)
+    document.body.style.overflow = 'scroll'
+
+    const wrapper = mount(RsConfirmDialog, {
+      props: {
+        open: true,
+        title: '页内确认',
+        teleportTo: '#rs-confirm-page',
+        contain: 'container',
+      },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const content = page.querySelector('.rs-confirm-dialog__content')
+    expect(page.querySelector('.rs-confirm-dialog--container')).not.toBeNull()
+    expect(content?.getAttribute('role')).toBe('dialog')
+    expect(content?.getAttribute('aria-modal')).toBe('false')
+    expect(behind.hasAttribute('inert')).toBe(true)
+    expect(tab.hasAttribute('inert')).toBe(false)
+    expect(document.body.style.overflow).toBe('scroll')
+    expect(page.style.overflow).toBe('hidden')
+    expect(page.style.position).toBe('relative')
+
+    const confirmBtn = page.querySelector(
+      '.rs-confirm-dialog__footer button:last-of-type',
+    ) as HTMLElement
+    confirmBtn.focus()
+    const tabKey = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+    document.dispatchEvent(tabKey)
+    expect(tabKey.defaultPrevented).toBe(false)
+
+    wrapper.unmount()
+    expect(behind.hasAttribute('inert')).toBe(false)
+    expect(page.style.overflow).toBe('')
+    expect(page.style.position).toBe('')
+    tab.remove()
+    page.remove()
+  })
+
+  it('falls back to the viewport when contain=container has no page target', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const probe = document.createElement('button')
+    probe.type = 'button'
+    document.body.appendChild(probe)
+
+    const wrapper = mount(RsConfirmDialog, {
+      props: {
+        open: true,
+        title: '退回窗口',
+        contain: 'container',
+      },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    expect(document.body.querySelector('.rs-confirm-dialog--container')).toBeNull()
+    expect(document.body.querySelector('.rs-confirm-dialog__content')?.getAttribute('aria-modal')).toBe(
+      'true',
+    )
+    expect(probe.hasAttribute('inert')).toBe(true)
+    if (import.meta.env.DEV) {
+      expect(warn).toHaveBeenCalled()
+    }
+    wrapper.unmount()
+    warn.mockRestore()
+    probe.remove()
+  })
+
+  it('releases scroll lock and inert when a KeepAlive page hides an open confirm', async () => {
+    const probe = document.createElement('button')
+    probe.type = 'button'
+    document.body.appendChild(probe)
+    document.body.style.overflow = 'scroll'
+
+    const show = ref(true)
+    const events: string[] = []
+    const Page = defineComponent({
+      name: 'RsConfirmKeepAlivePage',
+      components: { RsConfirmDialog },
+      setup() {
+        return { onCancel: () => events.push('cancel') }
+      },
+      template: '<RsConfirmDialog open title="缓存页确认" @cancel="onCancel" />',
+    })
+    const Host = defineComponent({
+      components: { Page },
+      setup() {
+        return { show }
+      },
+      template: '<KeepAlive><Page v-if="show" /></KeepAlive>',
+    })
+    const wrapper = mount(Host, { attachTo: document.body })
+    await flushPromises()
+    expect(document.body.querySelector('.rs-confirm-dialog__content')).not.toBeNull()
+    expect(document.body.style.overflow).toBe('hidden')
+    expect(probe.hasAttribute('inert')).toBe(true)
+
+    show.value = false
+    await flushPromises()
+    expect(document.body.querySelector('.rs-confirm-dialog__content')).toBeNull()
+    expect(document.body.style.overflow).toBe('scroll')
+    expect(probe.hasAttribute('inert')).toBe(false)
+    expect(events).toEqual([])
+
+    show.value = true
+    await flushPromises()
+    expect(document.body.querySelector('.rs-confirm-dialog__content')).not.toBeNull()
+    expect(document.body.style.overflow).toBe('hidden')
+    expect(probe.hasAttribute('inert')).toBe(true)
+
+    wrapper.unmount()
+    expect(document.body.style.overflow).toBe('scroll')
+    expect(probe.hasAttribute('inert')).toBe(false)
+    probe.remove()
   })
 
   it('hides cancel button when showCancel is false', async () => {

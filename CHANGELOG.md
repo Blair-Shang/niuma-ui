@@ -6,6 +6,15 @@
 
 ## [Unreleased]
 
+## [2.1.8] - 2026-10-10
+
+### 修复
+
+- `RsDialog` / `RsConfirmDialog`：外壳从 `display: contents` 改为真正的定位盒子，层叠用 `--rs-z-modal`。`display: contents` 不生成盒子，`position: fixed` 的遮罩和面板会留在编辑区、分割栏的 `isolation` 里，后绘的侧栏会盖住对话框。壳层不接收点击，遮罩和面板自己接收。不传 `teleportTo` 时仍挂到 `body`，盖住整个窗口。props、事件、插槽不变。
+
+### 变更
+
+- `RsConfirmDialog`：`teleportTo` 仍只决定节点挂到哪里，不改变是否盖住窗口。新增 `contain`，默认 `viewport`：`role` 为 `alertdialog`，`aria-modal` 为 `true`，焦点困在框内，锁 `body` 滚动。`contain="container"` 且 `teleportTo` 指向页面节点时，只挡住该页：`role` 为 `dialog`，`aria-modal` 为 `false`，Tab 可以到页签栏，只锁该容器的滚动；节点若是 `static`，打开期间临时设为 `relative`，关闭后还原。没有页面挂载点（省略、`body`、`html`）时退回 `viewport`，开发环境警告。页面在 KeepAlive 里被藏起时卸掉浮层、滚动锁和 `inert`，不发 `cancel`，切回来再挂上。命令式 `rsConfirm` 可传 `contain`。公开类型 `RsConfirmContain`。
 
 ## [2.1.7] - 2026-10-08
 

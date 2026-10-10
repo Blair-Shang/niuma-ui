@@ -1,9 +1,21 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, useId, watch, type Component } from 'vue'
+import {
+  computed,
+  nextTick,
+  onActivated,
+  onBeforeUnmount,
+  onDeactivated,
+  ref,
+  useId,
+  watch,
+  type Component,
+} from 'vue'
 import RsButton from '../../button/src/RsButton.vue'
 import { useRsI18n } from '../../../composables/useRsI18n'
 import {
+  acquireContainerScrollLock,
   acquireDialogScrollLock,
+  pinDialogContainer,
   claimDialogInert,
   dialogLayerTick,
   isRsDialogWidthPreset,
@@ -14,6 +26,8 @@ import {
   releaseDialogInert,
   removeDialogLayer,
   resolveDialogOverlayStyle,
+  resolveRsConfirmContain,
+  type RsConfirmContain,
   resolveDialogTabTarget,
   resolveRsDialogCssWidth,
   runRsConfirmBeforeClose,
@@ -55,11 +69,27 @@ const props = withDefaults(
     overlayOpacity?: number
     /** 遮罩模糊；number 为 px。默认主题为 0 */
     overlayBlur?: number | string
-    /** 挂载目标；false 禁用 Teleport */
+    /**
+     * 挂载目标。只决定节点挂到哪里，不改变是否盖住窗口。
+     * - undefined：挂到 body。
+     * - string / HTMLElement：挂到该节点。
+     * - false：禁用 Teleport，就地渲染。
+     *
+     * 页面在 KeepAlive 里被藏起时卸掉浮层并放开 inert，切回来再挂上。
+     */
     teleportTo?: string | HTMLElement | false
+    /**
+     * 呈现范围。
+     * - viewport（默认）：position:fixed，盖住窗口。aria-modal 为 true，焦点困在框内，锁 body 滚动。
+     * - container：只盖住 teleportTo 指向的页面。该节点不能是 body / html。
+     *   打开时若 position 为 static，临时设为 relative，关闭后还原。
+     *   role 为 dialog，aria-modal 为 false，Tab 可以离开到页签栏，只锁该容器的滚动。
+     *   没有页面挂载点时退回 viewport，开发环境会警告。
+     */
+    contain?: RsConfirmContain
     /** Esc 关闭。确认中无效。只作用于最上层。 */
     closeOnEsc?: boolean
-    /** 模态时锁 body 滚动。默认 true。 */
+    /** viewport 锁 body 滚动；container 只锁挂载容器。默认 true。 */
     lockScroll?: boolean
     /** 覆盖 --rs-z-modal。遮罩用该值，面板 +1。 */
     zIndex?: number
@@ -74,6 +104,7 @@ const props = withDefaults(
     confirmLoading: false,
     autoCloseOnConfirm: true,
     showOverlay: false,
+    contain: 'viewport',
     closeOnEsc: true,
     lockScroll: true,
   },
@@ -105,6 +136,7 @@ let closeGeneration = 0
 let closeFromInside: RsConfirmCloseReason | null = null
 let keyBound = false
 let releaseScroll: (() => void) | null = null
+let releasePosition: (() => void) | null = null
 let returnTo: HTMLElement | null = null
 let inertGeneration = 0
 
@@ -119,6 +151,8 @@ function zIndexStyle(offset: number): Record<string, string> | undefined {
   if (props.zIndex == null || !Number.isFinite(props.zIndex)) return undefined
   return { zIndex: String(Math.round(props.zIndex) + offset) }
 }
+
+const shellStyle = computed(() => zIndexStyle(0))
 
 const overlayStyle = computed(() => {
   const visual = props.showOverlay
@@ -168,6 +202,15 @@ const teleportTarget = computed(() => {
   return target
 })
 
+/** contain="container" 且挂载点是页面节点。否则仍盖住窗口。 */
+const contained = computed(
+  () => resolveRsConfirmContain(props.contain, props.teleportTo) === 'container',
+)
+
+/** KeepAlive 切走时为 false。必须在 open 的 immediate watch 之前声明。 */
+const pageActive = ref(true)
+let presentedSuspended = false
+
 function syncChrome(): void {
   const el = anchorRef.value
   if (!el) {
@@ -185,28 +228,52 @@ function syncChrome(): void {
   panelLang.value = langed?.getAttribute('lang') || undefined
 }
 
-function syncScrollLock(): void {
-  const should = open.value && props.lockScroll
-  if (should && !releaseScroll) {
-    releaseScroll = acquireDialogScrollLock()
+function releaseContainHost(): void {
+  releasePosition?.()
+  releasePosition = null
+}
+
+function syncContainHost(): void {
+  if (!contained.value || !open.value || !pageActive.value) {
+    releaseContainHost()
     return
   }
-  if (!should && releaseScroll) {
-    releaseScroll()
+  const host = shellRef.value?.parentElement
+  if (!host || releasePosition) return
+  releasePosition = pinDialogContainer(host)
+}
+
+function syncScrollLock(): void {
+  const should = open.value && pageActive.value && props.lockScroll
+  if (!should) {
+    releaseScroll?.()
     releaseScroll = null
+    return
   }
+  if (releaseScroll) return
+  if (contained.value) {
+    const host = shellRef.value?.parentElement
+    if (!host) return
+    releaseScroll = acquireContainerScrollLock(host)
+    return
+  }
+  releaseScroll = acquireDialogScrollLock()
 }
 
 async function syncInert(): Promise<void> {
   const generation = ++inertGeneration
   await nextTick()
   if (disposed || generation !== inertGeneration) return
-  const top = open.value && isTopDialogLayer(layerId)
+  const top = open.value && pageActive.value && isTopDialogLayer(layerId)
   if (!top || !shellRef.value) {
     releaseDialogInert(layerId)
+    releaseContainHost()
     return
   }
-  claimDialogInert(layerId, shellRef.value)
+  syncContainHost()
+  syncScrollLock()
+  const boundary = contained.value ? shellRef.value.parentElement : null
+  claimDialogInert(layerId, shellRef.value, boundary)
 }
 
 function bindKey(): void {
@@ -301,7 +368,7 @@ function onDocumentKeydown(event: KeyboardEvent): void {
     void requestClose('escape')
     return
   }
-  if (event.key !== 'Tab' || dialogTargetOwnsTab(event.target)) return
+  if (event.key !== 'Tab' || contained.value || dialogTargetOwnsTab(event.target)) return
   const root = contentRef.value
   if (!root) return
   const target = resolveDialogTabTarget(root, document.activeElement, event.shiftKey)
@@ -323,6 +390,7 @@ function finishClose(wasOpen: boolean): void {
   syncScrollLock()
   inertGeneration += 1
   releaseDialogInert(layerId)
+  releaseContainHost()
   if (!wasOpen) return
   const reason = closeFromInside
   closeFromInside = null
@@ -353,10 +421,51 @@ async function onCancelClick(): Promise<void> {
   await requestClose('cancel')
 }
 
+/**
+ * KeepAlive 切走页签时卸掉浮层，并放开滚动锁、inert 和 document 监听。
+ * open 保持为 true，切回来再挂上，不把这次切换当成取消。
+ */
+function suspendPresentedDialog(): void {
+  if (presentedSuspended || !open.value || disposed) return
+  presentedSuspended = true
+  removeDialogLayer(layerId)
+  unbindKey()
+  releaseScroll?.()
+  releaseScroll = null
+  releaseContainHost()
+  inertGeneration += 1
+  releaseDialogInert(layerId)
+}
+
+function resumePresentedDialog(): void {
+  if (!presentedSuspended || disposed) return
+  presentedSuspended = false
+  if (!open.value || !pageActive.value) return
+  syncChrome()
+  pushDialogLayer(layerId)
+  bindKey()
+  syncScrollLock()
+  void syncInert()
+  queueFocus()
+}
+
+onActivated(() => {
+  pageActive.value = true
+  resumePresentedDialog()
+})
+onDeactivated(() => {
+  pageActive.value = false
+  suspendPresentedDialog()
+})
+
 watch(
   open,
   (isOpen, wasOpen) => {
     if (isOpen) {
+      if (!pageActive.value) {
+        presentedSuspended = true
+        return
+      }
       if (wasOpen !== true) {
         rememberTrigger()
         syncChrome()
@@ -368,6 +477,7 @@ watch(
       void syncInert()
       return
     }
+    presentedSuspended = false
     if (wasOpen === true && closeFromInside == null) {
       void vetoParentClose()
       return
@@ -377,10 +487,38 @@ watch(
   { immediate: true },
 )
 
+if (import.meta.env.DEV) {
+  watch(
+    () => [props.contain, props.teleportTo] as const,
+    () => {
+      if (
+        props.contain === 'container' &&
+        resolveRsConfirmContain(props.contain, props.teleportTo) === 'viewport'
+      ) {
+        console.warn(
+          '[RsConfirmDialog] contain="container" 需要 teleportTo 指向页面节点，不能省略，也不能是 body 或 html。已按 viewport 呈现。',
+        )
+      }
+    },
+    { immediate: true },
+  )
+}
+
+watch(
+  () => [props.contain, props.teleportTo] as const,
+  () => {
+    if (!open.value || !pageActive.value || disposed) return
+    releaseScroll?.()
+    releaseScroll = null
+    releaseContainHost()
+    void syncInert()
+  },
+)
+
 watch(
   () => [props.lockScroll, dialogLayerTick.value] as const,
   () => {
-    if (!open.value || disposed) return
+    if (!open.value || !pageActive.value || disposed) return
     syncScrollLock()
     void syncInert()
   },
@@ -394,6 +532,7 @@ onBeforeUnmount(() => {
   unbindKey()
   releaseScroll?.()
   releaseScroll = null
+  releaseContainHost()
   releaseDialogInert(layerId)
 })
 
@@ -405,10 +544,12 @@ defineExpose({
 
 <template>
   <span ref="anchorRef" hidden class="rs-confirm-dialog__anchor" aria-hidden="true" />
-  <Teleport v-if="open" defer :to="teleportTarget" :disabled="teleportDisabled">
+  <Teleport v-if="open && pageActive" defer :to="teleportTarget" :disabled="teleportDisabled">
     <div
       ref="shellRef"
       class="rs-confirm-dialog"
+      :class="{ 'rs-confirm-dialog--container': contained }"
+      :style="shellStyle"
       :data-rs-theme="panelTheme"
       :dir="panelDir"
       :lang="panelLang"
@@ -426,8 +567,8 @@ defineExpose({
         class="rs-confirm-dialog__content"
         :class="contentClass"
         :style="contentStyle"
-        role="alertdialog"
-        aria-modal="true"
+        :role="contained ? 'dialog' : 'alertdialog'"
+        :aria-modal="contained ? 'false' : 'true'"
         :aria-labelledby="labelledBy"
         :aria-label="accessibleName"
         :aria-describedby="hasDescribedBy ? descriptionDomId : undefined"
@@ -496,7 +637,24 @@ defineExpose({
 
 <style scoped>
 .rs-confirm-dialog {
-  display: contents;
+  /* 必须生成盒子并占住根层叠上下文。display:contents 会让 fixed 子节点留在
+     祖先 isolation（编辑区 / 分割栏）里，后绘的 AI 面板会盖住确认框。 */
+  position: fixed;
+  inset: 0;
+  z-index: var(--rs-z-modal);
+  pointer-events: none;
+}
+.rs-confirm-dialog--container {
+  position: absolute;
+}
+.rs-confirm-dialog--container .rs-confirm-dialog__backdrop,
+.rs-confirm-dialog--container .rs-confirm-dialog__content {
+  position: absolute;
+}
+.rs-confirm-dialog--container .rs-confirm-dialog__content {
+  top: 50%;
+  max-height: calc(100% - 2rem);
+  width: calc(100% - 2 * var(--rs-dialog-inset-x, 1rem));
 }
 .rs-confirm-dialog__anchor {
   display: none;
@@ -505,6 +663,7 @@ defineExpose({
   position: fixed;
   inset: 0;
   z-index: var(--rs-z-modal);
+  pointer-events: auto;
   background: transparent;
 }
 .rs-confirm-dialog__overlay {
@@ -520,6 +679,7 @@ defineExpose({
       (100vh - var(--rs-dialog-inset-top, 1rem) - var(--rs-dialog-inset-bottom, 1rem)) / 2
   );
   z-index: calc(var(--rs-z-modal) + 1);
+  pointer-events: auto;
   display: flex;
   gap: var(--rs-space-lg);
   width: calc(100vw - 2 * var(--rs-dialog-inset-x, 1rem));

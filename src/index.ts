@@ -169,6 +169,7 @@ export type {
 export type {
   RsConfirmBeforeClose,
   RsConfirmCloseReason,
+  RsConfirmContain,
   RsConfirmDialogExpose,
   RsConfirmDialogInstance,
   RsConfirmOptions,

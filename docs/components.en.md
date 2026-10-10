@@ -364,7 +364,7 @@ Stable `Rs*` components. Per-prop APIs live on the docs site. Additions must upd
 |-----------|------|------|
 | `RsTooltip` / `RsTooltipProvider` | Tooltip; native trigger + Teleport, no Reka; hover / keyboard focus, collision flip | `#/components/tooltip` |
 | `RsPopover` | Popover; merged trigger props + Teleport, no Reka | `#/components/popover` |
-| `RsDialog` / `RsConfirmDialog` | Dialog and confirm dialog: native dialog + Teleport, no Reka. Confirm is an alertdialog | `#/components/dialog`, `#/components/confirm-dialog` |
+| `RsDialog` / `RsConfirmDialog` | Dialog and confirm dialog: native dialog + Teleport, no Reka. Confirm defaults to alertdialog; contain=container uses dialog | `#/components/dialog`, `#/components/confirm-dialog` |
 | `RsDrawer` | Drawer; native dialog + Teleport, no Reka; four edges, resize, modal focus trap | `#/components/drawer` |
 | `RsContextMenu` | Context menu | `#/components/context-menu` |
 | `RsToaster` | Toast host; native region + Teleport, no Reka / vue-sonner (`useRsToast`) | `#/components/toaster` |

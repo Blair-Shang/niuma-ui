@@ -294,6 +294,8 @@ function queueAfterOpen(): void {
   }, 230)
 }
 
+const shellStyle = computed(() => zIndexStyle(0))
+
 function zIndexStyle(offset: number): Record<string, string> | undefined {
   if (props.zIndex == null || !Number.isFinite(props.zIndex)) return undefined
   return { zIndex: String(Math.round(props.zIndex) + offset) }
@@ -711,6 +713,7 @@ defineExpose({
     <div
       ref="shellRef"
       class="rs-dialog"
+      :style="shellStyle"
       :data-rs-theme="panelTheme"
       :dir="panelDir"
       :lang="panelLang"
@@ -827,7 +830,12 @@ defineExpose({
 
 <style scoped>
 .rs-dialog {
-  display: contents;
+  /* 必须生成盒子并占住根层叠上下文。display:contents 会让 fixed 子节点留在
+     祖先 isolation（编辑区 / 分割栏）里，后绘的侧栏会盖住对话框。 */
+  position: fixed;
+  inset: 0;
+  z-index: var(--rs-z-modal);
+  pointer-events: none;
 }
 .rs-dialog__anchor {
   display: none;
@@ -836,6 +844,7 @@ defineExpose({
   position: fixed;
   inset: 0;
   z-index: var(--rs-z-modal);
+  pointer-events: auto;
   background: transparent;
 }
 .rs-dialog__overlay {
@@ -852,6 +861,7 @@ defineExpose({
       (100vh - var(--rs-dialog-inset-top, 1rem) - var(--rs-dialog-inset-bottom, 1rem)) / 2
   );
   z-index: calc(var(--rs-z-modal) + 1);
+  pointer-events: auto;
   display: flex;
   max-height: min(
     calc(100vh - var(--rs-dialog-inset-top, 1rem) - var(--rs-dialog-inset-bottom, 1rem) - 2rem),

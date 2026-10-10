@@ -222,6 +222,7 @@ function rsConfirmCore(options: RsConfirmOptions = {}): Promise<RsConfirmResult>
             overlayOpacity: options.overlayOpacity,
             overlayBlur: options.overlayBlur,
             teleportTo: options.teleportTo === false ? false : options.teleportTo,
+            contain: options.contain,
             onConfirm: () => {
               if (!hasAsyncConfirm) {
                 confirmed = true

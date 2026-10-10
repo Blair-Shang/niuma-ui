@@ -110,6 +110,35 @@ export interface RsConfirmDialogExpose {
 
 export type RsConfirmDialogInstance = RsConfirmDialogExpose
 
+/** viewport 盖住窗口；container 只盖住 teleportTo 指向的页面。 */
+export type RsConfirmContain = 'viewport' | 'container'
+
+/** 挂载点是窗口根，不能当作页内容器。 */
+export function isRsConfirmWindowTarget(
+  target: string | HTMLElement | false | null | undefined,
+): boolean {
+  if (target == null || target === false) return true
+  if (typeof target === 'string') {
+    const sel = target.trim().toLowerCase()
+    return sel === 'body' || sel === 'html'
+  }
+  if (typeof document === 'undefined') return false
+  return target === document.body || target === document.documentElement
+}
+
+/**
+ * contain="container" 且挂载点不是页面节点时退回 viewport。
+ * 不在这里警告，避免计算属性产生副作用。
+ */
+export function resolveRsConfirmContain(
+  contain: RsConfirmContain | undefined,
+  teleportTo: string | HTMLElement | false | null | undefined,
+): RsConfirmContain {
+  if (contain !== 'container') return 'viewport'
+  if (isRsConfirmWindowTarget(teleportTo)) return 'viewport'
+  return 'container'
+}
+
 export interface RsConfirmOptions {
   title?: string
   /** 次要说明（标题与正文之间，对应业务侧常见 subtitle） */
@@ -154,6 +183,11 @@ export interface RsConfirmOptions {
   overlayBlur?: number | string
   /** false 表示禁用 Teleport，就地渲染 */
   teleportTo?: string | HTMLElement | false
+  /**
+   * 呈现范围。teleportTo 只决定挂载点。
+   * viewport 盖住窗口；container 只盖住 teleportTo 指向的页面节点。
+   */
+  contain?: RsConfirmContain
   /** 命令式挂载时覆盖主题；默认读 document data-rs-theme */
   theme?: RsThemeMode
   /** 命令式挂载时覆盖语言；默认读 document data-rs-locale */
@@ -276,6 +310,8 @@ export function isTopDialogLayer(id: string): boolean {
 
 let scrollLockCount = 0
 let scrollLockSnapshot: { overflow: string; paddingInlineEnd: string } | null = null
+const containerScrollLocks = new Map<HTMLElement, { count: number; overflow: string }>()
+const containerPositionPins = new Map<HTMLElement, { count: number; position: string }>()
 
 /**
  * 模态层锁 body 滚动，并补上滚动条宽度，避免页面横跳。
@@ -309,6 +345,57 @@ export function acquireDialogScrollLock(): () => void {
   }
 }
 
+/**
+ * contain="container" 时只锁挂载容器，不锁 body。
+ * 同一容器上的嵌套确认框引用计数，最后一层关闭才还原 overflow。
+ */
+export function acquireContainerScrollLock(el: HTMLElement): () => void {
+  let entry = containerScrollLocks.get(el)
+  if (!entry) {
+    entry = { count: 0, overflow: el.style.overflow }
+    containerScrollLocks.set(el, entry)
+    el.style.overflow = 'hidden'
+  }
+  entry.count += 1
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    const current = containerScrollLocks.get(el)
+    if (!current) return
+    current.count -= 1
+    if (current.count > 0) return
+    el.style.overflow = current.overflow
+    containerScrollLocks.delete(el)
+  }
+}
+
+/**
+ * 容器是 static 时，绝对定位会爬到外层。打开期间临时改为 relative，关闭后还原。
+ * 已经是定位容器时不改 inline style。同一容器引用计数。
+ */
+export function pinDialogContainer(el: HTMLElement): () => void {
+  let entry = containerPositionPins.get(el)
+  if (!entry) {
+    const computed = typeof getComputedStyle === 'function' ? getComputedStyle(el).position : 'static'
+    entry = { count: 0, position: el.style.position }
+    containerPositionPins.set(el, entry)
+    if (computed === 'static') el.style.position = 'relative'
+  }
+  entry.count += 1
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    const current = containerPositionPins.get(el)
+    if (!current) return
+    current.count -= 1
+    if (current.count > 0) return
+    el.style.position = current.position
+    containerPositionPins.delete(el)
+  }
+}
+
 function markInert(el: HTMLElement, value: boolean): void {
   if (value) {
     el.setAttribute('inert', '')
@@ -337,8 +424,9 @@ function markInertSiblings(parent: HTMLElement, current: HTMLElement, touched: H
  * 把对话框外壳的兄弟（以及祖先的兄弟）标成 inert，背后内容不可点、不可 Tab。
  * 不 inert body 本身，否则 Teleport 进去的对话框也会被冻住。
  * 已经 inert 的节点不动，释放时也不会被我们解开。
+ * boundary 给出时，标完该节点内部的兄弟就停，页签栏等外层仍可切换。
  */
-export function inertDialogSiblings(layer: HTMLElement): () => void {
+export function inertDialogSiblings(layer: HTMLElement, boundary?: HTMLElement | null): () => void {
   if (typeof document === 'undefined' || !layer.parentElement) return () => {}
   const touched: HTMLElement[] = []
   let current: HTMLElement | null = layer
@@ -346,6 +434,7 @@ export function inertDialogSiblings(layer: HTMLElement): () => void {
     const parent: HTMLElement | null = current.parentElement
     if (!parent) break
     markInertSiblings(parent, current, touched)
+    if (boundary && parent === boundary) break
     current = parent
   }
   let released = false
@@ -360,9 +449,13 @@ let inertRelease: (() => void) | null = null
 let inertOwner: string | null = null
 
 /** 只有最上层模态对话框持有 inert。别人释放不会清掉当前层。 */
-export function claimDialogInert(ownerId: string, layer: HTMLElement): void {
+export function claimDialogInert(
+  ownerId: string,
+  layer: HTMLElement,
+  boundary?: HTMLElement | null,
+): void {
   inertRelease?.()
-  inertRelease = inertDialogSiblings(layer)
+  inertRelease = inertDialogSiblings(layer, boundary)
   inertOwner = ownerId
 }
 
@@ -386,4 +479,6 @@ export function resetDialogGuardsForTests(): void {
     document.body.style.paddingInlineEnd = scrollLockSnapshot.paddingInlineEnd
   }
   scrollLockSnapshot = null
+  containerScrollLocks.clear()
+  containerPositionPins.clear()
 }
